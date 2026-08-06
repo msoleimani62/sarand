@@ -107,3 +107,11 @@ This is a from-scratch architectural rebuild (Phase 1–3 of the roadmap). Built
 pip uninstall sarand --break-system-packages
 rm -rf ~/.config/sarand   # remove persisted config (Linux)
 ```
+
+## Troubleshooting
+
+**`externally-managed-environment` error even after activating the venv:**
+Some venvs created by `uv venv` intentionally ship without `pip` (uv manages
+packages itself). Install it once with:
+~/.venv/bin/python -m ensurepip --upgrade
+Then `pip install <pkg>` works normally inside that venv from then on.
