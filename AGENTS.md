@@ -329,7 +329,7 @@ decoration on every heading.
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented** — 42 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`. Verified with a stdlib-only collector (no network to install pytest in the build sandbox); a real `pytest` run against this suite on the maintainer's machine has not yet been confirmed — do that before trusting it fully in CI |
+| Automated test suite (pytest) | **Implemented and confirmed** — 42 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`. Real `pytest -v` run on the maintainer's device: 42/42 passed, including the Rust-vs-Python cross-check (`test_rust_and_python_paths_agree_on_fixture_project`) — confirms the §4.5 fallback contract holds on real hardware, not just in theory |
 | `--security` checks | Not implemented (flag exists, prints a warning and no-ops) |
 | Secrets exclusion from reports (§4.10) | **Not implemented — do this alongside Phase B** |
 | `sarand doctor` command (§4.11) | Not implemented |
@@ -361,11 +361,11 @@ When principles conflict, resolve the conflict in this order:
 
 ## 8. Roadmap (in priority order)
 
-### Phase A — Test suite ✅ done, confirm with real `pytest` next
+### Phase A — Test suite ✅ done, confirmed with real `pytest`
 
 `tests/` exists with pytest-compatible coverage of every module marked
 "Implemented" in §6. Next concrete step: maintainer runs `pytest -v` for
-real and reports the output back.
+real and reports the output back. **Confirmed** — 42/42 passed, including the Rust-vs-fallback cross-check (`test_rust_and_python_paths_agree_on_fixture_project`).
 
 ### Phase B — Security checks + secrets exclusion (do these together)
 
