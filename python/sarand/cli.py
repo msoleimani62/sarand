@@ -1,0 +1,203 @@
+"""Command-line interface for sarand."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+from datetime import datetime
+from pathlib import Path
+
+from sarand.analyzers.registry import (
+    discover_analyzers,
+    matching_analyzers,
+    run_quality_concurrently,
+    run_tests_concurrently,
+)
+from sarand.config import SarandConfig
+from sarand.core.ai_summary import generate_ai_summary, suggest_reading_order
+from sarand.core.health import compute_health_score
+from sarand.core.issues import detect_known_issues
+from sarand.discovery.project_detector import detect_project
+from sarand.models.results import ReportData
+from sarand.progress import error, status, success, warning
+from sarand.renderers import json_renderer, markdown, text
+from sarand.rust_bridge import RUST_CORE_AVAILABLE, build_tree_text, scan_project
+from sarand.scanners.environment import collect_environment_info
+from sarand.scanners.essential_files import collect_essential_files
+from sarand.scanners.git import collect_git_snapshot
+from sarand.scanners.stats import collect_project_stats
+from sarand.scanners.todos import scan_todos
+from sarand.userconfig import save_persisted_config
+from sarand.utils.logging import get_logger, setup_logging
+
+logger = get_logger("cli")
+
+_RENDERERS = {"markdown": markdown, "json": json_renderer, "text": text}
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="sarand",
+        description="Cross-platform CLI that scans any project, detects its architecture, "
+        "runs its tests, and generates an AI-ready intelligence report.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  sarand                                  # analyse the current directory
+  sarand --project ~/myproject --quality
+  sarand --skip-tests --format json -o report.json
+  sarand --set-output-dir ~/ai-reports    # persist output location, once
+        """,
+    )
+
+    parser.add_argument("--project", "-p", default=None, help="Project root directory (default: cwd)")
+    parser.add_argument(
+        "--output-dir",
+        "-d",
+        default=None,
+        help="Directory for the report (default: persisted config, then SARAND_OUTPUT_DIR, then ~/Downloads)",
+    )
+    parser.add_argument(
+        "--output-name", "-o", default=None, help="Report filename (default: sarand-<project>-report.<ext>)"
+    )
+    parser.add_argument(
+        "--set-output-dir", metavar="PATH", default=None, help="Persist PATH as the default output directory and exit"
+    )
+    parser.add_argument("--format", "-f", choices=["markdown", "json", "text"], default="markdown")
+    parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
+    parser.add_argument("--quality", action="store_true", help="Run quality checks (per detected language)")
+    parser.add_argument("--security", action="store_true", help="Run security checks (not yet implemented)")
+    parser.add_argument("--no-source", action="store_true", help="Do not embed source file contents in the report")
+    parser.add_argument("--no-health", action="store_true", help="Skip health-score calculation")
+    parser.add_argument("--max-depth", type=int, default=None, help="Maximum project tree depth")
+    parser.add_argument("--max-entries", type=int, default=None, help="Maximum entries per tree level")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose (INFO) logging")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--version", action="version", version="sarand 0.1.0")
+    return parser
+
+
+def write_sha256(path: Path) -> str:
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    checksum_path = path.with_suffix(path.suffix + ".sha256")
+    checksum_path.write_text(f"{digest}  {path.name}\n", encoding="utf-8")
+    return digest
+
+
+async def run(config: SarandConfig) -> int:
+    """Execute one full analysis run."""
+    setup_logging(verbose=config.verbose, debug=config.debug)
+    logger.info("Starting sarand run on %s", config.project_root)
+
+    try:
+        config.validate()
+    except ValueError as exc:
+        error(str(exc))
+        return 1
+
+    root = config.project_root
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = config.output_dir / config.output_name
+
+    detection = detect_project(root)
+    if detection.is_recognized:
+        status(f"Detected: {', '.join(detection.languages)} ({detection.build_system})")
+    else:
+        status("No known project marker found -- running generic analysis")
+    status(f"Scan engine: {'Rust core' if RUST_CORE_AVAILABLE else 'pure-Python fallback'}")
+
+    # Single filesystem scan, shared by tree/stats/essential-files/todos.
+    # یک اسکن فایل‌سیستمی واحد، به‌اشتراک‌گذاشته‌شده بین tree/stats/essential-files/todos.
+    records = scan_project(root)
+    tree_text = build_tree_text(root, max_depth=config.max_tree_depth, max_entries=config.max_tree_entries)
+    included, skipped = collect_essential_files(root, records=records, max_file_size=config.max_file_size)
+    stats = collect_project_stats(root, records=records)
+    todos = scan_todos(root, records=records)
+
+    env = collect_environment_info(root)
+    git = collect_git_snapshot(root)
+
+    # Analyzer pipeline: discover, filter to matching languages, run
+    # tests and quality checks *concurrently* per language.
+    # خط‌لوله‌ی آنالایزر: کشف، فیلتر به زبان‌های منطبق، اجرای *هم‌زمان*
+    # تست و کیفیت به‌ازای هر زبان.
+    all_analyzers = discover_analyzers()
+    active = matching_analyzers(root, all_analyzers)
+
+    if config.skip_tests:
+        status("Tests skipped by user request")
+        test_results = []
+    else:
+        test_results = await run_tests_concurrently(root, active)
+
+    quality_results = await run_quality_concurrently(root, active) if config.run_quality else []
+
+    security_results = []
+    if config.run_security:
+        warning("--security was requested, but security checks are not implemented in this build yet.")
+
+    known = detect_known_issues(test_results + quality_results + security_results)
+
+    data = ReportData(
+        project_root=root,
+        generated_at=datetime.now(),
+        environment=env,
+        git=git,
+        stats=stats,
+        detection=detection,
+        used_rust_core=RUST_CORE_AVAILABLE,
+        todos=todos,
+        test_results=test_results,
+        quality_results=quality_results,
+        security_results=security_results,
+        tree_text=tree_text,
+        included_files=included,
+        skipped_files=skipped,
+        known_issues=known,
+    )
+
+    data.ai_summary = generate_ai_summary(data)
+    data.suggested_reading_order = suggest_reading_order(root, included)
+
+    if config.health_score:
+        data.health = compute_health_score(data)
+
+    content = _RENDERERS[config.output_format].render(data, include_source=config.include_source)
+    output_path.write_text(content, encoding="utf-8")
+    digest = write_sha256(output_path)
+
+    success("Report completed")
+    print()
+    print("=" * 60)
+    print(f"Project: {root}")
+    print(f"Detected: {', '.join(detection.languages) or 'unknown'}")
+    print(f"Engine  : {'Rust core' if RUST_CORE_AVAILABLE else 'pure-Python fallback'}")
+    print(f"Output  : {output_path}")
+    print(f"SHA256  : {digest}")
+    print(f"Files   : {len(included)} included / {len(skipped)} skipped")
+    if data.health:
+        print(f"Health  : {data.health.score}/100 ({data.health.grade})")
+    print("=" * 60)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if args.set_output_dir:
+        target = Path(args.set_output_dir).expanduser().resolve()
+        target.mkdir(parents=True, exist_ok=True)
+        config_path = save_persisted_config({"output_dir": str(target)})
+        success(f"Default output directory set to: {target}")
+        print(f"(saved in {config_path})")
+        return 0
+
+    config = SarandConfig.from_args(args)
+    return asyncio.run(run(config))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

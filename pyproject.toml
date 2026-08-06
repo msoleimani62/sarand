@@ -1,0 +1,28 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "sarand"
+version = "0.1.0"
+description = "Cross-platform CLI that scans any project, detects its architecture, runs its tests, and generates an AI-ready intelligence report."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "rich>=13.0",
+]
+
+[project.scripts]
+sarand = "sarand.cli:main"
+
+[tool.maturin]
+# Standard maturin "mixed Rust/Python" layout:
+#   ./src/            -> Rust crate (compiles to sarand._core)
+#   ./python/sarand/  -> pure-Python package
+python-source = "python"
+module-name = "sarand._core"
+features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

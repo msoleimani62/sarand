@@ -1,0 +1,24 @@
+[package]
+name = "sarand_core"
+version = "0.1.0"
+edition = "2021"
+description = "Performance-critical scanning core for sarand, exposed to Python via PyO3."
+license = "MIT"
+
+[lib]
+# Compiled module is imported from Python as `sarand._core`
+# ماژول کامپایل‌شده از پایتون به‌صورت `sarand._core` ایمپورت می‌شود
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+ignore = "0.4"
+rayon = "1.10"
+sha2 = "0.10"
+hex = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "unwind"
