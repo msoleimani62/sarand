@@ -70,8 +70,8 @@ sarand/
 │   ├── analyzers/                 one file per language, pluggable (§4.4, §4.9)
 │   │   ├── base.py                 LanguageAnalyzer Protocol
 │   │   ├── registry.py             built-in list + entry_points plugin loading
-│   │   └── {python,rust,go,node}_analyzer.py
-│   ├── core/                      health.py, ai_summary.py, issues.py
+│   │   └── {python,rust,go,node,cpp,java}_analyzer.py
+│   ├── core/                      health.py, ai_summary.py, issues.py, secrets.py, doctor.py
 │   ├── renderers/                 one file per output format (§4.4)
 │   ├── userconfig.py              persisted config (~/.config/sarand/config.json)
 │   ├── config.py                  CLI-argument → runtime config resolution
@@ -219,6 +219,17 @@ calls where concurrency is possible.
   tests, integration tests, and smoke tests, not just ad-hoc manual runs.
   Tests protect users (especially less experienced ones — sarand should be
   usable by someone without deep CLI experience) from silent regressions.
+- Plain `pytest` (no flags) must always mean "the whole suite ran" — never
+  configure `addopts` (or any other mechanism) to silently deselect tests
+  by default, even slow/network-dependent ones. Without CI (not built yet
+  — Phase G), there is no scheduled safety net to catch a test nobody
+  remembers to run explicitly; a default that quietly skips real coverage
+  is exactly the kind of silent regression risk this rule exists to
+  prevent. Slow tests get a marker (see `slow_external` in
+  `pyproject.toml`) so people can opt into a *faster* subset during quick
+  local iteration (`pytest -m "not slow_external"`) — the fast path is
+  the opt-in, not the default; the safe direction to fail in is "forgot a
+  flag, ran more than intended," never the reverse.
 
 ### 4.9 Bilingual comments in code
 
@@ -239,16 +250,32 @@ from the code itself.
 
 sarand's whole purpose is to dump a project's source into one file for an
 AI to read — which means it is also very good at accidentally leaking
-credentials if a secret-shaped file sits in the scanned directory. Beyond
-whatever `.gitignore` already excludes, `essential_files`/renderers must
-never embed the contents of files that look like credentials, regardless
-of extension: `.pem`, `.key`, `id_rsa`/`id_ed25519` (`.pub` is fine, the
-private half is not), `.env*`, anything named like a cloud service-account
-JSON (`*service-account*.json`, `*credentials*.json`), and similar. This is
-not implemented yet (see Phase B in the roadmap) — until it is, be extra
-careful when testing sarand against real, non-throwaway projects, and flag
-this gap to the maintainer rather than assuming it's handled. Security and
-data safety outrank every other concern in this project (§7).
+credentials if a secret-shaped file sits in the scanned directory, or if
+one is hardcoded inside an otherwise ordinary source file. Beyond whatever
+`.gitignore` already excludes, two independent, always-on layers apply
+(`core/secrets.py` — never gated behind `--security`, since this is a
+safety rule, not an optional check):
+
+1. **Filename-based exclusion** — `essential_files`/renderers never embed
+   the contents of files that look like credentials by name, regardless
+   of extension: `.pem`, `.key`, `id_rsa`/`id_ed25519` (`.pub` is fine,
+   the private half is not), `.env*`, anything named like a cloud
+   service-account JSON, and similar
+   (`constants.SECRET_FILENAME_PATTERNS`).
+2. **Content-based scanning** — a lightweight regex scan
+   (`scan_for_secrets`) over files that *were* included, looking for
+   secret-shaped patterns (AWS keys, private-key headers, common token
+   formats). Critically, a match doesn't just produce a warning next to
+   an unredacted dump of the same file — `exclude_flagged_files` removes
+   that file from source embedding entirely, the same way a
+   filename-based exclusion would. A finding that still lets the flagged
+   file's full content ship two sections later is not a fix; it's a
+   demonstration of the bug. (This exact gap existed in the first version
+   of this rule's implementation and was caught by the end-to-end
+   regression test in `tests/test_secrets.py` before being called done —
+   see §4.8.)
+
+Security and data safety outrank every other concern in this project (§7).
 
 ### 4.11 Startup dependency checks should never fail silently
 
@@ -329,14 +356,14 @@ decoration on every heading.
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed** — 42 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`. Real `pytest -v` run on the maintainer's device: 42/42 passed, including the Rust-vs-Python cross-check (`test_rust_and_python_paths_agree_on_fixture_project`) — confirms the §4.5 fallback contract holds on real hardware, not just in theory |
-| `--security` checks | Not implemented (flag exists, prints a warning and no-ops) |
-| Secrets exclusion from reports (§4.10) | **Not implemented — do this alongside Phase B** |
-| `sarand doctor` command (§4.11) | Not implemented |
+| Automated test suite (pytest) | **Implemented and confirmed** — 76 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`, `test_secrets.py`, `test_doctor.py`, `test_cpp_java_analyzers.py`. Real `pytest -v` run on the maintainer's device confirmed 58/58 at the Phase B checkpoint, including the Rust-vs-Python cross-check (`test_rust_and_python_paths_agree_on_fixture_project`) — Phase C's additional 18 were verified with the same stdlib-only collector used pre-Phase-A; confirm the new total with a real `pytest -v` run next. One class of test bug was found and fixed during Phase B: two security-check tests hardcoded a "tool not installed" assumption that only held in the original sandbox and broke on the maintainer's real machine (`cargo-audit` genuinely was installed there) — both now branch on `shutil.which(...)` instead of assuming either way |
+| `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
+| Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
+| `sarand doctor` command (§4.11) | **Implemented and tested** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 13 per-language tool binaries; never fails on a missing optional tool |
 | HTML dashboard renderer | Not implemented |
 | PDF / SARIF renderers | Not implemented |
 | Incremental scan cache | Not implemented (Rust hasher exists and is ready to be reused for this) |
-| Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | Not implemented — `discovery` can *detect* several of these via `PROJECT_MARKERS`, but no `LanguageAnalyzer` exists for them yet |
+| Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | **C/C++ and Java/Kotlin implemented and tested** (`analyzers/cpp_analyzer.py`, `analyzers/java_analyzer.py`). Remaining: Zig, Dart, Ruby, PHP, Lua, Swift, C# — not started, add as actually needed (§8 Phase C guidance still applies) |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | Not started — currently `maturin develop` / `pip install -e .` (in a venv) only |
 | CI | Not set up |
 
@@ -367,34 +394,41 @@ When principles conflict, resolve the conflict in this order:
 "Implemented" in §6. Next concrete step: maintainer runs `pytest -v` for
 real and reports the output back. **Confirmed** — 42/42 passed, including the Rust-vs-fallback cross-check (`test_rust_and_python_paths_agree_on_fixture_project`).
 
-### Phase B — Security checks + secrets exclusion (do these together)
+### Phase B — Security checks + secrets exclusion ✅ done
 
-Extend `LanguageAnalyzer` (base.py) with an `async def run_security(self,
-root: Path) -> list[CommandResult]` method, gated the same way as
-`run_quality` (§4.3):
-- Python: `pip-audit` (dependency CVEs), `bandit` (static analysis)
-- Rust: `cargo audit`
-- Go: `govulncheck`
-- Node.js: `npm audit`
+Implemented exactly as scoped: `LanguageAnalyzer.run_security` per
+language (pip-audit/bandit, cargo-audit, govulncheck, npm audit), wired
+behind `--security`, plus §4.10's filename- and content-based secret
+exclusion (both always-on, not gated behind any flag). One design
+refinement made during implementation, worth noting for future readers:
+a content-level secret finding now removes that file from source
+embedding entirely (`core/secrets.py::exclude_flagged_files`) rather than
+just recording a warning next to an unredacted dump of the same file —
+the first version of this phase had exactly that gap, caught by writing
+the end-to-end regression test before declaring it done (§4.8 in
+practice).
 
-Wire into `cli.py` behind the existing `--security` flag (currently a
-no-op warning — replace it). Add a lightweight, regex-based secrets scan
-as a cross-language check, not tied to any one analyzer. At the same time,
-implement §4.10 (never embed secret-shaped files in the report) —
-these two belong in the same phase because they're both about not leaking
-credentials, from different angles (scanning for vs. never displaying).
+### Phase C — `sarand doctor` + more language analyzers ✅ done (Zig/Dart/Ruby/PHP/Lua/Swift/C# deferred)
 
-### Phase C — `sarand doctor` + more language analyzers
-
-- Implement `sarand doctor` (§4.11): checks Rust-core availability, Python
-  version, and known per-language toolchains, with clear pass/fail/fix-it
-  output.
-- Add one file per language under `analyzers/`, matching the existing
-  pattern exactly (`matches`, `entry_points`, `run_tests`, `run_quality`,
-  `run_security`). Suggested order: C/C++ (CMake), Java/Kotlin
-  (Gradle/Maven), then the rest (Zig, Dart, Ruby, PHP, Lua, Swift, C#) as
-  actually needed — extend `discovery/PROJECT_MARKERS` alongside each new
-  analyzer rather than ahead of time.
+- `sarand doctor` implemented as a **flag** (`sarand --doctor`), not a
+  subcommand — the CLI is argparse-flag-based throughout (see
+  `--set-output-dir` for the same early-exit pattern), and introducing
+  subcommands would be a separate, larger CLI restructuring not scoped
+  into this phase. Checks Python version (the one critical check), Rust
+  core availability, the persisted config location, and 13 per-language
+  tool binaries — every failing check prints a fix-it command, nothing
+  fails silently (§4.11).
+- Added `analyzers/cpp_analyzer.py` (CMakeLists.txt → `ctest` if a
+  configured build dir exists, `clang-format --dry-run` if configured,
+  `cppcheck` for security) and `analyzers/java_analyzer.py` (pom.xml or
+  build.gradle(.kts) → `mvn`/`gradle`, preferring a project's own
+  `./gradlew` wrapper over a system Gradle). Both deliberately never
+  invoke `cmake configure`/`cmake --build`/a full Gradle sync themselves
+  — see the "heavy dependency" warning rule in §3; they only run
+  against a build the user already configured.
+- Zig, Dart, Ruby, PHP, Lua, Swift, C# remain unimplemented. Add them the
+  same way, one file each, only when actually needed — don't pre-build
+  analyzers for languages nobody has asked to scan yet.
 
 ### Phase D — Additional renderers
 

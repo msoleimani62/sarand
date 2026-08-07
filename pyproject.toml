@@ -26,3 +26,6 @@ features = ["pyo3/extension-module"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow_external: exercises a real external tool when it happens to be installed (e.g. cargo-audit fetching the advisory DB) -- can take minutes. Included by default (plain `pytest` must mean 'the whole suite ran'); use -m 'not slow_external' for a fast subset during local iteration.",
+]
