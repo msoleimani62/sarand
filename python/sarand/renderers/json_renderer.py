@@ -41,5 +41,7 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
         "suggested_reading_order": data.suggested_reading_order,
         "included_files": [str(p) for p in data.included_files],
         "skipped_files": [(str(p), s) for p, s in data.skipped_files],
+        "excluded_secret_files": [str(p) for p in data.excluded_secret_files],
+        "secret_findings": [f.__dict__ for f in data.secret_findings],
     }
     return json.dumps(payload, indent=2, default=default, ensure_ascii=False)

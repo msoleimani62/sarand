@@ -36,3 +36,13 @@ class GoAnalyzer:
             return [make_command_result("go vet", 127, "", 0.0, skipped=True, skip_reason="go not found in PATH")]
         rc, out, dur = await run_cmd_async(["go", "vet", "./..."], root, LONG_CMD_TIMEOUT)
         return [make_command_result("go vet", rc, out, dur)]
+
+    async def run_security(self, root: Path) -> list[CommandResult]:
+        if shutil.which("govulncheck") is None:
+            return [
+                make_command_result(
+                    "govulncheck", 127, "", 0.0, skipped=True, skip_reason="govulncheck not installed"
+                )
+            ]
+        rc, out, dur = await run_cmd_async(["govulncheck", "./..."], root, LONG_CMD_TIMEOUT)
+        return [make_command_result("govulncheck", rc, out, dur)]

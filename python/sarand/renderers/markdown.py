@@ -227,10 +227,38 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             data.tree_text,
             "```",
             "",
-            f"## Included files ({len(data.included_files)} included / {len(data.skipped_files)} skipped)",
+            f"## Included files ({len(data.included_files)} included / {len(data.skipped_files)} skipped / "
+            f"{len(data.excluded_secret_files)} excluded as credential-shaped)",
             "",
         ]
     )
+
+    if data.excluded_secret_files:
+        parts.extend(
+            [
+                "### Excluded (credential-shaped filenames, never embedded — AGENTS.md §4.10)",
+                "",
+                *[f"- `{p}`" for p in data.excluded_secret_files],
+                "",
+            ]
+        )
+
+    if data.secret_findings:
+        parts.extend(
+            [
+                "### ⚠ Potential hardcoded secrets detected",
+                "",
+                "Location and pattern only — matched values are never shown. "
+                "The affected file(s) are excluded from source embedding below "
+                "(see the credential-shaped exclusions list). Review and rotate "
+                "anything genuine, then remove it from source control.",
+                "",
+                "| File | Line | Pattern |",
+                "|------|------|---------|",
+                *[f"| `{f.path}` | {f.line_number} | {f.pattern_name} |" for f in data.secret_findings],
+                "",
+            ]
+        )
 
     if data.skipped_files:
         parts.extend(["### Skipped (too large)", "", *[f"- `{p}` ({human_size(sz)})" for p, sz in data.skipped_files], ""])

@@ -126,6 +126,20 @@ class TodoItem:
 
 
 @dataclass
+class SecretFinding:
+    """A location where a hardcoded-secret-shaped pattern was found.
+
+    Deliberately holds no `value`/`matched_text` field -- only enough to
+    locate and classify the finding, so the finding itself can never leak
+    the secret it's warning about (AGENTS.md §4.10).
+    """
+
+    path: str
+    line_number: int
+    pattern_name: str
+
+
+@dataclass
 class HealthScore:
     """Computed project health score and breakdown."""
 
@@ -155,6 +169,8 @@ class ReportData:
     tree_text: str = ""
     included_files: list[Path] = field(default_factory=list)
     skipped_files: list[tuple[Path, int]] = field(default_factory=list)
+    excluded_secret_files: list[Path] = field(default_factory=list)
+    secret_findings: list["SecretFinding"] = field(default_factory=list)
     health: HealthScore | None = None
     known_issues: list[str] = field(default_factory=list)
     ai_summary: str = ""

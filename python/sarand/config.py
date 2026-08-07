@@ -85,7 +85,7 @@ class SarandConfig:
     def validate(self) -> None:
         if not self.project_root.is_dir():
             raise ValueError(f"Project root does not exist or is not a directory: {self.project_root}")
-        allowed = {"markdown", "json", "text"}
+        allowed = {"markdown", "json", "text", "html", "pdf", "sarif"}
         if self.output_format not in allowed:
             raise ValueError(f"Unsupported output format: {self.output_format}. Allowed: {allowed}")
         if self.max_tree_depth < 1:

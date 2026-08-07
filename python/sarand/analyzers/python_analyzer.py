@@ -46,3 +46,22 @@ class PythonAnalyzer:
         rc, out, dur = await run_cmd_async(["ruff", "format", ".", "--check"], root, LONG_CMD_TIMEOUT)
         results.append(make_command_result("ruff format --check", rc, out, dur))
         return results
+
+    async def run_security(self, root: Path) -> list[CommandResult]:
+        results: list[CommandResult] = []
+
+        if shutil.which("pip-audit") is None:
+            results.append(
+                make_command_result("pip-audit", 127, "", 0.0, skipped=True, skip_reason="pip-audit not installed")
+            )
+        else:
+            rc, out, dur = await run_cmd_async(["pip-audit"], root, LONG_CMD_TIMEOUT)
+            results.append(make_command_result("pip-audit", rc, out, dur))
+
+        if shutil.which("bandit") is None:
+            results.append(make_command_result("bandit", 127, "", 0.0, skipped=True, skip_reason="bandit not installed"))
+        else:
+            rc, out, dur = await run_cmd_async(["bandit", "-r", ".", "-q"], root, LONG_CMD_TIMEOUT)
+            results.append(make_command_result("bandit", rc, out, dur))
+
+        return results

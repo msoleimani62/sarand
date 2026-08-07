@@ -10,6 +10,8 @@ FORMAT_EXTENSIONS: dict[str, str] = {
     "json": "json",
     "text": "txt",
     "html": "html",
+    "pdf": "pdf",
+    "sarif": "sarif",
 }
 
 

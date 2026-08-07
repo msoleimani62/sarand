@@ -9,6 +9,7 @@ from sarand.models.results import (
     ProjectDetection,
     ProjectStats,
     ReportData,
+    SecretFinding,
     TodoItem,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "ProjectDetection",
     "ProjectStats",
     "ReportData",
+    "SecretFinding",
     "TodoItem",
 ]

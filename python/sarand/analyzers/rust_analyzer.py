@@ -48,3 +48,17 @@ class RustAnalyzer:
         )
         results.append(make_command_result("cargo clippy", rc, out, dur))
         return results
+
+    async def run_security(self, root: Path) -> list[CommandResult]:
+        # `cargo audit` is a cargo *subcommand*, provided by the separate
+        # `cargo-audit` binary -- check for that binary, not "cargo" itself.
+        # `cargo audit` یک زیردستور cargo است که توسط باینری جداگانه‌ی
+        # `cargo-audit` فراهم می‌شود -- باید همان باینری چک شود، نه خودِ cargo.
+        if shutil.which("cargo-audit") is None:
+            return [
+                make_command_result(
+                    "cargo audit", 127, "", 0.0, skipped=True, skip_reason="cargo-audit not installed"
+                )
+            ]
+        rc, out, dur = await run_cmd_async(["cargo", "audit"], root, LONG_CMD_TIMEOUT)
+        return [make_command_result("cargo audit", rc, out, dur)]

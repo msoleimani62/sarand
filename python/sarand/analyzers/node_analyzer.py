@@ -52,3 +52,13 @@ class NodeAnalyzer:
             return [make_command_result("npm run lint", 127, "", 0.0, skipped=True, skip_reason="npm not found in PATH")]
         rc, out, dur = await run_cmd_async(["npm", "run", "lint", "--silent"], root, LONG_CMD_TIMEOUT)
         return [make_command_result("npm run lint", rc, out, dur)]
+
+    async def run_security(self, root: Path) -> list[CommandResult]:
+        if shutil.which("npm") is None:
+            return [make_command_result("npm audit", 127, "", 0.0, skipped=True, skip_reason="npm not found in PATH")]
+        # npm audit exits non-zero when it finds vulnerabilities -- that's
+        # a legitimate FAIL result, not a crash, so we still wrap it normally.
+        # npm audit وقتی آسیب‌پذیری پیدا کند با کد غیرصفر خارج می‌شود -- این
+        # یک نتیجه‌ی FAIL معتبر است، نه یک کرش، پس طبق روال عادی wrap می‌شود.
+        rc, out, dur = await run_cmd_async(["npm", "audit", "--audit-level=moderate"], root, LONG_CMD_TIMEOUT)
+        return [make_command_result("npm audit", rc, out, dur)]

@@ -44,3 +44,12 @@ class LanguageAnalyzer(Protocol):
     async def run_quality(self, root: Path) -> list[CommandResult]:
         """Run this language's lint/format checks. Empty list if none available."""
         ...
+
+    async def run_security(self, root: Path) -> list[CommandResult]:
+        """Run this language's dependency/vulnerability checks (e.g. pip-audit,
+        cargo audit, govulncheck, npm audit). Empty list if none available.
+        Gated the same way as run_quality (§4.3 in AGENTS.md): only ever
+        called after matches(root) is True, and must never crash just
+        because the underlying tool binary is missing -- return a skipped
+        CommandResult instead."""
+        ...

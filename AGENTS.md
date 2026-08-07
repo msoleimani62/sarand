@@ -356,12 +356,12 @@ decoration on every heading.
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed** — 76 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`, `test_secrets.py`, `test_doctor.py`, `test_cpp_java_analyzers.py`. Real `pytest -v` run on the maintainer's device confirmed 58/58 at the Phase B checkpoint, including the Rust-vs-Python cross-check (`test_rust_and_python_paths_agree_on_fixture_project`) — Phase C's additional 18 were verified with the same stdlib-only collector used pre-Phase-A; confirm the new total with a real `pytest -v` run next. One class of test bug was found and fixed during Phase B: two security-check tests hardcoded a "tool not installed" assumption that only held in the original sandbox and broke on the maintainer's real machine (`cargo-audit` genuinely was installed there) — both now branch on `shutil.which(...)` instead of assuming either way |
+| Automated test suite (pytest) | **Implemented and confirmed** — 86 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`, `test_secrets.py`, `test_doctor.py`, `test_cpp_java_analyzers.py`, `test_new_renderers.py`. Real `pytest -v` run on the maintainer's device confirmed 76/76 at the Phase C checkpoint (including the Rust-vs-Python cross-check and the real, installed `cargo-audit`/`wkhtmltopdf` paths); Phase D's additional 10 were verified with the same stdlib-only collector pre-delivery — confirm the new total with a real `pytest -v` run next. `pytest` now runs everything by default (no `addopts` filtering — see the note added to §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Test-bug lesson from Phase B, still worth repeating: two security-check tests once hardcoded a "tool not installed" assumption that only held in the original sandbox — both now branch on `shutil.which(...)` instead of assuming either way |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented and tested** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 13 per-language tool binaries; never fails on a missing optional tool |
-| HTML dashboard renderer | Not implemented |
-| PDF / SARIF renderers | Not implemented |
+| HTML dashboard renderer | **Implemented and tested** — `renderers/html.py`, self-contained single file (inline CSS, no external assets), dark-mode, collapsible `<details>` sections, properly HTML-escaped |
+| PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
 | Incremental scan cache | Not implemented (Rust hasher exists and is ready to be reused for this) |
 | Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | **C/C++ and Java/Kotlin implemented and tested** (`analyzers/cpp_analyzer.py`, `analyzers/java_analyzer.py`). Remaining: Zig, Dart, Ruby, PHP, Lua, Swift, C# — not started, add as actually needed (§8 Phase C guidance still applies) |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | Not started — currently `maturin develop` / `pip install -e .` (in a venv) only |
@@ -430,15 +430,23 @@ practice).
   same way, one file each, only when actually needed — don't pre-build
   analyzers for languages nobody has asked to scan yet.
 
-### Phase D — Additional renderers
+### Phase D — Additional renderers ✅ done
 
 - `renderers/html.py`: dashboard-style HTML report (dark mode, collapsible
-  sections). Reuse `ReportData` — no data-model changes needed.
-- `renderers/pdf.py`, `renderers/sarif.py`: same pattern.
-
-Each is purely additive: implement `render(data, *, include_source=True) ->
-str`, register in `cli.py`'s `_RENDERERS` dict, add to the `--format`
-choices and `SarandConfig.validate()`'s allowed set.
+  sections). Reuses `ReportData` as-is — no data-model changes needed.
+- `renderers/sarif.py`: valid SARIF 2.1.0, following the `Renderer`
+  protocol exactly like every other text-based renderer.
+- `renderers/pdf.py`: **does not** implement the `Renderer` protocol —
+  PDF is binary, not a string. It shells out to an installed
+  `wkhtmltopdf`/`weasyprint` against the HTML renderer's own output
+  (reuse, not reinvention) via `render_to_file(data, output_path)`, and
+  `cli.py` special-cases `"pdf"` in its output-writing branch for exactly
+  this reason. This was a deliberate deviation from "each renderer
+  implements the same `render() -> str` signature" — forcing PDF into
+  that shape would have meant either a heavy new Python PDF dependency
+  (risky to compile on Termux, see §3) or awkwardly base64-encoding
+  binary bytes through a string return. Document any future
+  protocol-breaking renderer the same way: state why, right here.
 
 ### Phase E — Incremental scan cache
 

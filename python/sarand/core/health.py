@@ -93,6 +93,14 @@ def compute_health_score(data: ReportData) -> HealthScore:
         critical.append(f"{len(stats.broken_symlinks)} broken symlinks found.")
     if stats.empty_files and len(stats.empty_files) > 10:
         code_score -= 2.0
+    if data.secret_findings:
+        # Potential leaked credentials are always critical, regardless of
+        # how many -- one real secret is already a security incident.
+        # وجود احتمالی credential نشت‌کرده همیشه بحرانی است، صرف‌نظر از
+        # تعداد -- حتی یک secret واقعی به‌تنهایی یک حادثه‌ی امنیتی است.
+        code_score -= 10.0
+        critical.append(f"{len(data.secret_findings)} potential hardcoded secret(s) detected in source files.")
+        recommendations.append("Review and rotate any real credentials found; remove them from source control.")
     breakdown["code"] = max(0.0, code_score)
 
     # --- Tooling presence ---

@@ -24,7 +24,9 @@ from importlib.metadata import entry_points
 from pathlib import Path
 
 from sarand.analyzers.base import LanguageAnalyzer
+from sarand.analyzers.cpp_analyzer import CppAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
+from sarand.analyzers.java_analyzer import JavaAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
 from sarand.analyzers.rust_analyzer import RustAnalyzer
@@ -40,6 +42,8 @@ _BUILTIN: list[LanguageAnalyzer] = [
     RustAnalyzer(),
     GoAnalyzer(),
     NodeAnalyzer(),
+    CppAnalyzer(),
+    JavaAnalyzer(),
 ]
 
 
@@ -85,6 +89,16 @@ async def run_tests_concurrently(root: Path, analyzers: list[LanguageAnalyzer]) 
 async def run_quality_concurrently(root: Path, analyzers: list[LanguageAnalyzer]) -> list[CommandResult]:
     """Run every matching analyzer's quality checks concurrently."""
     tasks = [a.run_quality(root) for a in analyzers]
+    results = await asyncio.gather(*tasks)
+    flat: list[CommandResult] = []
+    for group in results:
+        flat.extend(group)
+    return flat
+
+
+async def run_security_concurrently(root: Path, analyzers: list[LanguageAnalyzer]) -> list[CommandResult]:
+    """Run every matching analyzer's security/vulnerability checks concurrently."""
+    tasks = [a.run_security(root) for a in analyzers]
     results = await asyncio.gather(*tasks)
     flat: list[CommandResult] = []
     for group in results:

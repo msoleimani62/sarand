@@ -138,4 +138,30 @@ ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
     "Node.js": ("index.js", "src/index.js", "server.js", "src/index.ts"),
     "Go": ("main.go", "cmd/main.go"),
     "Java/Kotlin": ("src/main/java", "src/main/kotlin"),
+    "C/C++": ("src/main.cpp", "src/main.c", "main.cpp", "main.c"),
 }
+
+# Filename patterns that must NEVER be embedded in a generated report,
+# regardless of extension (AGENTS.md §4.10). Matched against the
+# lowercased filename only, not the full path -- a file named
+# "id_rsa" three directories deep is exactly as dangerous as one at
+# the root.
+# الگوهای نام فایلی که هرگز نباید در گزارش تولیدشده درج شوند، فارغ از
+# پسوند (§4.10 در AGENTS.md). فقط با نام فایل (حروف‌کوچک‌شده) مطابقت
+# داده می‌شود، نه کل مسیر -- فایلی به نام "id_rsa" در سه پوشه‌ی پایین‌تر
+# دقیقاً به‌همان اندازه‌ی نمونه‌ی ریشه خطرناک است.
+SECRET_FILENAME_PATTERNS: tuple[str, ...] = (
+    r"^id_rsa$",
+    r"^id_dsa$",
+    r"^id_ecdsa$",
+    r"^id_ed25519$",
+    r"\.pem$",
+    r"\.key$",
+    r"\.pfx$",
+    r"\.p12$",
+    r"^\.env($|\..+$)",
+    r"service.?account.*\.json$",
+    r"credentials.*\.json$",
+    r"^\.npmrc$",
+    r"^\.netrc$",
+)
