@@ -356,13 +356,13 @@ decoration on every heading.
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed** — 86 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`, `test_secrets.py`, `test_doctor.py`, `test_cpp_java_analyzers.py`, `test_new_renderers.py`. Real `pytest -v` run on the maintainer's device confirmed 76/76 at the Phase C checkpoint (including the Rust-vs-Python cross-check and the real, installed `cargo-audit`/`wkhtmltopdf` paths); Phase D's additional 10 were verified with the same stdlib-only collector pre-delivery — confirm the new total with a real `pytest -v` run next. `pytest` now runs everything by default (no `addopts` filtering — see the note added to §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Test-bug lesson from Phase B, still worth repeating: two security-check tests once hardcoded a "tool not installed" assumption that only held in the original sandbox — both now branch on `shutil.which(...)` instead of assuming either way |
+| Automated test suite (pytest) | **Implemented and confirmed** — 100 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`, `test_secrets.py`, `test_doctor.py`, `test_cpp_java_analyzers.py`, `test_new_renderers.py`, `test_cache.py`. Real `pytest -v` run on the maintainer's device confirmed 86/86 at the Phase D checkpoint (including the Rust-vs-Python cross-check and the real, installed `cargo-audit`/`wkhtmltopdf` paths); Phase E's additional 14 were verified with the same stdlib-only collector pre-delivery, plus a manual 3-run end-to-end cache sequence (cold/warm/changed-file) confirmed on the build side — confirm the new total with a real `pytest -v` run next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Test-bug lesson from Phase B, still worth repeating: two security-check tests once hardcoded a "tool not installed" assumption that only held in the original sandbox — both now branch on `shutil.which(...)` instead of assuming either way |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
-| `sarand doctor` command (§4.11) | **Implemented and tested** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 13 per-language tool binaries; never fails on a missing optional tool |
+| `sarand doctor` command (§4.11) | **Implemented and tested** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries (13 per-language + wkhtmltopdf/weasyprint for PDF export, added during Phase D); never fails on a missing optional tool |
 | HTML dashboard renderer | **Implemented and tested** — `renderers/html.py`, self-contained single file (inline CSS, no external assets), dark-mode, collapsible `<details>` sections, properly HTML-escaped |
 | PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
-| Incremental scan cache | Not implemented (Rust hasher exists and is ready to be reused for this) |
+| Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
 | Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | **C/C++ and Java/Kotlin implemented and tested** (`analyzers/cpp_analyzer.py`, `analyzers/java_analyzer.py`). Remaining: Zig, Dart, Ruby, PHP, Lua, Swift, C# — not started, add as actually needed (§8 Phase C guidance still applies) |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | Not started — currently `maturin develop` / `pip install -e .` (in a venv) only |
 | CI | Not set up |
@@ -448,13 +448,36 @@ practice).
   binary bytes through a string return. Document any future
   protocol-breaking renderer the same way: state why, right here.
 
-### Phase E — Incremental scan cache
+### Phase E — Incremental scan cache ✅ done, scoped down from the original plan
 
-Use `rust_bridge`'s existing per-file SHA-256 hashes: store a
-`{rel_path: (mtime, hash)}` map from the previous run (e.g.
-`.sarand-cache/scan.json` inside the *output* dir, never inside the
-scanned project itself), skip re-hashing/re-counting unchanged files on
-the next run. Additive to `walker.rs`/`rust_bridge.py`, not a rewrite.
+Implemented as `core/cache.py`, opt-in via `--cache`. Deliberately
+narrower than the original plan of "skip re-hashing/re-counting
+unchanged files" at the `walker.rs` level: making the Rust walker itself
+cache-aware means it has to accept and consult a cache map from Python,
+which is a real Rust-code change that can't be compile-verified without
+a local toolchain (§4.8) — too risky to ship unverified after the
+`PyDict::new` lesson (§4.6). Instead this phase stays entirely on the
+Python side of the `rust_bridge.py` boundary: it reuses the
+`content_hash` Rust/the fallback already compute for free, and skips the
+*Python-side* re-scan of file content for TODOs and secrets when a
+file's hash is unchanged. `walker.rs` still processes every file on
+every run — which is fine, since Rust's own pass was never the
+bottleneck this phase was meant to address; the redundant *Python*
+regex scanning over full file content (once for TODOs, once for
+secrets, on every included file, every run) was.
+
+Opt-in, not default, for the same reason `slow_external` pytest tests
+are opt-in-to-skip rather than opt-in-to-run: a stale-cache bug's
+failure mode is a silently wrong report (a real finding hidden because
+the cache claimed "unchanged"), and the safe direction to fail is doing
+more work than necessary, not less. A `rules_fingerprint` (hash of every
+TODO/secret pattern) auto-invalidates the whole cache if detection logic
+ever changes, so a future Phase-B-style pattern addition can't silently
+miss findings in files a stale cache still thinks are "clean."
+
+If a *deeper* cache (skipping Rust-side hash/linecount work too) is
+ever wanted, that's a distinct, larger follow-up requiring an actual
+Rust change and real compile verification — don't conflate the two.
 
 ### Phase F — Packaging
 

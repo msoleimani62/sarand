@@ -21,13 +21,24 @@ def scan_todos(
     *,
     records: list[FileRecord] | None = None,
     max_items: int = 1000,
+    only: set[str] | None = None,
 ) -> list[TodoItem]:
-    """Scan non-binary source files for TODO-style markers."""
+    """Scan non-binary source files for TODO-style markers.
+
+    Args:
+        only: If given, restrict the scan to these relative paths (as
+            strings). Used by the incremental cache (--cache, Phase E)
+            to skip re-scanning files whose content hasn't changed
+            since the last run. ``None`` means "scan everything," the
+            same behavior as before this parameter existed.
+    """
     status("Scanning for TODO / FIXME markers...")
     if records is None:
         records = scan_project(root)
 
     candidates = [rec["rel_path"] for rec in records if not rec["is_binary"] and not rec["is_symlink"]]
+    if only is not None:
+        candidates = [c for c in candidates if c in only]
 
     items: list[TodoItem] = []
     for rel in track(candidates, description="Scanning TODOs", total=len(candidates)):

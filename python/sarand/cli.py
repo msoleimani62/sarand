@@ -17,6 +17,14 @@ from sarand.analyzers.registry import (
 )
 from sarand.config import SarandConfig
 from sarand.core.ai_summary import generate_ai_summary, suggest_reading_order
+from sarand.core.cache import (
+    build_cache_entries,
+    load_cache,
+    partition_cache_hits,
+    reconstruct_secrets,
+    reconstruct_todos,
+    save_cache,
+)
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
@@ -70,6 +78,16 @@ Examples:
         "--doctor",
         action="store_true",
         help="Run environment diagnostics (Rust core, per-language toolchains) and exit",
+    )
+    parser.add_argument(
+        "--cache",
+        action="store_true",
+        help="Skip re-scanning TODOs/secrets in files unchanged since the last --cache run (opt-in, see AGENTS.md Phase E)",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Delete the incremental-scan cache for this project (in the output dir) and exit",
     )
     parser.add_argument(
         "--format", "-f", choices=["markdown", "json", "text", "html", "pdf", "sarif"], default="markdown"
@@ -126,16 +144,39 @@ async def run(config: SarandConfig) -> int:
         root, records=records, max_file_size=config.max_file_size
     )
     stats = collect_project_stats(root, records=records)
-    todos = scan_todos(root, records=records)
+
+    # Incremental cache (opt-in via --cache, AGENTS.md Phase E): split
+    # this run's files into "hash matches last run, reuse cached
+    # TODO/secret results" vs "changed or new, must actually scan."
+    # کش افزایشی (اختیاری با --cache): تفکیک فایل‌های این اجرا به
+    # «هش با اجرای قبلی یکی است، از نتایج کش‌شده استفاده کن» در برابر
+    # «تغییرکرده یا جدید، باید واقعاً اسکن شود».
+    cache_hits: dict = {}
+    changed_paths: set[str] | None = None
+    if config.use_cache:
+        cache = load_cache(config.output_dir, root)
+        cache_hits, changed_paths = partition_cache_hits(records, cache)
+        if cache_hits:
+            status(f"Cache: reusing TODO/secret results for {len(cache_hits)} unchanged file(s)")
+
+    todos = scan_todos(root, records=records, only=changed_paths)
+    if cache_hits:
+        todos = todos + reconstruct_todos(cache_hits)
 
     # Secrets content scan runs unconditionally (AGENTS.md §4.10, §7 priority 1)
     # اسکن محتوایی secret همیشه اجرا می‌شود (§4.10، اولویت ۱ در §7)
-    secret_findings = scan_for_secrets(root, included)
+    secret_scan_targets = included if changed_paths is None else [p for p in included if str(p) in changed_paths]
+    secret_findings = scan_for_secrets(root, secret_scan_targets)
+    if cache_hits:
+        secret_findings = secret_findings + reconstruct_secrets(cache_hits)
 
     # A file with a content-level finding must not have its full source
     # embedded either -- move it from "included" to "excluded" (§4.10).
     # فایلی که یافته‌ی سطح-محتوا دارد نباید سورس کاملش هم embed شود (§4.10).
     included, excluded_secrets = exclude_flagged_files(included, excluded_secrets, secret_findings)
+
+    if config.use_cache:
+        save_cache(config.output_dir, root, build_cache_entries(records, todos, secret_findings))
 
     if secret_findings:
         warning(f"{len(secret_findings)} potential secret(s) found -- affected file(s) excluded from the report.")
@@ -219,6 +260,8 @@ async def run(config: SarandConfig) -> int:
     print(f"Files   : {len(included)} included / {len(skipped)} skipped / {len(excluded_secrets)} excluded (secrets)")
     if secret_findings:
         print(f"Secrets : {len(secret_findings)} potential secret(s) found -- affected files excluded, see report")
+    if config.use_cache:
+        print(f"Cache   : {len(cache_hits)} file(s) skipped (unchanged since last --cache run)")
     if data.health:
         print(f"Health  : {data.health.score}/100 ({data.health.grade})")
     print("=" * 60)
@@ -241,6 +284,18 @@ def main(argv: list[str] | None = None) -> int:
         config_path = save_persisted_config({"output_dir": str(target)})
         success(f"Default output directory set to: {target}")
         print(f"(saved in {config_path})")
+        return 0
+
+    if args.clear_cache:
+        from sarand.core.cache import _cache_path
+
+        config = SarandConfig.from_args(args)
+        cache_file = _cache_path(config.output_dir, config.project_root)
+        if cache_file.exists():
+            cache_file.unlink()
+            success(f"Cleared cache: {cache_file}")
+        else:
+            status(f"No cache found at {cache_file} -- nothing to clear.")
         return 0
 
     config = SarandConfig.from_args(args)

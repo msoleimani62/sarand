@@ -34,6 +34,8 @@ _TOOL_CHECKS: tuple[tuple[str, str, str], ...] = (
     ("C/C++: cppcheck", "cppcheck", "install cppcheck (e.g. apt/pacman/brew install cppcheck)"),
     ("Java/Kotlin: mvn", "mvn", "install Maven: https://maven.apache.org/install.html"),
     ("Java/Kotlin: gradle", "gradle", "install Gradle, or rely on a project's ./gradlew wrapper"),
+    ("PDF export: wkhtmltopdf", "wkhtmltopdf", "install wkhtmltopdf (e.g. apt/pacman install wkhtmltopdf)"),
+    ("PDF export: weasyprint", "weasyprint", "pip install weasyprint"),
 )
 
 

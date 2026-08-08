@@ -36,6 +36,7 @@ IGNORE_DIRS: frozenset[str] = frozenset(
         ".eggs",
         ".idea",
         ".vscode",
+        ".sarand-cache",
     }
 )
 

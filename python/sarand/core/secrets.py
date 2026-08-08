@@ -51,6 +51,15 @@ def looks_like_secret_filename(name: str) -> bool:
     return any(pattern.search(name) for pattern in _FILENAME_RE)
 
 
+def content_pattern_names() -> list[str]:
+    """Public accessor for the content-scan pattern names.
+
+    Exists so other modules (core/cache.py's rules fingerprint) don't
+    reach into the private `_CONTENT_PATTERNS` list directly.
+    """
+    return [name for name, _ in _CONTENT_PATTERNS]
+
+
 def scan_for_secrets(root: Path, included_files: list[Path]) -> list[SecretFinding]:
     """Scan already-included files' content for hardcoded-secret patterns.
 

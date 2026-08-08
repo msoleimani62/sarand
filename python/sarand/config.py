@@ -53,6 +53,7 @@ class SarandConfig:
     max_file_size: int = MAX_FILE_SIZE
     include_source: bool = True
     health_score: bool = True
+    use_cache: bool = False
 
     @classmethod
     def from_args(cls, args: Any) -> "SarandConfig":
@@ -80,6 +81,7 @@ class SarandConfig:
             max_file_size=_int_or(getattr(args, "max_file_size", None), MAX_FILE_SIZE),
             include_source=not bool(getattr(args, "no_source", False)),
             health_score=not bool(getattr(args, "no_health", False)),
+            use_cache=bool(getattr(args, "cache", False)),
         )
 
     def validate(self) -> None:
