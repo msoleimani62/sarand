@@ -365,7 +365,7 @@ decoration on every heading.
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
 | Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | **C/C++ and Java/Kotlin implemented and tested** (`analyzers/cpp_analyzer.py`, `analyzers/java_analyzer.py`). Remaining: Zig, Dart, Ruby, PHP, Lua, Swift, C# — not started, add as actually needed (§8 Phase C guidance still applies) |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. Docker/AUR/Homebrew/deb/rpm/binary: not started |
-| CI | **Workflow written, not yet running** — `.github/workflows/ci.yml`: matrix build (Linux/macOS/Windows) × Rust core build + full `pytest -v` (everything, including `slow_external` — CI is exactly the scheduled safety net local dev intentionally skips, §4.8) + a release-wheel build smoke test. Dormant until the repo has a GitHub remote; will activate automatically on the first push |
+| CI | **Pushed, one real fix applied, confirmation pending** — repo is public at `github.com/msoleimani62/sarand`. First run failed (`maturin develop` needs an active virtualenv that CI runners don't have); fixed by switching to `maturin build` + `pip install dist/*.whl`. Fix not yet re-verified on GitHub's runners — see Phase G notes |
 
 ---
 
@@ -507,17 +507,27 @@ One packaging target per phase, verified working, before starting the
 next -- this is the rule that kept Phase F from becoming "try to do 6
 packaging systems in one pass and verify none of them."
 
-### Phase G — CI ✅ workflow written, activates on first push
+### Phase G — CI ✅ pushed, one real fix applied, awaiting confirmation
 
-`.github/workflows/ci.yml` written and YAML-validated, but genuinely
-untested end-to-end -- GitHub Actions can't run without a GitHub
-remote, and this repo doesn't have one yet (see the maintainer's own
-"push to GitHub" step, which comes immediately after this phase in
-the roadmap). Once pushed, check the Actions tab for the first run and
-fix anything that only surfaces on GitHub's actual runners (this is
-the same "can't verify without the real environment" situation as the
-Rust core and pipx builds — expect at least one round of real fixes,
-same as those did).
+The repo is now public at `github.com/msoleimani62/sarand`. The first
+CI run genuinely failed, exactly as expected for something that
+couldn't be tested until it hit GitHub's real runners: `maturin
+develop --release` requires an active virtualenv (`VIRTUAL_ENV`,
+`CONDA_PREFIX`, or a `.venv` folder) to know where to install into --
+the maintainer's own machine always has one (the pipx/dev-venv setup),
+but a fresh GitHub Actions runner does not. Fixed by switching the
+workflow from `maturin develop` to `maturin build --release --out dist`
++ `pip install dist/*.whl` -- `build` only produces a wheel and has no
+virtualenv requirement, and installing that wheel normally covers both
+"the code works" and "a release wheel actually builds" in one step, so
+the separate smoke-test step from the original workflow was removed as
+redundant. Also added `defaults: run: shell: bash` at the workflow
+level so wheel-glob installs behave identically across the OS matrix
+instead of needing separate pwsh syntax for the Windows runner.
+
+**Not yet confirmed**: this fix has not been pushed and re-run yet.
+Confirm all three OSes (Linux/macOS/Windows) pass before moving this
+row to "done" in the status table.
 
 ---
 

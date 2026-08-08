@@ -5,6 +5,16 @@ on:
     branches: ["master", "main"]
   pull_request:
 
+defaults:
+  run:
+    # Force bash on every OS in the matrix (Windows runners ship Git
+    # Bash) so wheel-glob installs and other steps behave identically
+    # everywhere, instead of juggling pwsh syntax for Windows.
+    # اجبار bash روی همه‌ی سیستم‌عامل‌های ماتریس (رانرهای ویندوز
+    # Git Bash از پیش نصب دارند) تا نصب wheel با glob و بقیه‌ی مراحل
+    # همه‌جا یکسان رفتار کنند، به‌جای دست‌وپنجه نرم کردن با syntax pwsh.
+    shell: bash
+
 jobs:
   test:
     name: test (${{ matrix.os }})
@@ -39,16 +49,23 @@ jobs:
       - name: Install maturin and pytest
         run: pip install maturin pytest
 
-      - name: Build the Rust core (release, matches AGENTS.md Phase G smoke test)
-        run: maturin develop --release
+      - name: Build the release wheel
+        # `maturin build` (unlike `maturin develop`) needs no active
+        # virtualenv -- it just produces a .whl, which we then install
+        # normally. This is also the Phase G "release wheel actually
+        # builds" smoke test, so no separate step is needed for that.
+        # برخلاف `maturin develop`، `maturin build` به هیچ virtualenv
+        # فعالی نیاز ندارد -- فقط یک .whl تولید می‌کند که سپس عادی
+        # نصبش می‌کنیم. این همان تست دودیِ «wheel نهایی واقعاً ساخته
+        # می‌شود» در فاز G هم هست، پس نیازی به مرحله‌ی جداگانه نیست.
+        run: maturin build --release --out dist
+
+      - name: Install the built wheel
+        run: pip install dist/*.whl
 
       - name: Run the full test suite
         # Plain pytest runs everything by default (AGENTS.md §4.8) --
-        # CI is exactly the scheduled safety net that makes running the
-        # slow_external tests (real cargo-audit, etc.) here, on every
-        # push, the right tradeoff even though they're skipped locally
-        # during quick iteration.
+        # CI is exactly the scheduled safety net local dev intentionally
+        # skips, so slow_external tests (real cargo-audit, etc.) run
+        # here on every push even though they're opt-out locally.
         run: pytest -v
-
-      - name: Confirm a release wheel actually builds
-        run: maturin build --release
