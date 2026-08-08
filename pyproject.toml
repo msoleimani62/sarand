@@ -9,9 +9,24 @@ description = "Cross-platform CLI that scans any project, detects its architectu
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+keywords = ["cli", "project-analysis", "ai-context", "code-intelligence", "static-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
 dependencies = [
     "rich>=13.0",
 ]
+
+# project.urls intentionally omitted -- no GitHub remote exists yet.
+# Add e.g. Repository = "https://github.com/<user>/sarand" once it does.
 
 [project.scripts]
 sarand = "sarand.cli:main"

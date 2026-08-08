@@ -364,8 +364,8 @@ decoration on every heading.
 | PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
 | Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | **C/C++ and Java/Kotlin implemented and tested** (`analyzers/cpp_analyzer.py`, `analyzers/java_analyzer.py`). Remaining: Zig, Dart, Ruby, PHP, Lua, Swift, C# — not started, add as actually needed (§8 Phase C guidance still applies) |
-| Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | Not started — currently `maturin develop` / `pip install -e .` (in a venv) only |
-| CI | Not set up |
+| Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. Docker/AUR/Homebrew/deb/rpm/binary: not started |
+| CI | **Workflow written, not yet running** — `.github/workflows/ci.yml`: matrix build (Linux/macOS/Windows) × Rust core build + full `pytest -v` (everything, including `slow_external` — CI is exactly the scheduled safety net local dev intentionally skips, §4.8) + a release-wheel build smoke test. Dormant until the repo has a GitHub remote; will activate automatically on the first push |
 
 ---
 
@@ -481,17 +481,43 @@ Rust change and real compile verification — don't conflate the two.
 
 ### Phase F — Packaging
 
-In this order: `pipx` (works today via the existing `pyproject.toml` entry
-point — just needs prebuilt wheels via `maturin build --release` per
-target platform), then Docker, then AUR (the maintainer runs Arch), then
-Homebrew, then deb/rpm, then a standalone binary as a stretch goal. One
-packaging target per phase, verified working, before starting the next.
+**pipx: done and confirmed on-device.** `pipx install ~/sarand` builds
+the Rust extension inside pipx's own isolated environment and installs
+cleanly — confirmed via `sarand --doctor` reporting "Rust core:
+compiled and loaded" post-install, with no manual venv activation or
+PATH editing needed. `LICENSE` (MIT) added, `pyproject.toml` gained
+classifiers/keywords, README's install section now leads with pipx
+specifically *because* this project's history includes several rounds
+of manual venv-activation/PATH confusion that pipx sidesteps entirely.
 
-### Phase G — CI
+**Reordering the remaining targets from the original plan:** the
+original order was Docker → AUR → Homebrew → deb/rpm → binary. Nothing
+in this project's actual usage (Android/Termux/Kali NetHunter phone +
+Arch Linux laptop) involves Docker — there's no described workflow that
+needs it, and running a container inside a Termux proot is its own can
+of worms. AUR is directly useful (the maintainer runs Arch daily) and
+is a natural next step once a package is installable via pipx/PyPI-style
+tooling. Revised order: **AUR next**, then Docker/Homebrew/deb/rpm/
+binary only if a real need for them shows up later — don't build
+packaging for platforms nobody described using, mirroring the same
+"don't pre-build analyzers for languages nobody asked to scan" principle
+from Phase C.
 
-GitHub Actions (once the repo has a remote): matrix build across
-Linux/macOS/Windows × the Rust core, running Phase A's test suite plus a
-`maturin build --release` smoke test on each platform.
+One packaging target per phase, verified working, before starting the
+next -- this is the rule that kept Phase F from becoming "try to do 6
+packaging systems in one pass and verify none of them."
+
+### Phase G — CI ✅ workflow written, activates on first push
+
+`.github/workflows/ci.yml` written and YAML-validated, but genuinely
+untested end-to-end -- GitHub Actions can't run without a GitHub
+remote, and this repo doesn't have one yet (see the maintainer's own
+"push to GitHub" step, which comes immediately after this phase in
+the roadmap). Once pushed, check the Actions tab for the first run and
+fix anything that only surfaces on GitHub's actual runners (this is
+the same "can't verify without the real environment" situation as the
+Rust core and pipx builds — expect at least one round of real fixes,
+same as those did).
 
 ---
 

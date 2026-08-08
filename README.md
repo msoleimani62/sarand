@@ -1,5 +1,7 @@
 # sarand
 
+[![CI](https://github.com/msoleimani62/sarand/actions/workflows/ci.yml/badge.svg)](https://github.com/msoleimani62/sarand/actions/workflows/ci.yml)
+
 **A cross-platform CLI that scans any project, detects its architecture, runs its tests, and generates a single AI-ready intelligence report.**
 
 Point it at any directory — Python, Rust, Go, Node.js, or a mix — and it produces one Markdown/JSON/text file containing the project tree, full source, test results, health score, and an AI-oriented summary. Built to run *before* you hand a codebase to an AI coding assistant.
@@ -39,10 +41,37 @@ Requires a Rust toolchain (for the fast path) and Python ≥ 3.10.
 
 نیازمند زنجیره‌ابزار Rust (برای مسیر سریع) و پایتون ≥ ۳.۱۰ است.
 
+### Recommended: pipx (globally available, no manual venv/PATH management)
+
+`pipx` builds sarand into its own isolated environment and puts the
+`sarand` command on your PATH automatically — no `source activate`, no
+editing `.zshrc`.
+
+`pipx` sarand را در محیط ایزوله‌ی خودش می‌سازد و دستور `sarand` را
+خودکار به PATH اضافه می‌کند — بدون `source activate`، بدون ویرایش دستی
+`.zshrc`.
+
+```bash
+pipx install ~/sarand
+sarand --version
+```
+
+If `pipx` itself isn't installed yet:
+
+```bash
+pip install pipx --break-system-packages
+pipx ensurepath
+```
+
+(`pipx ensurepath` adds pipx's own bin directory to PATH — restart your
+shell, or `source ~/.zshrc`/`~/.bashrc`, afterward.)
+
+### Alternative: development venv (editable, for working on sarand itself)
+
 ```bash
 pip install maturin --break-system-packages
 cd sarand
-maturin develop --release   # compiles the Rust core, installs sarand editable
+maturin develop --release
 ```
 
 If `maturin develop` fails to compile on your platform (rare, but can happen on some Termux/aarch64 toolchains), install without it — sarand will run on the pure-Python fallback:
@@ -103,15 +132,20 @@ This is a from-scratch architectural rebuild (Phase 1–3 of the roadmap). Built
 
 ## Uninstall · حذف نصب
 
+If installed via pipx:
+
+اگر با pipx نصب شده:
+
 ```bash
-pip uninstall sarand --break-system-packages
-rm -rf ~/.config/sarand   # remove persisted config (Linux)
+pipx uninstall sarand
+rm -rf ~/.config/sarand
 ```
 
-## Troubleshooting
+If installed via the development venv (`pip install -e .` / `maturin develop`):
 
-**`externally-managed-environment` error even after activating the venv:**
-Some venvs created by `uv venv` intentionally ship without `pip` (uv manages
-packages itself). Install it once with:
-~/.venv/bin/python -m ensurepip --upgrade
-Then `pip install <pkg>` works normally inside that venv from then on.
+اگر با venv توسعه نصب شده:
+
+```bash
+pip uninstall sarand --break-system-packages
+rm -rf ~/.config/sarand
+```
