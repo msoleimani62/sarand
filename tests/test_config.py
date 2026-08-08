@@ -72,44 +72,48 @@ def test_output_dir_priority_env_beats_persisted_and_default() -> None:
 
 
 def test_output_dir_falls_back_to_default_when_nothing_set() -> None:
+    """Isolated via a get_config_dir() monkeypatch, not XDG_CONFIG_HOME --
+    that env var is a Linux-only convention (see get_config_dir's
+    docstring); relying on it made this test pass by coincidence on
+    macOS/Windows CI runners rather than for the right reason, and would
+    be genuinely wrong on a real macOS/Windows machine that already has
+    a persisted config file from prior use."""
+    import sarand.userconfig as userconfig
+
     old_env = os.environ.pop("SARAND_OUTPUT_DIR", None)
-    old_xdg = os.environ.pop("XDG_CONFIG_HOME", None)
-    try:
-        # Point XDG_CONFIG_HOME somewhere with no sarand config.json,
-        # so load_persisted_config() genuinely returns {}.
-        with tempfile.TemporaryDirectory() as tmp:
-            os.environ["XDG_CONFIG_HOME"] = tmp
+    with tempfile.TemporaryDirectory() as tmp:
+        empty_config_dir = Path(tmp) / "sarand"
+        original_get_config_dir = userconfig.get_config_dir
+        userconfig.get_config_dir = lambda: empty_config_dir
+        try:
             result = resolve_output_dir(None)
             assert result == DEFAULT_OUTPUT_DIR
-    finally:
-        if old_env is not None:
-            os.environ["SARAND_OUTPUT_DIR"] = old_env
-        if old_xdg is not None:
-            os.environ["XDG_CONFIG_HOME"] = old_xdg
-        else:
-            os.environ.pop("XDG_CONFIG_HOME", None)
+        finally:
+            userconfig.get_config_dir = original_get_config_dir
+            if old_env is not None:
+                os.environ["SARAND_OUTPUT_DIR"] = old_env
 
 
 def test_output_dir_uses_persisted_config_when_present() -> None:
-    old_env = os.environ.pop("SARAND_OUTPUT_DIR", None)
-    old_xdg = os.environ.pop("XDG_CONFIG_HOME", None)
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            os.environ["XDG_CONFIG_HOME"] = tmp
-            persisted_target = Path(tmp) / "persisted-reports"
-            config_dir = Path(tmp) / "sarand"
-            config_dir.mkdir(parents=True)
-            (config_dir / "config.json").write_text(json.dumps({"output_dir": str(persisted_target)}))
+    """Same cross-platform-correct isolation as the test above."""
+    import sarand.userconfig as userconfig
 
+    old_env = os.environ.pop("SARAND_OUTPUT_DIR", None)
+    with tempfile.TemporaryDirectory() as tmp:
+        persisted_target = Path(tmp) / "persisted-reports"
+        fake_config_dir = Path(tmp) / "sarand"
+        fake_config_dir.mkdir(parents=True)
+        (fake_config_dir / "config.json").write_text(json.dumps({"output_dir": str(persisted_target)}))
+
+        original_get_config_dir = userconfig.get_config_dir
+        userconfig.get_config_dir = lambda: fake_config_dir
+        try:
             result = resolve_output_dir(None)
             assert result == persisted_target.resolve()
-    finally:
-        if old_env is not None:
-            os.environ["SARAND_OUTPUT_DIR"] = old_env
-        if old_xdg is not None:
-            os.environ["XDG_CONFIG_HOME"] = old_xdg
-        else:
-            os.environ.pop("XDG_CONFIG_HOME", None)
+        finally:
+            userconfig.get_config_dir = original_get_config_dir
+            if old_env is not None:
+                os.environ["SARAND_OUTPUT_DIR"] = old_env
 
 
 def test_default_output_name_matches_project_and_format() -> None:

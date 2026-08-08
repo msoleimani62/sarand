@@ -219,6 +219,16 @@ calls where concurrency is possible.
   tests, integration tests, and smoke tests, not just ad-hoc manual runs.
   Tests protect users (especially less experienced ones — sarand should be
   usable by someone without deep CLI experience) from silent regressions.
+- A test's isolation technique must actually work on every platform CI
+  covers, not just the one it was written on. `test_output_dir_uses_
+  persisted_config_when_present` set `XDG_CONFIG_HOME` to redirect
+  `get_config_dir()` -- correct on Linux, silently a no-op on macOS/
+  Windows (which use their own OS conventions by design), so the test
+  passed locally for months without actually testing anything on those
+  platforms. If a test fakes an OS-specific mechanism (an env var, a
+  well-known directory, a platform branch), monkeypatch the function
+  that reads it directly instead -- that isolates correctly regardless
+  of which OS the test happens to run on.
 - Plain `pytest` (no flags) must always mean "the whole suite ran" — never
   configure `addopts` (or any other mechanism) to silently deselect tests
   by default, even slow/network-dependent ones. Without CI (not built yet
@@ -365,7 +375,7 @@ decoration on every heading.
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
 | Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | **C/C++ and Java/Kotlin implemented and tested** (`analyzers/cpp_analyzer.py`, `analyzers/java_analyzer.py`). Remaining: Zig, Dart, Ruby, PHP, Lua, Swift, C# — not started, add as actually needed (§8 Phase C guidance still applies) |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. Docker/AUR/Homebrew/deb/rpm/binary: not started |
-| CI | **Pushed, one real fix applied, confirmation pending** — repo is public at `github.com/msoleimani62/sarand`. First run failed (`maturin develop` needs an active virtualenv that CI runners don't have); fixed by switching to `maturin build` + `pip install dist/*.whl`. Fix not yet re-verified on GitHub's runners — see Phase G notes |
+| CI | **Live and passing on Linux, one test bug found+fixed for macOS/Windows** — public at `github.com/msoleimani62/sarand`. Run #1 failed on CI infra (`maturin develop` needs a virtualenv CI runners don't have — fixed by switching to `maturin build` + `pip install dist/*.whl`). Run #2: `ubuntu-latest` passed clean; `macos-latest`/`windows-latest` failed on a real test bug (`test_output_dir_uses_persisted_config_when_present`/`..._falls_back...` relied on `XDG_CONFIG_HOME`, which `get_config_dir()` only honors on Linux by design — the product code was correct, the test's isolation technique wasn't cross-platform). Fixed via a direct `get_config_dir()` monkeypatch instead of the env var. Awaiting confirmation of run #3 across all three OSes |
 
 ---
 
@@ -507,27 +517,41 @@ One packaging target per phase, verified working, before starting the
 next -- this is the rule that kept Phase F from becoming "try to do 6
 packaging systems in one pass and verify none of them."
 
-### Phase G — CI ✅ pushed, one real fix applied, awaiting confirmation
+### Phase G — CI ✅ Linux passing, one real cross-platform test bug fixed
 
-The repo is now public at `github.com/msoleimani62/sarand`. The first
-CI run genuinely failed, exactly as expected for something that
-couldn't be tested until it hit GitHub's real runners: `maturin
-develop --release` requires an active virtualenv (`VIRTUAL_ENV`,
-`CONDA_PREFIX`, or a `.venv` folder) to know where to install into --
-the maintainer's own machine always has one (the pipx/dev-venv setup),
-but a fresh GitHub Actions runner does not. Fixed by switching the
-workflow from `maturin develop` to `maturin build --release --out dist`
-+ `pip install dist/*.whl` -- `build` only produces a wheel and has no
-virtualenv requirement, and installing that wheel normally covers both
-"the code works" and "a release wheel actually builds" in one step, so
-the separate smoke-test step from the original workflow was removed as
-redundant. Also added `defaults: run: shell: bash` at the workflow
-level so wheel-glob installs behave identically across the OS matrix
-instead of needing separate pwsh syntax for the Windows runner.
+The repo is now public at `github.com/msoleimani62/sarand`.
+
+**Run #1 (CI infra)**: `maturin develop --release` requires an active
+virtualenv (`VIRTUAL_ENV`, `CONDA_PREFIX`, or a `.venv` folder) to know
+where to install into -- the maintainer's own machine always has one
+(the pipx/dev-venv setup), but a fresh GitHub Actions runner does not.
+Fixed by switching the workflow from `maturin develop` to `maturin
+build --release --out dist` + `pip install dist/*.whl` -- `build` has
+no virtualenv requirement, and installing that wheel covers both "the
+code works" and "a release wheel actually builds" in one step. Also
+added `defaults: run: shell: bash` so wheel-glob installs behave
+identically across the OS matrix.
+
+**Run #2 (real product-vs-test bug, worth remembering)**:
+`ubuntu-latest` passed clean. `macos-latest` and `windows-latest` both
+failed on `test_output_dir_uses_persisted_config_when_present` (and
+`..._falls_back_to_default_when_nothing_set` was quietly relying on the
+same shaky isolation). Root cause: the tests set `XDG_CONFIG_HOME` to
+redirect where `get_config_dir()` looks -- but `get_config_dir()` only
+honors that variable on Linux, by design (§ its own docstring: macOS
+uses `~/Library/Application Support`, Windows uses `%APPDATA%`). **The
+product code was correct the whole time**; the test's isolation
+technique just wasn't cross-platform. This is exactly the kind of bug
+CI exists to catch -- it had been silently passing locally (Linux-only
+development environment) since the test was written. Fixed by
+monkeypatching `sarand.userconfig.get_config_dir` directly (save the
+original, replace with a lambda returning a temp path, restore in
+`finally`) instead of the env var -- this isolates the test from every
+platform's real config location at once, correctly, rather than only
+happening to work on whichever OS wrote the test.
 
 **Not yet confirmed**: this fix has not been pushed and re-run yet.
-Confirm all three OSes (Linux/macOS/Windows) pass before moving this
-row to "done" in the status table.
+Confirm all three OSes pass on run #3 before moving this row to "done."
 
 ---
 
