@@ -44,6 +44,18 @@ def progress_task(description: str, total: Optional[int] = None) -> Generator[tu
 
 
 def track(iterable: Iterable[T], description: str, total: Optional[int] = None) -> Iterable[T]:
+    # A total=0 progress bar renders stuck at "0% -:--:--" forever in
+    # rich, which looks hung even though there's genuinely nothing to
+    # do (e.g. every file was a --cache hit). Skip the bar entirely for
+    # empty work -- this protects every current and future call site,
+    # not just the one that surfaced it.
+    # نوار پیشرفت با total=0 در rich برای همیشه روی «0% -:--:--» گیر
+    # می‌کند، در حالی‌که واقعاً کاری برای انجام نیست (مثلاً همه‌ی فایل‌ها
+    # cache hit بودند). برای کار خالی، نوار را کامل رد می‌کنیم -- این از
+    # هر نقطه‌ی فراخوانی فعلی و آینده محافظت می‌کند، نه فقط همانی که
+    # مشکل را نشان داد.
+    if total == 0:
+        return
     from rich.progress import track as rich_track
 
     yield from rich_track(iterable, description=description, total=total, console=console)

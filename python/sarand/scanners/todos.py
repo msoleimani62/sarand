@@ -41,6 +41,18 @@ def scan_todos(
         candidates = [c for c in candidates if c in only]
 
     items: list[TodoItem] = []
+    if not candidates:
+        # Nothing to scan (e.g. every file was a --cache hit). Skip the
+        # progress bar entirely -- rich renders a `total=0` bar stuck at
+        # "0% -:--:--" forever, which looks hung even though nothing is
+        # actually wrong.
+        # چیزی برای اسکن نیست (مثلاً همه‌ی فایل‌ها cache hit بودن). نوار
+        # پیشرفت را کامل رد می‌کنیم -- rich یک نوار با total=0 را برای
+        # همیشه روی «0% -:--:--» گیر می‌دهد که با وجود درست بودن همه‌چیز،
+        # هنگ‌کرده به‌نظر می‌رسد.
+        logger.info("Found 0 TODO-style markers (nothing to scan)")
+        return items
+
     for rel in track(candidates, description="Scanning TODOs", total=len(candidates)):
         if len(items) >= max_items:
             break
