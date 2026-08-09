@@ -4,7 +4,7 @@
 
 **A cross-platform CLI that scans any project, detects its architecture, runs its tests, and generates a single AI-ready intelligence report.**
 
-Point it at any directory — Python, Rust, Go, Node.js, or a mix — and it produces one Markdown/JSON/text file containing the project tree, full source, test results, health score, and an AI-oriented summary. Built to run *before* you hand a codebase to an AI coding assistant.
+Point it at any directory — Python, Rust, Go, Node.js, C++, Java, or a mix — and it produces one Markdown/JSON/text/HTML/SARIF/PDF file containing the project tree, full source, test results, health score, and an AI-oriented summary. Built to run *before* you hand a codebase to an AI coding assistant.
 
 **یک ابزار خط‌فرمان چندسکویی که هر پروژه‌ای را اسکن می‌کند، معماری‌اش را تشخیص می‌دهد، تست‌هایش را اجرا می‌کند و یک گزارش هوشمند و آماده برای هوش مصنوعی تولید می‌کند.**
 
@@ -56,6 +56,23 @@ pipx install ~/sarand
 sarand --version
 ```
 
+**Upgrading after pulling new sarand source:** a plain `pipx install`
+does not automatically refresh an already-installed copy. Use
+`install.sh` (in the repo root) instead of a raw `pipx install` from
+the second install onward — it checks whether a previous pipx
+installation exists, removes it first (printing what it's doing), then
+builds and installs the current source fresh:
+
+**آپدیت بعد از دریافت سورس جدید sarand:** یک `pipx install` ساده
+نصب قبلی را خودکار تازه نمی‌کند. از دومین نصب به بعد به‌جای
+`pipx install` خام از `install.sh` (در ریشه‌ی ریپو) استفاده کن — بررسی
+می‌کند که آیا نصب قبلی pipx وجود دارد، اول آن را حذف می‌کند (و اعلام
+می‌کند)، سپس نسخه‌ی فعلی سورس را از نو می‌سازد و نصب می‌کند:
+
+```bash
+./install.sh
+```
+
 If `pipx` itself isn't installed yet:
 
 ```bash
@@ -89,7 +106,17 @@ sarand                                   # analyse the current directory
 sarand --project ~/myproject --quality   # explicit path + lint/format checks
 sarand --skip-tests --format json -o report.json
 sarand --set-output-dir ~/ai-reports     # persist output location, once
+sarand --cache                           # skip re-scanning unchanged files (opt-in)
+sarand --doctor                          # environment diagnostics
 ```
+
+Re-running against the same project replaces its previous report at
+that output path automatically (and says so) — reports never pile up
+under the same filename.
+
+اجرای مجدد روی همان پروژه، گزارش قبلی‌اش در همان مسیر خروجی را خودکار
+جایگزین می‌کند (و اعلامش می‌کند) — گزارش‌ها زیر یک نام فایل روی هم
+انباشته نمی‌شوند.
 
 | Flag | Meaning |
 |---|---|
@@ -97,9 +124,13 @@ sarand --set-output-dir ~/ai-reports     # persist output location, once
 | `--output-dir, -d PATH` | Where to write the report |
 | `--output-name, -o NAME` | Report filename (default: `sarand-<project>-report.<ext>`) |
 | `--set-output-dir PATH` | Persist PATH as the default output dir and exit |
-| `--format, -f {markdown,json,text}` | Output format |
+| `--format, -f {markdown,json,text,html,pdf,sarif}` | Output format |
 | `--skip-tests` | Skip running tests |
 | `--quality` | Run lint/format checks per detected language |
+| `--security` | Run security/vulnerability checks per detected language |
+| `--cache` | Skip re-scanning TODOs/secrets in files unchanged since the last `--cache` run (opt-in) |
+| `--clear-cache` | Delete the incremental-scan cache for this project and exit |
+| `--doctor` | Run environment diagnostics (Rust core, per-language toolchains, PDF engines) and exit |
 | `--no-source` | Don't embed source file contents |
 | `--no-health` | Skip health-score calculation |
 | `--verbose, -v` / `--debug` | Logging verbosity |
@@ -126,9 +157,9 @@ sarand discovers and runs it automatically, concurrently with every other matchi
 
 ## Current scope · دامنه‌ی فعلی
 
-This is a from-scratch architectural rebuild (Phase 1–3 of the roadmap). Built-in language analyzers: **Python, Rust, Go, Node.js**. Security scanning (`--security`), the HTML dashboard, PDF/SARIF renderers, and the incremental-scan cache are deliberately not yet implemented — they're real next phases, not silent gaps.
+Implemented: Python/Rust/Go/Node.js/C++/Java analyzers (tests + quality + security checks), Markdown/JSON/text/HTML/SARIF renderers, PDF export (via an installed `wkhtmltopdf`/`weasyprint`), secret detection and exclusion, an opt-in incremental scan cache, `sarand --doctor`, and CI across Linux/macOS/Windows. Not yet implemented: Zig/Dart/Ruby/PHP/Lua/Swift/C# analyzers, and packaging beyond pipx (Docker/AUR/Homebrew/deb-rpm/standalone binary) — added only as actually needed, per `AGENTS.md`'s roadmap.
 
-این یک بازسازی معماری از صفر است (فاز ۱ تا ۳ نقشه‌راه). آنالایزرهای داخلی: **پایتون، Rust، Go، Node.js**. اسکن امنیتی (`--security`)، داشبورد HTML، رندررهای PDF/SARIF، و کش اسکن افزایشی عمداً هنوز پیاده‌سازی نشده‌اند — این‌ها فازهای بعدی واقعی هستند، نه یک نقص پنهان.
+پیاده‌سازی‌شده: آنالایزرهای Python/Rust/Go/Node.js/C++/Java (تست + کیفیت + امنیت)، رندررهای Markdown/JSON/متن/HTML/SARIF، خروجی PDF (از طریق `wkhtmltopdf`/`weasyprint` نصب‌شده)، تشخیص و حذف secret، کش افزایشی اختیاری، `sarand --doctor`، و CI روی لینوکس/مک/ویندوز. هنوز نیست: آنالایزرهای Zig/Dart/Ruby/PHP/Lua/Swift/C#، و پکیجینگ فراتر از pipx (Docker/AUR/Homebrew/deb-rpm/باینری مستقل) — طبق نقشه‌راه `AGENTS.md` فقط در صورت نیاز واقعی اضافه می‌شوند.
 
 ## Uninstall · حذف نصب
 

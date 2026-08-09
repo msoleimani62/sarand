@@ -114,6 +114,31 @@ def write_sha256(path: Path) -> str:
     return digest
 
 
+def remove_previous_report(output_path: Path) -> None:
+    """If a report already exists at this exact output path, remove it
+    first and say so explicitly.
+
+    `write_text()`/the PDF renderer would silently overwrite it anyway
+    -- this exists purely to make that replacement visible to the user
+    (same "check, remove, announce, then create fresh" pattern as
+    install.sh), rather than a silent overwrite they have to infer from
+    the file's new mtime.
+
+    اگر گزارشی از قبل دقیقاً در همین مسیر خروجی وجود داشته باشد، ابتدا
+    آن را حذف می‌کند و صریحاً اعلام می‌کند. `write_text()`/رندرر PDF در
+    هر صورت آن را بی‌صدا بازنویسی می‌کردند -- این تابع صرفاً برای
+    مرئی‌کردن آن جایگزینی برای کاربر است (همان الگوی «چک کن، حذف کن،
+    اعلام کن، بعد تازه بساز» که در install.sh هم هست)، نه یک overwrite
+    خاموش که کاربر باید از mtime جدید فایل حدس بزند.
+    """
+    checksum_path = output_path.with_suffix(output_path.suffix + ".sha256")
+    if output_path.exists():
+        status(f"Found an existing report at {output_path} -- replacing it.")
+        output_path.unlink()
+    if checksum_path.exists():
+        checksum_path.unlink()
+
+
 async def run(config: SarandConfig) -> int:
     """Execute one full analysis run."""
     setup_logging(verbose=config.verbose, debug=config.debug)
@@ -229,6 +254,8 @@ async def run(config: SarandConfig) -> int:
 
     if config.health_score:
         data.health = compute_health_score(data)
+
+    remove_previous_report(output_path)
 
     if config.output_format == "pdf":
         # PDF is binary and rendered via an external tool (renderers/pdf.py)

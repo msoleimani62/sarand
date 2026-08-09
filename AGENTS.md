@@ -311,6 +311,24 @@ in sync with the actual CLI flags (don't let README drift from `cli.py`'s
 prose; use badges/emoji only where they add real scannability, not as
 decoration on every heading.
 
+### 4.13 "Check, remove, announce, then create fresh" for anything that replaces a previous artifact
+
+Any time sarand (or its install tooling) is about to produce something at
+a path that may already hold a previous version of that same thing —
+a generated report, an installed package — the sequence is: check
+whether it already exists, remove it first, print what you're doing,
+then create the new one. Never rely on a silent overwrite (`write_text`,
+`pipx install` over a stale copy) even when that would produce the same
+end state, because a silent overwrite gives no signal that a *previous*
+version existed at all — the user has to infer it from a changed mtime.
+Two concrete instances of this rule: `cli.py`'s `remove_previous_report`
+(a report at the exact output path is removed and announced before the
+new one is written) and `install.sh` (a previous pipx installation is
+uninstalled and announced before installing the current source tree —
+this also fixes a real staleness bug: pipx installs are not editable by
+default, so re-running a plain `pipx install` after pulling new sarand
+code does not actually pick up the changes without an uninstall first).
+
 ---
 
 ## 5. Working-session conventions (for Claude Code / assistant sessions)
@@ -351,6 +369,9 @@ decoration on every heading.
   were already finished.
 - Proposed changes should include clean, descriptive, conventional commit
   messages.
+- When code changes and the maintainer needs to re-test via pipx, tell
+  them to run `./install.sh`, not a raw `pipx install ~/sarand` — see
+  §4.13 for why the raw command silently fails to pick up changes.
 
 ---
 
@@ -366,7 +387,7 @@ decoration on every heading.
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed** — 100 tests across `test_project_detector.py`, `test_rust_bridge.py`, `test_analyzers.py`, `test_health.py`, `test_renderers.py`, `test_config.py`, `test_secrets.py`, `test_doctor.py`, `test_cpp_java_analyzers.py`, `test_new_renderers.py`, `test_cache.py`. Real `pytest -v` run on the maintainer's device confirmed 86/86 at the Phase D checkpoint (including the Rust-vs-Python cross-check and the real, installed `cargo-audit`/`wkhtmltopdf` paths); Phase E's additional 14 were verified with the same stdlib-only collector pre-delivery, plus a manual 3-run end-to-end cache sequence (cold/warm/changed-file) confirmed on the build side — confirm the new total with a real `pytest -v` run next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Test-bug lesson from Phase B, still worth repeating: two security-check tests once hardcoded a "tool not installed" assumption that only held in the original sandbox — both now branch on `shutil.which(...)` instead of assuming either way |
+| Automated test suite (pytest) | **Implemented and confirmed, CI-green on all 3 OSes** — 104 tests (added `test_report_replacement.py`). Real `pytest -v` confirmed 100/100 on the maintainer's device pre-CI, and CI's own run #3 confirmed all tests passing on Linux/macOS/Windows (see Phase G). `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented and tested** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries (13 per-language + wkhtmltopdf/weasyprint for PDF export, added during Phase D); never fails on a missing optional tool |
@@ -374,8 +395,9 @@ decoration on every heading.
 | PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
 | Additional language analyzers (C/C++, Java/Kotlin, Zig, Dart, Ruby, PHP, Lua, Swift, C#) | **C/C++ and Java/Kotlin implemented and tested** (`analyzers/cpp_analyzer.py`, `analyzers/java_analyzer.py`). Remaining: Zig, Dart, Ruby, PHP, Lua, Swift, C# — not started, add as actually needed (§8 Phase C guidance still applies) |
-| Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. Docker/AUR/Homebrew/deb/rpm/binary: not started |
-| CI | **Live and passing on Linux, one test bug found+fixed for macOS/Windows** — public at `github.com/msoleimani62/sarand`. Run #1 failed on CI infra (`maturin develop` needs a virtualenv CI runners don't have — fixed by switching to `maturin build` + `pip install dist/*.whl`). Run #2: `ubuntu-latest` passed clean; `macos-latest`/`windows-latest` failed on a real test bug (`test_output_dir_uses_persisted_config_when_present`/`..._falls_back...` relied on `XDG_CONFIG_HOME`, which `get_config_dir()` only honors on Linux by design — the product code was correct, the test's isolation technique wasn't cross-platform). Fixed via a direct `get_config_dir()` monkeypatch instead of the env var. Awaiting confirmation of run #3 across all three OSes |
+| Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. `install.sh` added (§4.13) so upgrading an existing pipx install actually picks up new code — a raw `pipx install` over a stale copy silently doesn't, since pipx installs aren't editable by default. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. Docker/AUR/Homebrew/deb/rpm/binary: not started |
+| Report replacement (§4.13) | **Implemented and tested** — `cli.py::remove_previous_report` explicitly checks for, removes, and announces a previous report (+ its `.sha256`) at the exact output path before writing a new one, for the same "check, remove, announce, create fresh" reason as `install.sh` |
+| CI | **Confirmed green on all three OSes** — public at `github.com/msoleimani62/sarand`. Two real issues found and fixed across the first three runs (see Phase G notes): a CI-infra bug (`maturin develop` needs a virtualenv CI runners don't have) and a genuine cross-platform test-isolation bug (two tests relied on `XDG_CONFIG_HOME`, which the product code only honors on Linux by design — the product code was correct, the tests weren't platform-independent). Run #3: `ubuntu-latest`, `macos-latest`, `windows-latest` all passed |
 
 ---
 
@@ -517,7 +539,7 @@ One packaging target per phase, verified working, before starting the
 next -- this is the rule that kept Phase F from becoming "try to do 6
 packaging systems in one pass and verify none of them."
 
-### Phase G — CI ✅ Linux passing, one real cross-platform test bug fixed
+### Phase G — CI ✅ done, confirmed green on all three OSes
 
 The repo is now public at `github.com/msoleimani62/sarand`.
 
@@ -550,8 +572,9 @@ original, replace with a lambda returning a temp path, restore in
 platform's real config location at once, correctly, rather than only
 happening to work on whichever OS wrote the test.
 
-**Not yet confirmed**: this fix has not been pushed and re-run yet.
-Confirm all three OSes pass on run #3 before moving this row to "done."
+**Confirmed**: run #3 passed on all three OSes (Linux, macOS, Windows).
+Phase G is done -- CI is now the scheduled safety net §4.8 talks about,
+not just an aspiration.
 
 ---
 
