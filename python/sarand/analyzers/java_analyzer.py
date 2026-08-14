@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 
 from sarand.constants import LONG_CMD_TIMEOUT
+from sarand.discovery.android import is_android_project
 from sarand.models.results import CommandResult
 from sarand.utils.command import make_command_result, run_cmd_async
 from sarand.utils.logging import get_logger
@@ -40,6 +41,21 @@ class JavaAnalyzer:
         return None, False
 
     def matches(self, root: Path) -> bool:
+        # Android projects are handled by AndroidAnalyzer instead --
+        # its Gradle task names (testDebugUnitTest, lintDebug, ...)
+        # differ from plain Java/Kotlin Gradle, and running both
+        # analyzers on the same project would mean two conflicting sets
+        # of test/lint commands. Kept as a one-line exclusion here
+        # rather than merging the two analyzers -- see
+        # android_analyzer.py's module docstring for the full reasoning.
+        # پروژه‌های اندروید توسط AndroidAnalyzer مدیریت می‌شوند -- نام
+        # تسک‌های Gradle آن (testDebugUnitTest، lintDebug، ...) با
+        # Gradle خالص جاوا/کاتلین فرق دارد، و اجرای هر دو آنالایزر روی
+        # یک پروژه یعنی دو دسته دستور تست/lint متناقض. این‌جا فقط یک
+        # حذف یک‌خطی نگه داشته شده، نه ادغام دو آنالایزر -- استدلال
+        # کامل در docstring ماژول android_analyzer.py است.
+        if is_android_project(root):
+            return False
         return self._build_tool(root) is not None
 
     def entry_points(self, root: Path) -> list[str]:

@@ -69,6 +69,10 @@ ESSENTIAL_EXTENSIONS: frozenset[str] = frozenset(
         ".tsx",
         ".java",
         ".kt",
+        ".kts",
+        ".xml",
+        ".gradle",
+        ".properties",
     }
 )
 
@@ -95,6 +99,9 @@ LANG_MAP: dict[str, str] = {
     ".tsx": "tsx",
     ".java": "java",
     ".kt": "kotlin",
+    ".kts": "kotlin",
+    ".xml": "xml",
+    ".gradle": "groovy",
 }
 
 WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")
@@ -165,4 +172,8 @@ SECRET_FILENAME_PATTERNS: tuple[str, ...] = (
     r"credentials.*\.json$",
     r"^\.npmrc$",
     r"^\.netrc$",
+    r"^local\.properties$",
+    r"\.jks$",
+    r"\.keystore$",
+    r"^google-services\.json$",
 )

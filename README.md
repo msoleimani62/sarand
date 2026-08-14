@@ -108,7 +108,20 @@ sarand --skip-tests --format json -o report.json
 sarand --set-output-dir ~/ai-reports     # persist output location, once
 sarand --cache                           # skip re-scanning unchanged files (opt-in)
 sarand --doctor                          # environment diagnostics
+sarand --full                            # everything on, nothing truncated -- the most complete report possible
 ```
+
+`--full` is shorthand for "give me the absolute maximum": it turns on
+`--quality` and `--security`, and removes the file-size/tree-depth/
+tree-entry truncation limits entirely, so nothing gets skipped or cut
+short. An explicit `--max-depth`/`--max-entries`/`--max-file-size` you
+also pass still wins over `--full`'s defaults.
+
+`--full` مخفف «حداکثر مطلق بده» است: `--quality` و `--security` را
+روشن می‌کند، و محدودیت‌های اندازه‌فایل/عمق‌درخت/تعداد‌ورودی‌های‌درخت را
+کاملاً حذف می‌کند تا چیزی رد یا کوتاه نشود. اگر خودت هم `--max-depth`/
+`--max-entries`/`--max-file-size` صریح بدهی، همچنان بر پیش‌فرض‌های
+`--full` اولویت دارد.
 
 Re-running against the same project replaces its previous report at
 that output path automatically (and says so) — reports never pile up
@@ -128,6 +141,7 @@ under the same filename.
 | `--skip-tests` | Skip running tests |
 | `--quality` | Run lint/format checks per detected language |
 | `--security` | Run security/vulnerability checks per detected language |
+| `--full` | Maximum completeness: `--quality` + `--security` + no truncation limits |
 | `--cache` | Skip re-scanning TODOs/secrets in files unchanged since the last `--cache` run (opt-in) |
 | `--clear-cache` | Delete the incremental-scan cache for this project and exit |
 | `--doctor` | Run environment diagnostics (Rust core, per-language toolchains, PDF engines) and exit |
@@ -142,6 +156,31 @@ under the same filename.
 - Linux: `$XDG_CONFIG_HOME/sarand/config.json` or `~/.config/sarand/config.json`
 - macOS: `~/Library/Application Support/sarand/config.json`
 - Windows: `%APPDATA%\sarand\config.json`
+
+## Pasting a large report into a chat with no file upload · پیست گزارش بزرگ در چتی بدون آپلود فایل
+
+`scripts/paste_chunks.py` splits any file (typically a `sarand --full`
+report) into paste-sized chunks and walks you through them one at a
+time, with resumable state (next/back/history/jump-to-block) across
+separate invocations. On a terminal that supports the OSC52 escape
+sequence (Termux included) each chunk is copied straight to the system
+clipboard with no external clipboard tool and no graphical session
+needed — the only thing that works on a non-rooted Android phone with
+no X11/Wayland.
+
+`scripts/paste_chunks.py` هر فایلی (معمولاً یک گزارش `sarand --full`)
+را به تکه‌های اندازه‌مناسب پیست می‌شکند و یکی‌یکی طی‌شان می‌کند، با
+وضعیت قابل‌ازسرگیری بین اجراهای جدا. روی ترمینالی که OSC52 را
+پشتیبانی می‌کند (از جمله Termux) هر تکه مستقیم در کلیپ‌بورد سیستم کپی
+می‌شود، بدون ابزار کلیپ‌بورد خارجی و بدون نشست گرافیکی — تنها چیزی که
+روی گوشی اندروید بدون روت و بدون X11/Wayland کار می‌کند.
+
+```bash
+sarand --full -d /tmp/reports
+python3 scripts/paste_chunks.py --source /tmp/reports/sarand-*-report.md
+# paste the chunk, then run again with no flags for the next one:
+python3 scripts/paste_chunks.py --source /tmp/reports/sarand-*-report.md
+```
 
 ## Writing a plugin analyzer · نوشتن یک آنالایزر پلاگین
 

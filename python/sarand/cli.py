@@ -90,6 +90,12 @@ Examples:
         help="Delete the incremental-scan cache for this project (in the output dir) and exit",
     )
     parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Maximum-completeness report: enables --quality and --security, and removes all "
+        "truncation limits (file size, tree depth/entries) so nothing is skipped or cut short",
+    )
+    parser.add_argument(
         "--format", "-f", choices=["markdown", "json", "text", "html", "pdf", "sarif"], default="markdown"
     )
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")

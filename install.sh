@@ -22,6 +22,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPX_VENV_DIR="$HOME/.local/share/pipx/venvs/sarand"
 
 echo "==> sarand installer/upgrader"
 echo "==> Source: $SCRIPT_DIR"
@@ -34,8 +35,35 @@ fi
 
 if pipx list --short 2>/dev/null | grep -q '^sarand '; then
     echo "==> Previous pipx installation found -- removing it first..."
-    pipx uninstall sarand
+    if ! pipx uninstall sarand; then
+        # pipx itself can fail to read a previous install's metadata
+        # (a known pipx bug: "Unknown metadata version X. Perhaps it
+        # was installed with a later version of pipx" -- pipx's own
+        # internal venv bookkeeping got corrupted, not a sarand issue).
+        # `pipx uninstall` hits the same read and fails the same way,
+        # so fall back to removing the venv directory directly.
+        # خودِ pipx می‌تواند در خواندن متادیتای نصب قبلی شکست بخورد (یک
+        # باگ شناخته‌شده‌ی pipx: خرابی بوکیپینگ داخلی venv، نه مشکلی از
+        # sarand). چون `pipx uninstall` هم به همان خواندن برمی‌خورد و
+        # به همان شکل شکست می‌خورد، به حذف مستقیم پوشه‌ی venv برمی‌گردیم.
+        echo "==> pipx uninstall failed (likely corrupted pipx metadata, see"
+        echo "    https://github.com/pypa/pipx/issues/1619) -- removing the"
+        echo "    venv directory directly instead: $PIPX_VENV_DIR"
+        rm -rf "$PIPX_VENV_DIR"
+    fi
     echo "==> Previous installation removed."
+elif [ -d "$PIPX_VENV_DIR" ]; then
+    # A venv directory can exist on disk without `pipx list` showing it
+    # at all, for the same corrupted-metadata reason above -- pipx
+    # silently omits entries it can't parse rather than erroring on
+    # `list`. Left alone, `pipx install` would hit the same broken
+    # metadata and fail with the cryptic "Unknown metadata version" error.
+    # یک پوشه‌ی venv می‌تواند روی دیسک باشد بدون این‌که `pipx list` اصلاً
+    # نشانش دهد، به همان دلیل خرابی متادیتا -- pipx ورودی‌هایی را که
+    # نمی‌تواند parse کند بی‌صدا از `list` حذف می‌کند، نه این‌که خطا بدهد.
+    echo "==> Found a stale pipx venv directory not tracked by 'pipx list'"
+    echo "    (likely corrupted pipx metadata) -- removing it directly: $PIPX_VENV_DIR"
+    rm -rf "$PIPX_VENV_DIR"
 elif command -v sarand >/dev/null 2>&1; then
     echo "==> A 'sarand' command exists on PATH but wasn't installed via pipx"
     echo "    ($(command -v sarand)). Not touching it automatically -- if this"

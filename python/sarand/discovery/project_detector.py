@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 
 from sarand.constants import ENTRY_POINT_CANDIDATES, IGNORE_DIRS, PROJECT_MARKERS
+from sarand.discovery.android import is_android_project
 from sarand.models.results import ProjectDetection
 
 logger = logging.getLogger("sarand.discovery")
@@ -54,6 +55,21 @@ def detect_project(root: Path) -> ProjectDetection:
             primary_language = guess
             project_type = "unknown (no build-system marker found)"
             build_system = "none detected"
+
+    # Relabel generic "Java/Kotlin" (from a bare build.gradle(.kts) or
+    # pom.xml marker) as specifically Android when the deeper Android
+    # signals are present -- matches what AndroidAnalyzer actually runs
+    # against this project (§ its module docstring), so the report's
+    # opening line doesn't undersell what was actually detected/run.
+    # برچسب عمومی «Java/Kotlin» (که فقط از یک build.gradle(.kts) یا
+    # pom.xml خام آمده) را وقتی سیگنال‌های عمیق‌تر اندروید وجود دارند،
+    # مشخصاً به Android تغییر می‌دهد -- با چیزی که AndroidAnalyzer واقعاً
+    # روی این پروژه اجرا می‌کند هماهنگ می‌شود، تا خط اول گزارش کم‌تر از
+    # چیزی که واقعاً تشخیص/اجرا شده نشان ندهد.
+    if primary_language == "Java/Kotlin" and is_android_project(root):
+        primary_language = "Android/Kotlin"
+        project_type = "mobile application"
+        languages = ["Android/Kotlin" if lang == "Java/Kotlin" else lang for lang in languages]
 
     return ProjectDetection(
         languages=languages,

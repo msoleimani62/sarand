@@ -153,3 +153,35 @@ def test_validate_accepts_supported_formats() -> None:
         for fmt in ("markdown", "json", "text", "html", "pdf", "sarif"):
             cfg = SarandConfig(project_root=Path(tmp), output_format=fmt)
             cfg.validate()  # must not raise
+
+
+def test_full_flag_enables_quality_and_security() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = SarandConfig.from_args(_args(project=tmp, full=True))
+        assert cfg.run_quality is True
+        assert cfg.run_security is True
+
+
+def test_full_flag_removes_truncation_limits() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = SarandConfig.from_args(_args(project=tmp, full=True))
+        assert cfg.max_tree_depth >= 10_000
+        assert cfg.max_tree_entries >= 1_000_000
+        assert cfg.max_file_size >= 10 * 1024 * 1024 * 1024
+
+
+def test_full_flag_does_not_override_an_explicit_max_depth() -> None:
+    """An explicit --max-depth must still win over --full's convenience
+    default -- explicit user intent is never silently overridden."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = SarandConfig.from_args(_args(project=tmp, full=True, max_depth=3))
+        assert cfg.max_tree_depth == 3
+        assert cfg.run_quality is True  # the rest of --full still applies
+
+
+def test_without_full_flag_limits_stay_at_normal_defaults() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = SarandConfig.from_args(_args(project=tmp))
+        assert cfg.run_quality is False
+        assert cfg.run_security is False
+        assert cfg.max_tree_depth < 10_000

@@ -66,19 +66,37 @@ class SarandConfig:
         def _int_or(value: Any, default: int) -> int:
             return default if value is None else int(value)
 
+        # --full: maximum-completeness report. Only changes what the
+        # "no explicit value given" default resolves to for each limit
+        # -- an explicit --max-depth/--max-entries still wins over
+        # --full, same as any other explicit flag beats a convenience
+        # default (matches AGENTS.md §4.13's spirit: explicit user
+        # intent is never silently overridden by a convenience flag).
+        # --full: گزارش با حداکثر کامل‌بودن. فقط تغییر می‌دهد که «مقدار
+        # صریح داده نشده» برای هر محدودیت به چه چیزی resolve می‌شود --
+        # یک --max-depth/--max-entries صریح همچنان بر --full غالب است.
+        full = bool(getattr(args, "full", False))
+        unlimited_tree_depth = 10_000
+        unlimited_tree_entries = 1_000_000
+        unlimited_file_size = 10 * 1024 * 1024 * 1024  # 10 GiB -- no real source file exceeds this
+
         return cls(
             project_root=project,
             output_dir=out_dir,
             output_name=output_name,
             skip_tests=bool(getattr(args, "skip_tests", False)),
-            run_quality=bool(getattr(args, "quality", False)),
-            run_security=bool(getattr(args, "security", False)),
+            run_quality=full or bool(getattr(args, "quality", False)),
+            run_security=full or bool(getattr(args, "security", False)),
             verbose=bool(getattr(args, "verbose", False)),
             debug=bool(getattr(args, "debug", False)),
             output_format=output_format,
-            max_tree_depth=_int_or(getattr(args, "max_depth", None), MAX_TREE_DEPTH),
-            max_tree_entries=_int_or(getattr(args, "max_entries", None), MAX_TREE_ENTRIES),
-            max_file_size=_int_or(getattr(args, "max_file_size", None), MAX_FILE_SIZE),
+            max_tree_depth=_int_or(getattr(args, "max_depth", None), unlimited_tree_depth if full else MAX_TREE_DEPTH),
+            max_tree_entries=_int_or(
+                getattr(args, "max_entries", None), unlimited_tree_entries if full else MAX_TREE_ENTRIES
+            ),
+            max_file_size=_int_or(
+                getattr(args, "max_file_size", None), unlimited_file_size if full else MAX_FILE_SIZE
+            ),
             include_source=not bool(getattr(args, "no_source", False)),
             health_score=not bool(getattr(args, "no_health", False)),
             use_cache=bool(getattr(args, "cache", False)),

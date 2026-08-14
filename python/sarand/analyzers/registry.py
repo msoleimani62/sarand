@@ -23,6 +23,7 @@ import asyncio
 from importlib.metadata import entry_points
 from pathlib import Path
 
+from sarand.analyzers.android_analyzer import AndroidAnalyzer
 from sarand.analyzers.base import LanguageAnalyzer
 from sarand.analyzers.cpp_analyzer import CppAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
@@ -43,6 +44,15 @@ _BUILTIN: list[LanguageAnalyzer] = [
     GoAnalyzer(),
     NodeAnalyzer(),
     CppAnalyzer(),
+    # AndroidAnalyzer before JavaAnalyzer: matches() on both is mutually
+    # exclusive by design (JavaAnalyzer defers to Android detection), so
+    # order between them doesn't actually change behavior -- kept in
+    # this order anyway since it reads as "more specific case first."
+    # AndroidAnalyzer قبل از JavaAnalyzer: matches() دو تا به‌طور طراحی
+    # متقابلاً منحصربه‌فرد است (JavaAnalyzer به تشخیص اندروید واگذار
+    # می‌کند)، پس ترتیب بین این دو واقعاً رفتار را عوض نمی‌کند -- فقط
+    # چون خوانشش «مورد خاص‌تر اول» است همین‌طور نگه داشته شده.
+    AndroidAnalyzer(),
     JavaAnalyzer(),
 ]
 
