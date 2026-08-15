@@ -12,7 +12,11 @@ from sarand.utils.logging import get_logger
 logger = get_logger("tree")
 
 
-def build_tree(root: Path, *, max_depth: int = MAX_TREE_DEPTH, max_entries: int = MAX_TREE_ENTRIES) -> str:
+def build_tree(
+    root: Path, *, max_depth: int = MAX_TREE_DEPTH, max_entries: int = MAX_TREE_ENTRIES
+) -> str:
     status("Building project tree...")
     logger.info("Building tree (depth=%d, entries=%d)", max_depth, max_entries)
-    return _build_tree_text(root, ignore_dirs=IGNORE_DIRS, max_depth=max_depth, max_entries=max_entries)
+    return _build_tree_text(
+        root, ignore_dirs=IGNORE_DIRS, max_depth=max_depth, max_entries=max_entries
+    )

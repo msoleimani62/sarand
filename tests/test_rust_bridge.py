@@ -12,16 +12,14 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+from _helpers import write
 from sarand import rust_bridge
 from sarand.rust_bridge import (
     RUST_CORE_AVAILABLE,
     _pure_python_scan,
     _pure_python_tree,
-    build_tree_text,
     scan_project,
 )
-
-from _helpers import write
 
 _EXPECTED_KEYS = {
     "rel_path",
@@ -90,9 +88,13 @@ def test_scan_project_public_api_matches_fallback_shape_when_rust_absent() -> No
         _make_fixture_project(root)
 
         via_public_api = scan_project(root)
-        via_fallback_directly = _pure_python_scan(root, rust_bridge.IGNORE_DIRS, 512_000, 5000)
+        via_fallback_directly = _pure_python_scan(
+            root, rust_bridge.IGNORE_DIRS, 512_000, 5000
+        )
 
-        assert {r["rel_path"] for r in via_public_api} == {r["rel_path"] for r in via_fallback_directly}
+        assert {r["rel_path"] for r in via_public_api} == {
+            r["rel_path"] for r in via_fallback_directly
+        }
 
 
 def test_rust_and_python_paths_agree_on_fixture_project() -> None:

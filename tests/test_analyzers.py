@@ -8,14 +8,12 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
+from _helpers import write
 from sarand.analyzers.go_analyzer import GoAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
 from sarand.analyzers.rust_analyzer import RustAnalyzer
-
-from _helpers import write
 
 
 def test_python_analyzer_only_matches_with_real_marker() -> None:
@@ -150,7 +148,10 @@ def test_rust_analyzer_run_security_checks_cargo_audit_binary_specifically() -> 
     analyzer = RustAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        write(root / "Cargo.toml", "[package]\nname = \"x\"\nversion = \"0.1.0\"\nedition = \"2021\"\n")
+        write(
+            root / "Cargo.toml",
+            '[package]\nname = "x"\nversion = "0.1.0"\nedition = "2021"\n',
+        )
         write(root / "src" / "main.rs", "fn main() {}\n")
 
         results = asyncio.run(analyzer.run_security(root))

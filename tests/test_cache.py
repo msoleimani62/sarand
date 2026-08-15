@@ -56,7 +56,11 @@ def test_cache_lives_under_output_dir_not_project_dir() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         output_dir = Path(tmp) / "out"
         project_root = Path(tmp) / "proj"
-        save_cache(output_dir, project_root, {"a.py": {"hash": "x", "todos": [], "secrets": []}})
+        save_cache(
+            output_dir,
+            project_root,
+            {"a.py": {"hash": "x", "todos": [], "secrets": []}},
+        )
 
         # Nothing should have been written inside project_root.
         assert not project_root.exists()
@@ -66,8 +70,16 @@ def test_cache_lives_under_output_dir_not_project_dir() -> None:
 def test_different_projects_get_different_cache_files() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         output_dir = Path(tmp)
-        save_cache(output_dir, Path(tmp) / "proj-a", {"a.py": {"hash": "1", "todos": [], "secrets": []}})
-        save_cache(output_dir, Path(tmp) / "proj-b", {"b.py": {"hash": "2", "todos": [], "secrets": []}})
+        save_cache(
+            output_dir,
+            Path(tmp) / "proj-a",
+            {"a.py": {"hash": "1", "todos": [], "secrets": []}},
+        )
+        save_cache(
+            output_dir,
+            Path(tmp) / "proj-b",
+            {"b.py": {"hash": "2", "todos": [], "secrets": []}},
+        )
 
         cache_a = load_cache(output_dir, Path(tmp) / "proj-a")
         cache_b = load_cache(output_dir, Path(tmp) / "proj-b")
@@ -82,7 +94,11 @@ def test_rules_fingerprint_change_invalidates_cache() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         output_dir = Path(tmp)
         project_root = Path(tmp) / "proj"
-        save_cache(output_dir, project_root, {"a.py": {"hash": "1", "todos": [], "secrets": []}})
+        save_cache(
+            output_dir,
+            project_root,
+            {"a.py": {"hash": "1", "todos": [], "secrets": []}},
+        )
 
         from sarand.core.cache import _cache_path
 
@@ -153,18 +169,30 @@ def test_build_cache_entries_only_includes_hashable_files() -> None:
 def test_build_cache_entries_attaches_findings_to_the_right_file() -> None:
     records = [_record("a.py", "hash-a"), _record("b.py", "hash-b")]
     todos = [TodoItem(path="a.py", line_number=3, kind="TODO", content="fix this")]
-    secrets = [SecretFinding(path="b.py", line_number=1, pattern_name="AWS Access Key ID")]
+    secrets = [
+        SecretFinding(path="b.py", line_number=1, pattern_name="AWS Access Key ID")
+    ]
 
     entries = build_cache_entries(records, todos, secrets)
 
-    assert entries["a.py"]["todos"] == [{"path": "a.py", "line_number": 3, "kind": "TODO", "content": "fix this"}]
+    assert entries["a.py"]["todos"] == [
+        {"path": "a.py", "line_number": 3, "kind": "TODO", "content": "fix this"}
+    ]
     assert entries["a.py"]["secrets"] == []
     assert entries["b.py"]["todos"] == []
     assert len(entries["b.py"]["secrets"]) == 1
 
 
 def test_reconstruct_todos_rebuilds_typed_objects() -> None:
-    cache_hits = {"a.py": {"hash": "x", "todos": [{"path": "a.py", "line_number": 2, "kind": "FIXME", "content": "x"}], "secrets": []}}
+    cache_hits = {
+        "a.py": {
+            "hash": "x",
+            "todos": [
+                {"path": "a.py", "line_number": 2, "kind": "FIXME", "content": "x"}
+            ],
+            "secrets": [],
+        }
+    }
 
     todos = reconstruct_todos(cache_hits)
 
@@ -175,7 +203,13 @@ def test_reconstruct_todos_rebuilds_typed_objects() -> None:
 
 def test_reconstruct_secrets_rebuilds_typed_objects() -> None:
     cache_hits = {
-        "a.py": {"hash": "x", "todos": [], "secrets": [{"path": "a.py", "line_number": 5, "pattern_name": "GitHub Token"}]}
+        "a.py": {
+            "hash": "x",
+            "todos": [],
+            "secrets": [
+                {"path": "a.py", "line_number": 5, "pattern_name": "GitHub Token"}
+            ],
+        }
     }
 
     findings = reconstruct_secrets(cache_hits)

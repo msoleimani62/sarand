@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
-from typing import Generator, Iterable, Optional, TypeVar
+from typing import TypeVar
 
 from rich.console import Console
 from rich.progress import (
@@ -37,13 +38,17 @@ def create_progress() -> Progress:
 
 
 @contextmanager
-def progress_task(description: str, total: Optional[int] = None) -> Generator[tuple[Progress, TaskID], None, None]:
+def progress_task(
+    description: str, total: int | None = None
+) -> Generator[tuple[Progress, TaskID], None, None]:
     with create_progress() as progress:
         task_id = progress.add_task(description, total=total)
         yield progress, task_id
 
 
-def track(iterable: Iterable[T], description: str, total: Optional[int] = None) -> Iterable[T]:
+def track(
+    iterable: Iterable[T], description: str, total: int | None = None
+) -> Iterable[T]:
     # A total=0 progress bar renders stuck at "0% -:--:--" forever in
     # rich, which looks hung even though there's genuinely nothing to
     # do (e.g. every file was a --cache hit). Skip the bar entirely for
@@ -58,7 +63,9 @@ def track(iterable: Iterable[T], description: str, total: Optional[int] = None) 
         return
     from rich.progress import track as rich_track
 
-    yield from rich_track(iterable, description=description, total=total, console=console)
+    yield from rich_track(
+        iterable, description=description, total=total, console=console
+    )
 
 
 def status(message: str) -> None:

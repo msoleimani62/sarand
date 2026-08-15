@@ -79,7 +79,9 @@ class AndroidAnalyzer:
         # نمی‌کند وجود دارد -- اجرای بی‌قیدوشرط آن‌ها فقط یک شکست
         # گیج‌کننده است، نه یک سیگنال مفید.
         logger.info("Running %s testDebugUnitTest", binary)
-        rc, out, dur = await run_cmd_async([binary, "testDebugUnitTest", "--console=plain"], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            [binary, "testDebugUnitTest", "--console=plain"], root, LONG_CMD_TIMEOUT
+        )
 
         if rc != 0 and "not found in root project" in out:
             # Some modules don't have a "debug" build type under that
@@ -90,8 +92,12 @@ class AndroidAnalyzer:
             # ندارند (تنظیمات سفارشی build variant) -- به تسک عمومی
             # 'test' برمی‌گردیم که Gradle آن را روی هر واریانتی که
             # واقعاً وجود دارد جمع می‌کند.
-            logger.info("testDebugUnitTest not found, falling back to generic 'test' task")
-            rc, out, dur = await run_cmd_async([binary, "test", "--console=plain"], root, LONG_CMD_TIMEOUT)
+            logger.info(
+                "testDebugUnitTest not found, falling back to generic 'test' task"
+            )
+            rc, out, dur = await run_cmd_async(
+                [binary, "test", "--console=plain"], root, LONG_CMD_TIMEOUT
+            )
             return make_command_result("gradle test", rc, out, dur)
 
         return make_command_result("gradle testDebugUnitTest", rc, out, dur)
@@ -111,9 +117,13 @@ class AndroidAnalyzer:
             ]
 
         logger.info("Running %s lintDebug", binary)
-        rc, out, dur = await run_cmd_async([binary, "lintDebug", "--console=plain"], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            [binary, "lintDebug", "--console=plain"], root, LONG_CMD_TIMEOUT
+        )
         if rc != 0 and "not found in root project" in out:
-            rc, out, dur = await run_cmd_async([binary, "lint", "--console=plain"], root, LONG_CMD_TIMEOUT)
+            rc, out, dur = await run_cmd_async(
+                [binary, "lint", "--console=plain"], root, LONG_CMD_TIMEOUT
+            )
             return [make_command_result("gradle lint", rc, out, dur)]
         return [make_command_result("gradle lintDebug", rc, out, dur)]
 
@@ -130,5 +140,9 @@ class AndroidAnalyzer:
                     skip_reason="gradle not found in PATH and no ./gradlew wrapper present",
                 )
             ]
-        rc, out, dur = await run_cmd_async([binary, "dependencyCheckAnalyze", "--console=plain"], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            [binary, "dependencyCheckAnalyze", "--console=plain"],
+            root,
+            LONG_CMD_TIMEOUT,
+        )
         return [make_command_result("gradle dependencyCheckAnalyze", rc, out, dur)]

@@ -7,21 +7,27 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from _helpers import write
 from sarand.analyzers.android_analyzer import AndroidAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
 from sarand.discovery.android import is_android_project
 from sarand.discovery.project_detector import detect_project
 
-from _helpers import write
-
 
 def _make_single_module_android_project(root: Path) -> None:
     write(root / "settings.gradle.kts", 'include(":app")\n')
     write(root / "build.gradle.kts", "// root build file\n")
-    write(root / "app" / "build.gradle.kts", 'plugins { id("com.android.application") }\n')
-    write(root / "app" / "src" / "main" / "AndroidManifest.xml", "<manifest></manifest>\n")
-    write(root / "app" / "src" / "main" / "kotlin" / "MainActivity.kt", "class MainActivity\n")
+    write(
+        root / "app" / "build.gradle.kts", 'plugins { id("com.android.application") }\n'
+    )
+    write(
+        root / "app" / "src" / "main" / "AndroidManifest.xml", "<manifest></manifest>\n"
+    )
+    write(
+        root / "app" / "src" / "main" / "kotlin" / "MainActivity.kt",
+        "class MainActivity\n",
+    )
 
 
 def test_is_android_project_detects_manifest_in_standard_module_layout() -> None:

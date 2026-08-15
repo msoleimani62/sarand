@@ -5,10 +5,9 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+from _helpers import write
 from sarand.core.secrets import looks_like_secret_filename, scan_for_secrets
 from sarand.scanners.essential_files import collect_essential_files
-
-from _helpers import write
 
 
 def test_looks_like_secret_filename_matches_known_patterns() -> None:
@@ -38,14 +37,17 @@ def test_essential_files_excludes_credential_shaped_filenames() -> None:
         root = Path(tmp)
         write(root / "main.py", "print('hi')\n")
         write(root / ".env", "SECRET=abc123\n")
-        write(root / "id_rsa", "-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----\n")
+        write(
+            root / "id_rsa",
+            "-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----\n",
+        )
 
         # .env and id_rsa have no ESSENTIAL_EXTENSIONS match anyway in some
         # cases, so also test a JSON credential file, which *does* match
         # an essential extension and would be included without the filter.
         write(root / "service-account.json", '{"type": "service_account"}')
 
-        included, skipped, excluded = collect_essential_files(root)
+        included, _skipped, excluded = collect_essential_files(root)
 
         assert Path("main.py") in included
         assert Path("service-account.json") in excluded
@@ -94,7 +96,9 @@ def test_exclude_flagged_files_moves_matched_file_out_of_included() -> None:
 
     included = [Path("clean.py"), Path("config.py")]
     excluded = [Path("service-account.json")]
-    findings = [SecretFinding(path="config.py", line_number=1, pattern_name="AWS Access Key ID")]
+    findings = [
+        SecretFinding(path="config.py", line_number=1, pattern_name="AWS Access Key ID")
+    ]
 
     new_included, new_excluded = exclude_flagged_files(included, excluded, findings)
 
@@ -119,10 +123,15 @@ def test_end_to_end_flagged_file_content_never_reaches_markdown_report() -> None
     a hardcoded key in a normal .py file must not show up anywhere in the
     rendered report, including the source-embedding section."""
     import tempfile as _tempfile
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from sarand.core.secrets import exclude_flagged_files
-    from sarand.models.results import EnvironmentInfo, GitSnapshot, ProjectStats, ReportData
+    from sarand.models.results import (
+        EnvironmentInfo,
+        GitSnapshot,
+        ProjectStats,
+        ReportData,
+    )
     from sarand.renderers import markdown as _markdown
 
     with _tempfile.TemporaryDirectory() as tmp:
@@ -136,7 +145,7 @@ def test_end_to_end_flagged_file_content_never_reaches_markdown_report() -> None
 
         data = ReportData(
             project_root=root,
-            generated_at=datetime(2026, 1, 1),
+            generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             environment=EnvironmentInfo(),
             git=GitSnapshot(),
             stats=ProjectStats(),

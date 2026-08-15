@@ -22,7 +22,9 @@ def generate_ai_summary(data: ReportData) -> str:
     if detection.entry_points:
         lines.append(f"Entry points: {', '.join(detection.entry_points)}")
 
-    top_exts = ", ".join(f"{ext} ({n})" for ext, n in list(stats.files_by_extension.items())[:8])
+    top_exts = ", ".join(
+        f"{ext} ({n})" for ext, n in list(stats.files_by_extension.items())[:8]
+    )
     lines.extend(
         [
             f"File breakdown: {top_exts or 'n/a'}",
@@ -33,7 +35,9 @@ def generate_ai_summary(data: ReportData) -> str:
     )
 
     if data.health:
-        lines.append(f"Health score: {data.health.score}/100 (grade {data.health.grade})")
+        lines.append(
+            f"Health score: {data.health.score}/100 (grade {data.health.grade})"
+        )
 
     if data.known_issues:
         lines.append("Known issues:")
@@ -52,31 +56,39 @@ def suggest_reading_order(root: Path, included: list[Path]) -> list[str]:
     for p in included:
         s = str(p).lower()
         name = p.name.lower()
-        if name in {"readme.md", "readme.rst", "readme"} or s.startswith("docs/"):
+        if (
+            name in {"readme.md", "readme.rst", "readme"}
+            or s.startswith("docs/")
+            or name
+            in {
+                "cargo.toml",
+                "pyproject.toml",
+                "setup.py",
+                "setup.cfg",
+                "package.json",
+                "go.mod",
+                "makefile",
+            }
+        ):
             high.append(str(p))
-        elif name in {
-            "cargo.toml",
-            "pyproject.toml",
-            "setup.py",
-            "setup.cfg",
-            "package.json",
-            "go.mod",
-            "makefile",
-        }:
-            high.append(str(p))
-        elif name in {
-            "main.py",
-            "cli.py",
-            "lib.rs",
-            "main.rs",
-            "__main__.py",
-            "app.py",
-            "main.go",
-            "index.js",
-            "index.ts",
-        }:
-            mid.append(str(p))
-        elif "core" in s or "analyzers" in s or "scanners" in s or "model" in s:
+        elif (
+            name
+            in {
+                "main.py",
+                "cli.py",
+                "lib.rs",
+                "main.rs",
+                "__main__.py",
+                "app.py",
+                "main.go",
+                "index.js",
+                "index.ts",
+            }
+            or "core" in s
+            or "analyzers" in s
+            or "scanners" in s
+            or "model" in s
+        ):
             mid.append(str(p))
         else:
             low.append(str(p))

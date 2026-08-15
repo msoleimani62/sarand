@@ -5,18 +5,23 @@ minimal test collector -- see AGENTS.md section 3.8 on verification.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
-def assert_raises(exc_type: type[BaseException], fn: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
+def assert_raises(
+    exc_type: type[BaseException], fn: Callable[..., Any], *args: Any, **kwargs: Any
+) -> None:
     """Assert that calling fn(*args, **kwargs) raises exc_type."""
     try:
         fn(*args, **kwargs)
     except exc_type:
         return
     except Exception as exc:  # noqa: BLE001
-        raise AssertionError(f"Expected {exc_type.__name__}, got {type(exc).__name__}: {exc}")
+        raise AssertionError(
+            f"Expected {exc_type.__name__}, got {type(exc).__name__}: {exc}"
+        )
     raise AssertionError(f"Expected {exc_type.__name__}, but nothing was raised")
 
 

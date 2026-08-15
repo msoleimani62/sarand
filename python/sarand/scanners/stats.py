@@ -17,10 +17,19 @@ from sarand.utils.logging import get_logger
 
 logger = get_logger("stats")
 
-_CACHE_DIR_MARKERS = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "target", "node_modules"}
+_CACHE_DIR_MARKERS = {
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "target",
+    "node_modules",
+}
 
 
-def collect_project_stats(root: Path, records: list[FileRecord] | None = None) -> ProjectStats:
+def collect_project_stats(
+    root: Path, records: list[FileRecord] | None = None
+) -> ProjectStats:
     """Aggregate ProjectStats from a scan record list.
 
     Args:
@@ -90,7 +99,9 @@ def collect_project_stats(root: Path, records: list[FileRecord] | None = None) -
         if len(paths) > 1:
             stats.duplicate_files.append((digest[:12], paths))
 
-    stats.files_by_extension = dict(sorted(ext_counts.items(), key=lambda kv: kv[1], reverse=True))
+    stats.files_by_extension = dict(
+        sorted(ext_counts.items(), key=lambda kv: kv[1], reverse=True)
+    )
 
     logger.info(
         "Stats: %d files, %d LOC, extensions=%s",

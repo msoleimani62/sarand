@@ -78,7 +78,9 @@ OSC52_MAX_BYTES = 6000
 DEFAULT_SOURCE_FILE = Path("README.md")
 STATE_DIR = Path(".sarand-paste-rc")
 
-STATE_VERSION = 3  # bumped: generalized source handling, dropped dead `initialize` param
+STATE_VERSION = (
+    3  # bumped: generalized source handling, dropped dead `initialize` param
+)
 BLOCK_SIZE = 1000
 CHUNK_SIZE = 4000
 
@@ -167,7 +169,10 @@ def make_chunks(lines: list[str]) -> list[str]:
                 current = []
                 current_size = 0
             chunks.append(text)
-            print(f"WARNING: line exceeds CHUNK_SIZE ({line_size} > {CHUNK_SIZE})", file=sys.stderr)
+            print(
+                f"WARNING: line exceeds CHUNK_SIZE ({line_size} > {CHUNK_SIZE})",
+                file=sys.stderr,
+            )
             continue
 
         if current and current_size + line_size > CHUNK_SIZE:
@@ -264,13 +269,17 @@ def validate_state(state: dict[str, Any], lines: list[str] | None = None) -> Non
 
     blocks = total_blocks(len(lines))
     if state["next_block"] > blocks:
-        raise ValueError(f"next_block={state['next_block']} exceeds total_blocks={blocks}")
+        raise ValueError(
+            f"next_block={state['next_block']} exceeds total_blocks={blocks}"
+        )
     if current_block is not None and current_block >= blocks:
         raise ValueError(f"current_block={current_block} exceeds total_blocks={blocks}")
     if current_block is not None:
         chunks = block_chunks(lines, current_block)
         if state["current_chunk"] >= len(chunks):
-            raise ValueError(f"current_chunk={state['current_chunk']} exceeds available chunks={len(chunks)}")
+            raise ValueError(
+                f"current_chunk={state['current_chunk']} exceeds available chunks={len(chunks)}"
+            )
 
 
 def load_state(paths: Paths, lines: list[str] | None = None) -> dict[str, Any]:
@@ -302,12 +311,16 @@ def load_state(paths: Paths, lines: list[str] | None = None) -> dict[str, Any]:
     return state
 
 
-def save_state(paths: Paths, state: dict[str, Any], lines: list[str] | None = None) -> None:
+def save_state(
+    paths: Paths, state: dict[str, Any], lines: list[str] | None = None
+) -> None:
     validate_state(state, lines)
     paths.state_file.parent.mkdir(parents=True, exist_ok=True)
     temporary = paths.state_file.with_name(f"{paths.state_file.name}.{os.getpid()}.tmp")
     try:
-        temporary.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        temporary.write_text(
+            json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         os.replace(temporary, paths.state_file)
     except OSError as exc:
         try:
@@ -325,7 +338,10 @@ def acquire_lock(paths: Paths) -> Any:
         fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         return lock_fd
     except (OSError, BlockingIOError) as exc:
-        print(f"ERROR: another instance is running for this source file: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: another instance is running for this source file: {exc}",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from exc
 
 
@@ -445,7 +461,12 @@ def clipboard_copy(text: str) -> bool:
             continue
         try:
             result = subprocess.run(
-                command, input=text, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False
+                command,
+                input=text,
+                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
             )
         except OSError:
             continue
@@ -487,7 +508,10 @@ def emit_block(
     chunks = block_chunks(lines, block)
 
     if chunk < 0 or chunk >= len(chunks):
-        print(f"ERROR: chunk {chunk} is out of range (0-{len(chunks) - 1}) for block {block}.", file=sys.stderr)
+        print(
+            f"ERROR: chunk {chunk} is out of range (0-{len(chunks) - 1}) for block {block}.",
+            file=sys.stderr,
+        )
         return 1
 
     start_line = block * BLOCK_SIZE + 1
@@ -546,7 +570,9 @@ def emit_block(
     print("========================================")
 
     if chunk + 1 < len(chunks):
-        print(f"NEXT: run again with no flags (auto-continues to chunk {chunk + 1}), or: --chunk {chunk + 1}")
+        print(
+            f"NEXT: run again with no flags (auto-continues to chunk {chunk + 1}), or: --chunk {chunk + 1}"
+        )
     elif state["next_block"] < total_blocks(len(lines)):
         print("NEXT: run again with no flags for the next block")
     else:
@@ -585,7 +611,13 @@ def run_next(paths: Paths) -> int:
         chunks_in_current = block_chunks(lines, current_block)
         if state["current_chunk"] + 1 < len(chunks_in_current):
             return emit_block(
-                paths, state, lines, current_block, state["current_chunk"] + 1, record_run=True, advance_next=True
+                paths,
+                state,
+                lines,
+                current_block,
+                state["current_chunk"] + 1,
+                record_run=True,
+                advance_next=True,
             )
 
     block = state["next_block"]
@@ -601,7 +633,9 @@ def run_number(paths: Paths, number: int) -> int:
         return 1
     lines = read_source(paths)
     state = prepare_state(paths, lines)
-    return emit_block(paths, state, lines, number, 0, record_run=True, advance_next=False)
+    return emit_block(
+        paths, state, lines, number, 0, record_run=True, advance_next=False
+    )
 
 
 def execute_chunk(paths: Paths, chunk_number: int) -> int:
@@ -614,7 +648,9 @@ def execute_chunk(paths: Paths, chunk_number: int) -> int:
     if block is None:
         print("ERROR: no current block exists.", file=sys.stderr)
         return 1
-    return emit_block(paths, state, lines, block, chunk_number, record_run=True, advance_next=True)
+    return emit_block(
+        paths, state, lines, block, chunk_number, record_run=True, advance_next=True
+    )
 
 
 def run_back(paths: Paths) -> int:
@@ -627,7 +663,9 @@ def run_back(paths: Paths) -> int:
     if current <= 0:
         print("ERROR: already at the first block.", file=sys.stderr)
         return 1
-    return emit_block(paths, state, lines, current - 1, 0, record_run=False, advance_next=False)
+    return emit_block(
+        paths, state, lines, current - 1, 0, record_run=False, advance_next=False
+    )
 
 
 def run_back_run(paths: Paths) -> int:
@@ -639,7 +677,15 @@ def run_back_run(paths: Paths) -> int:
         return 1
     target = state["history"][index - 1]
     state["history_index"] = index - 1
-    return emit_block(paths, state, lines, target["block"], target["chunk"], record_run=False, advance_next=False)
+    return emit_block(
+        paths,
+        state,
+        lines,
+        target["block"],
+        target["chunk"],
+        record_run=False,
+        advance_next=False,
+    )
 
 
 def clean(paths: Paths) -> int:
@@ -699,13 +745,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Split a file (typically a sarand report) into paste-sized chunks for chat UIs without file upload."
     )
-    parser.add_argument("--source", metavar="PATH", help="File to chunk (default: README.md, or $SARAND_PASTE_SOURCE)")
+    parser.add_argument(
+        "--source",
+        metavar="PATH",
+        help="File to chunk (default: README.md, or $SARAND_PASTE_SOURCE)",
+    )
     parser.add_argument("-b", "--back", action="store_true", help="move back one block")
-    parser.add_argument("-br", "--back-run", action="store_true", help="move back one history entry")
-    parser.add_argument("--reset", "--clean", action="store_true", help="remove collector state and chunks")
+    parser.add_argument(
+        "-br", "--back-run", action="store_true", help="move back one history entry"
+    )
+    parser.add_argument(
+        "--reset",
+        "--clean",
+        action="store_true",
+        help="remove collector state and chunks",
+    )
     parser.add_argument("-n", type=int, metavar="N", help="select block N")
-    parser.add_argument("--chunk", "-c", type=int, metavar="N", help="emit chunk N of current block")
-    parser.add_argument("-i", "--info", action="store_true", help="show collector information")
+    parser.add_argument(
+        "--chunk", "-c", type=int, metavar="N", help="emit chunk N of current block"
+    )
+    parser.add_argument(
+        "-i", "--info", action="store_true", help="show collector information"
+    )
     return parser
 
 
@@ -715,10 +776,19 @@ def main() -> int:
 
     selected = sum(
         value is not None and value is not False
-        for value in (args.n, args.chunk, args.back, args.back_run, args.reset, args.info)
+        for value in (
+            args.n,
+            args.chunk,
+            args.back,
+            args.back_run,
+            args.reset,
+            args.info,
+        )
     )
     if selected > 1:
-        parser.error("options -b, -br, --reset, -n, --chunk and --info are mutually exclusive")
+        parser.error(
+            "options -b, -br, --reset, -n, --chunk and --info are mutually exclusive"
+        )
 
     paths = Paths(source_file(args.source))
 

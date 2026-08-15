@@ -25,7 +25,12 @@ _ANDROID_MANIFEST_GLOBS = (
 )
 
 _AGP_MARKERS = ("com.android.application", "com.android.library")
-_BUILD_FILE_CANDIDATES = ("build.gradle", "build.gradle.kts", "app/build.gradle", "app/build.gradle.kts")
+_BUILD_FILE_CANDIDATES = (
+    "build.gradle",
+    "build.gradle.kts",
+    "app/build.gradle",
+    "app/build.gradle.kts",
+)
 
 
 def is_android_project(root: Path) -> bool:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Optional
 
 _LOGGER_NAME = "sarand"
 
@@ -38,7 +37,7 @@ def setup_logging(*, verbose: bool = False, debug: bool = False) -> None:
         logger.addHandler(handler)
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """Return a child logger under the sarand namespace."""
     if name:
         return logging.getLogger(f"{_LOGGER_NAME}.{name}")

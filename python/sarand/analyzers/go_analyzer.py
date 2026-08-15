@@ -26,23 +26,50 @@ class GoAnalyzer:
 
     async def run_tests(self, root: Path) -> CommandResult | None:
         if shutil.which("go") is None:
-            return make_command_result("go test", 127, "", 0.0, skipped=True, skip_reason="go not found in PATH")
+            return make_command_result(
+                "go test",
+                127,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason="go not found in PATH",
+            )
         logger.info("Running go test ./...")
-        rc, output, duration = await run_cmd_async(["go", "test", "./..."], root, LONG_CMD_TIMEOUT)
+        rc, output, duration = await run_cmd_async(
+            ["go", "test", "./..."], root, LONG_CMD_TIMEOUT
+        )
         return make_command_result("go test", rc, output, duration)
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
         if shutil.which("go") is None:
-            return [make_command_result("go vet", 127, "", 0.0, skipped=True, skip_reason="go not found in PATH")]
-        rc, out, dur = await run_cmd_async(["go", "vet", "./..."], root, LONG_CMD_TIMEOUT)
+            return [
+                make_command_result(
+                    "go vet",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="go not found in PATH",
+                )
+            ]
+        rc, out, dur = await run_cmd_async(
+            ["go", "vet", "./..."], root, LONG_CMD_TIMEOUT
+        )
         return [make_command_result("go vet", rc, out, dur)]
 
     async def run_security(self, root: Path) -> list[CommandResult]:
         if shutil.which("govulncheck") is None:
             return [
                 make_command_result(
-                    "govulncheck", 127, "", 0.0, skipped=True, skip_reason="govulncheck not installed"
+                    "govulncheck",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="govulncheck not installed",
                 )
             ]
-        rc, out, dur = await run_cmd_async(["govulncheck", "./..."], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            ["govulncheck", "./..."], root, LONG_CMD_TIMEOUT
+        )
         return [make_command_result("govulncheck", rc, out, dur)]

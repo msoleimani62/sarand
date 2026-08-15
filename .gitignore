@@ -8,3 +8,4 @@ dist/
 *.so
 *.pyd
 *.sha256
+.coverage

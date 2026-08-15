@@ -105,7 +105,13 @@ LANG_MAP: dict[str, str] = {
 }
 
 WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")
-ERROR_PATTERNS: tuple[str, ...] = ("error:", "failed", "traceback", "panic", "exception")
+ERROR_PATTERNS: tuple[str, ...] = (
+    "error:",
+    "failed",
+    "traceback",
+    "panic",
+    "exception",
+)
 
 KNOWN_ISSUE_PATTERNS: list[tuple[str, str]] = [
     ("Failed to parse", "One or more source files contain syntax errors."),

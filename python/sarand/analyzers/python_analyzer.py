@@ -32,18 +32,35 @@ class PythonAnalyzer:
 
     async def run_tests(self, root: Path) -> CommandResult | None:
         if shutil.which("pytest") is None:
-            return make_command_result("pytest", 127, "", 0.0, skipped=True, skip_reason="pytest not found in PATH")
+            return make_command_result(
+                "pytest",
+                127,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason="pytest not found in PATH",
+            )
         logger.info("Running pytest -q")
-        rc, output, duration = await run_cmd_async(["pytest", "-q", "--tb=short"], root, LONG_CMD_TIMEOUT)
+        rc, output, duration = await run_cmd_async(
+            ["pytest", "-q", "--tb=short"], root, LONG_CMD_TIMEOUT
+        )
         return make_command_result("pytest", rc, output, duration)
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
         if shutil.which("ruff") is None:
-            return [make_command_result("ruff", 127, "", 0.0, skipped=True, skip_reason="ruff not installed")]
+            return [
+                make_command_result(
+                    "ruff", 127, "", 0.0, skipped=True, skip_reason="ruff not installed"
+                )
+            ]
         results = []
-        rc, out, dur = await run_cmd_async(["ruff", "check", ".", "--output-format=concise"], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            ["ruff", "check", ".", "--output-format=concise"], root, LONG_CMD_TIMEOUT
+        )
         results.append(make_command_result("ruff check", rc, out, dur))
-        rc, out, dur = await run_cmd_async(["ruff", "format", ".", "--check"], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            ["ruff", "format", ".", "--check"], root, LONG_CMD_TIMEOUT
+        )
         results.append(make_command_result("ruff format --check", rc, out, dur))
         return results
 
@@ -52,16 +69,34 @@ class PythonAnalyzer:
 
         if shutil.which("pip-audit") is None:
             results.append(
-                make_command_result("pip-audit", 127, "", 0.0, skipped=True, skip_reason="pip-audit not installed")
+                make_command_result(
+                    "pip-audit",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="pip-audit not installed",
+                )
             )
         else:
             rc, out, dur = await run_cmd_async(["pip-audit"], root, LONG_CMD_TIMEOUT)
             results.append(make_command_result("pip-audit", rc, out, dur))
 
         if shutil.which("bandit") is None:
-            results.append(make_command_result("bandit", 127, "", 0.0, skipped=True, skip_reason="bandit not installed"))
+            results.append(
+                make_command_result(
+                    "bandit",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="bandit not installed",
+                )
+            )
         else:
-            rc, out, dur = await run_cmd_async(["bandit", "-r", ".", "-q"], root, LONG_CMD_TIMEOUT)
+            rc, out, dur = await run_cmd_async(
+                ["bandit", "-r", ".", "-q"], root, LONG_CMD_TIMEOUT
+            )
             results.append(make_command_result("bandit", rc, out, dur))
 
         return results

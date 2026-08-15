@@ -22,9 +22,15 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
 
-from sarand.constants import HASH_MAX_BYTES, IGNORE_DIRS, MAX_HASH_FILES, MAX_TREE_DEPTH, MAX_TREE_ENTRIES
+from sarand.constants import (
+    HASH_MAX_BYTES,
+    IGNORE_DIRS,
+    MAX_HASH_FILES,
+    MAX_TREE_DEPTH,
+    MAX_TREE_ENTRIES,
+)
 from sarand.utils.fs import is_binary, safe_relative
 
 try:
@@ -66,7 +72,9 @@ def scan_project(
     extension module was never built for this platform.
     """
     if RUST_CORE_AVAILABLE:
-        raw = _core.scan_project(str(root), list(ignore_dirs), hash_max_bytes, max_hash_files)
+        raw = _core.scan_project(
+            str(root), list(ignore_dirs), hash_max_bytes, max_hash_files
+        )
         return raw  # already list[dict] with matching keys
 
     return _pure_python_scan(root, ignore_dirs, hash_max_bytes, max_hash_files)
@@ -81,7 +89,9 @@ def build_tree_text(
 ) -> str:
     """Build the ASCII project tree, Rust-accelerated when available."""
     if RUST_CORE_AVAILABLE:
-        return _core.build_tree_text(str(root), list(ignore_dirs), max_depth, max_entries)
+        return _core.build_tree_text(
+            str(root), list(ignore_dirs), max_depth, max_entries
+        )
     return _pure_python_tree(root, ignore_dirs, max_depth, max_entries)
 
 
@@ -100,7 +110,7 @@ def _count_lines(path: Path) -> tuple[int, int, int, int]:
                 stripped = line.strip()
                 if not stripped:
                     blank += 1
-                elif stripped.startswith("#") or stripped.startswith("//"):
+                elif stripped.startswith(("#", "//")):
                     comment += 1
                 else:
                     code += 1
@@ -121,7 +131,9 @@ def _pure_python_scan(
     hashed = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".git")]
+        dirnames[:] = [
+            d for d in dirnames if d not in ignore_dirs and not d.startswith(".git")
+        ]
         for name in filenames:
             path = Path(dirpath) / name
             rel = str(safe_relative(path, root))
@@ -159,7 +171,11 @@ def _pure_python_scan(
                 total, code, comment, blank = _count_lines(path)
 
             content_hash = None
-            if not binary and 0 < st.st_size <= hash_max_bytes and hashed < max_hash_files:
+            if (
+                not binary
+                and 0 < st.st_size <= hash_max_bytes
+                and hashed < max_hash_files
+            ):
                 try:
                     content_hash = hashlib.sha256(path.read_bytes()).hexdigest()
                     hashed += 1
@@ -187,7 +203,9 @@ def _pure_python_scan(
     return records
 
 
-def _pure_python_tree(root: Path, ignore_dirs: frozenset[str], max_depth: int, max_entries: int) -> str:
+def _pure_python_tree(
+    root: Path, ignore_dirs: frozenset[str], max_depth: int, max_entries: int
+) -> str:
     lines: list[str] = [f"{root.name}/"]
 
     def walk(directory: Path, prefix: str, depth: int) -> None:

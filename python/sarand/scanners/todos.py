@@ -13,7 +13,9 @@ from sarand.utils.logging import get_logger
 
 logger = get_logger("todos")
 
-_TODO_RE = re.compile(r"\b(" + "|".join(re.escape(p) for p in TODO_PATTERNS) + r")\b", re.IGNORECASE)
+_TODO_RE = re.compile(
+    r"\b(" + "|".join(re.escape(p) for p in TODO_PATTERNS) + r")\b", re.IGNORECASE
+)
 
 
 def scan_todos(
@@ -36,7 +38,11 @@ def scan_todos(
     if records is None:
         records = scan_project(root)
 
-    candidates = [rec["rel_path"] for rec in records if not rec["is_binary"] and not rec["is_symlink"]]
+    candidates = [
+        rec["rel_path"]
+        for rec in records
+        if not rec["is_binary"] and not rec["is_symlink"]
+    ]
     if only is not None:
         candidates = [c for c in candidates if c in only]
 

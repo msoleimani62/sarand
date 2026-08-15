@@ -19,7 +19,9 @@ from sarand.models.results import Issue, ReportData
 from sarand.progress import status
 
 _SCHEMA_URI = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
-_SARAND_INFO_URI = "https://github.com/example/sarand"  # update once the repo has a real remote
+_SARAND_INFO_URI = (
+    "https://github.com/example/sarand"  # update once the repo has a real remote
+)
 
 
 def _rule_id(prefix: str, name: str) -> str:
@@ -50,7 +52,9 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             {
                 "ruleId": rule_id,
                 "level": "error",
-                "message": {"text": f"Potential hardcoded secret ({finding.pattern_name})."},
+                "message": {
+                    "text": f"Potential hardcoded secret ({finding.pattern_name})."
+                },
                 "locations": [
                     {
                         "physicalLocation": {
@@ -110,7 +114,9 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
                     }
                 },
                 "results": results,
-                "originalUriBaseIds": {"PROJECTROOT": {"uri": data.project_root.as_uri() + "/"}},
+                "originalUriBaseIds": {
+                    "PROJECTROOT": {"uri": data.project_root.as_uri() + "/"}
+                },
             }
         ],
     }

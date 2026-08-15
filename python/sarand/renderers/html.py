@@ -77,7 +77,8 @@ def _issues_table(title: str, issues: list[Issue]) -> str:
     if not issues:
         return ""
     rows = "".join(
-        f"<tr><td>{escape(i.source)}</td><td><code>{escape(i.message)}</code></td></tr>" for i in issues[:500]
+        f"<tr><td>{escape(i.source)}</td><td><code>{escape(i.message)}</code></td></tr>"
+        for i in issues[:500]
     )
     return f"<h2>{escape(title)} ({len(issues)})</h2><table><tr><th>Source</th><th>Message</th></tr>{rows}</table>"
 
@@ -90,8 +91,10 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
 
     parts: list[str] = [
         f"<h1>sarand report — {escape(data.project_root.name)}</h1>",
-        f'<p class="meta">Generated {escape(now)} on {escape(data.environment.hostname)} · '
-        f"scan engine: {'Rust core' if data.used_rust_core else 'pure-Python fallback'}</p>",
+        (
+            f'<p class="meta">Generated {escape(now)} on {escape(data.environment.hostname)} · '
+            f"scan engine: {'Rust core' if data.used_rust_core else 'pure-Python fallback'}</p>"
+        ),
     ]
 
     parts.append('<div class="card">')
@@ -100,9 +103,13 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             f"<strong>{escape(d.primary_language)}</strong> — {escape(d.project_type)} "
             f"({escape(d.build_system)})<br>"
         )
-        parts.append(f'<span class="meta">Languages: {escape(", ".join(d.languages))}</span><br>')
+        parts.append(
+            f'<span class="meta">Languages: {escape(", ".join(d.languages))}</span><br>'
+        )
         if d.entry_points:
-            parts.append(f'<span class="meta">Entry points: {escape(", ".join(d.entry_points))}</span>')
+            parts.append(
+                f'<span class="meta">Entry points: {escape(", ".join(d.entry_points))}</span>'
+            )
     else:
         parts.append("No recognized project marker found in this directory.")
     parts.append("</div>")
@@ -113,7 +120,9 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             f'<div class="card"><span class="health-score grade-{escape(h.grade)}">{h.score}/100 '
             f"({escape(h.grade)})</span>"
         )
-        rows = "".join(f"<tr><td>{escape(k)}</td><td>{v}</td></tr>" for k, v in h.breakdown.items())
+        rows = "".join(
+            f"<tr><td>{escape(k)}</td><td>{v}</td></tr>" for k, v in h.breakdown.items()
+        )
         parts.append(f"<table>{rows}</table>")
         if h.critical_failures:
             parts.append(
@@ -134,7 +143,10 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
         if data.excluded_secret_files:
             parts.append(
                 "<p>Excluded (credential-shaped, never embedded):</p><ul>"
-                + "".join(f"<li><code>{escape(str(p))}</code></li>" for p in data.excluded_secret_files)
+                + "".join(
+                    f"<li><code>{escape(str(p))}</code></li>"
+                    for p in data.excluded_secret_files
+                )
                 + "</ul>"
             )
         if data.secret_findings:
@@ -143,9 +155,13 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
                 f"<td>{escape(f.pattern_name)}</td></tr>"
                 for f in data.secret_findings
             )
-            parts.append(f"<table><tr><th>File</th><th>Line</th><th>Pattern</th></tr>{rows}</table>")
+            parts.append(
+                f"<table><tr><th>File</th><th>Line</th><th>Pattern</th></tr>{rows}</table>"
+            )
 
-    top_ext = ", ".join(f"{ext} ({n})" for ext, n in list(s.files_by_extension.items())[:10])
+    top_ext = ", ".join(
+        f"{ext} ({n})" for ext, n in list(s.files_by_extension.items())[:10]
+    )
     parts.append(
         f"<h2>Project statistics</h2><div class='card'>"
         f"Total files: <strong>{s.total_files}</strong> · LOC: <strong>{s.total_loc}</strong><br>"

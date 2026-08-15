@@ -69,7 +69,9 @@ def detect_project(root: Path) -> ProjectDetection:
     if primary_language == "Java/Kotlin" and is_android_project(root):
         primary_language = "Android/Kotlin"
         project_type = "mobile application"
-        languages = ["Android/Kotlin" if lang == "Java/Kotlin" else lang for lang in languages]
+        languages = [
+            "Android/Kotlin" if lang == "Java/Kotlin" else lang for lang in languages
+        ]
 
     return ProjectDetection(
         languages=languages,

@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
+from _helpers import write
 from sarand.core.health import compute_health_score
 from sarand.models.results import (
     CommandResult,
@@ -18,8 +19,6 @@ from sarand.models.results import (
     ReportData,
 )
 from sarand.renderers import json_renderer, markdown, text
-
-from _helpers import write
 
 
 def _fixture_data(root: Path) -> ReportData:
@@ -34,7 +33,7 @@ def _fixture_data(root: Path) -> ReportData:
     )
     data = ReportData(
         project_root=root,
-        generated_at=datetime(2026, 1, 1, 12, 0, 0),
+        generated_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         environment=EnvironmentInfo(python="Python 3.13.0"),
         git=GitSnapshot(branch="main", commit="abc123"),
         stats=ProjectStats(total_files=1, total_loc=1, files_by_extension={".py": 1}),
@@ -98,7 +97,11 @@ def test_markdown_renderer_shows_excluded_secrets_and_findings() -> None:
         root = Path(tmp)
         data = _fixture_data(root)
         data.excluded_secret_files = [Path(".env")]
-        data.secret_findings = [SecretFinding(path="main.py", line_number=2, pattern_name="AWS Access Key ID")]
+        data.secret_findings = [
+            SecretFinding(
+                path="main.py", line_number=2, pattern_name="AWS Access Key ID"
+            )
+        ]
 
         output = markdown.render(data, include_source=False)
 

@@ -24,7 +24,9 @@ def collect_git_snapshot(root: Path) -> GitSnapshot:
     status("Collecting Git information...")
     logger.info("Inspecting Git state at %s", root)
 
-    rc, _, _ = run_cmd(["git", "rev-parse", "--is-inside-work-tree"], cwd=root, timeout=10)
+    rc, _, _ = run_cmd(
+        ["git", "rev-parse", "--is-inside-work-tree"], cwd=root, timeout=10
+    )
     if rc != 0:
         logger.warning("Not a git repository")
         return GitSnapshot()

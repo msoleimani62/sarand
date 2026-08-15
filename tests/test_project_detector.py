@@ -5,9 +5,8 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from sarand.discovery.project_detector import detect_project
-
 from _helpers import write
+from sarand.discovery.project_detector import detect_project
 
 
 def test_detects_python_via_pyproject() -> None:

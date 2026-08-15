@@ -36,12 +36,17 @@ _FILENAME_RE = [re.compile(p, re.IGNORECASE) for p in SECRET_FILENAME_PATTERNS]
 # فقط این واقعیت که *چیزی* در این مکان مطابقت داشته است.
 _CONTENT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("AWS Access Key ID", re.compile(r"AKIA[0-9A-Z]{16}")),
-    ("Private Key Block", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |)PRIVATE KEY-----")),
+    (
+        "Private Key Block",
+        re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |)PRIVATE KEY-----"),
+    ),
     ("Slack Token", re.compile(r"xox[baprs]-[0-9A-Za-z-]{10,}")),
     ("GitHub Token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}")),
     (
         "Generic API Key Assignment",
-        re.compile(r"(?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token)\s*[:=]\s*[\"'][A-Za-z0-9_\-]{16,}[\"']"),
+        re.compile(
+            r"(?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token)\s*[:=]\s*[\"'][A-Za-z0-9_\-]{16,}[\"']"
+        ),
     ),
 ]
 
@@ -80,7 +85,11 @@ def scan_for_secrets(root: Path, included_files: list[Path]) -> list[SecretFindi
                     for pattern_name, pattern in _CONTENT_PATTERNS:
                         if pattern.search(line):
                             findings.append(
-                                SecretFinding(path=str(rel), line_number=lineno, pattern_name=pattern_name)
+                                SecretFinding(
+                                    path=str(rel),
+                                    line_number=lineno,
+                                    pattern_name=pattern_name,
+                                )
                             )
         except OSError:
             continue

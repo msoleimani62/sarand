@@ -8,12 +8,10 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
+from _helpers import write
 from sarand.analyzers.cpp_analyzer import CppAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
-
-from _helpers import write
 
 
 def test_cpp_analyzer_gated_on_cmakelists() -> None:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import subprocess
 import time
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from sarand.constants import DEFAULT_CMD_TIMEOUT, ERROR_PATTERNS, WARNING_PATTERNS
 from sarand.models.results import CommandResult, Issue

@@ -56,6 +56,11 @@ def collect_essential_files(
     skipped.sort(key=lambda x: x[0])
     excluded_secrets.sort()
     if excluded_secrets:
-        logger.warning("Excluded %d credential-shaped file(s) from the report", len(excluded_secrets))
-    logger.info("Included %d files, skipped %d large files", len(included), len(skipped))
+        logger.warning(
+            "Excluded %d credential-shaped file(s) from the report",
+            len(excluded_secrets),
+        )
+    logger.info(
+        "Included %d files, skipped %d large files", len(included), len(skipped)
+    )
     return included, skipped, excluded_secrets

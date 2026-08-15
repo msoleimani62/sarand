@@ -18,7 +18,9 @@ def test_android_and_java_share_the_gradle_and_maven_checks() -> None:
     JavaAnalyzer and AndroidAnalyzer, so a duplicate row would be
     misleading (as if a different tool were needed for each)."""
     checks = collect_checks()
-    android_category_tools = {c.name for c in checks if c.category == "Java / Kotlin / Android"}
+    android_category_tools = {
+        c.name for c in checks if c.category == "Java / Kotlin / Android"
+    }
     assert android_category_tools == {"mvn", "gradle"}
 
 

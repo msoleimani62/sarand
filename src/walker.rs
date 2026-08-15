@@ -73,7 +73,12 @@ pub fn scan(
                 .components()
                 .any(|c| ignore_dirs.iter().any(|d| c.as_os_str() == d.as_str()))
         })
-        .filter(|entry| entry.file_type().map(|t| t.is_file() || is_symlink(entry.path())).unwrap_or(false))
+        .filter(|entry| {
+            entry
+                .file_type()
+                .map(|t| t.is_file() || is_symlink(entry.path()))
+                .unwrap_or(false)
+        })
         .map(|entry| entry.into_path())
         .collect();
 
@@ -90,7 +95,9 @@ pub fn scan(
 }
 
 fn is_symlink(path: &Path) -> bool {
-    path.symlink_metadata().map(|m| m.file_type().is_symlink()).unwrap_or(false)
+    path.symlink_metadata()
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
 }
 
 fn build_record(
@@ -100,7 +107,11 @@ fn build_record(
     max_hash_files: usize,
     hashed_count: &AtomicUsize,
 ) -> Option<FileRecord> {
-    let rel_path = path.strip_prefix(root).ok()?.to_string_lossy().replace('\\', "/");
+    let rel_path = path
+        .strip_prefix(root)
+        .ok()?
+        .to_string_lossy()
+        .replace('\\', "/");
     let file_name = path.file_name()?.to_string_lossy();
     let is_hidden = file_name.starts_with('.');
 

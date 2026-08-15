@@ -39,10 +39,17 @@ def _via_wkhtmltopdf(html_path: Path, output_path: Path) -> RenderOutcome:
         return RenderOutcome(False, "wkhtmltopdf not found in PATH")
     try:
         result = subprocess.run(
-            [binary, "--quiet", "--enable-local-file-access", str(html_path), str(output_path)],
+            [
+                binary,
+                "--quiet",
+                "--enable-local-file-access",
+                str(html_path),
+                str(output_path),
+            ],
             capture_output=True,
             text=True,
             timeout=_TIMEOUT_SECONDS,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         return RenderOutcome(False, "wkhtmltopdf timed out")
@@ -61,6 +68,7 @@ def _via_weasyprint(html_path: Path, output_path: Path) -> RenderOutcome:
             capture_output=True,
             text=True,
             timeout=_TIMEOUT_SECONDS,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         return RenderOutcome(False, "weasyprint timed out")
@@ -69,7 +77,9 @@ def _via_weasyprint(html_path: Path, output_path: Path) -> RenderOutcome:
     return RenderOutcome(True, "rendered via weasyprint")
 
 
-def render_to_file(data: ReportData, output_path: Path, *, include_source: bool = False) -> RenderOutcome:
+def render_to_file(
+    data: ReportData, output_path: Path, *, include_source: bool = False
+) -> RenderOutcome:
     """Render `data` as PDF directly to `output_path`.
 
     Args:

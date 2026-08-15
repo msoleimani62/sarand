@@ -35,7 +35,18 @@ def _render_command_block(result: CommandResult) -> list[str]:
     lines.extend(["", "```text", result.summary or "(no output)", "```"])
     if result.returncode != 0 and result.raw_output:
         lines.extend(
-            ["", "<details>", "<summary>Full output</summary>", "", "```text", result.raw_output, "```", "", "</details>", ""]
+            [
+                "",
+                "<details>",
+                "<summary>Full output</summary>",
+                "",
+                "```text",
+                result.raw_output,
+                "```",
+                "",
+                "</details>",
+                "",
+            ]
         )
     lines.append("")
     return lines
@@ -58,7 +69,9 @@ def _render_detected_project(data: ReportData) -> list[str]:
         ]
     )
     if d.entry_points:
-        lines.append(f"- **Entry points:** {', '.join(f'`{e}`' for e in d.entry_points)}")
+        lines.append(
+            f"- **Entry points:** {', '.join(f'`{e}`' for e in d.entry_points)}"
+        )
     lines.append("")
     return lines
 
@@ -96,7 +109,9 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
     ]
 
     if data.environment.tool_versions:
-        parts.extend(["", "### Detected tools", "", "| Tool | Version |", "|------|---------|"])
+        parts.extend(
+            ["", "### Detected tools", "", "| Tool | Version |", "|------|---------|"]
+        )
         for tool, version in data.environment.tool_versions.items():
             parts.append(f"| {tool} | {version} |")
 
@@ -124,7 +139,14 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
     )
 
     if data.git.untracked:
-        parts.extend(["### Untracked files", "", *[f"- `{u}`" for u in data.git.untracked[:50]], ""])
+        parts.extend(
+            [
+                "### Untracked files",
+                "",
+                *[f"- `{u}`" for u in data.git.untracked[:50]],
+                "",
+            ]
+        )
 
     if data.health:
         h = data.health
@@ -142,9 +164,18 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             parts.append(f"| {k} | {v} |")
         parts.append("")
         if h.critical_failures:
-            parts.extend(["### Critical failures", "", *[f"- {c}" for c in h.critical_failures], ""])
+            parts.extend(
+                [
+                    "### Critical failures",
+                    "",
+                    *[f"- {c}" for c in h.critical_failures],
+                    "",
+                ]
+            )
         if h.recommendations:
-            parts.extend(["### Recommendations", "", *[f"- {r}" for r in h.recommendations], ""])
+            parts.extend(
+                ["### Recommendations", "", *[f"- {r}" for r in h.recommendations], ""]
+            )
 
     if data.ai_summary:
         parts.extend(["## AI Summary", "", "```text", data.ai_summary, "```", ""])
@@ -154,13 +185,18 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             [
                 "## Suggested reading order",
                 "",
-                *[f"{i}. `{p}`" for i, p in enumerate(data.suggested_reading_order[:40], 1)],
+                *[
+                    f"{i}. `{p}`"
+                    for i, p in enumerate(data.suggested_reading_order[:40], 1)
+                ],
                 "",
             ]
         )
 
     s = data.stats
-    top_ext = ", ".join(f"{ext} ({n})" for ext, n in list(s.files_by_extension.items())[:10])
+    top_ext = ", ".join(
+        f"{ext} ({n})" for ext, n in list(s.files_by_extension.items())[:10]
+    )
     parts.extend(
         [
             "## Project statistics",
@@ -182,7 +218,14 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
         parts.append("")
 
     if data.todos:
-        parts.extend(["## TODO / FIXME markers", "", "| File | Line | Kind | Content |", "|------|------|------|---------|"])
+        parts.extend(
+            [
+                "## TODO / FIXME markers",
+                "",
+                "| File | Line | Kind | Content |",
+                "|------|------|------|---------|",
+            ]
+        )
         for t in data.todos[:100]:
             content = t.content.replace("|", "\\|")
             parts.append(f"| `{t.path}` | {t.line_number} | {t.kind} | `{content}` |")
@@ -209,7 +252,9 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             parts.extend(_render_command_block(r))
 
     if data.known_issues:
-        parts.extend(["## Known issues", "", *[f"- {i}" for i in data.known_issues], ""])
+        parts.extend(
+            ["## Known issues", "", *[f"- {i}" for i in data.known_issues], ""]
+        )
 
     all_warnings: list[Issue] = []
     all_errors: list[Issue] = []
@@ -227,18 +272,42 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             data.tree_text,
             "```",
             "",
-            f"## Included files ({len(data.included_files)} included / {len(data.skipped_files)} skipped / "
-            f"{len(data.excluded_secret_files)} excluded as credential-shaped)",
+            (
+                f"## Included files ({len(data.included_files)} included / {len(data.skipped_files)} skipped / "
+                f"{len(data.excluded_secret_files)} excluded for secret safety)"
+            ),
             "",
         ]
     )
 
-    if data.excluded_secret_files:
+    # Separate filename-based exclusions from content-based exclusions.
+    # تفکیک حذف‌های ناشی از نام‌فایل از حذف‌های ناشی از تطبیق محتوای حساس.
+    content_flagged_paths = {str(f.path) for f in data.secret_findings}
+
+    filename_excluded = [
+        p for p in data.excluded_secret_files if str(p) not in content_flagged_paths
+    ]
+
+    content_excluded = [
+        p for p in data.excluded_secret_files if str(p) in content_flagged_paths
+    ]
+
+    if filename_excluded:
         parts.extend(
             [
-                "### Excluded (credential-shaped filenames, never embedded — AGENTS.md §4.10)",
+                "### Excluded (credential-shaped filenames, never read — AGENTS.md §4.10)",
                 "",
-                *[f"- `{p}`" for p in data.excluded_secret_files],
+                *[f"- `{p}`" for p in filename_excluded],
+                "",
+            ]
+        )
+
+    if content_excluded:
+        parts.extend(
+            [
+                "### Excluded (content matched a secret pattern — see findings below)",
+                "",
+                *[f"- `{p}`" for p in content_excluded],
                 "",
             ]
         )
@@ -248,20 +317,32 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
             [
                 "### ⚠ Potential hardcoded secrets detected",
                 "",
-                "Location and pattern only — matched values are never shown. "
-                "The affected file(s) are excluded from source embedding below "
-                "(see the credential-shaped exclusions list). Review and rotate "
-                "anything genuine, then remove it from source control.",
+                (
+                    "Location and pattern only — matched values are never shown. "
+                    "The affected file(s) are excluded from source embedding above "
+                    "(see the exclusion lists). Review and rotate anything genuine, "
+                    "then remove it from source control."
+                ),
                 "",
                 "| File | Line | Pattern |",
                 "|------|------|---------|",
-                *[f"| `{f.path}` | {f.line_number} | {f.pattern_name} |" for f in data.secret_findings],
+                *[
+                    f"| `{f.path}` | {f.line_number} | {f.pattern_name} |"
+                    for f in data.secret_findings
+                ],
                 "",
             ]
         )
 
     if data.skipped_files:
-        parts.extend(["### Skipped (too large)", "", *[f"- `{p}` ({human_size(sz)})" for p, sz in data.skipped_files], ""])
+        parts.extend(
+            [
+                "### Skipped (too large)",
+                "",
+                *[f"- `{p}` ({human_size(sz)})" for p, sz in data.skipped_files],
+                "",
+            ]
+        )
 
     if include_source:
         for rel in data.included_files:
@@ -275,6 +356,17 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
                 size = full.stat().st_size
             except OSError:
                 size = 0
-            parts.extend(["", f"### FILE: `{rel}`", "", f"Size: {human_size(size)}", "", f"```{lang}", text, "```"])
+            parts.extend(
+                [
+                    "",
+                    f"### FILE: `{rel}`",
+                    "",
+                    f"Size: {human_size(size)}",
+                    "",
+                    f"```{lang}",
+                    text,
+                    "```",
+                ]
+            )
 
     return "\n".join(parts)

@@ -61,7 +61,11 @@ def _rules_fingerprint() -> str:
     تلقی می‌شود -- یک کش هرگز نباید بی‌صدا یافته‌ای را که تغییر یک
     قانون در فایل‌های بدون‌تغییر پیدا می‌کرد، از قلم بیندازد.
     """
-    parts = sorted(TODO_PATTERNS) + sorted(SECRET_FILENAME_PATTERNS) + sorted(content_pattern_names())
+    parts = (
+        sorted(TODO_PATTERNS)
+        + sorted(SECRET_FILENAME_PATTERNS)
+        + sorted(content_pattern_names())
+    )
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 
@@ -85,17 +89,26 @@ def load_cache(output_dir: Path, project_root: Path) -> dict[str, dict[str, Any]
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    if data.get("version") != _CACHE_VERSION or data.get("rules_fingerprint") != _rules_fingerprint():
+    if (
+        data.get("version") != _CACHE_VERSION
+        or data.get("rules_fingerprint") != _rules_fingerprint()
+    ):
         logger.info("Cache invalidated (version or detection rules changed)")
         return {}
     return data.get("files", {})
 
 
-def save_cache(output_dir: Path, project_root: Path, files: dict[str, dict[str, Any]]) -> None:
+def save_cache(
+    output_dir: Path, project_root: Path, files: dict[str, dict[str, Any]]
+) -> None:
     """Persist this run's per-file hash + TODO/secret findings."""
     path = _cache_path(output_dir, project_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"version": _CACHE_VERSION, "rules_fingerprint": _rules_fingerprint(), "files": files}
+    payload = {
+        "version": _CACHE_VERSION,
+        "rules_fingerprint": _rules_fingerprint(),
+        "files": files,
+    }
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
@@ -127,11 +140,19 @@ def partition_cache_hits(
 
 
 def reconstruct_todos(cache_hits: dict[str, dict[str, Any]]) -> list[TodoItem]:
-    return [TodoItem(**item) for entry in cache_hits.values() for item in entry.get("todos", [])]
+    return [
+        TodoItem(**item)
+        for entry in cache_hits.values()
+        for item in entry.get("todos", [])
+    ]
 
 
 def reconstruct_secrets(cache_hits: dict[str, dict[str, Any]]) -> list[SecretFinding]:
-    return [SecretFinding(**item) for entry in cache_hits.values() for item in entry.get("secrets", [])]
+    return [
+        SecretFinding(**item)
+        for entry in cache_hits.values()
+        for item in entry.get("secrets", [])
+    ]
 
 
 def build_cache_entries(

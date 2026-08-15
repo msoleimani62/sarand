@@ -58,16 +58,28 @@ class CppAnalyzer:
                 ),
             )
         if shutil.which("ctest") is None:
-            return make_command_result("ctest", 127, "", 0.0, skipped=True, skip_reason="ctest not found in PATH")
+            return make_command_result(
+                "ctest",
+                127,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason="ctest not found in PATH",
+            )
 
         logger.info("Running ctest in %s", build_dir)
         rc, output, duration = await run_cmd_async(
-            ["ctest", "--test-dir", str(build_dir), "--output-on-failure"], root, LONG_CMD_TIMEOUT
+            ["ctest", "--test-dir", str(build_dir), "--output-on-failure"],
+            root,
+            LONG_CMD_TIMEOUT,
         )
         return make_command_result("ctest", rc, output, duration)
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
-        if shutil.which("clang-format") is None or not (root / ".clang-format").exists():
+        if (
+            shutil.which("clang-format") is None
+            or not (root / ".clang-format").exists()
+        ):
             return []
 
         # Cap the file count so a huge repo doesn't blow past command-line
@@ -82,15 +94,32 @@ class CppAnalyzer:
         if not files:
             return []
 
-        rc, out, dur = await run_cmd_async(["clang-format", "--dry-run", "--Werror", *files], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            ["clang-format", "--dry-run", "--Werror", *files], root, LONG_CMD_TIMEOUT
+        )
         return [make_command_result("clang-format --dry-run", rc, out, dur)]
 
     async def run_security(self, root: Path) -> list[CommandResult]:
         if shutil.which("cppcheck") is None:
             return [
-                make_command_result("cppcheck", 127, "", 0.0, skipped=True, skip_reason="cppcheck not installed")
+                make_command_result(
+                    "cppcheck",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="cppcheck not installed",
+                )
             ]
         rc, out, dur = await run_cmd_async(
-            ["cppcheck", "--enable=warning", "--inline-suppr", "--error-exitcode=1", "."], root, LONG_CMD_TIMEOUT
+            [
+                "cppcheck",
+                "--enable=warning",
+                "--inline-suppr",
+                "--error-exitcode=1",
+                ".",
+            ],
+            root,
+            LONG_CMD_TIMEOUT,
         )
         return [make_command_result("cppcheck", rc, out, dur)]

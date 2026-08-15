@@ -8,28 +8,27 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
+from _helpers import assert_raises
 from sarand.config import SarandConfig, resolve_output_dir, resolve_project_path
 from sarand.constants import DEFAULT_OUTPUT_DIR
 
-from _helpers import assert_raises
-
 
 def _args(**overrides: object) -> SimpleNamespace:
-    defaults = dict(
-        project=None,
-        output_dir=None,
-        output_name=None,
-        format="markdown",
-        skip_tests=False,
-        quality=False,
-        security=False,
-        no_source=False,
-        no_health=False,
-        max_depth=None,
-        max_entries=None,
-        verbose=False,
-        debug=False,
-    )
+    defaults = {
+        "project": None,
+        "output_dir": None,
+        "output_name": None,
+        "format": "markdown",
+        "skip_tests": False,
+        "quality": False,
+        "security": False,
+        "no_source": False,
+        "no_health": False,
+        "max_depth": None,
+        "max_entries": None,
+        "verbose": False,
+        "debug": False,
+    }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
 
@@ -78,7 +77,7 @@ def test_output_dir_falls_back_to_default_when_nothing_set() -> None:
     macOS/Windows CI runners rather than for the right reason, and would
     be genuinely wrong on a real macOS/Windows machine that already has
     a persisted config file from prior use."""
-    import sarand.userconfig as userconfig
+    from sarand import userconfig
 
     old_env = os.environ.pop("SARAND_OUTPUT_DIR", None)
     with tempfile.TemporaryDirectory() as tmp:
@@ -96,14 +95,16 @@ def test_output_dir_falls_back_to_default_when_nothing_set() -> None:
 
 def test_output_dir_uses_persisted_config_when_present() -> None:
     """Same cross-platform-correct isolation as the test above."""
-    import sarand.userconfig as userconfig
+    from sarand import userconfig
 
     old_env = os.environ.pop("SARAND_OUTPUT_DIR", None)
     with tempfile.TemporaryDirectory() as tmp:
         persisted_target = Path(tmp) / "persisted-reports"
         fake_config_dir = Path(tmp) / "sarand"
         fake_config_dir.mkdir(parents=True)
-        (fake_config_dir / "config.json").write_text(json.dumps({"output_dir": str(persisted_target)}))
+        (fake_config_dir / "config.json").write_text(
+            json.dumps({"output_dir": str(persisted_target)})
+        )
 
         original_get_config_dir = userconfig.get_config_dir
         userconfig.get_config_dir = lambda: fake_config_dir

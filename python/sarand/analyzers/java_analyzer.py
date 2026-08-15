@@ -66,9 +66,18 @@ class JavaAnalyzer:
 
         if tool == "maven":
             if shutil.which("mvn") is None:
-                return make_command_result("mvn test", 127, "", 0.0, skipped=True, skip_reason="mvn not found in PATH")
+                return make_command_result(
+                    "mvn test",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="mvn not found in PATH",
+                )
             logger.info("Running mvn -B test")
-            rc, out, dur = await run_cmd_async(["mvn", "-B", "test"], root, LONG_CMD_TIMEOUT)
+            rc, out, dur = await run_cmd_async(
+                ["mvn", "-B", "test"], root, LONG_CMD_TIMEOUT
+            )
             return make_command_result("mvn test", rc, out, dur)
 
         if tool == "gradle":
@@ -83,7 +92,9 @@ class JavaAnalyzer:
                     skip_reason="gradle not found in PATH and no ./gradlew wrapper present",
                 )
             logger.info("Running %s test", binary)
-            rc, out, dur = await run_cmd_async([binary, "test", "--console=plain"], root, LONG_CMD_TIMEOUT)
+            rc, out, dur = await run_cmd_async(
+                [binary, "test", "--console=plain"], root, LONG_CMD_TIMEOUT
+            )
             return make_command_result("gradle test", rc, out, dur)
 
         return None
@@ -104,7 +115,12 @@ class JavaAnalyzer:
             if shutil.which("mvn") is None:
                 return [
                     make_command_result(
-                        "mvn dependency-check", 127, "", 0.0, skipped=True, skip_reason="mvn not found in PATH"
+                        "mvn dependency-check",
+                        127,
+                        "",
+                        0.0,
+                        skipped=True,
+                        skip_reason="mvn not found in PATH",
                     )
                 ]
             # Runs the OWASP dependency-check plugin ad-hoc via its full
@@ -114,7 +130,9 @@ class JavaAnalyzer:
             # مختصات کامل اجرا می‌کند، بدون نیاز به تعریف قبلی در pom.xml.
             # اجرای اول به دسترسی اینترنت برای دریافت پلاگین نیاز دارد.
             rc, out, dur = await run_cmd_async(
-                ["mvn", "-B", "org.owasp:dependency-check-maven:check"], root, LONG_CMD_TIMEOUT
+                ["mvn", "-B", "org.owasp:dependency-check-maven:check"],
+                root,
+                LONG_CMD_TIMEOUT,
             )
             return [make_command_result("mvn dependency-check", rc, out, dur)]
 
@@ -132,7 +150,9 @@ class JavaAnalyzer:
                     )
                 ]
             rc, out, dur = await run_cmd_async(
-                [binary, "dependencyCheckAnalyze", "--console=plain"], root, LONG_CMD_TIMEOUT
+                [binary, "dependencyCheckAnalyze", "--console=plain"],
+                root,
+                LONG_CMD_TIMEOUT,
             )
             return [make_command_result("gradle dependencyCheckAnalyze", rc, out, dur)]
 

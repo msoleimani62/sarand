@@ -23,5 +23,7 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
     if data.health:
         lines.append(f"Health: {data.health.score}/100 ({data.health.grade})")
     if data.secret_findings:
-        lines.append(f"Secrets: {len(data.secret_findings)} potential finding(s) -- see full report")
+        lines.append(
+            f"Secrets: {len(data.secret_findings)} potential finding(s) -- see full report"
+        )
     return "\n".join(lines)

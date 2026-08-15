@@ -31,19 +31,49 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     ("Rust", "cargo", "install rustup: https://rustup.rs", "running tests"),
     ("Rust", "cargo-audit", "cargo install cargo-audit", "--security"),
     ("Go", "go", "install Go: https://go.dev/dl/", "running tests"),
-    ("Go", "govulncheck", "go install golang.org/x/vuln/cmd/govulncheck@latest", "--security"),
+    (
+        "Go",
+        "govulncheck",
+        "go install golang.org/x/vuln/cmd/govulncheck@latest",
+        "--security",
+    ),
     ("Node.js", "npm", "install Node.js: https://nodejs.org", "running tests"),
-    ("C/C++", "cmake", "install CMake: https://cmake.org/download/", "project detection"),
-    ("C/C++", "cppcheck", "install cppcheck (e.g. apt/pacman/brew install cppcheck)", "--security"),
-    ("Java / Kotlin / Android", "mvn", "install Maven: https://maven.apache.org/install.html", "Maven projects"),
+    (
+        "C/C++",
+        "cmake",
+        "install CMake: https://cmake.org/download/",
+        "project detection",
+    ),
+    (
+        "C/C++",
+        "cppcheck",
+        "install cppcheck (e.g. apt/pacman/brew install cppcheck)",
+        "--security",
+    ),
+    (
+        "Java / Kotlin / Android",
+        "mvn",
+        "install Maven: https://maven.apache.org/install.html",
+        "Maven projects",
+    ),
     (
         "Java / Kotlin / Android",
         "gradle",
         "install Gradle, or rely on a project's ./gradlew wrapper",
         "Gradle & Android projects (skipped automatically if ./gradlew exists)",
     ),
-    ("PDF export", "wkhtmltopdf", "install wkhtmltopdf (e.g. apt/pacman install wkhtmltopdf)", "--format pdf"),
-    ("PDF export", "weasyprint", "pip install weasyprint", "--format pdf (fallback engine)"),
+    (
+        "PDF export",
+        "wkhtmltopdf",
+        "install wkhtmltopdf (e.g. apt/pacman install wkhtmltopdf)",
+        "--format pdf",
+    ),
+    (
+        "PDF export",
+        "weasyprint",
+        "pip install weasyprint",
+        "--format pdf (fallback engine)",
+    ),
 )
 
 _CATEGORY_ORDER = (
@@ -104,7 +134,9 @@ def collect_checks() -> list[DoctorCheck]:
             detail="compiled and loaded"
             if RUST_CORE_AVAILABLE
             else "not built -- using the pure-Python fallback (slower, still correct)",
-            fix="" if RUST_CORE_AVAILABLE else "cd into the sarand repo and run: maturin develop --release",
+            fix=""
+            if RUST_CORE_AVAILABLE
+            else "cd into the sarand repo and run: maturin develop --release",
             category="Core",
         )
     )
@@ -116,7 +148,11 @@ def collect_checks() -> list[DoctorCheck]:
             name="Persisted config",
             ok=True,
             detail=f"{get_config_path()} "
-            + (f"(output_dir = {output_dir})" if output_dir else "(not set yet -- using built-in default)"),
+            + (
+                f"(output_dir = {output_dir})"
+                if output_dir
+                else "(not set yet -- using built-in default)"
+            ),
             category="Core",
         )
     )
@@ -164,10 +200,18 @@ def _print_language_table(checks: list[DoctorCheck]) -> None:
     for check in checks:
         if check.category not in _CATEGORY_ORDER:
             continue
-        status = "[green]present[/green]" if check.ok else "[yellow]not installed[/yellow]"
+        status = (
+            "[green]present[/green]" if check.ok else "[yellow]not installed[/yellow]"
+        )
         category_cell = check.category if check.category != last_category else ""
         last_category = check.category
-        table.add_row(category_cell, check.name, status, check.used_for, check.fix or "[dim]--[/dim]")
+        table.add_row(
+            category_cell,
+            check.name,
+            status,
+            check.used_for,
+            check.fix or "[dim]--[/dim]",
+        )
 
     console.print(table)
 
@@ -185,7 +229,9 @@ def run_doctor() -> int:
 
     checks = collect_checks()
 
-    console.print(Panel("[bold]sarand doctor[/bold]\nEnvironment diagnostics", expand=False))
+    console.print(
+        Panel("[bold]sarand doctor[/bold]\nEnvironment diagnostics", expand=False)
+    )
     console.print()
     _print_core_table(checks)
     console.print()
@@ -194,10 +240,17 @@ def run_doctor() -> int:
 
     critical_failed = [c for c in checks if c.critical and not c.ok]
     if critical_failed:
-        console.print(Panel("[bold red]✗ Critical check failed[/bold red] -- see the Core table above.", expand=False))
+        console.print(
+            Panel(
+                "[bold red]✗ Critical check failed[/bold red] -- see the Core table above.",
+                expand=False,
+            )
+        )
         return 1
 
-    missing_optional = [c for c in checks if not c.ok and not c.critical and c.category != "Core"]
+    missing_optional = [
+        c for c in checks if not c.ok and not c.critical and c.category != "Core"
+    ]
     if missing_optional:
         console.print(
             Panel(
@@ -208,5 +261,10 @@ def run_doctor() -> int:
             )
         )
     else:
-        console.print(Panel("[bold green]✓ Everything checked is present.[/bold green]", expand=False))
+        console.print(
+            Panel(
+                "[bold green]✓ Everything checked is present.[/bold green]",
+                expand=False,
+            )
+        )
     return 0

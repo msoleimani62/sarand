@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sarand.analyzers.registry import (
@@ -43,7 +43,13 @@ from sarand.utils.logging import get_logger, setup_logging
 
 logger = get_logger("cli")
 
-_RENDERERS = {"markdown": markdown, "json": json_renderer, "text": text, "html": html, "sarif": sarif}
+_RENDERERS = {
+    "markdown": markdown,
+    "json": json_renderer,
+    "text": text,
+    "html": html,
+    "sarif": sarif,
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -61,7 +67,9 @@ Examples:
         """,
     )
 
-    parser.add_argument("--project", "-p", default=None, help="Project root directory (default: cwd)")
+    parser.add_argument(
+        "--project", "-p", default=None, help="Project root directory (default: cwd)"
+    )
     parser.add_argument(
         "--output-dir",
         "-d",
@@ -69,10 +77,16 @@ Examples:
         help="Directory for the report (default: persisted config, then SARAND_OUTPUT_DIR, then ~/Downloads)",
     )
     parser.add_argument(
-        "--output-name", "-o", default=None, help="Report filename (default: sarand-<project>-report.<ext>)"
+        "--output-name",
+        "-o",
+        default=None,
+        help="Report filename (default: sarand-<project>-report.<ext>)",
     )
     parser.add_argument(
-        "--set-output-dir", metavar="PATH", default=None, help="Persist PATH as the default output directory and exit"
+        "--set-output-dir",
+        metavar="PATH",
+        default=None,
+        help="Persist PATH as the default output directory and exit",
     )
     parser.add_argument(
         "--doctor",
@@ -96,18 +110,39 @@ Examples:
         "truncation limits (file size, tree depth/entries) so nothing is skipped or cut short",
     )
     parser.add_argument(
-        "--format", "-f", choices=["markdown", "json", "text", "html", "pdf", "sarif"], default="markdown"
+        "--format",
+        "-f",
+        choices=["markdown", "json", "text", "html", "pdf", "sarif"],
+        default="markdown",
     )
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
-    parser.add_argument("--quality", action="store_true", help="Run quality checks (per detected language)")
     parser.add_argument(
-        "--security", action="store_true", help="Run security/vulnerability checks (per detected language)"
+        "--quality",
+        action="store_true",
+        help="Run quality checks (per detected language)",
     )
-    parser.add_argument("--no-source", action="store_true", help="Do not embed source file contents in the report")
-    parser.add_argument("--no-health", action="store_true", help="Skip health-score calculation")
-    parser.add_argument("--max-depth", type=int, default=None, help="Maximum project tree depth")
-    parser.add_argument("--max-entries", type=int, default=None, help="Maximum entries per tree level")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose (INFO) logging")
+    parser.add_argument(
+        "--security",
+        action="store_true",
+        help="Run security/vulnerability checks (per detected language)",
+    )
+    parser.add_argument(
+        "--no-source",
+        action="store_true",
+        help="Do not embed source file contents in the report",
+    )
+    parser.add_argument(
+        "--no-health", action="store_true", help="Skip health-score calculation"
+    )
+    parser.add_argument(
+        "--max-depth", type=int, default=None, help="Maximum project tree depth"
+    )
+    parser.add_argument(
+        "--max-entries", type=int, default=None, help="Maximum entries per tree level"
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose (INFO) logging"
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--version", action="version", version="sarand 0.1.0")
     return parser
@@ -165,12 +200,16 @@ async def run(config: SarandConfig) -> int:
         status(f"Detected: {', '.join(detection.languages)} ({detection.build_system})")
     else:
         status("No known project marker found -- running generic analysis")
-    status(f"Scan engine: {'Rust core' if RUST_CORE_AVAILABLE else 'pure-Python fallback'}")
+    status(
+        f"Scan engine: {'Rust core' if RUST_CORE_AVAILABLE else 'pure-Python fallback'}"
+    )
 
     # Single filesystem scan, shared by tree/stats/essential-files/todos.
     # یک اسکن فایل‌سیستمی واحد، به‌اشتراک‌گذاشته‌شده بین tree/stats/essential-files/todos.
     records = scan_project(root)
-    tree_text = build_tree_text(root, max_depth=config.max_tree_depth, max_entries=config.max_tree_entries)
+    tree_text = build_tree_text(
+        root, max_depth=config.max_tree_depth, max_entries=config.max_tree_entries
+    )
     included, skipped, excluded_secrets = collect_essential_files(
         root, records=records, max_file_size=config.max_file_size
     )
@@ -188,7 +227,9 @@ async def run(config: SarandConfig) -> int:
         cache = load_cache(config.output_dir, root)
         cache_hits, changed_paths = partition_cache_hits(records, cache)
         if cache_hits:
-            status(f"Cache: reusing TODO/secret results for {len(cache_hits)} unchanged file(s)")
+            status(
+                f"Cache: reusing TODO/secret results for {len(cache_hits)} unchanged file(s)"
+            )
 
     todos = scan_todos(root, records=records, only=changed_paths)
     if cache_hits:
@@ -196,7 +237,11 @@ async def run(config: SarandConfig) -> int:
 
     # Secrets content scan runs unconditionally (AGENTS.md §4.10, §7 priority 1)
     # اسکن محتوایی secret همیشه اجرا می‌شود (§4.10، اولویت ۱ در §7)
-    secret_scan_targets = included if changed_paths is None else [p for p in included if str(p) in changed_paths]
+    secret_scan_targets = (
+        included
+        if changed_paths is None
+        else [p for p in included if str(p) in changed_paths]
+    )
     secret_findings = scan_for_secrets(root, secret_scan_targets)
     if cache_hits:
         secret_findings = secret_findings + reconstruct_secrets(cache_hits)
@@ -204,15 +249,25 @@ async def run(config: SarandConfig) -> int:
     # A file with a content-level finding must not have its full source
     # embedded either -- move it from "included" to "excluded" (§4.10).
     # فایلی که یافته‌ی سطح-محتوا دارد نباید سورس کاملش هم embed شود (§4.10).
-    included, excluded_secrets = exclude_flagged_files(included, excluded_secrets, secret_findings)
+    included, excluded_secrets = exclude_flagged_files(
+        included, excluded_secrets, secret_findings
+    )
 
     if config.use_cache:
-        save_cache(config.output_dir, root, build_cache_entries(records, todos, secret_findings))
+        save_cache(
+            config.output_dir,
+            root,
+            build_cache_entries(records, todos, secret_findings),
+        )
 
     if secret_findings:
-        warning(f"{len(secret_findings)} potential secret(s) found -- affected file(s) excluded from the report.")
+        warning(
+            f"{len(secret_findings)} potential secret(s) found -- affected file(s) excluded from the report."
+        )
     if excluded_secrets:
-        warning(f"{len(excluded_secrets)} credential-shaped file(s) excluded from the report.")
+        warning(
+            f"{len(excluded_secrets)} credential-shaped file(s) excluded from the report."
+        )
 
     env = collect_environment_info(root)
     git = collect_git_snapshot(root)
@@ -230,14 +285,18 @@ async def run(config: SarandConfig) -> int:
     else:
         test_results = await run_tests_concurrently(root, active)
 
-    quality_results = await run_quality_concurrently(root, active) if config.run_quality else []
-    security_results = await run_security_concurrently(root, active) if config.run_security else []
+    quality_results = (
+        await run_quality_concurrently(root, active) if config.run_quality else []
+    )
+    security_results = (
+        await run_security_concurrently(root, active) if config.run_security else []
+    )
 
     known = detect_known_issues(test_results + quality_results + security_results)
 
     data = ReportData(
         project_root=root,
-        generated_at=datetime.now(),
+        generated_at=datetime.now(timezone.utc),
         environment=env,
         git=git,
         stats=stats,
@@ -272,13 +331,17 @@ async def run(config: SarandConfig) -> int:
         # ماژول است. هرگز به‌خاطر نبودِ ابزار کرش نمی‌کند.
         from sarand.renderers import pdf as pdf_renderer
 
-        outcome = pdf_renderer.render_to_file(data, output_path, include_source=config.include_source)
+        outcome = pdf_renderer.render_to_file(
+            data, output_path, include_source=config.include_source
+        )
         if not outcome.ok:
             error(f"PDF rendering failed: {outcome.detail}")
             return 1
         digest = write_sha256(output_path)
     else:
-        content = _RENDERERS[config.output_format].render(data, include_source=config.include_source)
+        content = _RENDERERS[config.output_format].render(
+            data, include_source=config.include_source
+        )
         output_path.write_text(content, encoding="utf-8")
         digest = write_sha256(output_path)
 
@@ -290,11 +353,17 @@ async def run(config: SarandConfig) -> int:
     print(f"Engine  : {'Rust core' if RUST_CORE_AVAILABLE else 'pure-Python fallback'}")
     print(f"Output  : {output_path}")
     print(f"SHA256  : {digest}")
-    print(f"Files   : {len(included)} included / {len(skipped)} skipped / {len(excluded_secrets)} excluded (secrets)")
+    print(
+        f"Files   : {len(included)} included / {len(skipped)} skipped / {len(excluded_secrets)} excluded (secrets)"
+    )
     if secret_findings:
-        print(f"Secrets : {len(secret_findings)} potential secret(s) found -- affected files excluded, see report")
+        print(
+            f"Secrets : {len(secret_findings)} potential secret(s) found -- affected files excluded, see report"
+        )
     if config.use_cache:
-        print(f"Cache   : {len(cache_hits)} file(s) skipped (unchanged since last --cache run)")
+        print(
+            f"Cache   : {len(cache_hits)} file(s) skipped (unchanged since last --cache run)"
+        )
     if data.health:
         print(f"Health  : {data.health.score}/100 ({data.health.grade})")
     print("=" * 60)

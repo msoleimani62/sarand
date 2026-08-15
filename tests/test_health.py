@@ -9,7 +9,7 @@ scoring drift.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sarand.core.health import compute_health_score
@@ -23,13 +23,13 @@ from sarand.models.results import (
 
 
 def _base_report(**overrides: object) -> ReportData:
-    defaults: dict[str, object] = dict(
-        project_root=Path("/tmp/fixture"),
-        generated_at=datetime(2026, 1, 1),
-        environment=EnvironmentInfo(),
-        git=GitSnapshot(),
-        stats=ProjectStats(),
-    )
+    defaults: dict[str, object] = {
+        "project_root": Path("/tmp/fixture"),
+        "generated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        "environment": EnvironmentInfo(),
+        "git": GitSnapshot(),
+        "stats": ProjectStats(),
+    }
     defaults.update(overrides)
     return ReportData(**defaults)  # type: ignore[arg-type]
 
@@ -53,7 +53,9 @@ def test_passing_tests_and_quality_score_grade_b() -> None:
             CommandResult(kind="ruff check", returncode=0, summary="ok"),
             CommandResult(kind="ruff format", returncode=0, summary="ok"),
         ],
-        environment=EnvironmentInfo(tool_versions={f"tool{i}": "1.0" for i in range(5)}),
+        environment=EnvironmentInfo(
+            tool_versions={f"tool{i}": "1.0" for i in range(5)}
+        ),
     )
     result = compute_health_score(data)
     assert result.score == 88.0
@@ -65,7 +67,9 @@ def test_adding_clean_security_pushes_to_grade_a() -> None:
         test_results=[CommandResult(kind="pytest", returncode=0, summary="ok")],
         quality_results=[CommandResult(kind="ruff check", returncode=0, summary="ok")],
         security_results=[CommandResult(kind="pip-audit", returncode=0, summary="ok")],
-        environment=EnvironmentInfo(tool_versions={f"tool{i}": "1.0" for i in range(5)}),
+        environment=EnvironmentInfo(
+            tool_versions={f"tool{i}": "1.0" for i in range(5)}
+        ),
     )
     result = compute_health_score(data)
     assert result.score == 95.0
@@ -86,7 +90,13 @@ def test_skipped_tests_do_not_count_as_failures() -> None:
     test -- it should not appear in critical_failures."""
     data = _base_report(
         test_results=[
-            CommandResult(kind="pytest", returncode=127, summary="", skipped=True, skip_reason="pytest not found")
+            CommandResult(
+                kind="pytest",
+                returncode=127,
+                summary="",
+                skipped=True,
+                skip_reason="pytest not found",
+            )
         ],
     )
     result = compute_health_score(data)
@@ -101,7 +111,9 @@ def test_broken_symlinks_are_critical() -> None:
 
 def test_dirty_git_reduces_git_score() -> None:
     clean = compute_health_score(_base_report(git=GitSnapshot(dirty=False)))
-    dirty = compute_health_score(_base_report(git=GitSnapshot(dirty=True, status="M file.py")))
+    dirty = compute_health_score(
+        _base_report(git=GitSnapshot(dirty=True, status="M file.py"))
+    )
     assert dirty.breakdown["git"] < clean.breakdown["git"]
 
 
@@ -110,7 +122,9 @@ def test_score_never_exceeds_100_or_drops_below_0() -> None:
         test_results=[CommandResult(kind="pytest", returncode=0, summary="ok")],
         quality_results=[CommandResult(kind="ruff", returncode=0, summary="ok")],
         security_results=[CommandResult(kind="pip-audit", returncode=0, summary="ok")],
-        environment=EnvironmentInfo(tool_versions={f"tool{i}": "1.0" for i in range(20)}),
+        environment=EnvironmentInfo(
+            tool_versions={f"tool{i}": "1.0" for i in range(20)}
+        ),
     )
     result = compute_health_score(data)
     assert 0.0 <= result.score <= 100.0
@@ -121,7 +135,13 @@ def test_secret_findings_are_always_critical() -> None:
 
     clean = compute_health_score(_base_report())
     with_secret = compute_health_score(
-        _base_report(secret_findings=[SecretFinding(path="config.py", line_number=3, pattern_name="AWS Access Key ID")])
+        _base_report(
+            secret_findings=[
+                SecretFinding(
+                    path="config.py", line_number=3, pattern_name="AWS Access Key ID"
+                )
+            ]
+        )
     )
     assert with_secret.breakdown["code"] < clean.breakdown["code"]
     assert any("secret" in c.lower() for c in with_secret.critical_failures)

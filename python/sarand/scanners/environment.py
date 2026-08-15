@@ -55,7 +55,9 @@ def _memory_summary() -> str:
             elif line.startswith("MemAvailable:"):
                 available_kb = int(line.split()[1])
         if total_kb:
-            return f"{available_kb // 1024} MiB available / {total_kb // 1024} MiB total"
+            return (
+                f"{available_kb // 1024} MiB available / {total_kb // 1024} MiB total"
+            )
     except OSError:
         pass
     return "(unknown)"
@@ -88,7 +90,9 @@ def collect_environment_info(project_root: Path | None = None) -> EnvironmentInf
 
     info = EnvironmentInfo(
         python=_version([sys.executable, "--version"]),
-        rust_core="available (native scan)" if RUST_CORE_AVAILABLE else "unavailable (pure-Python fallback)",
+        rust_core="available (native scan)"
+        if RUST_CORE_AVAILABLE
+        else "unavailable (pure-Python fallback)",
         os_name=f"{platform.system()} {platform.release()}",
         architecture=platform.machine(),
         cpu_summary=_cpu_summary(),

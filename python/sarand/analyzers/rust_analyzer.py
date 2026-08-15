@@ -26,23 +26,47 @@ class RustAnalyzer:
 
     async def run_tests(self, root: Path) -> CommandResult | None:
         if shutil.which("cargo") is None:
-            return make_command_result("cargo test", 127, "", 0.0, skipped=True, skip_reason="cargo not found in PATH")
+            return make_command_result(
+                "cargo test",
+                127,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason="cargo not found in PATH",
+            )
         logger.info("Running cargo test --all")
-        rc, output, duration = await run_cmd_async(["cargo", "test", "--all"], root, LONG_CMD_TIMEOUT)
+        rc, output, duration = await run_cmd_async(
+            ["cargo", "test", "--all"], root, LONG_CMD_TIMEOUT
+        )
         return make_command_result("cargo test", rc, output, duration)
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
         if shutil.which("cargo") is None:
             return [
                 make_command_result(
-                    "cargo fmt/clippy", 127, "", 0.0, skipped=True, skip_reason="cargo not found in PATH"
+                    "cargo fmt/clippy",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="cargo not found in PATH",
                 )
             ]
         results = []
-        rc, out, dur = await run_cmd_async(["cargo", "fmt", "--all", "--check"], root, LONG_CMD_TIMEOUT)
+        rc, out, dur = await run_cmd_async(
+            ["cargo", "fmt", "--all", "--check"], root, LONG_CMD_TIMEOUT
+        )
         results.append(make_command_result("cargo fmt --check", rc, out, dur))
         rc, out, dur = await run_cmd_async(
-            ["cargo", "clippy", "--all-targets", "--all-features", "--", "-D", "warnings"],
+            [
+                "cargo",
+                "clippy",
+                "--all-targets",
+                "--all-features",
+                "--",
+                "-D",
+                "warnings",
+            ],
             root,
             LONG_CMD_TIMEOUT,
         )
@@ -57,7 +81,12 @@ class RustAnalyzer:
         if shutil.which("cargo-audit") is None:
             return [
                 make_command_result(
-                    "cargo audit", 127, "", 0.0, skipped=True, skip_reason="cargo-audit not installed"
+                    "cargo audit",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="cargo-audit not installed",
                 )
             ]
         rc, out, dur = await run_cmd_async(["cargo", "audit"], root, LONG_CMD_TIMEOUT)

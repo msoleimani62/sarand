@@ -170,7 +170,7 @@ class ReportData:
     included_files: list[Path] = field(default_factory=list)
     skipped_files: list[tuple[Path, int]] = field(default_factory=list)
     excluded_secret_files: list[Path] = field(default_factory=list)
-    secret_findings: list["SecretFinding"] = field(default_factory=list)
+    secret_findings: list[SecretFinding] = field(default_factory=list)
     health: HealthScore | None = None
     known_issues: list[str] = field(default_factory=list)
     ai_summary: str = ""

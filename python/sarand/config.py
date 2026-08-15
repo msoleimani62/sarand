@@ -7,7 +7,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sarand.constants import DEFAULT_OUTPUT_DIR, MAX_FILE_SIZE, MAX_TREE_DEPTH, MAX_TREE_ENTRIES
+from sarand.constants import (
+    DEFAULT_OUTPUT_DIR,
+    MAX_FILE_SIZE,
+    MAX_TREE_DEPTH,
+    MAX_TREE_ENTRIES,
+)
 from sarand.userconfig import load_persisted_config
 from sarand.utils.fs import default_output_name
 
@@ -56,7 +61,7 @@ class SarandConfig:
     use_cache: bool = False
 
     @classmethod
-    def from_args(cls, args: Any) -> "SarandConfig":
+    def from_args(cls, args: Any) -> SarandConfig:
         project = resolve_project_path(getattr(args, "project", None))
         output_format = str(getattr(args, "format", "markdown")).lower()
         out_dir = resolve_output_dir(getattr(args, "output_dir", None))
@@ -78,7 +83,9 @@ class SarandConfig:
         full = bool(getattr(args, "full", False))
         unlimited_tree_depth = 10_000
         unlimited_tree_entries = 1_000_000
-        unlimited_file_size = 10 * 1024 * 1024 * 1024  # 10 GiB -- no real source file exceeds this
+        unlimited_file_size = (
+            10 * 1024 * 1024 * 1024
+        )  # 10 GiB -- no real source file exceeds this
 
         return cls(
             project_root=project,
@@ -90,12 +97,17 @@ class SarandConfig:
             verbose=bool(getattr(args, "verbose", False)),
             debug=bool(getattr(args, "debug", False)),
             output_format=output_format,
-            max_tree_depth=_int_or(getattr(args, "max_depth", None), unlimited_tree_depth if full else MAX_TREE_DEPTH),
+            max_tree_depth=_int_or(
+                getattr(args, "max_depth", None),
+                unlimited_tree_depth if full else MAX_TREE_DEPTH,
+            ),
             max_tree_entries=_int_or(
-                getattr(args, "max_entries", None), unlimited_tree_entries if full else MAX_TREE_ENTRIES
+                getattr(args, "max_entries", None),
+                unlimited_tree_entries if full else MAX_TREE_ENTRIES,
             ),
             max_file_size=_int_or(
-                getattr(args, "max_file_size", None), unlimited_file_size if full else MAX_FILE_SIZE
+                getattr(args, "max_file_size", None),
+                unlimited_file_size if full else MAX_FILE_SIZE,
             ),
             include_source=not bool(getattr(args, "no_source", False)),
             health_score=not bool(getattr(args, "no_health", False)),
@@ -104,10 +116,14 @@ class SarandConfig:
 
     def validate(self) -> None:
         if not self.project_root.is_dir():
-            raise ValueError(f"Project root does not exist or is not a directory: {self.project_root}")
+            raise ValueError(
+                f"Project root does not exist or is not a directory: {self.project_root}"
+            )
         allowed = {"markdown", "json", "text", "html", "pdf", "sarif"}
         if self.output_format not in allowed:
-            raise ValueError(f"Unsupported output format: {self.output_format}. Allowed: {allowed}")
+            raise ValueError(
+                f"Unsupported output format: {self.output_format}. Allowed: {allowed}"
+            )
         if self.max_tree_depth < 1:
             raise ValueError("max_tree_depth must be >= 1")
         if self.max_tree_entries < 1:

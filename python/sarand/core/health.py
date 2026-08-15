@@ -24,13 +24,17 @@ def compute_health_score(data: ReportData) -> HealthScore:
     test_results = data.test_results
     if not test_results:
         breakdown["tests"] = 5.0
-        recommendations.append("Add automated tests, or make sure your test runner is installed.")
+        recommendations.append(
+            "Add automated tests, or make sure your test runner is installed."
+        )
     else:
         passed = sum(1 for r in test_results if r.passed and not r.skipped)
         total = sum(1 for r in test_results if not r.skipped)
         if total == 0:
             breakdown["tests"] = 10.0
-            recommendations.append("Install the relevant test runner(s) so tests can actually run.")
+            recommendations.append(
+                "Install the relevant test runner(s) so tests can actually run."
+            )
         else:
             ratio = passed / total
             breakdown["tests"] = round(25.0 * ratio, 1)
@@ -51,7 +55,9 @@ def compute_health_score(data: ReportData) -> HealthScore:
         else:
             breakdown["quality"] = round(20.0 * (q_passed / q_total), 1)
             if q_passed < q_total:
-                recommendations.append("Address lint / format issues reported by quality tools.")
+                recommendations.append(
+                    "Address lint / format issues reported by quality tools."
+                )
 
     # --- Security ---
     security = data.security_results
@@ -94,13 +100,37 @@ def compute_health_score(data: ReportData) -> HealthScore:
     if stats.empty_files and len(stats.empty_files) > 10:
         code_score -= 2.0
     if data.secret_findings:
-        # Potential leaked credentials are always critical, regardless of
-        # how many -- one real secret is already a security incident.
-        # وجود احتمالی credential نشت‌کرده همیشه بحرانی است، صرف‌نظر از
-        # تعداد -- حتی یک secret واقعی به‌تنهایی یک حادثه‌ی امنیتی است.
-        code_score -= 10.0
-        critical.append(f"{len(data.secret_findings)} potential hardcoded secret(s) detected in source files.")
-        recommendations.append("Review and rotate any real credentials found; remove them from source control.")
+        # Test fixtures are ignored only when the scanner explicitly marks
+        # them as fixtures; test-path location alone is not sufficient.
+        # fixtureهای تست فقط زمانی نادیده گرفته می‌شوند که اسکنر صراحتاً
+        # آن‌ها را fixture علامت‌گذاری کرده باشد؛ صرفاً قرار داشتن در tests/
+        # برای نادیده گرفتن یک finding کافی نیست.
+        fixture_findings = [
+            finding
+            for finding in data.secret_findings
+            if finding.path.startswith("tests/")
+            and "fixture" in finding.pattern_name.lower()
+        ]
+        real_findings = [
+            finding
+            for finding in data.secret_findings
+            if finding not in fixture_findings
+        ]
+
+        if real_findings:
+            code_score -= 10.0
+            critical.append(
+                f"{len(real_findings)} potential hardcoded secret(s) detected in source files."
+            )
+            recommendations.append(
+                "Review and rotate any real credentials found; remove them from source control."
+            )
+
+        if fixture_findings:
+            recommendations.append(
+                f"{len(fixture_findings)} secret-pattern match(es) explicitly identified "
+                "as test fixtures were excluded from the health score."
+            )
     breakdown["code"] = max(0.0, code_score)
 
     # --- Tooling presence ---
@@ -123,7 +153,9 @@ def compute_health_score(data: ReportData) -> HealthScore:
         grade = "F"
 
     if not recommendations:
-        recommendations.append("Project looks healthy. Keep tests and quality checks green.")
+        recommendations.append(
+            "Project looks healthy. Keep tests and quality checks green."
+        )
 
     return HealthScore(
         score=round(score, 1),

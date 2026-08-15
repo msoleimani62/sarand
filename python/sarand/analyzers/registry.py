@@ -78,13 +78,17 @@ def discover_analyzers() -> list[LanguageAnalyzer]:
     return analyzers
 
 
-def matching_analyzers(root: Path, analyzers: list[LanguageAnalyzer] | None = None) -> list[LanguageAnalyzer]:
+def matching_analyzers(
+    root: Path, analyzers: list[LanguageAnalyzer] | None = None
+) -> list[LanguageAnalyzer]:
     """Return the subset of analyzers whose ``matches(root)`` is True."""
     pool = analyzers if analyzers is not None else discover_analyzers()
     return [a for a in pool if a.matches(root)]
 
 
-async def run_tests_concurrently(root: Path, analyzers: list[LanguageAnalyzer]) -> list[CommandResult]:
+async def run_tests_concurrently(
+    root: Path, analyzers: list[LanguageAnalyzer]
+) -> list[CommandResult]:
     """Run every matching analyzer's test suite concurrently.
 
     This is the async payoff of the plugin architecture: cargo test,
@@ -96,7 +100,9 @@ async def run_tests_concurrently(root: Path, analyzers: list[LanguageAnalyzer]) 
     return [r for r in results if r is not None]
 
 
-async def run_quality_concurrently(root: Path, analyzers: list[LanguageAnalyzer]) -> list[CommandResult]:
+async def run_quality_concurrently(
+    root: Path, analyzers: list[LanguageAnalyzer]
+) -> list[CommandResult]:
     """Run every matching analyzer's quality checks concurrently."""
     tasks = [a.run_quality(root) for a in analyzers]
     results = await asyncio.gather(*tasks)
@@ -106,7 +112,9 @@ async def run_quality_concurrently(root: Path, analyzers: list[LanguageAnalyzer]
     return flat
 
 
-async def run_security_concurrently(root: Path, analyzers: list[LanguageAnalyzer]) -> list[CommandResult]:
+async def run_security_concurrently(
+    root: Path, analyzers: list[LanguageAnalyzer]
+) -> list[CommandResult]:
     """Run every matching analyzer's security/vulnerability checks concurrently."""
     tasks = [a.run_security(root) for a in analyzers]
     results = await asyncio.gather(*tasks)

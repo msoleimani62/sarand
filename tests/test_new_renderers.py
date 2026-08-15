@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
+from _helpers import write
 from sarand.core.health import compute_health_score
 from sarand.models.results import (
     CommandResult,
@@ -21,8 +22,6 @@ from sarand.models.results import (
     TodoItem,
 )
 from sarand.renderers import html, sarif
-
-from _helpers import write
 
 
 def _fixture_data(root: Path) -> ReportData:
@@ -39,11 +38,13 @@ def _fixture_data(root: Path) -> ReportData:
         kind="ruff check",
         returncode=1,
         summary="1 error",
-        errors=[Issue(source="ruff check", message="F401 unused import", severity="error")],
+        errors=[
+            Issue(source="ruff check", message="F401 unused import", severity="error")
+        ],
     )
     data = ReportData(
         project_root=root,
-        generated_at=datetime(2026, 1, 1, 12, 0, 0),
+        generated_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         environment=EnvironmentInfo(python="Python 3.13.0", hostname="test-host"),
         git=GitSnapshot(branch="main", commit="abc123"),
         stats=ProjectStats(total_files=1, total_loc=1, files_by_extension={".py": 1}),
@@ -54,8 +55,16 @@ def _fixture_data(root: Path) -> ReportData:
         tree_text=f"{root.name}/\n└── main.py",
         included_files=[Path("main.py")],
         excluded_secret_files=[Path(".env")],
-        secret_findings=[SecretFinding(path="main.py", line_number=1, pattern_name="AWS Access Key ID")],
-        todos=[TodoItem(path="main.py", line_number=1, kind="TODO", content="remove debug print")],
+        secret_findings=[
+            SecretFinding(
+                path="main.py", line_number=1, pattern_name="AWS Access Key ID"
+            )
+        ],
+        todos=[
+            TodoItem(
+                path="main.py", line_number=1, kind="TODO", content="remove debug print"
+            )
+        ],
     )
     data.health = compute_health_score(data)
     return data
@@ -116,11 +125,21 @@ def test_sarif_renderer_includes_secret_finding_as_error_with_location() -> None
         parsed = json.loads(sarif.render(data))
 
         results = parsed["runs"][0]["results"]
-        secret_results = [r for r in results if r["ruleId"].startswith("secret-detection/")]
+        secret_results = [
+            r for r in results if r["ruleId"].startswith("secret-detection/")
+        ]
         assert len(secret_results) == 1
         assert secret_results[0]["level"] == "error"
-        assert secret_results[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "main.py"
-        assert secret_results[0]["locations"][0]["physicalLocation"]["region"]["startLine"] == 1
+        assert (
+            secret_results[0]["locations"][0]["physicalLocation"]["artifactLocation"][
+                "uri"
+            ]
+            == "main.py"
+        )
+        assert (
+            secret_results[0]["locations"][0]["physicalLocation"]["region"]["startLine"]
+            == 1
+        )
 
 
 def test_sarif_renderer_includes_todo_as_note() -> None:
@@ -128,7 +147,9 @@ def test_sarif_renderer_includes_todo_as_note() -> None:
         data = _fixture_data(Path(tmp))
         parsed = json.loads(sarif.render(data))
 
-        todo_results = [r for r in parsed["runs"][0]["results"] if r["ruleId"].startswith("todo/")]
+        todo_results = [
+            r for r in parsed["runs"][0]["results"] if r["ruleId"].startswith("todo/")
+        ]
         assert len(todo_results) == 1
         assert todo_results[0]["level"] == "note"
 
@@ -138,7 +159,11 @@ def test_sarif_renderer_includes_unlocated_quality_issue() -> None:
         data = _fixture_data(Path(tmp))
         parsed = json.loads(sarif.render(data))
 
-        tool_results = [r for r in parsed["runs"][0]["results"] if r["ruleId"].startswith("tool-output/")]
+        tool_results = [
+            r
+            for r in parsed["runs"][0]["results"]
+            if r["ruleId"].startswith("tool-output/")
+        ]
         assert len(tool_results) == 1
         assert "locations" not in tool_results[0]
         assert tool_results[0]["level"] == "error"
