@@ -45,7 +45,9 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Install Python tooling
-        run: python -m pip install --upgrade pip maturin pytest ruff mypy
+        run: |
+          python -m pip install --upgrade pip maturin pytest ruff mypy
+          python -m pip install -e .
 
       - name: Run Ruff lint
         run: ruff check .
