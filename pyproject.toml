@@ -16,25 +16,27 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python",
     "Programming Language :: Rust",
     "Topic :: Software Development :: Quality Assurance",
     "Topic :: Software Development :: Testing",
 ]
 dependencies = [
+    "filelock==3.32.3",
     "rich>=13.0",
 ]
 
 # project.urls intentionally omitted -- no GitHub remote exists yet.
+# project.urls عمداً حذف شده است چون در این مرحله remote گیت‌هاب ثبت نشده است.
 # Add e.g. Repository = "https://github.com/<user>/sarand" once it does.
+# پس از ثبت remote می‌توان Repository را به این بخش اضافه کرد.
 
 [project.scripts]
 sarand = "sarand.cli:main"
 
 [tool.maturin]
-# Standard maturin "mixed Rust/Python" layout:
-#   ./src/            -> Rust crate (compiles to sarand._core)
-#   ./python/sarand/  -> pure-Python package
+# Standard maturin "mixed Rust/Python" layout.
+# ساختار استاندارد maturin برای پروژه ترکیبی Rust/Python.
 python-source = "python"
 module-name = "sarand._core"
 features = ["pyo3/extension-module"]

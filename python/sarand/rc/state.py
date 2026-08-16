@@ -1,8 +1,8 @@
 """RC state: on-disk paths, load/save/validate, locking, and the
 history log used for back/back-run navigation.
-
 Extends the original scripts/paste_chunks.py state schema (bumped to
 STATE_VERSION=4) with a `session_id` field for the RC protocol layer.
+
 Adding `protocol_version` into config_fingerprint() means a future
 protocol change auto-invalidates old state through the exact same
 "config changed -- run with --reset" path that already existed for
@@ -19,13 +19,14 @@ STATE_VERSION=4 ارتقا یافته) با یک فیلد `session_id` برای 
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import json
 import os
 import sys
 from pathlib import Path
 from typing import Any
+
+from filelock import FileLock, Timeout
 
 from . import chunker, protocol
 
@@ -72,7 +73,11 @@ def config_fingerprint() -> str:
         "chunk_size": chunker.CHUNK_SIZE,
         "protocol_version": protocol.PROTOCOL_VERSION,
     }
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
@@ -98,7 +103,10 @@ def source_fingerprint(path: Path) -> str:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(chunk)
     except OSError as exc:
-        print(f"ERROR: unable to fingerprint source {path}: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: unable to fingerprint source {path}: {exc}",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from exc
     return "sha256:" + digest.hexdigest()
 
@@ -116,6 +124,7 @@ def validate_state(state: dict[str, Any], lines: list[str] | None = None) -> Non
         "history_index": int,
         "config_fingerprint": str,
     }
+
     for key, expected in required.items():
         if key not in state:
             raise ValueError(f"missing key: {key}")
@@ -124,7 +133,8 @@ def validate_state(state: dict[str, Any], lines: list[str] | None = None) -> Non
 
     if state["state_version"] != STATE_VERSION:
         raise ValueError(
-            f"unsupported state_version={state['state_version']} (expected {STATE_VERSION}) "
+            f"unsupported state_version={state['state_version']} "
+            f"(expected {STATE_VERSION}) "
             "-- run with --reset to start fresh"
         )
 
@@ -154,6 +164,7 @@ def validate_state(state: dict[str, Any], lines: list[str] | None = None) -> Non
 
     history = state["history"]
     history_index = state["history_index"]
+
     if history_index < -1:
         raise ValueError("history_index must be >= -1")
     if not history and history_index != -1:
@@ -175,21 +186,28 @@ def validate_state(state: dict[str, Any], lines: list[str] | None = None) -> Non
         return
 
     blocks = chunker.total_blocks(len(lines))
+
     if state["next_block"] > blocks:
         raise ValueError(
             f"next_block={state['next_block']} exceeds total_blocks={blocks}"
         )
+
     if current_block is not None and current_block >= blocks:
         raise ValueError(f"current_block={current_block} exceeds total_blocks={blocks}")
+
     if current_block is not None:
         chunks = chunker.block_chunks(lines, current_block)
         if state["current_chunk"] >= len(chunks):
             raise ValueError(
-                f"current_chunk={state['current_chunk']} exceeds available chunks={len(chunks)}"
+                f"current_chunk={state['current_chunk']} "
+                f"exceeds available chunks={len(chunks)}"
             )
 
 
-def load_state(paths: Paths, lines: list[str] | None = None) -> dict[str, Any]:
+def load_state(
+    paths: Paths,
+    lines: list[str] | None = None,
+) -> dict[str, Any]:
     if not paths.state_file.exists():
         return default_state()
 
@@ -201,7 +219,10 @@ def load_state(paths: Paths, lines: list[str] | None = None) -> dict[str, Any]:
         raise SystemExit(1) from exc
 
     if type(state) is not dict:
-        print("ERROR: collector state must be a JSON object.", file=sys.stderr)
+        print(
+            "ERROR: collector state must be a JSON object.",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
 
     state.setdefault("state_version", STATE_VERSION)
@@ -213,21 +234,34 @@ def load_state(paths: Paths, lines: list[str] | None = None) -> dict[str, Any]:
     try:
         validate_state(state, lines)
     except ValueError as exc:
-        print(f"ERROR: corrupted collector state: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: corrupted collector state: {exc}",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from exc
 
     return state
 
 
 def save_state(
-    paths: Paths, state: dict[str, Any], lines: list[str] | None = None
+    paths: Paths,
+    state: dict[str, Any],
+    lines: list[str] | None = None,
 ) -> None:
     validate_state(state, lines)
     paths.state_file.parent.mkdir(parents=True, exist_ok=True)
+
     temporary = paths.state_file.with_name(f"{paths.state_file.name}.{os.getpid()}.tmp")
+
     try:
         temporary.write_text(
-            json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            json.dumps(
+                state,
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
         )
         os.replace(temporary, paths.state_file)
     except OSError as exc:
@@ -235,86 +269,145 @@ def save_state(
             temporary.unlink(missing_ok=True)
         except OSError:
             pass
-        print(f"ERROR: unable to save collector state: {exc}", file=sys.stderr)
-        raise SystemExit(1) from exc
 
-
-def acquire_lock(paths: Paths) -> Any:
-    try:
-        paths.lock_file.parent.mkdir(parents=True, exist_ok=True)
-        lock_fd = paths.lock_file.open("a+")
-        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return lock_fd
-    except (OSError, BlockingIOError) as exc:
         print(
-            f"ERROR: another instance is running for this source file: {exc}",
+            f"ERROR: unable to save collector state: {exc}",
             file=sys.stderr,
         )
         raise SystemExit(1) from exc
 
 
-def release_lock(lock_fd: Any) -> None:
+def acquire_lock(paths: Paths) -> FileLock:
     try:
-        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
-    finally:
-        lock_fd.close()
+        paths.lock_file.parent.mkdir(parents=True, exist_ok=True)
+
+        lock = FileLock(paths.lock_file)
+        lock.acquire(blocking=False)
+
+        return lock
+    except Timeout as exc:
+        print(
+            f"ERROR: another instance is running for this source file: {paths.source}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
+    except OSError as exc:
+        print(
+            f"ERROR: unable to acquire lock for {paths.source}: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
+
+
+def release_lock(lock: FileLock) -> None:
+    try:
+        lock.release()
+    except OSError as exc:
+        print(
+            f"ERROR: unable to release lock: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
 
 
 def read_source(paths: Paths) -> list[str]:
     if not paths.source.is_file():
-        print(f"ERROR: source file not found: {paths.source}", file=sys.stderr)
+        print(
+            f"ERROR: source file not found: {paths.source}",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
+
     try:
-        with paths.source.open("r", encoding="utf-8", newline="") as handle:
+        with paths.source.open(
+            "r",
+            encoding="utf-8",
+            newline="",
+        ) as handle:
             return handle.read().splitlines(keepends=True)
     except OSError as exc:
-        print(f"ERROR: unable to read {paths.source}: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: unable to read {paths.source}: {exc}",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from exc
 
 
-def ensure_source_consistent(paths: Paths, state: dict[str, Any]) -> None:
+def ensure_source_consistent(
+    paths: Paths,
+    state: dict[str, Any],
+) -> None:
     """Verify the source file hasn't changed since state was created."""
     fingerprint = source_fingerprint(paths.source)
     previous = state["source_fingerprint"]
+
     if previous is None:
         state["source_fingerprint"] = fingerprint
         return
+
     if previous != fingerprint:
         print(
             f"ERROR: source file changed since collector state was created.\n"
-            f"Run '{Path(sys.argv[0]).name} --reset --source {paths.source}' before continuing.",
+            f"Run '{Path(sys.argv[0]).name} --reset --source "
+            f"{paths.source}' before continuing.",
             file=sys.stderr,
         )
         raise SystemExit(1)
 
 
-def write_chunk(paths: Paths, block: int, chunk: int, content: str) -> Path:
+def write_chunk(
+    paths: Paths,
+    block: int,
+    chunk: int,
+    content: str,
+) -> Path:
     paths.chunk_dir.mkdir(parents=True, exist_ok=True)
+
     path = paths.chunk_dir / f"block-{block}-chunk-{chunk}.txt"
     temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+
     try:
-        temporary.write_text(content, encoding="utf-8")
+        temporary.write_text(
+            content,
+            encoding="utf-8",
+        )
         os.replace(temporary, path)
     except OSError as exc:
         try:
             temporary.unlink(missing_ok=True)
         except OSError:
             pass
-        print(f"ERROR: unable to write chunk file: {exc}", file=sys.stderr)
+
+        print(
+            f"ERROR: unable to write chunk file: {exc}",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from exc
+
     return path
 
 
 def truncate_future_history(state: dict[str, Any]) -> None:
     index = state["history_index"]
+
     if index < 0:
         state["history"] = []
         state["history_index"] = -1
         return
+
     state["history"] = state["history"][: index + 1]
 
 
-def append_history(state: dict[str, Any], block: int, chunk: int) -> None:
+def append_history(
+    state: dict[str, Any],
+    block: int,
+    chunk: int,
+) -> None:
     truncate_future_history(state)
-    state["history"].append({"block": block, "chunk": chunk})
+    state["history"].append(
+        {
+            "block": block,
+            "chunk": chunk,
+        }
+    )
     state["history_index"] = len(state["history"]) - 1
