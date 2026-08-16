@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from _helpers import write
+from sarand.analyzers.base import LanguageAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
@@ -103,7 +104,12 @@ def test_python_analyzer_run_tests_skips_cleanly_without_pytest() -> None:
 
 
 def test_matching_analyzers_returns_only_relevant_ones() -> None:
-    pool = [PythonAnalyzer(), RustAnalyzer(), GoAnalyzer(), NodeAnalyzer()]
+    pool: list[LanguageAnalyzer] = [
+        PythonAnalyzer(),
+        RustAnalyzer(),
+        GoAnalyzer(),
+        NodeAnalyzer(),
+    ]
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         write(root / "Cargo.toml", "[package]\nname='x'\n")

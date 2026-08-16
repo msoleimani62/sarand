@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from sarand.core.cache import (
     build_cache_entries,
@@ -14,9 +15,10 @@ from sarand.core.cache import (
     save_cache,
 )
 from sarand.models.results import SecretFinding, TodoItem
+from sarand.rust_bridge import FileRecord
 
 
-def _record(rel_path: str, content_hash: str | None) -> dict:
+def _record(rel_path: str, content_hash: str | None) -> FileRecord:
     return {
         "rel_path": rel_path,
         "size": 100,
@@ -150,7 +152,9 @@ def test_partition_cache_hits_never_caches_files_without_a_hash() -> None:
     """Binary files and large files have content_hash=None -- they must
     always be treated as 'changed' (i.e. always re-scanned)."""
     records = [_record("big.bin", None)]
-    cache = {"big.bin": {"hash": None, "todos": [], "secrets": []}}
+    cache: dict[str, dict[str, Any]] = {
+        "big.bin": {"hash": None, "todos": [], "secrets": []}
+    }
 
     hits, changed = partition_cache_hits(records, cache)
 
@@ -235,7 +239,7 @@ def test_full_cache_round_trip_end_to_end() -> None:
         save_cache(output_dir, project_root, entries)
 
         # "Next run": same records, load the cache back.
-        cache = load_cache(output_dir, project_root)
+        cache: dict[str, dict[str, Any]] = load_cache(output_dir, project_root)
         hits, changed = partition_cache_hits(records, cache)
 
         assert changed == set()

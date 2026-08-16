@@ -7,14 +7,15 @@ import os
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 from _helpers import assert_raises
 from sarand.config import SarandConfig, resolve_output_dir, resolve_project_path
 from sarand.constants import DEFAULT_OUTPUT_DIR
 
 
-def _args(**overrides: object) -> SimpleNamespace:
-    defaults = {
+def _args(**overrides: Any) -> SimpleNamespace:
+    defaults: dict[str, Any] = {
         "project": None,
         "output_dir": None,
         "output_name": None,
