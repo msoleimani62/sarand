@@ -71,3 +71,7 @@ pub fn count_lines(path: &Path) -> LineCounts {
     }
     counts
 }
+
+#[cfg(test)]
+#[path = "linecount_tests.rs"]
+mod tests;

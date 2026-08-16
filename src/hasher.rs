@@ -20,3 +20,7 @@ pub fn hash_file(path: &Path) -> Option<String> {
     hasher.update(&bytes);
     Some(hex::encode(hasher.finalize()))
 }
+
+#[cfg(test)]
+#[path = "hasher_tests.rs"]
+mod tests;

@@ -60,6 +60,7 @@ pub fn scan(
         .git_ignore(true)
         .git_global(true)
         .git_exclude(true)
+        .require_git(false)
         .parents(true);
 
     let candidates: Vec<PathBuf> = builder
@@ -187,3 +188,7 @@ fn build_record(
         content_hash,
     })
 }
+
+#[cfg(test)]
+#[path = "walker_tests.rs"]
+mod tests;

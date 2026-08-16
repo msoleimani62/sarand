@@ -88,3 +88,7 @@ fn walk(
         lines.push(format!("{prefix}└── ... ({hidden} more entries hidden)"));
     }
 }
+
+#[cfg(test)]
+#[path = "tree_tests.rs"]
+mod tests;
