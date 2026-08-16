@@ -100,16 +100,24 @@ def compute_health_score(data: ReportData) -> HealthScore:
     if stats.empty_files and len(stats.empty_files) > 10:
         code_score -= 2.0
     if data.secret_findings:
-        # Test fixtures are ignored only when the scanner explicitly marks
-        # them as fixtures; test-path location alone is not sufficient.
-        # fixtureهای تست فقط زمانی نادیده گرفته می‌شوند که اسکنر صراحتاً
-        # آن‌ها را fixture علامت‌گذاری کرده باشد؛ صرفاً قرار داشتن در tests/
-        # برای نادیده گرفتن یک finding کافی نیست.
+        # BUG FIX: this used to require "fixture" inside pattern_name
+        # (e.g. "AWS Access Key ID") on top of a tests/ path, which no
+        # actual pattern name ever contains -- so nothing was ever
+        # excluded and every real fixture still tanked the score (this is
+        # exactly why `code` scored 0.0 in the self-scan report). The
+        # scanner now sets is_test_fixture itself (core/secrets.py); read
+        # that instead of re-guessing it here from the label text.
+        #
+        # اصلاح باگ: قبلاً علاوه بر مسیر tests/ نیاز به وجود کلمه
+        # "fixture" داخل pattern_name (مثلاً "AWS Access Key ID") هم بود
+        # که هیچ‌کدام از نام‌های الگو هرگز آن را ندارند -- پس هیچ‌وقت هیچ
+        # چیزی حذف نمی‌شد و هر fixture واقعی همچنان امتیاز را نابود
+        # می‌کرد (دقیقاً همان دلیلی که `code` در گزارش خوداسکن 0.0 شد).
+        # اسکنر اکنون خودش is_test_fixture را تنظیم می‌کند
+        # (core/secrets.py)؛ به‌جای حدس زدن دوباره از متن برچسب، همان را
+        # می‌خوانیم.
         fixture_findings = [
-            finding
-            for finding in data.secret_findings
-            if finding.path.startswith("tests/")
-            and "fixture" in finding.pattern_name.lower()
+            finding for finding in data.secret_findings if finding.is_test_fixture
         ]
         real_findings = [
             finding

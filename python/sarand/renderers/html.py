@@ -140,12 +140,37 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
 
     if data.excluded_secret_files or data.secret_findings:
         parts.append("<h2>⚠ Secrets</h2>")
-        if data.excluded_secret_files:
+        # BUG FIX: this used to label every excluded file as
+        # "credential-shaped, never embedded", even files that were only
+        # excluded because their *content* matched a secret pattern (a
+        # different exclusion reason). Split the same way markdown.py
+        # already does, so the label matches the real reason.
+        #
+        # اصلاح باگ: قبلاً همه‌ی فایل‌های مستثنا‌شده با برچسب
+        # «credential-shaped, never embedded» نمایش داده می‌شدند، حتی
+        # فایل‌هایی که فقط به‌خاطر تطبیق محتوا با یک الگوی secret مستثنا
+        # شده بودند (دلیل متفاوت). دقیقاً مثل markdown.py تفکیک می‌کنیم تا
+        # برچسب با دلیل واقعی هم‌خوانی داشته باشد.
+        content_flagged_paths = {str(f.path) for f in data.secret_findings}
+        filename_excluded = [
+            p for p in data.excluded_secret_files if str(p) not in content_flagged_paths
+        ]
+        content_excluded = [
+            p for p in data.excluded_secret_files if str(p) in content_flagged_paths
+        ]
+        if filename_excluded:
             parts.append(
-                "<p>Excluded (credential-shaped, never embedded):</p><ul>"
+                "<p>Excluded (credential-shaped filenames, never read — AGENTS.md §4.10):</p><ul>"
                 + "".join(
-                    f"<li><code>{escape(str(p))}</code></li>"
-                    for p in data.excluded_secret_files
+                    f"<li><code>{escape(str(p))}</code></li>" for p in filename_excluded
+                )
+                + "</ul>"
+            )
+        if content_excluded:
+            parts.append(
+                "<p>Excluded (content matched a secret pattern — see findings below):</p><ul>"
+                + "".join(
+                    f"<li><code>{escape(str(p))}</code></li>" for p in content_excluded
                 )
                 + "</ul>"
             )

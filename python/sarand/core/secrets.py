@@ -81,6 +81,21 @@ def scan_for_secrets(root: Path, included_files: list[Path]) -> list[SecretFindi
         path = root / rel
         try:
             with path.open("r", encoding="utf-8", errors="replace") as fh:
+                # A finding under tests/ is very likely a scanner test
+                # fixture (fake credentials used to test this very
+                # detector) rather than a real leaked secret. This is a
+                # heuristic, not a guarantee -- it only affects whether the
+                # finding counts against the health score; it is still
+                # always listed in the report either way (AGENTS.md §4.10:
+                # nothing is silently dropped from the findings table).
+                #
+                # یک finding زیر tests/ به احتمال زیاد fixture تستِ خودِ
+                # اسکنر است (اعتبارنامه‌ی جعلی برای تست همین دیتکتور) نه یک
+                # secret واقعی لو رفته. این یک heuristic است نه تضمین -- فقط
+                # روی شمارش در امتیاز سلامت اثر می‌گذارد؛ در هر صورت همچنان
+                # در جدول یافته‌های گزارش فهرست می‌شود (AGENTS.md §4.10: هیچ
+                # چیزی به‌طور خاموش از جدول findings حذف نمی‌شود).
+                is_fixture = str(rel).replace("\\", "/").startswith("tests/")
                 for lineno, line in enumerate(fh, start=1):
                     for pattern_name, pattern in _CONTENT_PATTERNS:
                         if pattern.search(line):
@@ -89,6 +104,7 @@ def scan_for_secrets(root: Path, included_files: list[Path]) -> list[SecretFindi
                                     path=str(rel),
                                     line_number=lineno,
                                     pattern_name=pattern_name,
+                                    is_test_fixture=is_fixture,
                                 )
                             )
         except OSError:

@@ -137,6 +137,16 @@ class SecretFinding:
     path: str
     line_number: int
     pattern_name: str
+    # Set by the scanner (the only layer that actually knows the file's
+    # location) when the match sits under tests/. health.py used to try to
+    # infer this from pattern_name text, which never worked -- see the fix
+    # in core/health.py and core/secrets.py.
+    #
+    # توسط اسکنر (تنها لایه‌ای که واقعاً مسیر فایل را می‌داند) هنگامی که
+    # مورد مطابقت‌یافته زیر tests/ باشد تنظیم می‌شود. health.py قبلاً سعی
+    # می‌کرد این را از متن pattern_name استنتاج کند که هرگز کار نمی‌کرد --
+    # اصلاح مربوطه را در core/health.py و core/secrets.py ببینید.
+    is_test_fixture: bool = False
 
 
 @dataclass
