@@ -7,17 +7,13 @@ on:
 
 defaults:
   run:
-    # Force bash on every OS in the matrix (Windows runners ship Git
-    # Bash) so wheel-glob installs and other steps behave identically
-    # everywhere, instead of juggling pwsh syntax for Windows.
-    # اجبار bash روی همه‌ی سیستم‌عامل‌های ماتریس (رانرهای ویندوز
-    # Git Bash از پیش نصب دارند) تا نصب wheel با glob و بقیه‌ی مراحل
-    # همه‌جا یکسان رفتار کنند، به‌جای دست‌وپنجه نرم کردن با syntax pwsh.
+    # Force bash on every OS in the matrix so shell behavior stays consistent.
+    # اجبار bash روی همه سیستم‌عامل‌های ماتریس برای یکسان ماندن رفتار shell.
     shell: bash
 
 jobs:
-  test:
-    name: test (${{ matrix.os }})
+  quality:
+    name: quality (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -34,6 +30,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache cargo registry and build artifacts
         uses: actions/cache@v4
@@ -46,26 +44,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Install maturin and pytest
-        run: pip install maturin pytest
+      - name: Install Python tooling
+        run: python -m pip install --upgrade pip maturin pytest ruff mypy
+
+      - name: Run Ruff lint
+        run: ruff check .
+
+      - name: Check Ruff formatting
+        run: ruff format --check .
+
+      - name: Run mypy
+        run: mypy .
+
+      - name: Check Rust formatting
+        run: cargo fmt -- --check
+
+      - name: Run Rust tests
+        run: cargo test
+
+      - name: Run Rust Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Build the release wheel
-        # `maturin build` (unlike `maturin develop`) needs no active
-        # virtualenv -- it just produces a .whl, which we then install
-        # normally. This is also the Phase G "release wheel actually
-        # builds" smoke test, so no separate step is needed for that.
-        # برخلاف `maturin develop`، `maturin build` به هیچ virtualenv
-        # فعالی نیاز ندارد -- فقط یک .whl تولید می‌کند که سپس عادی
-        # نصبش می‌کنیم. این همان تست دودیِ «wheel نهایی واقعاً ساخته
-        # می‌شود» در فاز G هم هست، پس نیازی به مرحله‌ی جداگانه نیست.
+        # Build the actual distributable artifact before testing the installed package.
+        # ساخت artifact واقعی قابل توزیع قبل از تست کردن package نصب‌شده.
         run: maturin build --release --out dist
 
       - name: Install the built wheel
-        run: pip install dist/*.whl
+        run: python -m pip install dist/*.whl
 
-      - name: Run the full test suite
-        # Plain pytest runs everything by default (AGENTS.md §4.8) --
-        # CI is exactly the scheduled safety net local dev intentionally
-        # skips, so slow_external tests (real cargo-audit, etc.) run
-        # here on every push even though they're opt-out locally.
+      - name: Run the full Python test suite
+        # Plain pytest runs the complete suite, including slow_external tests.
+        # اجرای ساده pytest کل suite را شامل تست‌های slow_external اجرا می‌کند.
         run: pytest -v
