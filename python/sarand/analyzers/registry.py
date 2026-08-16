@@ -60,12 +60,7 @@ _BUILTIN: list[LanguageAnalyzer] = [
 def discover_analyzers() -> list[LanguageAnalyzer]:
     """Return built-in analyzers plus any installed plugin analyzers."""
     analyzers = list(_BUILTIN)
-    try:
-        eps = entry_points(group=_ENTRY_POINT_GROUP)
-    except TypeError:
-        # Python < 3.10 signature fallback (kept for safety, not required
-        # given requires-python >= 3.10, but cheap to keep).
-        eps = entry_points().get(_ENTRY_POINT_GROUP, [])  # type: ignore[union-attr]
+    eps = entry_points(group=_ENTRY_POINT_GROUP)
 
     for ep in eps:
         try:

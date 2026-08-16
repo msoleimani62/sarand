@@ -1,6 +1,6 @@
 """RC CLI orchestration: wires chunker + state + session + protocol +
-transport together and exposes the paste_chunks.py command surface
-(now RC-protocol-aware).
+transport + verification together and exposes the paste_chunks.py
+command surface (now RC-protocol-aware).
 
 Behavior preserved from the original scripts/paste_chunks.py:
 - resumable state across invocations (next/back/history/jump-to-block)
@@ -11,11 +11,13 @@ Behavior preserved from the original scripts/paste_chunks.py:
 New in this layer: every emitted chunk is now wrapped in the RC
 protocol envelope (SARAND RC START/CHUNK/END, session_id, report_hash,
 chunk_hash) instead of being pasted as bare text with only a
-human-readable info banner.
+human-readable info banner. `--verify` re-runs the AI receiver's
+completeness/integrity checks against the chunk files already saved on
+disk, so the sender can confirm a transfer was captured correctly.
 
 هماهنگ‌سازی CLI برای RC: chunker + state + session + protocol +
-transport را به هم متصل می‌کند و همان سطح دستورات paste_chunks.py را
-عرضه می‌کند (اکنون آگاه از پروتکل RC).
+transport + verification را به هم متصل می‌کند و همان سطح دستورات
+paste_chunks.py را عرضه می‌کند (اکنون آگاه از پروتکل RC).
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ import shutil
 import sys
 from typing import Any
 
-from . import chunker, protocol, session, transport
+from . import chunker, protocol, session, transport, verification
 from . import state as state_mod
 
 
@@ -378,6 +380,76 @@ def show_info(paths: state_mod.Paths) -> int:
     return 0
 
 
+def show_verify(paths: state_mod.Paths) -> int:
+    """Re-run the exact same checks an AI receiver must perform
+    (RC constitution §45/§48-49, docs/RC-AI-RECEIVER.md) against the
+    chunk files already saved on disk for this source's current
+    session -- so the *sender* can confirm a transfer was captured
+    correctly before ever pasting it anywhere, not only the receiver.
+    """
+    state = state_mod.load_state(paths)
+    if state.get("session_id") is None:
+        print(
+            "ERROR: no RC session exists for this source -- nothing to verify.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not paths.chunk_dir.is_dir():
+        print("ERROR: no chunk directory found -- nothing to verify.", file=sys.stderr)
+        return 1
+
+    chunk_files = sorted(paths.chunk_dir.glob("block-*-chunk-*.txt"))
+    if not chunk_files:
+        print("ERROR: chunk directory is empty -- nothing to verify.", file=sys.stderr)
+        return 1
+
+    chunk_texts: list[str] = []
+    for path in chunk_files:
+        try:
+            chunk_texts.append(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            print(f"ERROR: unable to read {path}: {exc}", file=sys.stderr)
+            return 1
+
+    expected_report_hash = state.get("source_fingerprint")
+
+    print(
+        "================================================================",
+        file=sys.stderr,
+    )
+    print("SARAND RC VERIFY", file=sys.stderr)
+    print(
+        "================================================================",
+        file=sys.stderr,
+    )
+    print(f"source={paths.source}", file=sys.stderr)
+    print(f"session_id={state.get('session_id')}", file=sys.stderr)
+    print(f"chunk_files_found={len(chunk_files)}", file=sys.stderr)
+
+    try:
+        reconstructed = verification.verify_transfer(
+            chunk_texts, expected_report_hash=expected_report_hash
+        )
+    except verification.RCVerificationError as exc:
+        print("status=INVALID", file=sys.stderr)
+        print(f"reason={exc}", file=sys.stderr)
+        print(
+            "================================================================",
+            file=sys.stderr,
+        )
+        return 1
+
+    print("status=VERIFIED", file=sys.stderr)
+    print(f"reconstructed_bytes={len(reconstructed.encode('utf-8'))}", file=sys.stderr)
+    print(f"report_hash={expected_report_hash}", file=sys.stderr)
+    print(
+        "================================================================",
+        file=sys.stderr,
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Split a file into RC-protocol-framed, paste-sized chunks for chat UIs without file upload."
@@ -404,6 +476,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-i", "--info", action="store_true", help="show collector information"
     )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="verify saved chunk files reconstruct byte-exactly to the source (does not emit a new chunk)",
+    )
     return parser
 
 
@@ -420,11 +497,12 @@ def main() -> int:
             args.back_run,
             args.reset,
             args.info,
+            args.verify,
         )
     )
     if selected > 1:
         parser.error(
-            "options -b, -br, --reset, -n, --chunk and --info are mutually exclusive"
+            "options -b, -br, --reset, -n, --chunk, --info and --verify are mutually exclusive"
         )
 
     paths = state_mod.Paths(state_mod.source_file(args.source))
@@ -433,6 +511,13 @@ def main() -> int:
         lock_fd = state_mod.acquire_lock(paths)
         try:
             return show_info(paths)
+        finally:
+            state_mod.release_lock(lock_fd)
+
+    if args.verify:
+        lock_fd = state_mod.acquire_lock(paths)
+        try:
+            return show_verify(paths)
         finally:
             state_mod.release_lock(lock_fd)
 

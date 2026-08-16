@@ -31,14 +31,14 @@ class JavaAnalyzer:
             return "gradle"
         return None
 
-    def _gradle_invocation(self, root: Path) -> tuple[str, bool] | None:
+    def _gradle_invocation(self, root: Path) -> tuple[str, bool]:
         """Return (binary_or_wrapper_path, found) for Gradle."""
         wrapper = root / "gradlew"
         if wrapper.exists():
             return str(wrapper), True
         if shutil.which("gradle") is not None:
             return "gradle", True
-        return None, False
+        return "", False
 
     def matches(self, root: Path) -> bool:
         # Android projects are handled by AndroidAnalyzer instead --

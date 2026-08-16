@@ -265,7 +265,8 @@ def read_source(paths: Paths) -> list[str]:
         print(f"ERROR: source file not found: {paths.source}", file=sys.stderr)
         raise SystemExit(1)
     try:
-        return paths.source.read_text(encoding="utf-8").splitlines()
+        with paths.source.open("r", encoding="utf-8", newline="") as handle:
+            return handle.read().splitlines(keepends=True)
     except OSError as exc:
         print(f"ERROR: unable to read {paths.source}: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
