@@ -9,3 +9,5 @@ dist/
 *.pyd
 *.sha256
 .coverage
+
+.sarand-rc/
