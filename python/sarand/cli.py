@@ -204,8 +204,6 @@ async def run(config: SarandConfig) -> int:
         f"Scan engine: {'Rust core' if RUST_CORE_AVAILABLE else 'pure-Python fallback'}"
     )
 
-    # Single filesystem scan, shared by tree/stats/essential-files/todos.
-    # یک اسکن فایل‌سیستمی واحد، به‌اشتراک‌گذاشته‌شده بین tree/stats/essential-files/todos.
     records = scan_project(root)
     tree_text = build_tree_text(
         root, max_depth=config.max_tree_depth, max_entries=config.max_tree_entries
@@ -215,14 +213,11 @@ async def run(config: SarandConfig) -> int:
     )
     stats = collect_project_stats(root, records=records)
 
-    # Incremental cache (opt-in via --cache, AGENTS.md Phase E): split
-    # this run's files into "hash matches last run, reuse cached
-    # TODO/secret results" vs "changed or new, must actually scan."
-    # کش افزایشی (اختیاری با --cache): تفکیک فایل‌های این اجرا به
-    # «هش با اجرای قبلی یکی است، از نتایج کش‌شده استفاده کن» در برابر
-    # «تغییرکرده یا جدید، باید واقعاً اسکن شود».
+    # Incremental cache reuses results for unchanged files.
+    # کش افزایشی نتایج فایل‌های بدون تغییر را دوباره استفاده می‌کند.
     cache_hits: dict = {}
     changed_paths: set[str] | None = None
+
     if config.use_cache:
         cache = load_cache(config.output_dir, root)
         cache_hits, changed_paths = partition_cache_hits(records, cache)
@@ -231,24 +226,28 @@ async def run(config: SarandConfig) -> int:
                 f"Cache: reusing TODO/secret results for {len(cache_hits)} unchanged file(s)"
             )
 
-    todos = scan_todos(root, records=records, only=changed_paths)
-    if cache_hits:
-        todos = todos + reconstruct_todos(cache_hits)
+    if config.use_cache and not changed_paths:
+        todos = reconstruct_todos(cache_hits)
+    else:
+        todos = scan_todos(root, records=records, only=changed_paths)
+        if cache_hits:
+            todos = todos + reconstruct_todos(cache_hits)
 
-    # Secrets content scan runs unconditionally (AGENTS.md §4.10, §7 priority 1)
-    # اسکن محتوایی secret همیشه اجرا می‌شود (§4.10، اولویت ۱ در §7)
     secret_scan_targets = (
         included
         if changed_paths is None
-        else [p for p in included if str(p) in changed_paths]
+        else [path for path in included if str(path) in changed_paths]
     )
-    secret_findings = scan_for_secrets(root, secret_scan_targets)
-    if cache_hits:
-        secret_findings = secret_findings + reconstruct_secrets(cache_hits)
 
-    # A file with a content-level finding must not have its full source
-    # embedded either -- move it from "included" to "excluded" (§4.10).
-    # فایلی که یافته‌ی سطح-محتوا دارد نباید سورس کاملش هم embed شود (§4.10).
+    if config.use_cache and not secret_scan_targets:
+        secret_findings = reconstruct_secrets(cache_hits)
+    else:
+        secret_findings = scan_for_secrets(root, secret_scan_targets)
+        if cache_hits:
+            secret_findings = secret_findings + reconstruct_secrets(cache_hits)
+
+    # Files containing findings are excluded from embedded source content.
+    # فایل‌های دارای یافته از محتوای کامل embed‌شده حذف می‌شوند.
     included, excluded_secrets = exclude_flagged_files(
         included, excluded_secrets, secret_findings
     )
@@ -272,10 +271,6 @@ async def run(config: SarandConfig) -> int:
     env = collect_environment_info(root)
     git = collect_git_snapshot(root)
 
-    # Analyzer pipeline: discover, filter to matching languages, run
-    # tests and quality checks *concurrently* per language.
-    # خط‌لوله‌ی آنالایزر: کشف، فیلتر به زبان‌های منطبق، اجرای *هم‌زمان*
-    # تست و کیفیت به‌ازای هر زبان.
     all_analyzers = discover_analyzers()
     active = matching_analyzers(root, all_analyzers)
 
@@ -323,12 +318,8 @@ async def run(config: SarandConfig) -> int:
     remove_previous_report(output_path)
 
     if config.output_format == "pdf":
-        # PDF is binary and rendered via an external tool (renderers/pdf.py)
-        # rather than the string-returning Renderer protocol -- see that
-        # module's docstring for why. Never crashes on a missing engine.
-        # PDF باینری است و از طریق ابزار خارجی رندر می‌شود (renderers/pdf.py)
-        # نه از طریق پروتکل رشته‌محور Renderer -- دلیلش در docstring همان
-        # ماژول است. هرگز به‌خاطر نبودِ ابزار کرش نمی‌کند.
+        # PDF uses the binary renderer and remains independent from string renderers.
+        # PDF از رندرر باینری مستقل از رندررهای رشته‌ای استفاده می‌کند.
         from sarand.renderers import pdf as pdf_renderer
 
         outcome = pdf_renderer.render_to_file(

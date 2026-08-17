@@ -20,6 +20,7 @@ promise.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from importlib.metadata import entry_points
 from pathlib import Path
 
@@ -82,7 +83,7 @@ def matching_analyzers(
 
 
 async def run_tests_concurrently(
-    root: Path, analyzers: list[LanguageAnalyzer]
+    root: Path, analyzers: Sequence[LanguageAnalyzer]
 ) -> list[CommandResult]:
     """Run every matching analyzer's test suite concurrently.
 
@@ -96,7 +97,7 @@ async def run_tests_concurrently(
 
 
 async def run_quality_concurrently(
-    root: Path, analyzers: list[LanguageAnalyzer]
+    root: Path, analyzers: Sequence[LanguageAnalyzer]
 ) -> list[CommandResult]:
     """Run every matching analyzer's quality checks concurrently."""
     tasks = [a.run_quality(root) for a in analyzers]
@@ -108,7 +109,7 @@ async def run_quality_concurrently(
 
 
 async def run_security_concurrently(
-    root: Path, analyzers: list[LanguageAnalyzer]
+    root: Path, analyzers: Sequence[LanguageAnalyzer]
 ) -> list[CommandResult]:
     """Run every matching analyzer's security/vulnerability checks concurrently."""
     tasks = [a.run_security(root) for a in analyzers]
