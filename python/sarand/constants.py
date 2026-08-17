@@ -73,6 +73,8 @@ ESSENTIAL_EXTENSIONS: frozenset[str] = frozenset(
         ".xml",
         ".gradle",
         ".properties",
+        ".lua",
+        ".rockspec",
     }
 )
 
@@ -102,6 +104,8 @@ LANG_MAP: dict[str, str] = {
     ".kts": "kotlin",
     ".xml": "xml",
     ".gradle": "groovy",
+    ".lua": "lua",
+    ".rockspec": "lua",
 }
 
 WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")
@@ -144,6 +148,7 @@ PROJECT_MARKERS: dict[str, tuple[str, str, str]] = {
     "build.gradle": ("Java/Kotlin", "application", "gradle"),
     "build.gradle.kts": ("Java/Kotlin", "application", "gradle"),
     "Makefile": ("Generic", "unknown", "make"),
+    "init.lua": ("Lua", "module/library", "none"),
 }
 
 ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
@@ -153,6 +158,7 @@ ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
     "Go": ("main.go", "cmd/main.go"),
     "Java/Kotlin": ("src/main/java", "src/main/kotlin"),
     "C/C++": ("src/main.cpp", "src/main.c", "main.cpp", "main.c"),
+    "Lua": ("init.lua", "main.lua", "app.lua", "src/main.lua", "src/init.lua"),
 }
 
 # Filename patterns that must NEVER be embedded in a generated report,

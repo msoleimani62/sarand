@@ -29,6 +29,7 @@ from sarand.analyzers.base import LanguageAnalyzer
 from sarand.analyzers.cpp_analyzer import CppAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
+from sarand.analyzers.lua_analyzer import LuaAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
 from sarand.analyzers.rust_analyzer import RustAnalyzer
@@ -45,6 +46,7 @@ _BUILTIN: list[LanguageAnalyzer] = [
     GoAnalyzer(),
     NodeAnalyzer(),
     CppAnalyzer(),
+    LuaAnalyzer(),
     # AndroidAnalyzer before JavaAnalyzer: matches() on both is mutually
     # exclusive by design (JavaAnalyzer defers to Android detection), so
     # order between them doesn't actually change behavior -- kept in

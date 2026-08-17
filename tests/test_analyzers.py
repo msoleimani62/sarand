@@ -11,6 +11,7 @@ import pytest
 from _helpers import write
 from sarand.analyzers.base import LanguageAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
+from sarand.analyzers.lua_analyzer import LuaAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
@@ -123,7 +124,7 @@ def test_matching_analyzers_returns_only_relevant_ones() -> None:
 def test_discover_analyzers_includes_all_builtins() -> None:
     analyzers = discover_analyzers()
     names = {a.name for a in analyzers}
-    assert {"Python", "Rust", "Go", "Node.js"}.issubset(names)
+    assert {"Python", "Rust", "Go", "Node.js", "Lua"}.issubset(names)
 
 
 @pytest.mark.slow_external
@@ -198,5 +199,11 @@ def test_all_builtin_analyzers_implement_run_security() -> None:
     """Every analyzer must have a run_security method -- a plugin author
     (or a maintainer adding language #5) reading this test should notice
     immediately if they forgot it."""
-    for analyzer in (PythonAnalyzer(), RustAnalyzer(), GoAnalyzer(), NodeAnalyzer()):
+    for analyzer in (
+        PythonAnalyzer(),
+        RustAnalyzer(),
+        GoAnalyzer(),
+        NodeAnalyzer(),
+        LuaAnalyzer(),
+    ):
         assert hasattr(analyzer, "run_security")

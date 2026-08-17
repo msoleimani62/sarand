@@ -95,6 +95,7 @@ def _guess_from_extensions(root: Path, sample_limit: int = 500) -> str:
         ".kt": "Java/Kotlin",
         ".c": "C/C++",
         ".cpp": "C/C++",
+        ".lua": "Lua",
     }
     scanned = 0
     for path in root.rglob("*"):
