@@ -7,17 +7,39 @@ import re
 from sarand.constants import KNOWN_ISSUE_PATTERNS
 from sarand.models.results import CommandResult
 
-# BUG FIX: a plain substring check on "error:" also matches inside unrelated
-# words such as "OSError:" (bandit's own source-context lines quote
-# "except OSError:"), which falsely raised "Compilation or lint errors were
-# detected" even when every tool actually passed. \b requires a real word
-# boundary before the pattern, so "OSError:" no longer matches "error:".
+# BUG FIX (round 1): a plain substring check on "error:" also matched
+# inside unrelated words such as "OSError:" -- fixed with a \b word
+# boundary so "OSError:" no longer matches "error:".
 #
-# اصلاح باگ: تطبیق ساده‌ی substring روی "error:" داخل کلمات نامرتبطی مثل
-# "OSError:" هم مچ می‌شد (خطوط context خودِ bandit عبارت "except OSError:" را
-# نمایش می‌دهند) و باعث اعلام غلط «Compilation or lint errors were detected»
-# می‌شد، حتی وقتی همه‌ی ابزارها واقعاً PASS بودند. \b یک مرز واقعی کلمه قبل از
-# الگو الزامی می‌کند، پس "OSError:" دیگر با "error:" مچ نمی‌شود.
+# BUG FIX (round 2): the word-boundary fix above still isn't enough,
+# because bandit prints the literal source line around every finding as
+# context, in the form "<lineno>\t<code>". One such context line was
+# `288\t    assert result.raw_output == "error: test failed"` -- a
+# string literal from this project's OWN test suite (testing an
+# unrelated function), quoted verbatim by bandit. The `"` right before
+# "error:" is a real word boundary too, so round 1's fix didn't help
+# here. These bandit context lines are reproduced source code, never
+# genuine tool diagnostics, so they are stripped out before any pattern
+# search runs -- the fingerprint `^<digits>\t` is specific to bandit's
+# context format and doesn't appear in real compiler/linter/pytest
+# output.
+#
+# اصلاح باگ (دور اول): تطبیق ساده‌ی substring روی "error:" داخل کلماتی
+# مثل "OSError:" هم مچ می‌شد -- با یک مرز کلمه (\b) درست شد.
+#
+# اصلاح باگ (دور دوم): فیکس دور اول هم کافی نبود، چون bandit خط سورس
+# دور‌وبر هر finding را به‌عنوان context عیناً چاپ می‌کند، با فرمت
+# «شماره‌خط<TAB>کد». یکی از این خطوط context این بود:
+# `288\t    assert result.raw_output == "error: test failed"` -- یک
+# رشته‌ی literal از تست‌های خودِ همین پروژه (برای تست یک تابع بی‌ربط)
+# که bandit عیناً نقل‌قول کرده. علامت `"` درست قبل از "error:" هم یک
+# مرز کلمه‌ی واقعی است، پس فیکس دور اول اینجا کمکی نکرد. این خطوط
+# context خودِ بندیت، سورس‌کد بازتولیدشده هستند، نه diagnostic واقعیِ
+# ابزار، پس قبل از هر جستجوی الگو حذف می‌شوند -- امضای `^<رقم‌ها>\t`
+# مخصوص فرمت context بندیت است و در خروجی واقعی کامپایلر/linter/pytest
+# دیده نمی‌شود.
+_BANDIT_CONTEXT_LINE = re.compile(r"^\d+\t")
+
 _PATTERN_CACHE: dict[str, re.Pattern[str]] = {
     pattern: re.compile(r"\b" + re.escape(pattern.lower()))
     for pattern, _note in KNOWN_ISSUE_PATTERNS
@@ -26,7 +48,10 @@ _PATTERN_CACHE: dict[str, re.Pattern[str]] = {
 
 def detect_known_issues(results: list[CommandResult]) -> list[str]:
     combined = "\n".join(r.raw_output for r in results if r.raw_output)
-    lower = combined.lower()
+    real_lines = (
+        line for line in combined.splitlines() if not _BANDIT_CONTEXT_LINE.match(line)
+    )
+    lower = "\n".join(real_lines).lower()
     return [
         note
         for pattern, note in KNOWN_ISSUE_PATTERNS
