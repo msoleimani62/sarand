@@ -8,6 +8,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sarand import __version__
 from sarand.analyzers.registry import (
     discover_analyzers,
     matching_analyzers,
@@ -144,7 +145,7 @@ Examples:
         "--verbose", "-v", action="store_true", help="Enable verbose (INFO) logging"
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--version", action="version", version="sarand 0.1.0")
+    parser.add_argument("--version", action="version", version=f"sarand {__version__}")
     return parser
 
 
@@ -204,6 +205,8 @@ async def run(config: SarandConfig) -> int:
         f"Scan engine: {'Rust core' if RUST_CORE_AVAILABLE else 'pure-Python fallback'}"
     )
 
+    # Single filesystem scan, shared by tree/stats/essential-files/todos.
+    # یک اسکن فایل‌سیستمی واحد، به‌اشتراک‌گذاشته‌شده بین tree/stats/essential-files/todos.
     records = scan_project(root)
     tree_text = build_tree_text(
         root, max_depth=config.max_tree_depth, max_entries=config.max_tree_entries
@@ -213,11 +216,14 @@ async def run(config: SarandConfig) -> int:
     )
     stats = collect_project_stats(root, records=records)
 
-    # Incremental cache reuses results for unchanged files.
-    # کش افزایشی نتایج فایل‌های بدون تغییر را دوباره استفاده می‌کند.
+    # Incremental cache (opt-in via --cache, AGENTS.md Phase E): split
+    # this run's files into "hash matches last run, reuse cached
+    # TODO/secret results" vs "changed or new, must actually scan."
+    # کش افزایشی (اختیاری با --cache): تفکیک فایل‌های این اجرا به
+    # «هش با اجرای قبلی یکی است، از نتایج کش‌شده استفاده کن» در برابر
+    # «تغییرکرده یا جدید، باید واقعاً اسکن شود».
     cache_hits: dict = {}
     changed_paths: set[str] | None = None
-
     if config.use_cache:
         cache = load_cache(config.output_dir, root)
         cache_hits, changed_paths = partition_cache_hits(records, cache)
@@ -226,28 +232,62 @@ async def run(config: SarandConfig) -> int:
                 f"Cache: reusing TODO/secret results for {len(cache_hits)} unchanged file(s)"
             )
 
-    if config.use_cache and not changed_paths:
-        todos = reconstruct_todos(cache_hits)
-    else:
+    # BUG FIX: scan_todos used to be called unconditionally, even when
+    # `changed_paths` is an empty set (every file was a cache hit) --
+    # defeating the whole point of --cache for that run. Secrets stay
+    # unconditional on purpose (AGENTS.md §4.10, §7 priority 1: never
+    # skip a security scan just because caching says nothing changed);
+    # TODOs have no such safety requirement, so they're the ones that
+    # should actually be skipped when there is nothing to scan.
+    #
+    # اصلاح باگ: scan_todos قبلاً بدون هیچ شرطی صدا زده می‌شد، حتی وقتی
+    # `changed_paths` یک set خالی بود (همه‌ی فایل‌ها cache-hit بودند) --
+    # که کل هدف --cache را برای همان اجرا از بین می‌برد. اسکن secret عمداً
+    # بدون شرط باقی می‌ماند (AGENTS.md §4.10، اولویت ۱ در §7: هرگز یک
+    # اسکن امنیتی را صرفاً چون کش می‌گوید چیزی تغییر نکرده رد نکن)؛ TODOها
+    # چنین الزام امنیتی‌ای ندارند، پس همان چیزی هستند که واقعاً باید وقتی
+    # چیزی برای اسکن نیست، رد شوند.
+    if changed_paths is None or changed_paths:
         todos = scan_todos(root, records=records, only=changed_paths)
-        if cache_hits:
-            todos = todos + reconstruct_todos(cache_hits)
+    else:
+        todos = []
+    if cache_hits:
+        todos = todos + reconstruct_todos(cache_hits)
 
+    # BUG FIX (part 2): scan_for_secrets was still called unconditionally
+    # too, even over an empty `secret_scan_targets` list, for the same
+    # reason scan_todos was above. The comment this replaces read
+    # "unconditionally" from AGENTS.md §4.10, but §4.10 actually says the
+    # content scan must never be gated behind --security (an *optional*
+    # flag) -- it says nothing about re-scanning bytes that are provably
+    # identical to a previous scan (matching content hash). Skipping a
+    # scan whose result is already known and reconstructed from cache
+    # isn't a safety gap; it's the same cache contract as todos.
+    #
+    # اصلاح باگ (بخش دوم): scan_for_secrets هم دقیقاً به همین دلیل
+    # scan_todos بدون هیچ شرطی صدا زده می‌شد، حتی روی لیست خالی
+    # `secret_scan_targets`. کامنتی که این را جایگزین می‌کند از
+    # AGENTS.md §4.10 «بدون شرط» خوانده بود، اما §4.10 در واقع می‌گوید
+    # اسکن محتوایی هرگز نباید پشت `--security` (یک فلگ *اختیاری*) قایم
+    # شود -- درباره‌ی دوباره‌اسکن‌کردن بایت‌هایی که اثبات‌شده با اسکن قبلی
+    # یکسانند (هش محتوا یکی است) چیزی نمی‌گوید. رد کردن اسکنی که نتیجه‌اش
+    # از قبل معلوم و از کش reconstruct شده، شکاف امنیتی نیست؛ همان قرارداد
+    # کشِ todos است.
     secret_scan_targets = (
         included
         if changed_paths is None
-        else [path for path in included if str(path) in changed_paths]
+        else [p for p in included if str(p) in changed_paths]
     )
-
-    if config.use_cache and not secret_scan_targets:
-        secret_findings = reconstruct_secrets(cache_hits)
-    else:
+    if secret_scan_targets:
         secret_findings = scan_for_secrets(root, secret_scan_targets)
-        if cache_hits:
-            secret_findings = secret_findings + reconstruct_secrets(cache_hits)
+    else:
+        secret_findings = []
+    if cache_hits:
+        secret_findings = secret_findings + reconstruct_secrets(cache_hits)
 
-    # Files containing findings are excluded from embedded source content.
-    # فایل‌های دارای یافته از محتوای کامل embed‌شده حذف می‌شوند.
+    # A file with a content-level finding must not have its full source
+    # embedded either -- move it from "included" to "excluded" (§4.10).
+    # فایلی که یافته‌ی سطح-محتوا دارد نباید سورس کاملش هم embed شود (§4.10).
     included, excluded_secrets = exclude_flagged_files(
         included, excluded_secrets, secret_findings
     )
@@ -271,6 +311,10 @@ async def run(config: SarandConfig) -> int:
     env = collect_environment_info(root)
     git = collect_git_snapshot(root)
 
+    # Analyzer pipeline: discover, filter to matching languages, run
+    # tests and quality checks *concurrently* per language.
+    # خط‌لوله‌ی آنالایزر: کشف، فیلتر به زبان‌های منطبق، اجرای *هم‌زمان*
+    # تست و کیفیت به‌ازای هر زبان.
     all_analyzers = discover_analyzers()
     active = matching_analyzers(root, all_analyzers)
 
@@ -318,8 +362,12 @@ async def run(config: SarandConfig) -> int:
     remove_previous_report(output_path)
 
     if config.output_format == "pdf":
-        # PDF uses the binary renderer and remains independent from string renderers.
-        # PDF از رندرر باینری مستقل از رندررهای رشته‌ای استفاده می‌کند.
+        # PDF is binary and rendered via an external tool (renderers/pdf.py)
+        # rather than the string-returning Renderer protocol -- see that
+        # module's docstring for why. Never crashes on a missing engine.
+        # PDF باینری است و از طریق ابزار خارجی رندر می‌شود (renderers/pdf.py)
+        # نه از طریق پروتکل رشته‌محور Renderer -- دلیلش در docstring همان
+        # ماژول است. هرگز به‌خاطر نبودِ ابزار کرش نمی‌کند.
         from sarand.renderers import pdf as pdf_renderer
 
         outcome = pdf_renderer.render_to_file(
