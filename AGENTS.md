@@ -528,18 +528,35 @@ classifiers/keywords, README's install section now leads with pipx
 specifically *because* this project's history includes several rounds
 of manual venv-activation/PATH confusion that pipx sidesteps entirely.
 
+**AUR: PKGBUILD written, not yet submitted/confirmed by a real
+`makepkg` build.** `pkgs/aur/PKGBUILD` builds from the GitHub release
+tarball (`v$pkgver`) via the standard Arch PEP517 pattern
+(`python -m build --wheel --no-isolation` + `python -m installer`),
+with `rust`/`python-maturin` as makedepends so the PyO3 extension
+compiles the same way `pipx install` already does. `check()` runs the
+real pytest suite (minus the Rust-vs-fallback parity test, which
+needs the compiled `._core` module installed into the *same*
+environment pytest runs in, not just built as a wheel) — everything
+else already tolerates missing optional tools by design (Phase A/C),
+so this is a meaningful check, not a rubber stamp. Still open before
+this counts as done: run an actual `makepkg -si` in a clean chroot
+(`extra-x86_64-build` or similar) to catch anything only a real build
+surfaces, regenerate `.SRCINFO` from that build
+(`makepkg --printsrcinfo > .SRCINFO`, never hand-edited), confirm the
+`sarand` name is free on aur.archlinux.org, then `git push` to the AUR
+git remote.
+
 **Reordering the remaining targets from the original plan:** the
 original order was Docker → AUR → Homebrew → deb/rpm → binary. Nothing
 in this project's actual usage (Android/Termux/Kali NetHunter phone +
 Arch Linux laptop) involves Docker — there's no described workflow that
 needs it, and running a container inside a Termux proot is its own can
-of worms. AUR is directly useful (the maintainer runs Arch daily) and
-is a natural next step once a package is installable via pipx/PyPI-style
-tooling. Revised order: **AUR next**, then Docker/Homebrew/deb/rpm/
-binary only if a real need for them shows up later — don't build
-packaging for platforms nobody described using, mirroring the same
-"don't pre-build analyzers for languages nobody asked to scan" principle
-from Phase C.
+of worms. AUR is directly useful (the maintainer runs Arch daily).
+Remaining order once AUR is confirmed: Docker/Homebrew/deb/rpm/binary
+only if a real need for them shows up later — don't build packaging
+for platforms nobody described using, mirroring the same "don't
+pre-build analyzers for languages nobody asked to scan" principle from
+Phase C.
 
 One packaging target per phase, verified working, before starting the
 next -- this is the rule that kept Phase F from becoming "try to do 6

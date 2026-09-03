@@ -87,6 +87,26 @@ pipx ensurepath
 
 (`pipx ensurepath` دایرکتوری bin خود pipx را به PATH اضافه می‌کند — بعدش شل را ری‌استارت کن یا `source ~/.zshrc`/`~/.bashrc` بزن.)
 
+### Arch Linux: AUR
+
+### آرچ‌لینوکس: AUR
+
+If the `sarand` package has been published to the AUR, install it with any AUR helper:
+
+اگر پکیج `sarand` روی AUR منتشر شده باشد، با هر AUR helperای نصبش کن:
+
+```bash
+yay -S sarand
+# or, without a helper · یا بدون هلپر:
+git clone https://aur.archlinux.org/sarand.git
+cd sarand
+makepkg -si
+```
+
+This builds the same Rust extension as the pipx path, using `rust` and `python-maturin` as build dependencies — no manual venv/PATH steps either way.
+
+این هم دقیقاً همان extension راستی مسیر pipx را می‌سازد، با `rust` و `python-maturin` به‌عنوان وابستگی‌های build — اینجا هم بدون هیچ مرحله‌ی دستی venv/PATH.
+
 ### Alternative: development venv (editable, for working on sarand itself)
 
 ### جایگزین: venv توسعه (editable، برای کار کردن روی خود sarand)

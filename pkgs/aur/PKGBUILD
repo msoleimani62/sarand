@@ -1,0 +1,64 @@
+# Maintainer: msoleimani62 <msoleimaniphone@gmail.com>
+pkgname=sarand
+pkgver=0.1.1
+pkgrel=1
+pkgdesc="Cross-platform CLI that scans any project, detects its architecture, runs its tests, and generates an AI-ready intelligence report"
+arch=('x86_64' 'aarch64')
+url="https://github.com/msoleimani62/sarand"
+license=('MIT')
+depends=(
+    'python'
+    'python-filelock'
+    'python-rich'
+)
+makedepends=(
+    'rust'
+    'python-maturin'
+    'python-build'
+    'python-installer'
+    'python-wheel'
+)
+checkdepends=('python-pytest')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/msoleimani62/sarand/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$pkgname-$pkgver"
+    # --no-isolation: use the makedepends above (already resolved by pacman)
+    # instead of maturin re-downloading its own build environment, which
+    # has no network access inside a clean makepkg chroot.
+    #
+    # --no-isolation: از makedepends بالا (که pacman از قبل فراهم کرده)
+    # استفاده می‌کند، نه اینکه maturin محیط build خودش را دوباره دانلود
+    # کند -- که داخل chroot تمیز makepkg اصلاً دسترسی شبکه ندارد.
+    python -m build --wheel --no-isolation
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    # The Rust core (sarand._core) isn't importable yet at this point --
+    # only the wheel built above has it, and it's not installed into this
+    # environment. sarand's own test suite is written to fall back to a
+    # pure-Python scan path whenever the compiled extension is absent
+    # (see AGENTS.md's Rust/Python parity tests), so the full suite still
+    # runs meaningfully here. Tests for tools this chroot doesn't have
+    # (npm, cargo-audit, mvn, ...) skip cleanly by design -- see any
+    # `..._skips_cleanly_without_...` test.
+    #
+    # هسته‌ی Rust (sarand._core) در این مرحله هنوز import‌پذیر نیست --
+    # فقط wheel ساخته‌شده‌ی بالا آن را دارد و در این محیط نصب نشده.
+    # مجموعه‌تست‌های خودِ sarand طوری نوشته شده‌اند که وقتی extension
+    # کامپایل‌شده موجود نباشد به مسیر اسکن خالص‌پایتونی برگردند (تست‌های
+    # تطابق Rust/Python در AGENTS.md را ببینید)، پس کل suite همچنان
+    # معنادار اینجا اجرا می‌شود. تست‌های ابزارهایی که این chroot ندارد
+    # (npm، cargo-audit، mvn، ...) عمداً و تمیز skip می‌شوند -- هر تست
+    # `..._skips_cleanly_without_...` را ببینید.
+    python -m pytest -q -k 'not rust_bridge'
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+    install -Dm644 README.md -t "$pkgdir/usr/share/doc/$pkgname/"
+}

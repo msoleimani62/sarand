@@ -4,6 +4,7 @@ version = "0.1.1"
 edition = "2021"
 description = "Performance-critical scanning core for sarand, exposed to Python via PyO3."
 license = "MIT"
+repository = "https://github.com/msoleimani62/sarand"
 
 [lib]
 # Compiled module is imported from Python as `sarand._core`

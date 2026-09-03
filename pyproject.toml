@@ -26,10 +26,33 @@ dependencies = [
     "rich>=13.0",
 ]
 
-# project.urls intentionally omitted -- no GitHub remote exists yet.
-# project.urls عمداً حذف شده است چون در این مرحله remote گیت‌هاب ثبت نشده است.
-# Add e.g. Repository = "https://github.com/<user>/sarand" once it does.
-# پس از ثبت remote می‌توان Repository را به این بخش اضافه کرد.
+# Single source of truth for local dev / CI setup: `pip install -e ".[dev]"`.
+# Deliberately does NOT include pytest-asyncio/anyio -- every test in this
+# suite wraps async code with `asyncio.run(...)` inside a plain sync `def
+# test_...()` (see AGENTS.md §4.7 and any tests/test_*.py file), so no
+# pytest async plugin is ever required. If a future test reaches for
+# `async def test_...` + `@pytest.mark.asyncio` instead, that is the bug to
+# fix (convert it to asyncio.run), not a missing dependency here.
+#
+# منبع واحد برای راه‌اندازی dev محلی / CI: `pip install -e ".[dev]"`.
+# عمداً pytest-asyncio/anyio را شامل نمی‌شود -- هر تستی در این suite کد
+# async را با `asyncio.run(...)` داخل یک `def test_...()` معمولی sync
+# می‌پیچد (AGENTS.md §4.7 و هر فایل tests/test_*.py را ببینید)، پس هیچ‌وقت
+# نیازی به پلاگین async پایتست نیست. اگر تستی در آینده به‌جای این، سراغ
+# `async def test_...` + `@pytest.mark.asyncio` رفت، همان چیزی است که باید
+# اصلاح شود (تبدیل به asyncio.run)، نه یک وابستگی جاافتاده اینجا.
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.16",
+    "mypy>=1.10",
+    "bandit>=1.9",
+    "pip-audit>=2.10",
+]
+
+[project.urls]
+Repository = "https://github.com/msoleimani62/sarand"
+Issues = "https://github.com/msoleimani62/sarand/issues"
 
 [project.scripts]
 sarand = "sarand.cli:main"
