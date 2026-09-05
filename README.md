@@ -19,6 +19,7 @@ Point it at any directory — Python, Rust, Go, Node.js, C++, Java, or a mix —
 - [Usage · استفاده](#usage--استفاده)
 - [Persisted config · کانفیگ پایدار](#persisted-config--کانفیگ-پایدار)
 - [Pasting a large report into a chat · پیست گزارش بزرگ در چت](#pasting-a-large-report-into-a-chat-with-no-file-upload--پیست-گزارش-بزرگ-در-چتی-بدون-آپلود-فایل)
+- [Device storage & environment audit · بازرسی فضای دستگاه](#device-storage--environment-audit--بازرسی-فضای-ذخیره‌سازی-و-محیط-دستگاه)
 - [Writing a plugin analyzer · نوشتن یک آنالایزر پلاگین](#writing-a-plugin-analyzer--نوشتن-یک-آنالایزر-پلاگین)
 - [Current scope · دامنه‌ی فعلی](#current-scope--دامنهی-فعلی)
 - [Uninstall · حذف نصب](#uninstall--حذف-نصب)
@@ -199,6 +200,35 @@ State lives under `.sarand-rc/` (namespaced per source file). Useful commands:
 | `-n N` | Jump to block N · پرش به بلاک N |
 | `--chunk, -c N` | Emit chunk N of the current block · ارسال تکه‌ی N از بلاک فعلی |
 | `--reset` / `--clean` | Delete state and start a fresh session · پاک‌کردن وضعیت و شروع نشست تازه |
+
+## Device storage & environment audit · بازرسی فضای ذخیره‌سازی و محیط دستگاه
+
+`python3 -m sarand.device_report.command` is a separate, read-only tool ported from a standalone bash script into sarand proper: it scans your whole device (not a single project) for space hogs, duplicate files, stale files, build-artifact caches, package-manager footprints, and Android/Termux/Kali/proot environment details, and writes one Markdown report. It never deletes, moves, modifies, chmods, chowns, or installs anything — evidence for a cleanup decision, not an automated cleanup.
+
+`python3 -m sarand.device_report.command` ابزاری جدا و فقط‌خواندنی است که از یک اسکریپت مستقل بش به خودِ sarand پورت شده: کل دستگاهت را (نه یک پروژه‌ی خاص) برای فضاخورهای بزرگ، فایل‌های تکراری، فایل‌های قدیمی، کش‌های build artifact، ردپای package managerها، و جزئیات محیط Android/Termux/Kali/proot اسکن می‌کند و یک گزارش Markdown می‌نویسد. هیچ‌وقت چیزی را حذف، جابه‌جا، تغییر، chmod، chown، یا نصب نمی‌کند — شاهد برای تصمیم پاک‌سازی است، نه خودِ پاک‌سازی خودکار.
+
+```bash
+python3 -m sarand.device_report.command
+python3 -m sarand.device_report.command --full -o ~/device-report.md
+python3 -m sarand.device_report.command -r ~/Projects -x ~/Projects/big-archive --old-days 90
+```
+
+| Flag | Effect · اثر |
+|---|---|
+| `-o, --output PATH` | Output report path · مسیر خروجی گزارش |
+| `-r, --root DIR` | Extra scan root, repeatable (default: `$HOME` + `/sdcard` if present) · روت اضافه، تکرارپذیر |
+| `-x, --exclude PATH` | Exclude a path from every scan, repeatable · حذف یک مسیر از همه‌ی اسکن‌ها |
+| `-q, --quick` | Skip duplicate and stale-file scans (the two slowest) · رد کردن اسکن تکراری‌ها و فایل‌های قدیمی |
+| `--full` | Always run duplicate/stale scans (overrides `--quick`) and remove the `--top` row cap so every match is listed · همیشه اسکن تکراری/قدیمی را اجرا کن و سقف ردیف `--top` را حذف کن |
+| `-n, --top N` | Rows per top-space table (default 30; `--full` makes this unlimited unless set explicitly) · تعداد ردیف در جدول‌های فضا |
+| `-d, --old-days N` | Stale-file threshold in days (default 180) · آستانه‌ی روز برای فایل قدیمی |
+| `-m, --min-file-size MB` | Minimum size for the large-files section (default 50) · حداقل اندازه برای بخش فایل‌های بزرگ |
+| `-u, --dup-min-size MB` | Minimum size considered for duplicate scanning (default 5) · حداقل اندازه برای اسکن تکراری‌ها |
+| `-D, --max-depth N` | Maximum scan depth, 0 = unlimited (default) · حداکثر عمق اسکن |
+
+Every filesystem-sizing, walking, and hashing operation (`du`, `find -printf`, `numfmt`, `sha256sum` in the original bash version) is pure Python stdlib here instead — `os.walk`/`hashlib` behave identically across glibc, musl, BusyBox (Termux's default), and Toybox (stock Android) userlands, where GNU-specific flags on those external tools do not. Only genuinely platform-specific data (package-manager listings, `getprop`, `git status`, the system mount table) still shells out to the real tool and skips cleanly when it's absent, exactly like every sarand language analyzer.
+
+هر عملیات اندازه‌گیری، پیمایش، و هش‌کردن فایل‌سیستم (`du`، `find -printf`، `numfmt`، `sha256sum` در نسخه‌ی بش) اینجا پایتون خالص stdlib است -- `os.walk`/`hashlib` روی محیط‌های glibc، musl، BusyBox (پیش‌فرض Termux)، و Toybox (اندروید خام) یکسان رفتار می‌کنند، جایی که فلگ‌های مخصوص GNU آن ابزارهای بیرونی یکسان رفتار نمی‌کنند. فقط داده‌ی واقعاً مخصوصِ پلتفرم (فهرست package manager، `getprop`، `git status`، جدول mount سیستم) همچنان به ابزار واقعی متکی است و در نبودش تمیز رد می‌شود، دقیقاً مثل هر آنالایزر زبانِ sarand.
 
 ## Writing a plugin analyzer · نوشتن یک آنالایزر پلاگین
 
