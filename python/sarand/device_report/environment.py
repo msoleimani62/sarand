@@ -76,10 +76,51 @@ def pip_command() -> str | None:
 
 
 def run_tool(cwd: Path, *cmd: str, timeout: int = _CMD_TIMEOUT) -> tuple[bool, str]:
-    """Run cmd if the binary exists; return (ran, combined_output)."""
+    """Run cmd if the binary exists; return (ran, combined_output).
+
+    `ran` only means the binary was found and executed -- it says
+    nothing about whether the command actually succeeded. Most call
+    sites just want best-effort output either way (e.g. `git status`,
+    package listings). For the handful of sections that have a
+    portable fallback and need to know whether to actually use it,
+    use `run_tool_checked` instead.
+    """
     if not tool_available(cmd[0]):
         return False, f"(command not available: {cmd[0]})"
     _rc, output, _duration = run_cmd(list(cmd), cwd, timeout=timeout)
+    return True, output
+
+
+def run_tool_checked(
+    cwd: Path, *cmd: str, timeout: int = _CMD_TIMEOUT
+) -> tuple[bool, str]:
+    """Like `run_tool`, but `ok` also requires a zero exit code and
+    non-empty output.
+
+    BUG FIX: `lscpu` is commonly *installed* but still fails under a
+    Termux/Kali proot (`/sys/devices/system/cpu/possible` isn't
+    reachable there), and plain `run_tool` would still report that as
+    "ran successfully" and print lscpu's raw error text into the
+    report instead of falling back to the portable /proc/cpuinfo
+    reader. Confirmed live: exactly this happened on-device. Sections
+    with a portable fallback (CPU, memory) should use this instead of
+    `run_tool` so a present-but-broken binary triggers the fallback
+    the same way a missing one would.
+
+    اصلاح باگ: `lscpu` معمولاً نصب *هست* ولی زیر یک proot با
+    Termux/Kali همچنان شکست می‌خورد (`/sys/devices/system/cpu/possible`
+    آنجا در دسترس نیست)، و `run_tool` ساده همچنان این را «با موفقیت
+    اجرا شد» گزارش می‌کرد و متن خطای خامِ lscpu را به‌جای برگشتن به
+    خواننده‌ی پرتابل `/proc/cpuinfo` توی گزارش می‌گذاشت. زنده تأیید شد:
+    دقیقاً همین روی دستگاه رخ داد. بخش‌هایی که fallback پرتابل دارند
+    (CPU، حافظه) باید از این استفاده کنند تا یک باینری موجود-ولی-خراب
+    هم دقیقاً مثل یک باینری غایب باعث fallback شود.
+    """
+    if not tool_available(cmd[0]):
+        return False, f"(command not available: {cmd[0]})"
+    rc, output, _duration = run_cmd(list(cmd), cwd, timeout=timeout)
+    if rc != 0 or not output.strip():
+        return False, output
     return True, output
 
 

@@ -176,3 +176,34 @@ def test_find_dirs_named_prunes_matched_subtree(tmp_path: Path) -> None:
     # Only the outer node_modules should be reported -- its own subtree
     # (including the nested node_modules inside it) must be pruned.
     assert found == [nm]
+
+
+# --- environment: run_tool_checked (present-but-broken binaries) ----------
+
+
+def test_run_tool_checked_treats_nonzero_exit_as_not_ok(tmp_path: Path) -> None:
+    # Regression test: lscpu is commonly installed but still exits
+    # non-zero under a Termux/Kali proot (confirmed live on-device --
+    # `/sys/devices/system/cpu/possible` isn't reachable there). A
+    # present-but-failing binary must be treated the same as a missing
+    # one so callers fall back to their portable /proc reader instead
+    # of printing the raw error text into the report.
+    from sarand.device_report import environment as env
+
+    ok, _output = env.run_tool_checked(tmp_path, "false")
+    assert ok is False
+
+
+def test_run_tool_checked_treats_zero_exit_with_output_as_ok(tmp_path: Path) -> None:
+    from sarand.device_report import environment as env
+
+    ok, output = env.run_tool_checked(tmp_path, "echo", "hello")
+    assert ok is True
+    assert "hello" in output
+
+
+def test_run_tool_checked_missing_binary_is_not_ok(tmp_path: Path) -> None:
+    from sarand.device_report import environment as env
+
+    ok, _output = env.run_tool_checked(tmp_path, "this-binary-does-not-exist-xyz")
+    assert ok is False

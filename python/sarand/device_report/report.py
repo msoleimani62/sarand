@@ -158,7 +158,7 @@ def collect_system_info(report: Report, config: DeviceReportConfig) -> None:
     report.write("**Memory**")
     report.write()
     report.fence_open()
-    ran, output = env.run_tool(Path.home(), "free", "-h")
+    ran, output = env.run_tool_checked(Path.home(), "free", "-h")
     if ran:
         report.write(output.rstrip())
     else:
@@ -168,7 +168,7 @@ def collect_system_info(report: Report, config: DeviceReportConfig) -> None:
     report.write("**CPU summary**")
     report.write()
     report.fence_open()
-    ran, output = env.run_tool(Path.home(), "lscpu")
+    ran, output = env.run_tool_checked(Path.home(), "lscpu")
     if ran:
         report.write(output.rstrip())
     else:
