@@ -225,6 +225,17 @@ python3 -m sarand.device_report.command -r ~/Projects -x ~/Projects/big-archive 
 | `-m, --min-file-size MB` | Minimum size for the large-files section (default 50) · حداقل اندازه برای بخش فایل‌های بزرگ |
 | `-u, --dup-min-size MB` | Minimum size considered for duplicate scanning (default 5) · حداقل اندازه برای اسکن تکراری‌ها |
 | `-D, --max-depth N` | Maximum scan depth, 0 = unlimited (default) · حداکثر عمق اسکن |
+| `--min-top-space MB` | Minimum size for a row in the Executive Summary's Top Space Users table, 0 = no filter (default 1.0) · حداقل اندازه برای ردیف جدول Top Space Users |
+| `--expand-aggregates` | List every `__pycache__`/`.mypy_cache`/`.pytest_cache`/`.ruff_cache` instance individually instead of one aggregated line per pattern (`--full` implies this) · لیست تک‌تک نمونه‌های کش به‌جای یک خط تجمیعی |
+| `--summary-only` | Only render sections 1 and 12 -- all scanning still happens (for an accurate summary), but per-section detail is omitted; mutually exclusive with `--full` · فقط بخش‌های ۱ و ۱۲ را رندر کن |
+
+A real run against a full development machine produced a 5+ MiB report — almost entirely thousands of individually-listed `__pycache__`-style cache directories, plus KB-sized entries cluttering the summary table, neither of which added anything to a cleanup decision. `--min-top-space` and the default aggregation behavior above exist specifically to fix that; `--summary-only` is for repeat runs (e.g. handing the report to an AI repeatedly) where only the Executive Summary is actually read.
+
+یک اجرای واقعی روی یک ماشین توسعه‌ی کامل گزارشی ۵+ مگابایتی تولید کرد — تقریباً تماماً هزاران پوشه‌ی کش شبیه `__pycache__` که تک‌تک لیست شده بودند، به‌علاوه موارد چند-کیلوبایتیِ شلوغ‌کننده‌ی جدول خلاصه، که هیچ‌کدام به تصمیم پاک‌سازی چیزی اضافه نمی‌کردند. `--min-top-space` و رفتار پیش‌فرض تجمیع بالا دقیقاً برای رفع همین ساخته شدند؛ `--summary-only` برای اجراهای مکرر (مثلاً دادن گزارش به یک هوش مصنوعی به‌طور مکرر) است که فقط Executive Summary واقعاً خوانده می‌شود.
+
+**Not yet implemented:** directory-level duplicate detection (comparing whole directory *trees* for overlapping content, not just individual files ≥5 MB) — flagged as valuable but scoped out of this pass for its own design/performance review, since a naive version would mean hashing every file in every candidate directory.
+
+**هنوز پیاده‌سازی نشده:** تشخیص تکراری در سطح دایرکتوری (مقایسه‌ی کل *درخت* پوشه‌ها برای محتوای هم‌پوشان، نه فقط فایل‌های تکی ≥۵ مگابایت) — به‌عنوان چیزی ارزشمند علامت‌گذاری شده ولی از این دور بیرون گذاشته شد تا بازبینی طراحی/عملکرد جداگانه‌ی خودش را داشته باشد، چون نسخه‌ی ساده‌اش یعنی هش‌کردن هر فایل در هر دایرکتوری کاندید.
 
 Every filesystem-sizing, walking, and hashing operation (`du`, `find -printf`, `numfmt`, `sha256sum` in the original bash version) is pure Python stdlib here instead — `os.walk`/`hashlib` behave identically across glibc, musl, BusyBox (Termux's default), and Toybox (stock Android) userlands, where GNU-specific flags on those external tools do not. Only genuinely platform-specific data (package-manager listings, `getprop`, `git status`, the system mount table) still shells out to the real tool and skips cleanly when it's absent, exactly like every sarand language analyzer.
 

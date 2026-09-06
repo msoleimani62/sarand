@@ -49,14 +49,24 @@ SCRIPT_VERSION = (
 
 @dataclass
 class Report:
-    """Accumulates markdown output plus cross-section bookkeeping."""
+    """Accumulates markdown output plus cross-section bookkeeping.
+
+    `detail_enabled` implements --summary-only (see config.py and
+    generate_report below): when False, write()/section()/etc. become
+    no-ops so a section's detailed listing never reaches the output,
+    while record_space()/warn() keep working normally -- the section
+    still runs its scan and still contributes to the Executive
+    Summary, only its own printed detail is suppressed.
+    """
 
     lines: list[str] = field(default_factory=list)
     space_hogs: list[tuple[int, str, str]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    detail_enabled: bool = True
 
     def write(self, text: str = "") -> None:
-        self.lines.append(text)
+        if self.detail_enabled:
+            self.lines.append(text)
 
     def section(self, title: str) -> None:
         self.write()
@@ -227,6 +237,17 @@ def _cpuinfo_fallback() -> str:
 
 def collect_mounts(report: Report, config: DeviceReportConfig) -> None:
     print("--> Collecting mounts and filesystems...")
+    # None of this section's data feeds record_space()/the Executive
+    # Summary -- it's pure display (df/mount tables). --summary-only
+    # skips it outright rather than running it just to suppress the
+    # output, saving real time on top of the smaller report.
+    #
+    # هیچ‌کدام از داده‌های این بخش به record_space()/Executive Summary
+    # نمی‌رود -- صرفاً نمایشی است (جدول‌های df/mount). --summary-only
+    # این را کلاً رد می‌کند به‌جای اجرا کردن فقط برای بعد سرکوب‌کردن
+    # خروجی، که علاوه بر گزارش کوچک‌تر، زمان واقعی هم صرفه‌جویی می‌کند.
+    if config.summary_only:
+        return
     report.section("2. Filesystems, Mounts, and Inodes")
 
     for title, cmd in (
@@ -407,6 +428,25 @@ def collect_toolchain(report: Report, config: DeviceReportConfig) -> None:
 
     report.subsection("Build Artifact Directories")
     report.fence_open()
+
+    # BUG FIX (sarand-report-feedback.md): used to record_space() every
+    # single matched directory, including __pycache__-style caches that
+    # can number in the hundreds under one Python toolchain. Those are
+    # now grouped by name into one aggregate summary line (top 5 shown,
+    # rest omitted) unless --expand-aggregates asks for the old
+    # per-instance behavior. "Real" artifact dirs (node_modules, target,
+    # build, dist, .gradle, .venv) are few and each usually belongs to a
+    # distinct project worth seeing on its own, so those are unaffected.
+    #
+    # اصلاح باگ (sarand-report-feedback.md): قبلاً برای هر پوشه‌ی
+    # مچ‌شده record_space() می‌زد، شامل کش‌های شبیه __pycache__ که زیر
+    # یک toolchain پایتون می‌توانند صدها تا باشند. این‌ها حالا بر اساس
+    # نام در یک خط تجمیعی گروه می‌شوند (۵ تای برتر نشان داده می‌شود،
+    # بقیه حذف) مگر این‌که --expand-aggregates رفتار قبلیِ تک‌تک را
+    # بخواهد. پوشه‌های آرتیفکت «واقعی» (node_modules، target، build،
+    # dist، .gradle، .venv) کم‌تعدادند و معمولاً هرکدام مالِ یک پروژه‌ی
+    # جداست، پس بی‌تأثیر می‌مانند.
+    aggregate_groups: dict[str, list[tuple[int, str]]] = {}
     for root in config.scan_roots:
         if not root.is_dir():
             continue
@@ -417,8 +457,43 @@ def collect_toolchain(report: Report, config: DeviceReportConfig) -> None:
             max_depth=config.max_depth,
         ):
             num_bytes = path_size_bytes(found_dir)
-            report.write(f"{found_dir!s:<75} {human_size(num_bytes):>12}")
-            report.record_space(num_bytes, str(found_dir), "build artifact")
+            name = found_dir.name
+            if name in env.AGGREGATE_CACHE_DIR_NAMES and not config.expand_aggregates:
+                aggregate_groups.setdefault(name, []).append(
+                    (num_bytes, str(found_dir))
+                )
+            else:
+                report.write(f"{found_dir!s:<75} {human_size(num_bytes):>12}")
+                report.record_space(num_bytes, str(found_dir), "build artifact")
+
+    for name in sorted(aggregate_groups):
+        entries = aggregate_groups[name]
+        entries.sort(reverse=True)
+        total = sum(num_bytes for num_bytes, _path in entries)
+        report.write(
+            f"Aggregated: {len(entries):,} x {name} directories, "
+            f"{human_size(total)} total, all LIKELY_RECLAIMABLE"
+        )
+        report.write(
+            "  (top 5 by size shown below, rest omitted -- "
+            "use --expand-aggregates to list all)"
+        )
+        for num_bytes, path_str in entries[:5]:
+            report.write(f"    {human_size(num_bytes):>12}  {path_str}")
+        # Recorded as ONE synthetic entry so the Executive Summary's Top
+        # Space Users table also shows one aggregate row, not hundreds.
+        # The path deliberately still contains the real dir name as its
+        # own path component (see classify.py) so classify_path() keeps
+        # classifying it correctly without any special-casing there.
+        #
+        # به‌عنوان یک رکورد ساختگیِ واحد ثبت می‌شود تا جدول Top Space
+        # Users در Executive Summary هم یک ردیف تجمیعی نشان دهد، نه
+        # صدها ردیف. مسیر عمداً همچنان نام واقعی پوشه را به‌عنوان یک
+        # جزء مسیرِ خودش دارد (به classify.py نگاه کنید) تا
+        # classify_path() بدون هیچ حالت‌ویژه‌ای درست طبقه‌بندی‌اش کند.
+        report.record_space(
+            total, f"<aggregated {len(entries)}x>/{name}", f"{len(entries)} x {name}"
+        )
     report.fence_close()
 
 
@@ -560,6 +635,17 @@ def _git_status(repo: Path) -> tuple[int, str, float]:
 
 def collect_large_files(report: Report, config: DeviceReportConfig) -> None:
     print("--> Collecting largest files...")
+    # Same rationale as collect_mounts: this section never calls
+    # record_space(), so it contributes nothing to the Executive
+    # Summary -- safe (and much faster) to skip its file walk entirely
+    # under --summary-only rather than walk everything just to hide it.
+    #
+    # همان استدلال collect_mounts: این بخش هیچ‌وقت record_space() صدا
+    # نمی‌زند، پس هیچ کمکی به Executive Summary نمی‌کند -- زیر
+    # --summary-only امن (و بسیار سریع‌تر) است که کل پیمایش فایل‌ها را
+    # رد کنیم به‌جای پیمایش کامل فقط برای پنهان‌کردنش.
+    if config.summary_only:
+        return
     report.section("8. Largest Individual Files")
 
     min_bytes = config.min_file_size_bytes
@@ -592,6 +678,17 @@ def collect_large_files(report: Report, config: DeviceReportConfig) -> None:
 
 def collect_duplicates(report: Report, config: DeviceReportConfig) -> None:
     print("--> Collecting duplicate files...")
+    # Same rationale again -- duplicate groups never feed record_space(),
+    # only the "estimated reclaimable" line does, and that line itself
+    # isn't part of the Executive Summary either. Skip the (expensive:
+    # size-grouping + hashing) work entirely under --summary-only.
+    #
+    # همان استدلال دوباره -- گروه‌های duplicate هیچ‌وقت به record_space()
+    # نمی‌روند، فقط خط «تخمین فضای قابل‌بازیابی» می‌رود که خودش هم جزو
+    # Executive Summary نیست. کار (پرهزینه: گروه‌بندی بر اساس اندازه +
+    # هش‌کردن) کلاً زیر --summary-only رد می‌شود.
+    if config.summary_only:
+        return
     report.section("9. Duplicate Files")
 
     if config.quick_mode:
@@ -656,6 +753,14 @@ def collect_duplicates(report: Report, config: DeviceReportConfig) -> None:
 
 def collect_stale_files(report: Report, config: DeviceReportConfig) -> None:
     print("--> Collecting stale files...")
+    # Same rationale again -- stale-file rows never feed record_space().
+    # Skip the file walk entirely under --summary-only.
+    #
+    # همان استدلال دوباره -- ردیف‌های فایل قدیمی هیچ‌وقت به
+    # record_space() نمی‌روند. زیر --summary-only کل پیمایش فایل‌ها رد
+    # می‌شود.
+    if config.summary_only:
+        return
     report.section("10. Stale Files")
 
     if config.quick_mode:
@@ -779,6 +884,12 @@ def write_summary(report: Report, config: DeviceReportConfig) -> None:
     report.write()
     report.write("### Top Space Users")
     report.write()
+    if config.min_top_space_bytes > 0:
+        report.write(
+            f"Entries under {human_size(config.min_top_space_bytes)} are omitted "
+            "from this table (`--min-top-space` to change, `0` for no filter)."
+        )
+        report.write()
     report.fence_open()
     report.write(f"{'size':>12}  {'classification':<28}  {'category':<24}  path")
 
@@ -790,7 +901,22 @@ def write_summary(report: Report, config: DeviceReportConfig) -> None:
         seen.add(path_str)
         deduped.append((num_bytes, path_str, label))
 
-    for num_bytes, path_str, label in _limit(deduped, config.top_n):
+    # BUG FIX (sarand-report-feedback.md): KB-sized entries used to
+    # clutter this table with no value for a cleanup decision. Filtered
+    # here (display-time only -- report.space_hogs itself is untouched,
+    # so other consumers of that data aren't affected).
+    #
+    # اصلاح باگ (sarand-report-feedback.md): موارد چند-کیلوبایتی این
+    # جدول را بدون هیچ ارزشی برای تصمیم پاک‌سازی شلوغ می‌کردند. اینجا
+    # (فقط در زمان نمایش -- خودِ report.space_hogs دست‌نخورده می‌ماند،
+    # پس مصرف‌کننده‌های دیگر آن داده تحت تأثیر نیستند) فیلتر شده است.
+    filtered = [
+        (num_bytes, path_str, label)
+        for num_bytes, path_str, label in deduped
+        if num_bytes >= config.min_top_space_bytes
+    ]
+
+    for num_bytes, path_str, label in _limit(filtered, config.top_n):
         report.write(
             f"{human_size(num_bytes):>12}  {classify_path(path_str):<28}  {label:<24}  {path_str}"
         )
@@ -854,6 +980,17 @@ SECTIONS = (
     write_summary,
 )
 
+# --summary-only always renders these two regardless (system overview
+# for context, executive summary because it's the whole point); every
+# other section still runs (for accurate record_space() contributions)
+# but has its own detailed listing suppressed -- see Report.detail_enabled.
+#
+# --summary-only همیشه این دو تا را رندر می‌کند (system overview برای
+# کانتکست، executive summary چون کل هدف است)؛ بقیه‌ی بخش‌ها همچنان اجرا
+# می‌شوند (برای مشارکت درست در record_space()) اما لیست جزئیات خودشان
+# سرکوب می‌شود -- به Report.detail_enabled نگاه کنید.
+_ALWAYS_DETAILED_SECTIONS = frozenset({collect_system_info, write_summary})
+
 
 def generate_report(config: DeviceReportConfig) -> str:
     report = Report()
@@ -862,8 +999,13 @@ def generate_report(config: DeviceReportConfig) -> str:
     report.write("> Read-only report generated for evidence-based cleanup review.")
     report.write("> No files were deleted or modified by this script.")
     report.write(f"> sarand.device_report version: `{SCRIPT_VERSION}`")
+    if config.summary_only:
+        report.write("> Mode: `--summary-only` -- per-section detail omitted.")
 
     for section_fn in SECTIONS:
+        report.detail_enabled = (
+            not config.summary_only or section_fn in _ALWAYS_DETAILED_SECTIONS
+        )
         section_fn(report, config)
 
     return report.render()
