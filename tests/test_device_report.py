@@ -275,6 +275,29 @@ def _isolate_fixed_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(env, "TERMUX_PATHS", ())
     monkeypatch.setattr(env, "NETHUNTER_PATHS", ())
     monkeypatch.setattr(env, "DOWNLOAD_CANDIDATES", ())
+    # Also skip real subprocess calls entirely (git/pip/npm/cargo/
+    # rustup/gem/dpkg-query/pacman/findmnt/mount/df/free/lscpu/getprop)
+    # -- confirmed live: even with the fixed real paths above emptied,
+    # the full test run still took ~110s on-device, because every one
+    # of those tools that IS actually installed still gets spawned as
+    # a real subprocess, and each subprocess under a Termux/Kali proot
+    # carries real syscall-interception overhead. None of these tests
+    # need that: they test this module's own aggregation/filtering/
+    # section-suppression logic, not integration with real system
+    # tools -- that integration already has its own coverage from the
+    # manual on-device runs throughout this whole conversation.
+    #
+    # اجرای واقعیِ subprocess را هم کلاً رد می‌کند (git/pip/npm/cargo/
+    # rustup/gem/dpkg-query/pacman/findmnt/mount/df/free/lscpu/getprop)
+    # -- زنده تأیید شد: حتی با خالی‌شدن مسیرهای ثابت واقعیِ بالا، کل
+    # اجرای تست روی دستگاه هنوز حدود ۱۱۰ ثانیه طول می‌کشید، چون هرکدام
+    # از آن ابزارها که واقعاً نصب باشد همچنان به‌عنوان یک subprocess
+    # واقعی اجرا می‌شود، و هر subprocess زیر یک proot با Termux/Kali
+    # سربار واقعیِ syscall-interception دارد. هیچ‌کدام از این تست‌ها به
+    # آن نیاز ندارند: منطق خودِ این ماژول را تست می‌کنند، نه یکپارچگی با
+    # ابزارهای واقعی سیستم -- آن یکپارچگی پوشش خودش را از اجراهای دستی
+    # روی دستگاه در طول این مکالمه دارد.
+    monkeypatch.setattr(env, "tool_available", lambda _name: False)
 
 
 def test_toolchain_aggregates_pycache_by_default(
@@ -435,12 +458,11 @@ def test_toolchain_candidates_are_actually_scanned(
     (fake_cache / "blob.bin").write_bytes(b"x" * (2 * 1024 * 1024))
 
     # Only TOOLCHAIN_CANDIDATES points at real (here: fake-but-real-on-
-    # disk) content; the other fixed-path lists stay empty so this test
-    # isolates exactly the one code path it's meant to cover.
+    # disk) content; the other fixed-path lists stay empty (and
+    # subprocess tools are disabled too) so this test isolates exactly
+    # the one code path it's meant to cover -- see _isolate_fixed_paths.
+    _isolate_fixed_paths(monkeypatch)
     monkeypatch.setattr(env, "TOOLCHAIN_CANDIDATES", (str(fake_cache),))
-    monkeypatch.setattr(env, "TERMUX_PATHS", ())
-    monkeypatch.setattr(env, "NETHUNTER_PATHS", ())
-    monkeypatch.setattr(env, "DOWNLOAD_CANDIDATES", ())
 
     # scan_roots is a completely separate, unrelated, empty directory --
     # proving fake_cache is only found because TOOLCHAIN_CANDIDATES
@@ -477,9 +499,7 @@ def test_download_candidates_are_actually_scanned(
     fake_downloads.mkdir(parents=True)
     (fake_downloads / "archive.zip").write_bytes(b"x" * (1024 * 1024))
 
-    monkeypatch.setattr(env, "TOOLCHAIN_CANDIDATES", ())
-    monkeypatch.setattr(env, "TERMUX_PATHS", ())
-    monkeypatch.setattr(env, "NETHUNTER_PATHS", ())
+    _isolate_fixed_paths(monkeypatch)
     monkeypatch.setattr(env, "DOWNLOAD_CANDIDATES", (str(fake_downloads),))
 
     unrelated_root = tmp_path / "unrelated_project"
