@@ -209,15 +209,129 @@ def test_all_builtin_analyzers_implement_run_security() -> None:
         assert hasattr(analyzer, "run_security")
 
 
-def test_python_analyzer_scopes_pip_audit_to_the_project(
+def test_project_dependency_names_extracts_from_dependencies_array() -> None:
+    from sarand.analyzers.python_analyzer import _project_dependency_names
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(
+            root / "pyproject.toml",
+            '[project]\nname = "x"\ndependencies = [\n'
+            '    "filelock==3.32.3",\n'
+            '    "rich>=13.0",\n'
+            "    'requests[socks]>=2,<3; python_version >= \"3.10\"',\n"
+            "]\n",
+        )
+        names = _project_dependency_names(root)
+
+    assert names == ["filelock", "rich", "requests"]
+
+
+def test_project_dependency_names_empty_without_dependencies_key() -> None:
+    from sarand.analyzers.python_analyzer import _project_dependency_names
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "pyproject.toml", "[project]\nname = 'x'\n")
+        assert _project_dependency_names(root) == []
+
+
+def test_project_dependency_names_empty_without_pyproject_toml() -> None:
+    from sarand.analyzers.python_analyzer import _project_dependency_names
+
+    with tempfile.TemporaryDirectory() as tmp:
+        assert _project_dependency_names(Path(tmp)) == []
+
+
+def test_pinned_requirements_file_pins_installed_versions_and_skips_missing() -> None:
+    from sarand.analyzers.python_analyzer import _pinned_requirements_file
+
+    # "pytest" is guaranteed installed (it's what's running this test);
+    # the second name is guaranteed absent.
+    req_file = _pinned_requirements_file(["pytest", "this-package-does-not-exist-xyz"])
+    try:
+        assert req_file is not None
+        content = req_file.read_text()
+        assert content.startswith("pytest==")
+        assert "this-package-does-not-exist-xyz" not in content
+    finally:
+        if req_file is not None:
+            req_file.unlink(missing_ok=True)
+
+
+def test_pinned_requirements_file_returns_none_for_no_names() -> None:
+    from sarand.analyzers.python_analyzer import _pinned_requirements_file
+
+    assert _pinned_requirements_file([]) is None
+    assert _pinned_requirements_file(["this-package-does-not-exist-xyz"]) is None
+
+
+def test_python_analyzer_scopes_pip_audit_to_project_deps_pinned_no_resolve(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Regression test: pip-audit with no path argument audits the
-    # *entire active environment* (every installed package, including
-    # unrelated dev tools) instead of just this project's own
-    # dependencies -- confirmed live to be the dominant cost of a
-    # --full run (157.6s out of ~240s total). `pip-audit .` scopes it
-    # to what pyproject.toml actually declares.
+    # Round-2 regression test. Round 1's `pip-audit .` was confirmed
+    # live to make things *worse* (157.6s -> 201.8s): pointing pip-audit
+    # at a project path makes it perform full dependency *resolution*
+    # first, which is more expensive than listing an already-installed
+    # environment, not less (per pip-audit's own README). The fix
+    # instead hands it a small, pre-pinned (`==exact-installed-version`)
+    # requirements file for just the target project's own declared
+    # deps, with --no-deps so pip-audit never resolves anything itself.
+    import sarand.analyzers.python_analyzer as python_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+    written_req_files: list[Path] = []
+    req_file_content_at_call_time: str | None = None
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        nonlocal req_file_content_at_call_time
+        captured_cmds.append(cmd)
+        if cmd[0] == "pip-audit" and "-r" in cmd:
+            req_path = Path(cmd[cmd.index("-r") + 1])
+            written_req_files.append(req_path)
+            # Must read the content now: the real code deletes this
+            # file in a `finally:` right after this call returns, so
+            # reading it after run_security() has returned is too late.
+            #
+            # محتوا باید همین الان خوانده شود: کد اصلی این فایل را در
+            # یک `finally:` درست بعد از بازگشت این فراخوانی حذف
+            # می‌کند، پس خواندنش بعد از برگشتن run_security() دیر است.
+            req_file_content_at_call_time = req_path.read_text()
+        return 0, "No known vulnerabilities found", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(python_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        # "pytest" stands in for a real declared dependency here since
+        # it's guaranteed to actually be installed in whatever
+        # environment is running this test suite.
+        write(
+            root / "pyproject.toml",
+            "[project]\nname = 'x'\ndependencies = [\"pytest\"]\n",
+        )
+        asyncio.run(analyzer.run_security(root))
+
+    pip_audit_cmd = next(c for c in captured_cmds if c[0] == "pip-audit")
+    assert pip_audit_cmd[1] == "-r"
+    assert "--no-deps" in pip_audit_cmd
+    assert "." not in pip_audit_cmd  # never the resolve-triggering project mode
+    # The requirements file was written with a pinned exact version...
+    assert req_file_content_at_call_time is not None
+    assert req_file_content_at_call_time.startswith("pytest==")
+    # ...and cleaned up afterwards, not left behind.
+    assert written_req_files and not written_req_files[0].exists()
+
+
+def test_python_analyzer_falls_back_to_plain_pip_audit_without_declared_deps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # No `dependencies` array to scope to (and no pyproject.toml at
+    # all here) -- must fall back to pip-audit's own recommended
+    # "audit the pre-installed environment" mode, never silently do
+    # nothing, and never fall back to the slow project/resolve mode.
     import sarand.analyzers.python_analyzer as python_analyzer_module
 
     captured_cmds: list[list[str]] = []
@@ -232,8 +346,7 @@ def test_python_analyzer_scopes_pip_audit_to_the_project(
     analyzer = PythonAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        write(root / "pyproject.toml", "[project]\nname='x'\n")
-
+        write(root / "setup.py", "# no pyproject.toml here")
         asyncio.run(analyzer.run_security(root))
 
-    assert ["pip-audit", "."] in captured_cmds
+    assert ["pip-audit"] in captured_cmds
