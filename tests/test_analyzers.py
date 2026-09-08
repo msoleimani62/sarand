@@ -207,3 +207,33 @@ def test_all_builtin_analyzers_implement_run_security() -> None:
         LuaAnalyzer(),
     ):
         assert hasattr(analyzer, "run_security")
+
+
+def test_python_analyzer_scopes_pip_audit_to_the_project(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Regression test: pip-audit with no path argument audits the
+    # *entire active environment* (every installed package, including
+    # unrelated dev tools) instead of just this project's own
+    # dependencies -- confirmed live to be the dominant cost of a
+    # --full run (157.6s out of ~240s total). `pip-audit .` scopes it
+    # to what pyproject.toml actually declares.
+    import sarand.analyzers.python_analyzer as python_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "No known vulnerabilities found", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(python_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "pyproject.toml", "[project]\nname='x'\n")
+
+        asyncio.run(analyzer.run_security(root))
+
+    assert ["pip-audit", "."] in captured_cmds
