@@ -350,3 +350,42 @@ def test_python_analyzer_falls_back_to_plain_pip_audit_without_declared_deps(
         asyncio.run(analyzer.run_security(root))
 
     assert ["pip-audit"] in captured_cmds
+
+
+def test_python_analyzer_excludes_venv_and_friends_from_bandit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The actual dominant cost in the whole --full slowdown
+    # investigation, confirmed live: `bandit -r . -q` with no excludes
+    # scanned `.venv/lib/.../site-packages/...` -- every installed
+    # package's own source, not just this project's code (a known
+    # bandit behavior, PyCQA/bandit#543). Also confirms the exclude
+    # paths are `./`-prefixed, since per PyCQA/bandit#975 a bare
+    # `.venv` (no `./`) silently fails to exclude anything in bandit.
+    import sarand.analyzers.python_analyzer as python_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "No issues identified.", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(python_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "setup.py", "# minimal marker, no dependencies to pin")
+        asyncio.run(analyzer.run_security(root))
+
+    bandit_cmd = next(c for c in captured_cmds if c[0] == "bandit")
+    assert "-x" in bandit_cmd
+    exclude_arg = bandit_cmd[bandit_cmd.index("-x") + 1]
+    excluded = exclude_arg.split(",")
+    for name in (".venv", "venv", "target", "node_modules", "__pycache__"):
+        assert f"./{name}" in excluded
+        assert name not in excluded  # bare (non-"./"-prefixed) form must NOT appear
+    # every entry must be "./"-prefixed -- a bare ".venv" silently
+    # fails to exclude anything in bandit (PyCQA/bandit#975)
+    assert all(p.startswith("./") for p in excluded)

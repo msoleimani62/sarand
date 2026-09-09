@@ -23,6 +23,55 @@ logger = get_logger("analyzer.python")
 
 _MARKERS = ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
 
+# BUG FIX (the real culprit behind the whole --full slowdown
+# investigation, confirmed live on-device): `bandit -r . -q` with no
+# excludes recurses into *everything* under the project root,
+# including `.venv/` -- so it was scanning the source of every
+# installed package (mypy, pytest, ruff, pip-audit, cyclonedx-lib,
+# bandit itself, ...) on every single run, not just sarand's own
+# code. This is a well-known bandit issue (PyCQA/bandit#543): "bandit
+# automatically scans all of the virtualenv site-packages... many
+# many python files that don't need to be scanned." Confirmed live:
+# the user's own bandit output showed it scanning
+# `./.venv/lib/python3.14/site-packages/bandit/plugins/...`.
+#
+# The exclude paths are deliberately `./`-prefixed: per
+# PyCQA/bandit#975, `-x .venv` and `-x ./.venv` are NOT equivalent in
+# bandit -- only the `./`-prefixed form reliably excludes the
+# directory (that issue's own repro: `-x ./.tox` scanned 94 files,
+# `-x .tox` scanned 19282).
+#
+# اصلاح باگ (مقصر واقعیِ کل این بررسیِ کندی --full، زنده روی خودِ
+# دستگاه تأیید شد): `bandit -r . -q` بدون exclude به هرچیزی زیر ریشه‌ی
+# پروژه recurse می‌کند، شامل `.venv/` -- پس هر بار داشت سورس هر پکیج
+# نصب‌شده (mypy، pytest، ruff، pip-audit، cyclonedx-lib، خودِ bandit،
+# ...) را اسکن می‌کرد، نه فقط کد خودِ sarand. این یک باگ شناخته‌شده‌ی
+# خودِ bandit است (PyCQA/bandit#543). زنده تأیید شد: خروجی خودِ bandit
+# روی دستگاه کاربر نشان داد دارد
+# `./.venv/lib/python3.14/site-packages/bandit/plugins/...` را اسکن
+# می‌کند.
+#
+# مسیرهای exclude عمداً با `./` شروع می‌شوند: طبق PyCQA/bandit#975،
+# `-x .venv` و `-x ./.venv` در bandit معادل *نیستند* -- فقط فرم با
+# پیشوند `./` واقعاً پوشه را حذف می‌کند.
+_BANDIT_EXCLUDE_DIRS = (
+    ".venv",
+    "venv",
+    ".env",
+    "env",
+    "target",
+    "node_modules",
+    ".git",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+    ".tox",
+)
+_BANDIT_EXCLUDE_ARG = ",".join(f"./{d}" for d in _BANDIT_EXCLUDE_DIRS)
+
 # BUG FIX (round 2 -- round 1's "pip-audit ." made things *worse*: 157.6s
 # -> 201.8s on a real run). pip-audit's own README is explicit about why:
 # pointing it at a project (a pyproject.toml path) makes it perform full
@@ -281,7 +330,9 @@ class PythonAnalyzer:
             )
         else:
             rc, out, dur = await run_cmd_async(
-                ["bandit", "-r", ".", "-q"], root, LONG_CMD_TIMEOUT
+                ["bandit", "-r", ".", "-q", "-x", _BANDIT_EXCLUDE_ARG],
+                root,
+                LONG_CMD_TIMEOUT,
             )
             results.append(make_command_result("bandit", rc, out, dur))
 
