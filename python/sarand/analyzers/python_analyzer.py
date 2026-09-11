@@ -7,6 +7,8 @@ True first.
 
 from __future__ import annotations
 
+import asyncio
+import os
 import re
 import shutil
 import tempfile
@@ -278,62 +280,106 @@ class PythonAnalyzer:
         return results
 
     async def run_security(self, root: Path) -> list[CommandResult]:
-        results: list[CommandResult] = []
+        # BUG FIX (measured live, three rounds deep into this
+        # investigation): pip-audit and bandit are fully independent
+        # of each other, yet were being awaited one after another
+        # instead of concurrently -- confirmed on-device: bandit alone
+        # took 7.6s, pip-audit alone took 33-48s, but they were adding
+        # up sequentially inside the already-concurrent
+        # run_security_concurrently (which only parallelizes *across*
+        # analyzers, not within one). asyncio.gather here means the
+        # pair's wall time is bounded by the slower of the two, not
+        # their sum -- a free ~7s win every run.
+        #
+        # اصلاح باگ (زنده اندازه‌گیری شد، سه دور عمیق در این بررسی):
+        # pip-audit و bandit کاملاً مستقل از هم‌اند، اما یکی پس از
+        # دیگری await می‌شدند نه هم‌زمان -- روی دستگاه تأیید شد:
+        # bandit تنها ۷.۶ ثانیه، pip-audit تنها ۳۳ تا ۴۸ ثانیه، اما
+        # داخل run_security_concurrently که از قبل هم‌زمان است (فقط
+        # *بین* آنالایزرها موازی می‌کند، نه داخل یکی) این دو تا با هم
+        # جمع می‌شدند. asyncio.gather اینجا یعنی زمان کل با کندترینِ
+        # این دو محدود می‌شود، نه مجموعشان -- چیزی حدود ۷ ثانیه سود
+        # مجانی در هر اجرا.
+        pip_audit_result, bandit_result = await asyncio.gather(
+            self._run_pip_audit(root), self._run_bandit(root)
+        )
+        return [pip_audit_result, bandit_result]
 
+    async def _run_pip_audit(self, root: Path) -> CommandResult:
         if shutil.which("pip-audit") is None:
-            results.append(
-                make_command_result(
-                    "pip-audit",
-                    127,
-                    "",
-                    0.0,
-                    skipped=True,
-                    skip_reason="pip-audit not installed",
-                )
+            return make_command_result(
+                "pip-audit",
+                127,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason="pip-audit not installed",
             )
-        else:
-            # BUG FIX (round 2 -- see the module-level comment near
-            # _project_dependency_names for the full "why"). Uses a
-            # pre-pinned, project-scoped requirements file with
-            # --no-deps: no environment-wide scan, no resolution step.
-            names = _project_dependency_names(root)
-            req_file = _pinned_requirements_file(names) if names else None
-            try:
-                if req_file is not None:
-                    cmd = ["pip-audit", "-r", str(req_file), "--no-deps"]
-                else:
-                    # Couldn't determine the project's own declared
-                    # dependencies (no pyproject.toml, an unusual
-                    # `dependencies` format the regex doesn't cover,
-                    # or none of them are actually installed) -- fall
-                    # back to pip-audit's own "pre-installed
-                    # environment" mode (its recommended alternative
-                    # to project-mode resolution), not the slow
-                    # resolve-from-pyproject.toml path.
-                    cmd = ["pip-audit"]
-                rc, out, dur = await run_cmd_async(cmd, root, LONG_CMD_TIMEOUT)
-            finally:
-                if req_file is not None:
-                    req_file.unlink(missing_ok=True)
-            results.append(make_command_result("pip-audit", rc, out, dur))
 
+        # Opt-out for a cost this project's own code can't reduce any
+        # further: even pinned to just 2 packages with --no-deps
+        # (round 2's fix), pip-audit measured 33-48s on-device with a
+        # HIGH `user` CPU time (not mostly idle/network-wait) -- so
+        # this is pip-audit's own internal work on this hardware, not
+        # something sarand is doing inefficiently. `--skip-audit`
+        # exists for runs where that fixed cost isn't worth paying.
+        #
+        # مسیر رد کردن برای هزینه‌ای که کد خودِ این پروژه دیگر
+        # نمی‌تواند کمترش کند: حتی pin‌شده به فقط ۲ پکیج با --no-deps
+        # (فیکس دور دوم)، pip-audit روی دستگاه ۳۳ تا ۴۸ ثانیه با زمان
+        # CPU (`user`) بالا اندازه‌گیری شد (نه عمدتاً idle/انتظار
+        # شبکه) -- پس این کار داخلیِ خودِ pip-audit روی این سخت‌افزار
+        # است، نه ناکارآمدیِ sarand. `--skip-audit` برای اجراهایی است
+        # که پرداخت این هزینه‌ی ثابت نمی‌ارزد.
+        if os.environ.get("SARAND_SKIP_AUDIT"):
+            return make_command_result(
+                "pip-audit",
+                0,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason="skipped via --skip-audit",
+            )
+
+        # BUG FIX (round 2 -- see the module-level comment near
+        # _project_dependency_names for the full "why"). Uses a
+        # pre-pinned, project-scoped requirements file with
+        # --no-deps: no environment-wide scan, no resolution step.
+        names = _project_dependency_names(root)
+        req_file = _pinned_requirements_file(names) if names else None
+        try:
+            if req_file is not None:
+                cmd = ["pip-audit", "-r", str(req_file), "--no-deps"]
+            else:
+                # Couldn't determine the project's own declared
+                # dependencies (no pyproject.toml, an unusual
+                # `dependencies` format the regex doesn't cover, or
+                # none of them are actually installed) -- fall back to
+                # pip-audit's own "pre-installed environment" mode
+                # (its recommended alternative to project-mode
+                # resolution), not the slow resolve-from-pyproject.toml
+                # path.
+                cmd = ["pip-audit"]
+            rc, out, dur = await run_cmd_async(cmd, root, LONG_CMD_TIMEOUT)
+        finally:
+            if req_file is not None:
+                req_file.unlink(missing_ok=True)
+        return make_command_result("pip-audit", rc, out, dur)
+
+    async def _run_bandit(self, root: Path) -> CommandResult:
         if shutil.which("bandit") is None:
-            results.append(
-                make_command_result(
-                    "bandit",
-                    127,
-                    "",
-                    0.0,
-                    skipped=True,
-                    skip_reason="bandit not installed",
-                )
+            return make_command_result(
+                "bandit",
+                127,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason="bandit not installed",
             )
-        else:
-            rc, out, dur = await run_cmd_async(
-                ["bandit", "-r", ".", "-q", "-x", _BANDIT_EXCLUDE_ARG],
-                root,
-                LONG_CMD_TIMEOUT,
-            )
-            results.append(make_command_result("bandit", rc, out, dur))
 
-        return results
+        rc, out, dur = await run_cmd_async(
+            ["bandit", "-r", ".", "-q", "-x", _BANDIT_EXCLUDE_ARG],
+            root,
+            LONG_CMD_TIMEOUT,
+        )
+        return make_command_result("bandit", rc, out, dur)

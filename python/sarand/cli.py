@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -126,6 +128,17 @@ Examples:
         "--security",
         action="store_true",
         help="Run security/vulnerability checks (per detected language)",
+    )
+    parser.add_argument(
+        "--skip-audit",
+        action="store_true",
+        help=(
+            "Skip pip-audit/cargo-audit specifically (their vulnerability-"
+            "database lookups can take tens of seconds even for a couple of "
+            "pinned packages -- measured, not something sarand's own code "
+            "can reduce further). Static checks (bandit, ruff, clippy) "
+            "still run."
+        ),
     )
     parser.add_argument(
         "--no-source",
@@ -309,7 +322,7 @@ async def run(config: SarandConfig) -> int:
         )
 
     env = collect_environment_info(root)
-    git = collect_git_snapshot(root)
+    git = await collect_git_snapshot(root)
 
     # Analyzer pipeline: discover, filter to matching languages, run
     # tests and quality checks *concurrently* per language.
@@ -318,18 +331,80 @@ async def run(config: SarandConfig) -> int:
     all_analyzers = discover_analyzers()
     active = matching_analyzers(root, all_analyzers)
 
+    # BUG FIX (user report: --full "gets stuck on Git information" for
+    # ~9 minutes): git.py's own collection is fast -- what actually ran
+    # silently for most of that time is this analyzer pipeline (cargo
+    # fmt/clippy/test, cargo audit, ruff, pytest, bandit, pip-audit for
+    # a Rust+Python project under --full), which never printed a single
+    # status() message. The terminal's last visible line stayed
+    # "Collecting Git information..." the entire time purely because
+    # nothing after it ever updated the screen -- not because git
+    # itself was slow. These status()/timing lines don't make the
+    # underlying compile/lint/test/audit work any faster (a phone CPU
+    # compiling a pyo3 crate via cargo clippy/test genuinely takes
+    # real time), but they turn invisible waiting into visible,
+    # diagnosable waiting, and reveal exactly which phase to
+    # investigate further if it's still the actual bottleneck.
+    #
+    # اصلاح باگ (گزارش کاربر: --full حدود ۹ دقیقه "روی Git information
+    # می‌ماند"): جمع‌آوری خودِ git.py سریع است -- چیزی که واقعاً بیشتر
+    # آن مدت را بی‌صدا اجرا می‌شد همین خط‌لوله‌ی آنالایزر است (cargo
+    # fmt/clippy/test، cargo audit، ruff، pytest، bandit، pip-audit
+    # برای یک پروژه‌ی Rust+Python زیر --full)، که هیچ‌وقت حتی یک پیام
+    # status() چاپ نمی‌کرد. آخرین خط دیده‌شده‌ی ترمینال کل آن مدت روی
+    # "Collecting Git information..." می‌ماند صرفاً چون چیزی بعدش
+    # صفحه را آپدیت نمی‌کرد -- نه چون خودِ git کند بود. این خطوط
+    # status()/زمان‌سنجی کار زیرین کامپایل/lint/تست/audit را سریع‌تر
+    # نمی‌کنند (کامپایل یک crate پای‌او‌تری با cargo clippy/test روی
+    # CPU گوشی واقعاً زمان می‌برد)، اما انتظار نامرئی را به انتظار
+    # مرئی و قابل‌بررسی تبدیل می‌کنند، و اگر باز هم واقعاً گلوگاه‌جایی
+    # باشد، مشخص می‌کنند دقیقاً کدام فاز را باید بیشتر بررسی کرد.
     if config.skip_tests:
         status("Tests skipped by user request")
         test_results = []
     else:
+        names = ", ".join(a.name for a in active) or "none"
+        status(f"Running tests ({names})...")
+        t0 = time.perf_counter()
         test_results = await run_tests_concurrently(root, active)
+        status(f"Tests finished in {time.perf_counter() - t0:.1f}s")
 
-    quality_results = (
-        await run_quality_concurrently(root, active) if config.run_quality else []
-    )
-    security_results = (
-        await run_security_concurrently(root, active) if config.run_security else []
-    )
+    quality_results = []
+    if config.run_quality:
+        names = ", ".join(a.name for a in active) or "none"
+        status(f"Running quality checks ({names})...")
+        t0 = time.perf_counter()
+        quality_results = await run_quality_concurrently(root, active)
+        status(f"Quality checks finished in {time.perf_counter() - t0:.1f}s")
+
+    security_results = []
+    if config.run_security:
+        # Threaded through as an env var, not a new LanguageAnalyzer
+        # protocol parameter: that protocol is also implemented by
+        # third-party plugins (see the "Writing a plugin analyzer"
+        # section of README.md, registered under the
+        # `sarand.analyzers` entry-point group) -- changing its
+        # run_security(root) signature would be a breaking change for
+        # every existing plugin. An env var reaches the same handful
+        # of security-analyzer call sites (python_analyzer.py,
+        # rust_analyzer.py) without touching that contract at all.
+        #
+        # با یک متغیر محیطی منتقل می‌شود، نه یک پارامتر جدید در
+        # پروتکل LanguageAnalyzer: آن پروتکل توسط پلاگین‌های شخص‌ثالث
+        # هم پیاده‌سازی می‌شود (بخش «Writing a plugin analyzer» در
+        # README.md، ثبت‌شده زیر گروه entry-point به نام
+        # `sarand.analyzers`) -- تغییر امضای run_security(root) یک
+        # تغییر شکننده برای هر پلاگین موجود می‌بود. یک متغیر محیطی به
+        # همان چند نقطه‌ی فراخوانیِ آنالایزر امنیتی (python_analyzer.py،
+        # rust_analyzer.py) می‌رسد بدون این‌که اصلاً آن قرارداد را
+        # دست بزند.
+        if config.skip_audit:
+            os.environ["SARAND_SKIP_AUDIT"] = "1"
+        names = ", ".join(a.name for a in active) or "none"
+        status(f"Running security checks ({names})...")
+        t0 = time.perf_counter()
+        security_results = await run_security_concurrently(root, active)
+        status(f"Security checks finished in {time.perf_counter() - t0:.1f}s")
 
     known = detect_known_issues(test_results + quality_results + security_results)
 

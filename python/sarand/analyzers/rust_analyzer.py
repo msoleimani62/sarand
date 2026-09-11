@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
@@ -87,6 +88,26 @@ class RustAnalyzer:
                     0.0,
                     skipped=True,
                     skip_reason="cargo-audit not installed",
+                )
+            ]
+        # Same opt-out as pip-audit and for the same reason: a
+        # vulnerability-database audit's cost isn't something sarand's
+        # own code can reduce further once it's already scoped
+        # correctly. See python_analyzer.py's matching comment.
+        #
+        # همان مسیر رد کردن pip-audit و به همان دلیل: هزینه‌ی یک audit
+        # پایگاه‌داده‌ی آسیب‌پذیری، وقتی از قبل درست محدود شده، چیزی
+        # نیست که کد خودِ sarand دیگر بتواند کمترش کند. کامنت مشابه در
+        # python_analyzer.py را ببینید.
+        if os.environ.get("SARAND_SKIP_AUDIT"):
+            return [
+                make_command_result(
+                    "cargo audit",
+                    0,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="skipped via --skip-audit",
                 )
             ]
         rc, out, dur = await run_cmd_async(["cargo", "audit"], root, LONG_CMD_TIMEOUT)

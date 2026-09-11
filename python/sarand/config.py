@@ -50,6 +50,7 @@ class SarandConfig:
     skip_tests: bool = False
     run_quality: bool = False
     run_security: bool = False
+    skip_audit: bool = False
     verbose: bool = False
     debug: bool = False
     output_format: str = "markdown"
@@ -94,6 +95,7 @@ class SarandConfig:
             skip_tests=bool(getattr(args, "skip_tests", False)),
             run_quality=full or bool(getattr(args, "quality", False)),
             run_security=full or bool(getattr(args, "security", False)),
+            skip_audit=bool(getattr(args, "skip_audit", False)),
             verbose=bool(getattr(args, "verbose", False)),
             debug=bool(getattr(args, "debug", False)),
             output_format=output_format,

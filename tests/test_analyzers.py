@@ -389,3 +389,121 @@ def test_python_analyzer_excludes_venv_and_friends_from_bandit(
     # every entry must be "./"-prefixed -- a bare ".venv" silently
     # fails to exclude anything in bandit (PyCQA/bandit#975)
     assert all(p.startswith("./") for p in excluded)
+
+
+def test_python_analyzer_runs_pip_audit_and_bandit_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Measured live: pip-audit (33-48s) and bandit (7.6s) were being
+    # awaited one after another inside run_security instead of at the
+    # same time, even though they're fully independent of each other.
+    # asyncio.gather means wall time is bounded by the slower of the
+    # two, not their sum.
+    import time as time_module
+
+    import sarand.analyzers.python_analyzer as python_analyzer_module
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        if cmd[0] == "pip-audit":
+            await asyncio.sleep(0.3)
+        else:
+            await asyncio.sleep(0.1)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(python_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "setup.py", "# no deps to pin")
+        start = time_module.perf_counter()
+        asyncio.run(analyzer.run_security(root))
+        elapsed = time_module.perf_counter() - start
+
+    # Sequential would be ~0.4s (0.3 + 0.1); concurrent should stay
+    # close to the slower call alone (0.3s). A generous margin avoids
+    # flakiness from scheduling overhead while still clearly
+    # distinguishing "concurrent" from "sequential".
+    assert elapsed < 0.35, f"expected concurrent execution, took {elapsed:.3f}s"
+
+
+def test_skip_audit_env_var_skips_pip_audit_but_not_bandit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.python_analyzer as python_analyzer_module
+
+    called_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        called_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(python_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+    monkeypatch.setenv("SARAND_SKIP_AUDIT", "1")
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "setup.py", "# no deps")
+        results = asyncio.run(analyzer.run_security(root))
+
+    pip_audit_result = next(r for r in results if r.kind == "pip-audit")
+    bandit_result = next(r for r in results if r.kind == "bandit")
+    assert pip_audit_result.skipped is True
+    assert "skip-audit" in pip_audit_result.skip_reason
+    assert bandit_result.skipped is False
+    # pip-audit's own subprocess must never have been invoked at all.
+    assert not any(c[0] == "pip-audit" for c in called_cmds)
+    assert any(c[0] == "bandit" for c in called_cmds)
+
+
+def test_skip_audit_env_var_skips_cargo_audit(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sarand.analyzers.rust_analyzer as rust_analyzer_module
+
+    called_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        called_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(rust_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+    monkeypatch.setenv("SARAND_SKIP_AUDIT", "1")
+
+    analyzer = RustAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        results = asyncio.run(analyzer.run_security(root))
+
+    assert results[0].skipped is True
+    assert "skip-audit" in results[0].skip_reason
+    assert called_cmds == []
+
+
+def test_without_skip_audit_env_var_pip_audit_runs_normally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Regression guard: the env var must be opt-in, never on by default.
+    import sarand.analyzers.python_analyzer as python_analyzer_module
+
+    monkeypatch.delenv("SARAND_SKIP_AUDIT", raising=False)
+    called_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        called_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(python_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "setup.py", "# no deps")
+        results = asyncio.run(analyzer.run_security(root))
+
+    pip_audit_result = next(r for r in results if r.kind == "pip-audit")
+    assert pip_audit_result.skipped is False
+    assert any(c[0] == "pip-audit" for c in called_cmds)
