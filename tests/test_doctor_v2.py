@@ -51,3 +51,28 @@ def test_ruby_php_dart_lua_checks_are_registered() -> None:
     assert by_category["Ruby"] == {"bundle"}
     assert by_category["PHP"] == {"composer"}
     assert by_category["Dart / Flutter"] == {"dart"}
+
+
+def test_typescript_and_css_checks_are_registered() -> None:
+    # Same regression guard as above, for the TypeScriptAnalyzer/
+    # CssAnalyzer addition.
+    checks = collect_checks()
+    by_category: dict[str, set[str]] = {}
+    for check in checks:
+        by_category.setdefault(check.category, set()).add(check.name)
+
+    assert by_category["TypeScript"] == {"tsc"}
+    assert by_category["CSS"] == {"stylelint"}
+
+
+def test_zig_swift_sql_checks_are_registered() -> None:
+    # Same regression guard as above, for the ZigAnalyzer/SwiftAnalyzer/
+    # SqlAnalyzer addition.
+    checks = collect_checks()
+    by_category: dict[str, set[str]] = {}
+    for check in checks:
+        by_category.setdefault(check.category, set()).add(check.name)
+
+    assert by_category["Zig"] == {"zig"}
+    assert by_category["Swift"] == {"swift", "swift-format", "xcodebuild"}
+    assert by_category["SQL"] == {"sqlfluff"}

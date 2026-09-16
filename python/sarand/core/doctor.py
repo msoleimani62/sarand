@@ -39,6 +39,43 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     ),
     ("Node.js", "npm", "install Node.js: https://nodejs.org", "running tests"),
     (
+        "TypeScript",
+        "tsc",
+        "npm install -g typescript (or add to project devDependencies)",
+        "--quality (type-check via tsc --noEmit)",
+    ),
+    (
+        "CSS",
+        "stylelint",
+        "npm install -g stylelint (or add to project devDependencies)",
+        "--quality",
+    ),
+    (
+        "Zig",
+        "zig",
+        "install Zig: https://ziglang.org/download/",
+        "running tests / --quality (zig fmt) / project detection",
+    ),
+    (
+        "Swift",
+        "swift",
+        "install Swift: https://www.swift.org/install/",
+        "running tests (SwiftPM packages) / project detection",
+    ),
+    (
+        "Swift",
+        "swift-format",
+        "https://github.com/apple/swift-format (or `brew install swift-format`)",
+        "--quality",
+    ),
+    (
+        "Swift",
+        "xcodebuild",
+        "install Xcode + Command Line Tools (macOS only)",
+        "running tests for Xcode-only projects (no Package.swift)",
+    ),
+    ("SQL", "sqlfluff", "pip install sqlfluff", "--quality"),
+    (
         "C/C++",
         "cmake",
         "install CMake: https://cmake.org/download/",
@@ -96,12 +133,17 @@ _CATEGORY_ORDER = (
     "Rust",
     "Go",
     "Node.js",
+    "TypeScript",
+    "CSS",
+    "Zig",
+    "Swift",
     "C/C++",
     "Java / Kotlin / Android",
     "Lua",
     "Ruby",
     "PHP",
     "Dart / Flutter",
+    "SQL",
     "PDF export",
 )
 
@@ -182,57 +224,69 @@ def collect_checks() -> list[DoctorCheck]:
     return checks
 
 
-def _print_core_table(checks: list[DoctorCheck]) -> None:
-    from rich.table import Table
+def _print_core(checks: list[DoctorCheck]) -> None:
+    """Core checks as a single narrow-friendly panel: one wrapped text
+    line per check instead of a table, so nothing gets column-truncated
+    on a phone-width terminal (Termux, SSH from a small screen, etc.)."""
+    from rich.panel import Panel
 
-    table = Table(title="Core", title_justify="left", show_lines=False, expand=True)
-    table.add_column("Check", style="bold")
-    table.add_column("Status", justify="center")
-    table.add_column("Detail")
-
-    for check in [c for c in checks if c.category == "Core"]:
-        status = "[green]OK[/green]" if check.ok else "[red]FAILED[/red]"
-        detail = check.detail
-        if check.fix:
-            detail += f"\n[dim]fix: {check.fix}[/dim]"
-        table.add_row(check.name, status, detail)
-
-    console.print(table)
-
-
-def _print_language_table(checks: list[DoctorCheck]) -> None:
-    from rich.table import Table
-
-    table = Table(
-        title="Optional per-language tools (only needed for the languages you actually scan)",
-        title_justify="left",
-        show_lines=False,
-        expand=True,
-    )
-    table.add_column("Category", style="bold")
-    table.add_column("Tool")
-    table.add_column("Status", justify="center")
-    table.add_column("Used for")
-    table.add_column("Fix if missing")
-
-    last_category = None
+    lines: list[str] = []
     for check in checks:
-        if check.category not in _CATEGORY_ORDER:
+        if check.category != "Core":
             continue
-        status = (
-            "[green]present[/green]" if check.ok else "[yellow]not installed[/yellow]"
-        )
-        category_cell = check.category if check.category != last_category else ""
-        last_category = check.category
-        table.add_row(
-            category_cell,
-            check.name,
-            status,
-            check.used_for,
-            check.fix or "[dim]--[/dim]",
+        icon = "[green]✓[/green]" if check.ok else "[red]✗[/red]"
+        line = f"{icon} [bold]{check.name}[/bold] -- {check.detail}"
+        if not check.ok and check.fix:
+            line += f"\n   [dim]fix:[/dim] {check.fix}"
+        lines.append(line)
+
+    console.print(
+        Panel("\n".join(lines), title="Core", title_align="left", expand=True)
+    )
+
+
+def _print_language_tools(checks: list[DoctorCheck]) -> None:
+    """One panel per language category, each tool as a wrapped text
+    line (icon, name, what it's for, and a fix hint only when missing).
+
+    Deliberately not a table: a 5-column table truncates every cell to
+    a sliver on a phone-width terminal, which is unreadable regardless
+    of how the columns are tuned. Plain wrapped text inside a panel
+    degrades gracefully at any width instead -- narrower terminals just
+    wrap onto more lines, nothing is ever cut off or ellipsized.
+    """
+    from rich.console import Group
+    from rich.panel import Panel
+
+    panels = []
+    for category in _CATEGORY_ORDER:
+        cat_checks = [c for c in checks if c.category == category]
+        if not cat_checks:
+            continue
+        lines: list[str] = []
+        for check in cat_checks:
+            icon = "[green]✓[/green]" if check.ok else "[yellow]○[/yellow]"
+            line = f"{icon} [bold]{check.name}[/bold]"
+            if check.used_for:
+                line += f"\n   [dim]{check.used_for}[/dim]"
+            if not check.ok and check.fix:
+                line += f"\n   [dim]fix:[/dim] {check.fix}"
+            lines.append(line)
+        panels.append(
+            Panel(
+                "\n".join(lines),
+                title=category,
+                title_align="left",
+                expand=True,
+            )
         )
 
-    console.print(table)
+    console.print(
+        "[bold]Optional per-language tools[/bold] "
+        "[dim](only needed for the languages you actually scan)[/dim]"
+    )
+    console.print()
+    console.print(Group(*panels))
 
 
 def run_doctor() -> int:
@@ -252,16 +306,16 @@ def run_doctor() -> int:
         Panel("[bold]sarand doctor[/bold]\nEnvironment diagnostics", expand=False)
     )
     console.print()
-    _print_core_table(checks)
+    _print_core(checks)
     console.print()
-    _print_language_table(checks)
+    _print_language_tools(checks)
     console.print()
 
     critical_failed = [c for c in checks if c.critical and not c.ok]
     if critical_failed:
         console.print(
             Panel(
-                "[bold red]✗ Critical check failed[/bold red] -- see the Core table above.",
+                "[bold red]✗ Critical check failed[/bold red] -- see Core above.",
                 expand=False,
             )
         )

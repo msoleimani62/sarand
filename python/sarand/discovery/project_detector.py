@@ -96,6 +96,10 @@ def _guess_from_extensions(root: Path, sample_limit: int = 500) -> str:
         ".c": "C/C++",
         ".cpp": "C/C++",
         ".lua": "Lua",
+        ".css": "CSS",
+        ".scss": "CSS",
+        ".less": "CSS",
+        ".sql": "SQL",
     }
     scanned = 0
     for path in root.rglob("*"):

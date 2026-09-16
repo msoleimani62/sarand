@@ -79,6 +79,12 @@ ESSENTIAL_EXTENSIONS: frozenset[str] = frozenset(
         ".gemspec",
         ".php",
         ".dart",
+        ".css",
+        ".scss",
+        ".less",
+        ".zig",
+        ".swift",
+        ".sql",
     }
 )
 
@@ -114,6 +120,12 @@ LANG_MAP: dict[str, str] = {
     ".gemspec": "ruby",
     ".php": "php",
     ".dart": "dart",
+    ".css": "css",
+    ".scss": "scss",
+    ".less": "less",
+    ".zig": "zig",
+    ".swift": "swift",
+    ".sql": "sql",
 }
 
 WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")
@@ -160,6 +172,9 @@ PROJECT_MARKERS: dict[str, tuple[str, str, str]] = {
     "Gemfile": ("Ruby", "application/gem", "bundler"),
     "composer.json": ("PHP", "application/package", "composer"),
     "pubspec.yaml": ("Dart/Flutter", "application/package", "pub"),
+    "tsconfig.json": ("TypeScript", "application/library", "npm/tsc"),
+    "build.zig": ("Zig", "binary/library", "zig"),
+    "Package.swift": ("Swift", "application/library", "swift package manager"),
 }
 
 ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
@@ -173,6 +188,9 @@ ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
     "Ruby": ("main.rb", "app.rb", "lib/main.rb"),
     "PHP": ("public/index.php", "index.php", "src/index.php"),
     "Dart/Flutter": ("lib/main.dart", "bin/main.dart"),
+    "TypeScript": ("src/index.ts", "src/main.ts", "index.ts"),
+    "Zig": ("src/main.zig", "build.zig"),
+    "Swift": ("Sources/main.swift", "main.swift"),
 }
 
 # Filename patterns that must NEVER be embedded in a generated report,

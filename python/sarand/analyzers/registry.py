@@ -27,6 +27,7 @@ from pathlib import Path
 from sarand.analyzers.android_analyzer import AndroidAnalyzer
 from sarand.analyzers.base import LanguageAnalyzer
 from sarand.analyzers.cpp_analyzer import CppAnalyzer
+from sarand.analyzers.css_analyzer import CssAnalyzer
 from sarand.analyzers.dart_analyzer import DartAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
@@ -36,6 +37,10 @@ from sarand.analyzers.php_analyzer import PhpAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
 from sarand.analyzers.ruby_analyzer import RubyAnalyzer
 from sarand.analyzers.rust_analyzer import RustAnalyzer
+from sarand.analyzers.sql_analyzer import SqlAnalyzer
+from sarand.analyzers.swift_analyzer import SwiftAnalyzer
+from sarand.analyzers.typescript_analyzer import TypeScriptAnalyzer
+from sarand.analyzers.zig_analyzer import ZigAnalyzer
 from sarand.models.results import CommandResult
 from sarand.utils.logging import get_logger
 
@@ -48,11 +53,26 @@ _BUILTIN: list[LanguageAnalyzer] = [
     RustAnalyzer(),
     GoAnalyzer(),
     NodeAnalyzer(),
+    # TypeScriptAnalyzer/CssAnalyzer right after NodeAnalyzer: both are
+    # JS-ecosystem-adjacent and, on a typical TS or styled front-end
+    # project, run alongside it rather than instead of it (see each
+    # analyzer's own module docstring for why run_tests/run_security
+    # are no-ops there instead of duplicating NodeAnalyzer's work).
+    # TypeScriptAnalyzer/CssAnalyzer درست بعد از NodeAnalyzer: هر دو
+    # مجاور اکوسیستم JS هستند و روی یک پروژه‌ی معمولی TS یا front-end
+    # استایل‌دار، به‌جای NodeAnalyzer نه، کنار آن اجرا می‌شوند (دلیل
+    # no-op بودن run_tests/run_security آن‌ها را در دکیومنت ماژول خودشان
+    # ببینید تا کار NodeAnalyzer تکرار نشود).
+    TypeScriptAnalyzer(),
+    CssAnalyzer(),
+    ZigAnalyzer(),
+    SwiftAnalyzer(),
     CppAnalyzer(),
     LuaAnalyzer(),
     RubyAnalyzer(),
     PhpAnalyzer(),
     DartAnalyzer(),
+    SqlAnalyzer(),
     # AndroidAnalyzer before JavaAnalyzer: matches() on both is mutually
     # exclusive by design (JavaAnalyzer defers to Android detection), so
     # order between them doesn't actually change behavior -- kept in
