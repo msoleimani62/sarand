@@ -18,7 +18,9 @@ from sarand.models.results import CommandResult
 
 
 def _result(kind: str, raw_output: str, returncode: int = 0) -> CommandResult:
-    return CommandResult(kind=kind, returncode=returncode, summary="ok", raw_output=raw_output)
+    return CommandResult(
+        kind=kind, returncode=returncode, summary="ok", raw_output=raw_output
+    )
 
 
 def test_ignores_oserror_inside_bandit_context_line() -> None:
@@ -51,7 +53,9 @@ def test_still_detects_a_genuine_compiler_error() -> None:
         returncode=1,
     )
 
-    assert detect_known_issues([result]) == ["Compilation or lint errors were detected."]
+    assert detect_known_issues([result]) == [
+        "Compilation or lint errors were detected."
+    ]
 
 
 def test_still_detects_a_genuine_missing_dependency() -> None:
@@ -67,7 +71,9 @@ def test_still_detects_a_genuine_missing_dependency() -> None:
 def test_combines_findings_across_multiple_command_results() -> None:
     results = [
         _result("cargo", "error: unresolved import `foo`", returncode=1),
-        _result("pytest", "E   ModuleNotFoundError: No module named 'sarand'", returncode=1),
+        _result(
+            "pytest", "E   ModuleNotFoundError: No module named 'sarand'", returncode=1
+        ),
     ]
 
     issues = detect_known_issues(results)

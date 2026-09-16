@@ -446,7 +446,7 @@ the first version of this phase had exactly that gap, caught by writing
 the end-to-end regression test before declaring it done (§4.8 in
 practice).
 
-### Phase C — `sarand doctor` + more language analyzers ✅ done (Zig/Dart/Ruby/PHP/Lua/Swift/C# deferred)
+### Phase C — `sarand doctor` + more language analyzers ✅ done (Lua/Ruby/PHP/Dart added later; Zig/Swift/C# still deferred)
 
 - `sarand doctor` implemented as a **flag** (`sarand --doctor`), not a
   subcommand — the CLI is argparse-flag-based throughout (see
@@ -464,9 +464,33 @@ practice).
   invoke `cmake configure`/`cmake --build`/a full Gradle sync themselves
   — see the "heavy dependency" warning rule in §3; they only run
   against a build the user already configured.
-- Zig, Dart, Ruby, PHP, Lua, Swift, C# remain unimplemented. Add them the
-  same way, one file each, only when actually needed — don't pre-build
-  analyzers for languages nobody has asked to scan yet.
+- `analyzers/lua_analyzer.py` added later (rockspec/init.lua/main.lua,
+  `busted` for tests, `luacheck` for quality, no standard security-audit
+  tool for Lua so `run_security` returns `[]`).
+- `analyzers/ruby_analyzer.py`, `analyzers/php_analyzer.py`,
+  `analyzers/dart_analyzer.py` added later:
+  - Ruby: `Gemfile`/`*.gemspec` → `bundle exec rspec` (or `bundle exec
+    rake test` if no `spec/` but a `Rakefile` exists) for tests,
+    `bundle exec rubocop` for quality, `bundle exec bundler-audit` for
+    security. Everything goes through `bundle exec` deliberately, never
+    a bare global binary, so the `Gemfile.lock`-pinned tool versions are
+    what actually runs.
+  - PHP: `composer.json` → PHPUnit for tests, PHPStan for quality,
+    `composer audit` for security. Prefers a project-local
+    `vendor/bin/<tool>` over a global binary of the same name — a
+    globally-installed PHPUnit/PHPStan can easily be a different major
+    version than what the project's own `composer.json` expects.
+  - Dart/Flutter: `pubspec.yaml` → `dart test`/`dart analyze`, or
+    `flutter test`/`flutter analyze` instead when the project actually
+    declares a `flutter:` dependency (checked by content, not just
+    whether the `flutter` binary happens to be installed on the
+    machine). No `run_security`: no broadly standard vulnerability-audit
+    tool exists yet for this ecosystem (as of this writing) — returning
+    `[]` here is honest about that rather than reaching for something
+    that doesn't fit, same precedent as Lua.
+- Zig, Swift, C# remain unimplemented. Add them the same way, one file
+  each, only when actually needed — don't pre-build analyzers for
+  languages nobody has asked to scan yet.
 
 ### Phase D — Additional renderers ✅ done
 

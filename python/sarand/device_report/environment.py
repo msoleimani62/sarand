@@ -157,7 +157,38 @@ BUILD_ARTIFACT_DIR_NAMES: frozenset[str] = frozenset(
         ".gradle",
         ".pytest_cache",
         ".mypy_cache",
+        ".ruff_cache",
     }
+)
+
+# BUG FIX (feedback: sarand-report-feedback.md): the set above used to be
+# listed one-by-one, no matter how many separate copies exist. A real
+# Python toolchain easily has hundreds of scattered __pycache__/.mypy_cache/
+# .pytest_cache/.ruff_cache dirs (one per package under every
+# site-packages), each getting its own report line and its own
+# space_hogs entry -- this alone produced most of a reported 5+ MiB
+# report. These are split into two sets: a handful of dirs the user
+# actually wants to see individually (they're few, and each usually
+# belongs to a distinct project worth reviewing on its own), and the
+# "spawns hundreds of small copies" cache dirs, which report.py groups
+# into one aggregate line by default (see collect_toolchain).
+#
+# اصلاح باگ (بازخورد: sarand-report-feedback.md): مجموعه‌ی بالا قبلاً
+# تک‌تک لیست می‌شد، صرف‌نظر از این‌که چند نسخه‌ی جدا وجود دارد. یک
+# toolchain واقعیِ پایتون به‌راحتی صدها __pycache__/.mypy_cache/
+# .pytest_cache/.ruff_cache پراکنده دارد (یکی برای هر پکیج زیر هر
+# site-packages)، که هرکدام یک خط گزارش و یک رکورد space_hogs جدا
+# می‌گیرند -- همین به‌تنهایی بیشتر یک گزارش ۵+ مگابایتی گزارش‌شده را
+# ساخته بود. این‌ها به دو مجموعه تقسیم شدند: چند پوشه‌ای که کاربر
+# واقعاً می‌خواهد جداگانه ببیند (تعدادشان کم است و معمولاً هرکدام
+# مالِ یک پروژه‌ی متفاوت و قابل‌بررسیِ جداست)، و پوشه‌های کشِ
+# «صدها نسخه‌ی کوچک می‌سازند»، که report.py به‌طور پیش‌فرض در یک خط
+# تجمیعی جمع می‌کند (به collect_toolchain نگاه کنید).
+INDIVIDUAL_BUILD_ARTIFACT_DIR_NAMES: frozenset[str] = frozenset(
+    {"target", "node_modules", "build", "dist", ".gradle", ".venv"}
+)
+AGGREGATE_CACHE_DIR_NAMES: frozenset[str] = frozenset(
+    {"__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
 )
 
 TERMUX_PATHS: tuple[str, ...] = (

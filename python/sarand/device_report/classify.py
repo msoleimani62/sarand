@@ -32,6 +32,7 @@ _RECLAIMABLE_NAMES = frozenset(
         "__pycache__",
         ".pytest_cache",
         ".mypy_cache",
+        ".ruff_cache",
     }
 )
 _SAFE_TO_REVIEW_SUFFIXES = frozenset(

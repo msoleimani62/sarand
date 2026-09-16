@@ -36,3 +36,18 @@ def test_gradle_check_mentions_the_wrapper_fallback() -> None:
     checks = collect_checks()
     gradle_check = next(c for c in checks if c.name == "gradle")
     assert "gradlew" in gradle_check.used_for
+
+
+def test_ruby_php_dart_lua_checks_are_registered() -> None:
+    # Regression guard: these were added later than the analyzers
+    # themselves (Lua/Ruby/PHP/Dart were each missing from --doctor
+    # for a while after their analyzer was added).
+    checks = collect_checks()
+    by_category: dict[str, set[str]] = {}
+    for check in checks:
+        by_category.setdefault(check.category, set()).add(check.name)
+
+    assert by_category["Lua"] == {"busted", "luacheck"}
+    assert by_category["Ruby"] == {"bundle"}
+    assert by_category["PHP"] == {"composer"}
+    assert by_category["Dart / Flutter"] == {"dart"}

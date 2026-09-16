@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from sarand import cli
 from sarand.core.cache import _cache_path, save_cache
+
+
+async def _no_git_snapshot(root: Path) -> None:
+    # collect_git_snapshot is async (see scanners/git.py); a plain sync
+    # lambda returning None here would make `await collect_git_snapshot(root)`
+    # in cli.run() raise TypeError (can't await None) -- this stays an
+    # actual coroutine function so the real await still works.
+    #
+    # collect_git_snapshot اکنون async است؛ یک lambda سینک ساده که None
+    # برمی‌گرداند باعث می‌شد `await collect_git_snapshot(root)` در
+    # cli.run() خطای TypeError بدهد (نمی‌شود None را await کرد) -- این
+    # همچنان یک coroutine function واقعی است تا await واقعی درست کار کند.
+    return None
 
 
 def test_parser_accepts_cache_flags() -> None:
@@ -86,8 +100,7 @@ def test_clear_cache_succeeds_when_cache_does_not_exist(
     assert "No cache found at" in captured.err
 
 
-@pytest.mark.asyncio
-async def test_run_uses_cache_hits_for_todos_and_secrets(
+def test_run_uses_cache_hits_for_todos_and_secrets(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -165,7 +178,7 @@ async def test_run_uses_cache_hits_for_todos_and_secrets(
         ),
     )
     monkeypatch.setattr(cli, "collect_environment_info", lambda root: None)
-    monkeypatch.setattr(cli, "collect_git_snapshot", lambda root: None)
+    monkeypatch.setattr(cli, "collect_git_snapshot", _no_git_snapshot)
     monkeypatch.setattr(cli, "discover_analyzers", list)
     monkeypatch.setattr(cli, "matching_analyzers", lambda root, analyzers: [])
     monkeypatch.setattr(
@@ -212,13 +225,12 @@ async def test_run_uses_cache_hits_for_todos_and_secrets(
         },
     )
 
-    result = await cli.run(config)
+    result = asyncio.run(cli.run(config))
 
     assert result == 0
 
 
-@pytest.mark.asyncio
-async def test_run_scans_changed_files_with_cache_enabled(
+def test_run_scans_changed_files_with_cache_enabled(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -286,7 +298,7 @@ async def test_run_scans_changed_files_with_cache_enabled(
         ),
     )
     monkeypatch.setattr(cli, "collect_environment_info", lambda root: None)
-    monkeypatch.setattr(cli, "collect_git_snapshot", lambda root: None)
+    monkeypatch.setattr(cli, "collect_git_snapshot", _no_git_snapshot)
     monkeypatch.setattr(cli, "discover_analyzers", list)
     monkeypatch.setattr(cli, "matching_analyzers", lambda root, analyzers: [])
 
@@ -327,7 +339,7 @@ async def test_run_scans_changed_files_with_cache_enabled(
         },
     )
 
-    result = await cli.run(config)
+    result = asyncio.run(cli.run(config))
 
     assert result == 0
     assert scan_calls == [{"a.py"}]

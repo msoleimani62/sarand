@@ -45,9 +45,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Install Python tooling
+        # ".[dev]" is pyproject.toml's single source of truth for which
+        # tools CI (and any human) needs -- see the comment next to it.
+        # ".[dev]" منبع واحد pyproject.toml برای این است که CI (و هر
+        # انسانی) به چه ابزارهایی نیاز دارد -- کامنت کنار آن را ببینید.
         run: |
-          python -m pip install --upgrade pip maturin pytest ruff mypy
-          python -m pip install -e .
+          python -m pip install --upgrade pip maturin
+          python -m pip install -e ".[dev]"
 
       - name: Run Ruff lint
         run: ruff check .

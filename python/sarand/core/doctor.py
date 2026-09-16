@@ -74,6 +74,21 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "pip install weasyprint",
         "--format pdf (fallback engine)",
     ),
+    ("Lua", "busted", "luarocks install busted", "running tests"),
+    ("Lua", "luacheck", "luarocks install luacheck", "--quality"),
+    ("Ruby", "bundle", "gem install bundler", "running tests / --quality / --security"),
+    (
+        "PHP",
+        "composer",
+        "install Composer: https://getcomposer.org/download/",
+        "--security (and running project-local vendor/bin/phpunit or phpstan)",
+    ),
+    (
+        "Dart / Flutter",
+        "dart",
+        "install the Dart SDK: https://dart.dev/get-dart",
+        "running tests / --quality (Flutter projects use `flutter` instead)",
+    ),
 )
 
 _CATEGORY_ORDER = (
@@ -83,6 +98,10 @@ _CATEGORY_ORDER = (
     "Node.js",
     "C/C++",
     "Java / Kotlin / Android",
+    "Lua",
+    "Ruby",
+    "PHP",
+    "Dart / Flutter",
     "PDF export",
 )
 

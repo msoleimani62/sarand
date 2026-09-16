@@ -75,6 +75,10 @@ ESSENTIAL_EXTENSIONS: frozenset[str] = frozenset(
         ".properties",
         ".lua",
         ".rockspec",
+        ".rb",
+        ".gemspec",
+        ".php",
+        ".dart",
     }
 )
 
@@ -106,6 +110,10 @@ LANG_MAP: dict[str, str] = {
     ".gradle": "groovy",
     ".lua": "lua",
     ".rockspec": "lua",
+    ".rb": "ruby",
+    ".gemspec": "ruby",
+    ".php": "php",
+    ".dart": "dart",
 }
 
 WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")
@@ -149,6 +157,9 @@ PROJECT_MARKERS: dict[str, tuple[str, str, str]] = {
     "build.gradle.kts": ("Java/Kotlin", "application", "gradle"),
     "Makefile": ("Generic", "unknown", "make"),
     "init.lua": ("Lua", "module/library", "none"),
+    "Gemfile": ("Ruby", "application/gem", "bundler"),
+    "composer.json": ("PHP", "application/package", "composer"),
+    "pubspec.yaml": ("Dart/Flutter", "application/package", "pub"),
 }
 
 ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
@@ -159,6 +170,9 @@ ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
     "Java/Kotlin": ("src/main/java", "src/main/kotlin"),
     "C/C++": ("src/main.cpp", "src/main.c", "main.cpp", "main.c"),
     "Lua": ("init.lua", "main.lua", "app.lua", "src/main.lua", "src/init.lua"),
+    "Ruby": ("main.rb", "app.rb", "lib/main.rb"),
+    "PHP": ("public/index.php", "index.php", "src/index.php"),
+    "Dart/Flutter": ("lib/main.dart", "bin/main.dart"),
 }
 
 # Filename patterns that must NEVER be embedded in a generated report,

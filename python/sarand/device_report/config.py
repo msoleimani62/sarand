@@ -13,6 +13,7 @@ DEFAULT_TOP_N = 30
 DEFAULT_OLD_DAYS = 180
 DEFAULT_MIN_FILE_SIZE_MB = 50.0
 DEFAULT_DUP_MIN_SIZE_MB = 5.0
+DEFAULT_MIN_TOP_SPACE_MB = 1.0
 
 # 0 means "no limit" for both of these, matching the original bash
 # script's own convention for --max-depth -- reused here for --top so
@@ -37,6 +38,9 @@ class DeviceReportConfig:
     min_file_size_mb: float = DEFAULT_MIN_FILE_SIZE_MB
     dup_min_size_mb: float = DEFAULT_DUP_MIN_SIZE_MB
     max_depth: int = UNLIMITED
+    min_top_space_mb: float = DEFAULT_MIN_TOP_SPACE_MB
+    expand_aggregates: bool = False
+    summary_only: bool = False
 
     @property
     def min_file_size_bytes(self) -> int:
@@ -45,6 +49,10 @@ class DeviceReportConfig:
     @property
     def dup_min_size_bytes(self) -> int:
         return int(self.dup_min_size_mb * 1024 * 1024)
+
+    @property
+    def min_top_space_bytes(self) -> int:
+        return int(self.min_top_space_mb * 1024 * 1024)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -126,11 +134,55 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="Maximum scan depth (0 = unlimited)",
     )
+    # Feedback-driven flags (sarand-report-feedback.md): a real run
+    # produced a 5+ MiB report, ~95% of it noise (thousands of tiny
+    # __pycache__-style cache dirs listed one by one, and negligible
+    # KB-sized entries cluttering the Executive Summary table).
+    #
+    # فلگ‌های برخاسته از بازخورد (sarand-report-feedback.md): یک اجرای
+    # واقعی گزارشی ۵+ مگابایتی تولید کرد، حدود ۹۵٪ آن نویز بود (هزاران
+    # پوشه‌ی کش کوچک شبیه __pycache__ که تک‌تک لیست شده بودند، و
+    # موارد چند-کیلوبایتیِ ناچیز که جدول Executive Summary را شلوغ
+    # کرده بودند).
+    parser.add_argument(
+        "--min-top-space",
+        type=float,
+        metavar="MB",
+        help=(
+            "Minimum size for an entry in the Executive Summary's Top "
+            "Space Users table, 0 = no filter (default 1.0)"
+        ),
+    )
+    parser.add_argument(
+        "--expand-aggregates",
+        action="store_true",
+        help=(
+            "List every __pycache__/.mypy_cache/.pytest_cache/.ruff_cache "
+            "instance individually instead of one aggregated summary line "
+            "per pattern"
+        ),
+    )
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help=(
+            "Only render section 1 (System Overview) and section 12 "
+            "(Executive Summary) -- all scanning still happens so the "
+            "summary is accurate, but the detailed per-section listings "
+            "are omitted from the output. Mutually exclusive with --full."
+        ),
+    )
     return parser
 
 
 def resolve_config(args: argparse.Namespace) -> DeviceReportConfig:
     full = bool(args.full)
+    summary_only = bool(args.summary_only)
+    if full and summary_only:
+        raise ValueError(
+            "--full and --summary-only are mutually exclusive "
+            "(--full asks for maximum detail, --summary-only for minimum)."
+        )
 
     roots = [Path(r).expanduser() for r in (args.roots or [])]
     if not roots:
@@ -154,6 +206,11 @@ def resolve_config(args: argparse.Namespace) -> DeviceReportConfig:
 
     top_n = args.top if args.top is not None else (UNLIMITED if full else DEFAULT_TOP_N)
     max_depth = args.max_depth if args.max_depth is not None else UNLIMITED
+    min_top_space_mb = (
+        args.min_top_space
+        if args.min_top_space is not None
+        else (0.0 if full else DEFAULT_MIN_TOP_SPACE_MB)
+    )
 
     return DeviceReportConfig(
         output_file=output_file,
@@ -173,4 +230,7 @@ def resolve_config(args: argparse.Namespace) -> DeviceReportConfig:
             else DEFAULT_DUP_MIN_SIZE_MB
         ),
         max_depth=max_depth,
+        min_top_space_mb=min_top_space_mb,
+        expand_aggregates=bool(args.expand_aggregates) or full,
+        summary_only=summary_only,
     )
