@@ -143,7 +143,7 @@ TOOLCHAIN_CANDIDATES: tuple[str, ...] = (
     "/opt/android-sdk",
     "/var/cache/apt/archives",
     "/root/.cache",
-    "/tmp",
+    "/tmp",  # nosec B108 - static candidate path for cleanup scan, not an insecure temp file write
 )
 
 BUILD_ARTIFACT_DIR_NAMES: frozenset[str] = frozenset(
@@ -214,7 +214,7 @@ IMPORTANT_PATHS: tuple[str, ...] = (
     "/sdcard",
     "/storage",
     "/storage/emulated/0",
-    "/tmp",
+    "/tmp",  # nosec B108 - static candidate path for cleanup scan, not an insecure temp file write
 )
 
 ANDROID_PROPERTY_PREFIXES: tuple[str, ...] = (
