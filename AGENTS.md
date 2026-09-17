@@ -649,3 +649,146 @@ A task in this repo is not done until:
 Every contribution to sarand must improve the project without sacrificing
 security, stability, architecture, user experience, or long-term
 maintainability. When in doubt, re-read §7.
+
+## §5 — Analyzers added post-§4 (Ruby/PHP/Dart/Lua/TS/CSS/Zig/Swift/SQL/Kotlin/C#/Shell/YAML/JSON/TOML/XML)
+
+This section documents conventions established after the original §4
+analyzer set, in the order they came up. Treat it as additive to §4,
+not a replacement.
+
+### 5.1 — Bundler-wrapped-tool false-failure pattern (RubyAnalyzer)
+
+`bundle exec X` can fail two structurally different ways that both
+look like "command not found" at the exit-code level:
+
+1. `bundle` itself isn't installed (`shutil.which("bundle") is None`)
+   -- checked before ever invoking a command.
+2. `bundle` **is** installed, but the gem providing `X` isn't
+   (`bundle install` was never run) -- `bundle exec X` still exits
+   127, but with `bundler: command not found: X` in its own output,
+   not the shell's "command not found".
+
+Only case 1 was originally checked. Case 2 was silently reported as a
+real failure. Any analyzer that shells out through a wrapper binary
+(`bundle exec`, `npx`, `poetry run`, etc.) must check for the
+wrapper's own "the wrapped tool is missing" message, not just the
+wrapper's own presence, before treating a nonzero exit as a genuine
+failure. See `ruby_analyzer.py`'s `_bundle_exec_missing_gem()` for the
+concrete pattern.
+
+### 5.2 — Complementary-match analyzers (no exclusivity assumed)
+
+Starting with TypeScriptAnalyzer/NodeAnalyzer, several analyzer pairs
+are designed to **both** match the same project at once rather than
+one excluding the other:
+
+- `TypeScriptAnalyzer` + `NodeAnalyzer` on a TS project
+- `KotlinAnalyzer` + `JavaAnalyzer` on a Kotlin Gradle project
+- Any format analyzer (§5.4) alongside whatever language analyzer
+  already claims that same file for a different purpose (e.g.
+  `YamlAnalyzer` + `DartAnalyzer` both matching `pubspec.yaml`,
+  `TomlAnalyzer` + `RustAnalyzer` both matching `Cargo.toml`,
+  `XmlAnalyzer` + `JavaAnalyzer` both matching `pom.xml`)
+
+The rule: when a "narrower" analyzer's whole contribution is a single
+extra check (a type-check, a style-linter, a syntax-linter) that a
+"broader" analyzer either can't do or deliberately doesn't attempt,
+add it as a second analyzer that also matches, with
+`run_tests`/`run_security` returning `None`/`[]` and a docstring note
+explaining which other analyzer owns that responsibility -- never
+make the narrower one exclude the broader one's matches() just to
+avoid "double-counting" a project.
+
+This is *not* the same thing as genuine mutual exclusivity
+(`AndroidAnalyzer` vs `JavaAnalyzer`, `JavaAnalyzer` deferring on
+Android detection): that stays exclusive because running Java's
+Maven/Gradle test flow AND Android's Gradle test flow on the same
+project would be genuinely redundant/conflicting, not complementary.
+
+### 5.3 — Honest-empty precedent, formalized
+
+`run_security` returning `[]` and/or `run_tests` returning `None` is
+not a gap to be filled later -- it is the correct, deliberate answer
+whenever no broadly standard tool exists for that concern in that
+ecosystem. Established across `DartAnalyzer`, `LuaAnalyzer`,
+`CssAnalyzer`, `SqlAnalyzer`, `ZigAnalyzer`, `SwiftAnalyzer`, and every
+format analyzer in §5.4. Do not invent a check just to have something
+in that slot; do not treat an empty result here as a TODO.
+
+### 5.4 — Format analyzers: a distinct third category
+
+Alongside "language analyzer" (build system + test/quality/security
+tool trio) there is now a second shape: **format analyzer**
+(`YamlAnalyzer`, `JsonAnalyzer`, `TomlAnalyzer`, `XmlAnalyzer`). These
+lint a data/config format, not a programming language:
+
+- `matches()` is a **shallow, top-level-only** file-extension or
+  config-file check -- same discipline as `LuaAnalyzer`/`CssAnalyzer`
+  (§4's precedent, now the standard for every format analyzer too). A
+  file three directories deep inside `node_modules` or any vendored
+  dependency must never trigger a project-level match.
+- `run_tests` always returns `None` -- no format has an executable
+  test-suite concept.
+- `run_security` always returns `[]` -- see §5.3.
+- `run_quality` runs exactly one linter, gated on that linter's
+  binary via `shutil.which`, skipping cleanly (never crashing) if
+  absent.
+- These intentionally match **independently** of whatever
+  language analyzer already claims the same file for a build-system
+  purpose -- see §5.2. A format analyzer is never scoped down to
+  "only the files no other analyzer already claimed."
+
+**Exception -- JsonAnalyzer's stdlib fallback:** every other analyzer
+in sarand skips cleanly when its tool binary is missing. `JsonAnalyzer`
+is the one deliberate exception: JSON syntax validation needs no
+external tool at all (Python's own `json` module already does it), so
+when `jsonlint` isn't installed, `run_quality` validates syntax via
+`json.loads()` directly instead of skipping. Skipping instead of
+validating would be strictly worse for no reason. `jsonlint` is still
+preferred when present since it also catches style issues, not just
+parse errors. Do not generalize this exception to other analyzers
+without the same "the check needs no external tool" justification.
+
+### 5.5 — `--doctor` output: panels, not a table
+
+The original `--doctor` table (5 columns: Category/Tool/Status/Used
+for/Fix) truncated every cell to an unreadable sliver on a phone-width
+terminal (Termux, SSH from a small screen). It was replaced with one
+`rich.panel.Panel` per category, containing plain wrapped text lines
+(`✓`/`○` icon, tool name, `used_for` on its own line, `fix` on its own
+line only when missing). Plain wrapped text degrades gracefully at any
+width -- narrower terminals just wrap onto more lines; nothing is ever
+truncated or ellipsized. `collect_checks()` and `_CATEGORY_ORDER`
+stayed the same shape specifically so this redesign didn't touch any
+existing test; only `_print_core`/`_print_language_tools` changed.
+Any future `--doctor` UI change should preserve this: data
+(`collect_checks`) and presentation (`_print_*`) stay decoupled.
+
+### 5.6 — Full analyzer roster after this round
+
+Language analyzers (test + quality + security trio, one build-system
+marker each unless noted): Python, Rust, Go, Node.js, C/C++, Java
+(Maven/Gradle, defers to Android), Android, Lua, Ruby, PHP,
+Dart/Flutter, Zig, Swift (SwiftPM primary, `xcodebuild` fallback for
+Xcode-only projects), C# (`dotnet`).
+
+Complementary quality-only analyzers (§5.2): TypeScript (adds `tsc
+--noEmit` to a Node.js project), Kotlin (adds `ktlint`+`detekt` to a
+Java/Gradle project), CSS (independent, or complements
+Node.js/TypeScript), SQL (independent), Shell (independent,
+`shellcheck` + optional `bats`).
+
+Format analyzers (§5.4): YAML, JSON (stdlib fallback, §5.4), TOML,
+XML.
+
+### 5.7 — Release/tag discipline
+
+`pyproject.toml` and `Cargo.toml` versions must be bumped together
+(same value) on every release commit. Before tagging, check
+`git tag -l 'v*' | sort -V` for the actual latest tag -- earlier
+sessions left the local `pyproject.toml` version out of sync with
+real tags more than once (a tag existed for a version number that
+`pyproject.toml` was about to reuse for an unrelated commit). When in
+doubt, `git fetch --tags` and compare against `git log -1 <tag>`
+before creating a new one, rather than trusting the working tree's
+current version number alone.

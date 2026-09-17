@@ -76,3 +76,21 @@ def test_zig_swift_sql_checks_are_registered() -> None:
     assert by_category["Zig"] == {"zig"}
     assert by_category["Swift"] == {"swift", "swift-format", "xcodebuild"}
     assert by_category["SQL"] == {"sqlfluff"}
+
+
+def test_kotlin_csharp_shell_format_checks_are_registered() -> None:
+    # Same regression guard as above, for the KotlinAnalyzer/
+    # CSharpAnalyzer/ShellAnalyzer/YamlAnalyzer/JsonAnalyzer/
+    # TomlAnalyzer/XmlAnalyzer addition.
+    checks = collect_checks()
+    by_category: dict[str, set[str]] = {}
+    for check in checks:
+        by_category.setdefault(check.category, set()).add(check.name)
+
+    assert by_category["Kotlin"] == {"ktlint", "detekt"}
+    assert by_category["C#"] == {"dotnet"}
+    assert by_category["Shell"] == {"shellcheck", "bats"}
+    assert by_category["YAML"] == {"yamllint"}
+    assert by_category["JSON"] == {"jsonlint"}
+    assert by_category["TOML"] == {"taplo"}
+    assert by_category["XML"] == {"xmllint"}

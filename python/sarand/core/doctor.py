@@ -126,6 +126,58 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "install the Dart SDK: https://dart.dev/get-dart",
         "running tests / --quality (Flutter projects use `flutter` instead)",
     ),
+    (
+        "Kotlin",
+        "ktlint",
+        "install ktlint: https://pinterest.github.io/ktlint/install/cli/",
+        "--quality",
+    ),
+    (
+        "Kotlin",
+        "detekt",
+        "install detekt: https://detekt.dev/docs/gettingstarted/cli",
+        "--quality",
+    ),
+    (
+        "C#",
+        "dotnet",
+        "install the .NET SDK: https://dotnet.microsoft.com/download",
+        "running tests / --quality (dotnet format) / --security (dotnet list package)",
+    ),
+    (
+        "Shell",
+        "shellcheck",
+        "install shellcheck (e.g. apt/pacman/brew install shellcheck)",
+        "--quality",
+    ),
+    (
+        "Shell",
+        "bats",
+        "install bats-core: https://bats-core.readthedocs.io/en/stable/installation.html",
+        "running tests (only when a tests/*.bats suite exists)",
+    ),
+    ("YAML", "yamllint", "pip install yamllint", "--quality"),
+    (
+        "JSON",
+        "jsonlint",
+        (
+            "npm install -g jsonlint (optional -- falls back to a "
+            "built-in syntax-only check without it)"
+        ),
+        "--quality",
+    ),
+    (
+        "TOML",
+        "taplo",
+        "install taplo: https://taplo.tamasfe.dev/cli/installation/",
+        "--quality",
+    ),
+    (
+        "XML",
+        "xmllint",
+        "install libxml2 (e.g. apt/pacman install libxml2)",
+        "--quality",
+    ),
 )
 
 _CATEGORY_ORDER = (
@@ -139,11 +191,18 @@ _CATEGORY_ORDER = (
     "Swift",
     "C/C++",
     "Java / Kotlin / Android",
+    "Kotlin",
+    "C#",
+    "Shell",
     "Lua",
     "Ruby",
     "PHP",
     "Dart / Flutter",
     "SQL",
+    "YAML",
+    "JSON",
+    "TOML",
+    "XML",
     "PDF export",
 )
 

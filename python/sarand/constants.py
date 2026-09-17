@@ -85,6 +85,7 @@ ESSENTIAL_EXTENSIONS: frozenset[str] = frozenset(
         ".zig",
         ".swift",
         ".sql",
+        ".cs",
     }
 )
 
@@ -126,6 +127,7 @@ LANG_MAP: dict[str, str] = {
     ".zig": "zig",
     ".swift": "swift",
     ".sql": "sql",
+    ".cs": "csharp",
 }
 
 WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")

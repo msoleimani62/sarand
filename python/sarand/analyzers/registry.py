@@ -27,19 +27,26 @@ from pathlib import Path
 from sarand.analyzers.android_analyzer import AndroidAnalyzer
 from sarand.analyzers.base import LanguageAnalyzer
 from sarand.analyzers.cpp_analyzer import CppAnalyzer
+from sarand.analyzers.csharp_analyzer import CSharpAnalyzer
 from sarand.analyzers.css_analyzer import CssAnalyzer
 from sarand.analyzers.dart_analyzer import DartAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
+from sarand.analyzers.json_analyzer import JsonAnalyzer
+from sarand.analyzers.kotlin_analyzer import KotlinAnalyzer
 from sarand.analyzers.lua_analyzer import LuaAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.php_analyzer import PhpAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
 from sarand.analyzers.ruby_analyzer import RubyAnalyzer
 from sarand.analyzers.rust_analyzer import RustAnalyzer
+from sarand.analyzers.shell_analyzer import ShellAnalyzer
 from sarand.analyzers.sql_analyzer import SqlAnalyzer
 from sarand.analyzers.swift_analyzer import SwiftAnalyzer
+from sarand.analyzers.toml_analyzer import TomlAnalyzer
 from sarand.analyzers.typescript_analyzer import TypeScriptAnalyzer
+from sarand.analyzers.xml_analyzer import XmlAnalyzer
+from sarand.analyzers.yaml_analyzer import YamlAnalyzer
 from sarand.analyzers.zig_analyzer import ZigAnalyzer
 from sarand.models.results import CommandResult
 from sarand.utils.logging import get_logger
@@ -83,6 +90,32 @@ _BUILTIN: list[LanguageAnalyzer] = [
     # چون خوانشش «مورد خاص‌تر اول» است همین‌طور نگه داشته شده.
     AndroidAnalyzer(),
     JavaAnalyzer(),
+    # KotlinAnalyzer after JavaAnalyzer: same complementary-match shape
+    # as TypeScriptAnalyzer/NodeAnalyzer above -- both match one Kotlin
+    # Gradle project at once, KotlinAnalyzer contributing only quality
+    # (ktlint/detekt) since JavaAnalyzer already owns test execution.
+    # KotlinAnalyzer بعد از JavaAnalyzer: همان شکل تطابقِ مکمل
+    # TypeScriptAnalyzer/NodeAnalyzer بالا -- هر دو هم‌زمان روی یک
+    # پروژه‌ی Gradle با Kotlin تطابق پیدا می‌کنند، KotlinAnalyzer فقط
+    # quality (ktlint/detekt) اضافه می‌کند چون اجرای تست از قبل مال
+    # JavaAnalyzer است.
+    KotlinAnalyzer(),
+    CSharpAnalyzer(),
+    ShellAnalyzer(),
+    # Format analyzers (YAML/JSON/TOML/XML) last: none of these gate on
+    # anything exclusive to them -- a Cargo.toml, package.json or
+    # pom.xml is claimed by its own language analyzer above AND matched
+    # here for a separate, complementary concern (syntax/style linting
+    # of that file itself). Order among themselves doesn't matter.
+    # آنالایزرهای فرمت (YAML/JSON/TOML/XML) آخر: هیچ‌کدام روی چیز
+    # اختصاصی به خودشان گیت نمی‌شوند -- یک Cargo.toml، package.json یا
+    # pom.xml از قبل توسط آنالایزر زبان خودش بالا claim شده AND اینجا هم
+    # برای یک دغدغه‌ی جدا و مکمل (لینت syntax/style همان فایل) تطابق
+    # پیدا می‌کند. ترتیب بین خودشان اهمیتی ندارد.
+    YamlAnalyzer(),
+    JsonAnalyzer(),
+    TomlAnalyzer(),
+    XmlAnalyzer(),
 ]
 
 
