@@ -394,7 +394,7 @@ code does not actually pick up the changes without an uninstall first).
 | HTML dashboard renderer | **Implemented and tested** — `renderers/html.py`, self-contained single file (inline CSS, no external assets), dark-mode, collapsible `<details>` sections, properly HTML-escaped |
 | PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
-| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML) | **All implemented and tested.** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed across later rounds — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6 |
+| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 30 analyzers total.** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. `install.sh` added (§4.13) so upgrading an existing pipx install actually picks up new code — a raw `pipx install` over a stale copy silently doesn't, since pipx installs aren't editable by default. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. **AUR: `pkgs/aur/PKGBUILD` written**, not yet verified with a real `makepkg -si` in a clean chroot (see Phase F, still open). Docker/Homebrew/deb/rpm/binary: not started |
 | Report replacement (§4.13) | **Implemented and tested** — `cli.py::remove_previous_report` explicitly checks for, removes, and announces a previous report (+ its `.sha256`) at the exact output path before writing a new one, for the same "check, remove, announce, create fresh" reason as `install.sh` |
 | `--full` flag | **Implemented and tested** — shorthand for maximum-completeness reports: forces `--quality`+`--security` on and removes the file-size/tree-depth/tree-entry truncation limits entirely (raised to effectively-unlimited sentinel values), while still letting an explicit `--max-depth`/`--max-entries`/`--max-file-size` win over `--full`'s own defaults |
@@ -782,6 +782,8 @@ Node.js/TypeScript), SQL (independent), Shell (independent,
 Format analyzers (§5.4): YAML, JSON (stdlib fallback, §5.4), TOML,
 XML.
 
+(See §5.8/§5.9 for the second round: R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix.)
+
 ### 5.7 — Release/tag discipline
 
 `pyproject.toml` and `Cargo.toml` versions must be bumped together
@@ -793,3 +795,52 @@ real tags more than once (a tag existed for a version number that
 doubt, `git fetch --tags` and compare against `git log -1 <tag>`
 before creating a new one, rather than trusting the working tree's
 current version number alone.
+
+### 5.8 — Second post-§4 round: R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix
+
+Same conventions as §5.1-§5.4, applied to seven more ecosystems, plus
+one addition: real project-marker languages that had no
+ecosystem-standard vulnerability-audit tool at all (not just "gated on
+a binary" — genuinely nothing broadly adopted exists) now lean on the
+honest-empty precedent (§5.3) far more heavily than the first round
+did. R (`DESCRIPTION`), Perl (`cpanfile`), and Julia (`Project.toml`)
+all ship `run_security` as an unconditional `[]` — pip-audit/
+cargo-audit/npm-audit-style tooling simply doesn't exist for these
+ecosystems as of this writing.
+
+Two new marker-detection shapes:
+- **Two-signal complementary match**: GroovyAnalyzer (mirrors
+  KotlinAnalyzer, §5.2) requires *both* a Gradle marker *and* actual
+  Groovy source (`src/main/groovy` or a top-level `.groovy` file)
+  before matching — a bare `build.gradle` alone is not enough, since
+  nearly every Gradle project has one regardless of source language.
+  ObjectiveCAnalyzer's relationship to SwiftAnalyzer is the same
+  complementary idea, though its own gate (Podfile / top-level
+  `.m`/`.mm` / Xcode project) is single-signal, not two-signal.
+- **Self-contained duplication over cross-analyzer imports**:
+  ObjectiveCAnalyzer needed the same `xcodebuild -list -json`
+  scheme-detection helper SwiftAnalyzer already has. It was
+  duplicated locally rather than imported from `swift_analyzer.py` --
+  every analyzer file stays self-contained by convention, so adding
+  one language never risks touching another analyzer's file or its
+  tests.
+
+Extension-fallback additions
+(`discovery/project_detector.py::_guess_from_extensions`): `.r`,
+`.pl`/`.pm`, `.jl`, `.m`/`.mm`, `.groovy`, `.ps1`/`.psm1`/`.psd1`,
+`.nix` all added, same reasoning as §5.6's format analyzers — a lone
+script file with no build-system marker should still resolve to
+*something* better than "Unknown".
+
+### 5.9 — Full analyzer roster after the second round
+
+30 built-in analyzers total (`grep -c "Analyzer()," \
+python/sarand/analyzers/registry.py` to reconfirm after any future
+addition). Real project-marker additions this round: R
+(`DESCRIPTION`), Perl (`cpanfile`), Julia (`Project.toml`).
+Complementary/shallow additions: Objective-C (Podfile/`.m`/`.mm`/
+Xcode, complements Swift), Groovy (Gradle + real Groovy source,
+complements Java/Kotlin), PowerShell (top-level
+`.ps1`/`.psm1`/`.psd1`, no manifest), Nix (top-level `.nix`;
+`flake.nix` gets real `nix flake check` tests, unlike the other
+shallow analyzers in this round).
