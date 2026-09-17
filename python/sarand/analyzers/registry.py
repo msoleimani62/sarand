@@ -31,13 +31,20 @@ from sarand.analyzers.csharp_analyzer import CSharpAnalyzer
 from sarand.analyzers.css_analyzer import CssAnalyzer
 from sarand.analyzers.dart_analyzer import DartAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
+from sarand.analyzers.groovy_analyzer import GroovyAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
 from sarand.analyzers.json_analyzer import JsonAnalyzer
+from sarand.analyzers.julia_analyzer import JuliaAnalyzer
 from sarand.analyzers.kotlin_analyzer import KotlinAnalyzer
 from sarand.analyzers.lua_analyzer import LuaAnalyzer
+from sarand.analyzers.nix_analyzer import NixAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
+from sarand.analyzers.objectivec_analyzer import ObjectiveCAnalyzer
+from sarand.analyzers.perl_analyzer import PerlAnalyzer
 from sarand.analyzers.php_analyzer import PhpAnalyzer
+from sarand.analyzers.powershell_analyzer import PowerShellAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
+from sarand.analyzers.r_analyzer import RAnalyzer
 from sarand.analyzers.ruby_analyzer import RubyAnalyzer
 from sarand.analyzers.rust_analyzer import RustAnalyzer
 from sarand.analyzers.shell_analyzer import ShellAnalyzer
@@ -74,11 +81,23 @@ _BUILTIN: list[LanguageAnalyzer] = [
     CssAnalyzer(),
     ZigAnalyzer(),
     SwiftAnalyzer(),
+    # ObjectiveCAnalyzer right after SwiftAnalyzer: same
+    # complementary-match shape as TypeScriptAnalyzer/NodeAnalyzer
+    # above -- a mixed Swift/Objective-C project legitimately
+    # matches both at once.
+    # ObjectiveCAnalyzer درست بعد از SwiftAnalyzer: همان شکل
+    # تطابقِ مکملِ TypeScriptAnalyzer/NodeAnalyzer بالا -- یک
+    # پروژه‌ی ترکیبیِ Swift/Objective-C به‌طور مشروع هر دو را
+    # هم‌زمان تطابق می‌دهد.
+    ObjectiveCAnalyzer(),
     CppAnalyzer(),
     LuaAnalyzer(),
     RubyAnalyzer(),
     PhpAnalyzer(),
     DartAnalyzer(),
+    RAnalyzer(),
+    PerlAnalyzer(),
+    JuliaAnalyzer(),
     SqlAnalyzer(),
     # AndroidAnalyzer before JavaAnalyzer: matches() on both is mutually
     # exclusive by design (JavaAnalyzer defers to Android detection), so
@@ -100,8 +119,23 @@ _BUILTIN: list[LanguageAnalyzer] = [
     # quality (ktlint/detekt) اضافه می‌کند چون اجرای تست از قبل مال
     # JavaAnalyzer است.
     KotlinAnalyzer(),
+    # GroovyAnalyzer right after KotlinAnalyzer: same
+    # complementary-match shape -- contributes quality only
+    # (CodeNarc), JavaAnalyzer already owns Gradle test execution.
+    # GroovyAnalyzer درست بعد از KotlinAnalyzer: همان شکل تطابقِ
+    # مکمل -- فقط quality (CodeNarc) اضافه می‌کند، اجرای تست
+    # Gradle از قبل مال JavaAnalyzer است.
+    GroovyAnalyzer(),
     CSharpAnalyzer(),
     ShellAnalyzer(),
+    # PowerShellAnalyzer/NixAnalyzer: same shallow, no-manifest
+    # detection shape as ShellAnalyzer (top-level script/config
+    # file only, no dedicated project marker to key off of).
+    # PowerShellAnalyzer/NixAnalyzer: همان شکل تشخیص کم‌عمق و
+    # بدون-مانیفستِ ShellAnalyzer (فقط یک فایل اسکریپت/کانفیگ
+    # سطح-ریشه، بدون نشانگر اختصاصی پروژه).
+    PowerShellAnalyzer(),
+    NixAnalyzer(),
     # Format analyzers (YAML/JSON/TOML/XML) last: none of these gate on
     # anything exclusive to them -- a Cargo.toml, package.json or
     # pom.xml is claimed by its own language analyzer above AND matched

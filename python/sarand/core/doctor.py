@@ -178,6 +178,60 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "install libxml2 (e.g. apt/pacman install libxml2)",
         "--quality",
     ),
+    (
+        "R",
+        "Rscript",
+        "install R: https://www.r-project.org/",
+        "running tests (testthat) / --quality (lintr)",
+    ),
+    (
+        "Perl",
+        "prove",
+        "install Perl (ships with prove) or: cpan Test::Harness",
+        "running tests",
+    ),
+    (
+        "Perl",
+        "perlcritic",
+        "cpan Perl::Critic",
+        "--quality",
+    ),
+    (
+        "Julia",
+        "julia",
+        "install Julia: https://julialang.org/downloads/",
+        "running tests (Pkg.test())",
+    ),
+    (
+        "Objective-C",
+        "xcodebuild",
+        "install Xcode + Command Line Tools (macOS only)",
+        "running tests for Xcode/CocoaPods projects",
+    ),
+    (
+        "Groovy",
+        "codenarc",
+        "install CodeNarc: https://codenarc.org/",
+        "--quality",
+    ),
+    (
+        "PowerShell",
+        "pwsh",
+        "install PowerShell 7+: https://aka.ms/powershell",
+        "running tests (Pester) / --quality (PSScriptAnalyzer)",
+    ),
+    (
+        "Nix",
+        "nix",
+        "install Nix: https://nixos.org/download.html",
+        "running tests (nix flake check)",
+    ),
+    (
+        "Nix",
+        "nixpkgs-fmt",
+        "nix-env -iA nixpkgs.nixpkgs-fmt",
+        "--quality",
+    ),
 )
 
 _CATEGORY_ORDER = (
@@ -203,6 +257,13 @@ _CATEGORY_ORDER = (
     "JSON",
     "TOML",
     "XML",
+    "R",
+    "Perl",
+    "Julia",
+    "Objective-C",
+    "Groovy",
+    "PowerShell",
+    "Nix",
     "PDF export",
 )
 

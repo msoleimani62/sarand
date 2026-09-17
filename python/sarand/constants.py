@@ -86,6 +86,17 @@ ESSENTIAL_EXTENSIONS: frozenset[str] = frozenset(
         ".swift",
         ".sql",
         ".cs",
+        ".r",
+        ".pl",
+        ".pm",
+        ".jl",
+        ".m",
+        ".mm",
+        ".groovy",
+        ".ps1",
+        ".psm1",
+        ".psd1",
+        ".nix",
     }
 )
 
@@ -128,6 +139,17 @@ LANG_MAP: dict[str, str] = {
     ".swift": "swift",
     ".sql": "sql",
     ".cs": "csharp",
+    ".r": "r",
+    ".pl": "perl",
+    ".pm": "perl",
+    ".jl": "julia",
+    ".m": "objectivec",
+    ".mm": "objectivec",
+    ".groovy": "groovy",
+    ".ps1": "powershell",
+    ".psm1": "powershell",
+    ".psd1": "powershell",
+    ".nix": "nix",
 }
 
 WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")
@@ -177,6 +199,9 @@ PROJECT_MARKERS: dict[str, tuple[str, str, str]] = {
     "tsconfig.json": ("TypeScript", "application/library", "npm/tsc"),
     "build.zig": ("Zig", "binary/library", "zig"),
     "Package.swift": ("Swift", "application/library", "swift package manager"),
+    "DESCRIPTION": ("R", "package", "renv (optional)"),
+    "cpanfile": ("Perl", "application/module", "cpanm"),
+    "Project.toml": ("Julia", "package", "Pkg"),
 }
 
 ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
@@ -193,6 +218,9 @@ ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
     "TypeScript": ("src/index.ts", "src/main.ts", "index.ts"),
     "Zig": ("src/main.zig", "build.zig"),
     "Swift": ("Sources/main.swift", "main.swift"),
+    "R": ("R/main.R", "main.R", "app.R"),
+    "Perl": ("bin/app.pl", "script/app.pl", "main.pl"),
+    "Julia": ("src/main.jl", "main.jl"),
 }
 
 # Filename patterns that must NEVER be embedded in a generated report,

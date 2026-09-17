@@ -103,6 +103,17 @@ def _guess_from_extensions(root: Path, sample_limit: int = 500) -> str:
         ".cs": "C#",
         ".sh": "Shell",
         ".bash": "Shell",
+        ".r": "R",
+        ".pl": "Perl",
+        ".pm": "Perl",
+        ".jl": "Julia",
+        ".m": "Objective-C",
+        ".mm": "Objective-C",
+        ".groovy": "Groovy",
+        ".ps1": "PowerShell",
+        ".psm1": "PowerShell",
+        ".psd1": "PowerShell",
+        ".nix": "Nix",
     }
     scanned = 0
     for path in root.rglob("*"):
