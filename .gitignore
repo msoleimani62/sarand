@@ -11,3 +11,4 @@ dist/
 .coverage
 
 .sarand-rc/
+*.zip
