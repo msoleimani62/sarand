@@ -60,6 +60,7 @@ class SarandConfig:
     include_source: bool = True
     health_score: bool = True
     use_cache: bool = False
+    full: bool = False
 
     @classmethod
     def from_args(cls, args: Any) -> SarandConfig:
@@ -114,6 +115,22 @@ class SarandConfig:
             include_source=not bool(getattr(args, "no_source", False)),
             health_score=not bool(getattr(args, "no_health", False)),
             use_cache=bool(getattr(args, "cache", False)),
+            # Stored (not just used locally above) because renderers need
+            # it too: --full's "nothing is skipped or cut short" promise
+            # (its own --help text) has to reach the *rendering* layer,
+            # not just file-collection limits -- otherwise a passing
+            # tool's full output and a >500-row issue list still get cut
+            # to a tail/head regardless of --full. See renderers/*.py's
+            # `full_output` parameter.
+            #
+            # ذخیره می‌شود (نه فقط بالا مصرف محلی) چون رندرکننده‌ها هم
+            # بهش نیاز دارند: وعده‌ی --full («چیزی رد یا کوتاه نمی‌شود» -
+            # متن --help خودش) باید به لایه‌ی رندر هم برسد، نه فقط
+            # محدودیت‌های جمع‌آوری فایل -- وگرنه خروجی کامل یک ابزار
+            # موفق و یک لیست issue با بیش از ۵۰۰ ردیف همچنان صرف‌نظر از
+            # --full به تِیل/سر کوتاه می‌شوند. پارامتر `full_output` در
+            # renderers/*.py را ببینید.
+            full=full,
         )
 
     def validate(self) -> None:

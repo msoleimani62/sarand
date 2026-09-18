@@ -15,4 +15,10 @@ from sarand.models.results import ReportData
 class Renderer(Protocol):
     """A report renderer: ReportData in, formatted text out."""
 
-    def render(self, data: ReportData, *, include_source: bool = True) -> str: ...
+    def render(
+        self,
+        data: ReportData,
+        *,
+        include_source: bool = True,
+        full_output: bool = False,
+    ) -> str: ...

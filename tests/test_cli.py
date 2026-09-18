@@ -208,7 +208,7 @@ def test_run_uses_cache_hits_for_todos_and_secrets(
         "_RENDERERS",
         {
             "markdown": SimpleNamespace(
-                render=lambda data, include_source=False: "report"
+                render=lambda data, include_source=False, full_output=False: "report"
             )
         },
     )
@@ -322,7 +322,7 @@ def test_run_scans_changed_files_with_cache_enabled(
         "_RENDERERS",
         {
             "markdown": SimpleNamespace(
-                render=lambda data, include_source=False: "report"
+                render=lambda data, include_source=False, full_output=False: "report"
             )
         },
     )

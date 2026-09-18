@@ -94,3 +94,38 @@ def test_kotlin_csharp_shell_format_checks_are_registered() -> None:
     assert by_category["JSON"] == {"jsonlint"}
     assert by_category["TOML"] == {"taplo"}
     assert by_category["XML"] == {"xmllint"}
+
+
+def test_rust_and_python_supply_chain_checks_are_registered() -> None:
+    # Regression guard for the cargo-deny/rustfmt/cargo-clippy/mypy
+    # additions -- Rust originally only checked cargo/cargo-audit, and
+    # Python only pytest/ruff/pip-audit/bandit (mypy was CI-only,
+    # never exposed through --doctor/--quality).
+    checks = collect_checks()
+    by_category: dict[str, set[str]] = {}
+    for check in checks:
+        by_category.setdefault(check.category, set()).add(check.name)
+
+    assert by_category["Rust"] == {
+        "cargo",
+        "rustfmt",
+        "cargo-clippy",
+        "cargo-audit",
+        "cargo-deny",
+    }
+    assert by_category["Python"] == {
+        "pytest",
+        "ruff",
+        "mypy",
+        "pip-audit",
+        "bandit",
+    }
+
+    # cargo-deny's used_for hint must point at the deny.toml
+    # requirement -- otherwise a maintainer sees it installed-but-
+    # skipped with no clue why (§4.11: never fail silently).
+    deny_check = next(c for c in checks if c.name == "cargo-deny")
+    assert "deny.toml" in deny_check.used_for
+
+    mypy_check = next(c for c in checks if c.name == "mypy")
+    assert "type checking" in mypy_check.used_for.lower()

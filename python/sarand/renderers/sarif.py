@@ -29,10 +29,14 @@ def _rule_id(prefix: str, name: str) -> str:
     return f"{prefix}/{slug}"
 
 
-def render(data: ReportData, *, include_source: bool = True) -> str:
-    """Render `data` as a SARIF 2.1.0 log. `include_source` is accepted
-    for interface consistency with the other renderers but has no
-    effect -- SARIF is a findings format, not a source-embedding one."""
+def render(
+    data: ReportData, *, include_source: bool = True, full_output: bool = False
+) -> str:
+    """Render `data` as a SARIF 2.1.0 log. `include_source` and
+    `full_output` are accepted for interface consistency with the other
+    renderers but have no effect -- SARIF is a findings format (not a
+    source-embedding one), and it already lists every finding with no
+    truncation regardless of --full."""
     status("Rendering SARIF report...")
 
     rules: dict[str, dict] = {}

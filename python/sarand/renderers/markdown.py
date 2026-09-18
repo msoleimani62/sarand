@@ -14,26 +14,46 @@ def _status_badge(result: CommandResult) -> str:
     return "PASS" if result.passed else "FAIL"
 
 
-def _render_issues(title: str, issues: list[Issue]) -> list[str]:
+def _render_issues(
+    title: str, issues: list[Issue], *, full_output: bool = False
+) -> list[str]:
     if not issues:
         return [f"## {title}", "", "None detected.", ""]
     lines = [f"## {title}", ""]
-    for issue in issues[:MAX_ISSUE_ROWS]:
+    shown = issues if full_output else issues[:MAX_ISSUE_ROWS]
+    for issue in shown:
         lines.append(f"- **{issue.source}**: `{issue.message}`")
-    if len(issues) > MAX_ISSUE_ROWS:
+    if not full_output and len(issues) > MAX_ISSUE_ROWS:
         lines.append(f"- ... ({len(issues) - MAX_ISSUE_ROWS} more)")
     lines.append("")
     return lines
 
 
-def _render_command_block(result: CommandResult) -> list[str]:
+def _render_command_block(
+    result: CommandResult, *, full_output: bool = False
+) -> list[str]:
     badge = _status_badge(result)
     lines = [f"### {result.kind} [{badge}]"]
     if result.skipped:
         lines.extend(["", f"*Skipped:* {result.skip_reason}", ""])
         return lines
     lines.extend(["", "```text", result.summary or "(no output)", "```"])
-    if result.returncode != 0 and result.raw_output:
+    # Previously this only ever appeared on FAIL, so a passing tool's
+    # full output (all clippy hints, every test name, etc.) was
+    # permanently unreachable in the report -- even under --full,
+    # which explicitly promises "nothing is skipped or cut short".
+    # Under full_output, show it whenever there's more to show,
+    # pass or fail.
+    #
+    # قبلاً این بخش فقط روی FAIL نمایش داده می‌شد، پس خروجی کامل یک
+    # ابزار موفق (همه‌ی هشدارهای clippy، تک‌تک نام تست‌ها و...) برای
+    # همیشه در گزارش غیرقابل‌دسترس بود -- حتی زیر --full، که صراحتاً
+    # وعده می‌دهد «چیزی رد یا کوتاه نمی‌شود». زیر full_output، هروقت
+    # چیز بیشتری برای نمایش هست نشان داده می‌شود، چه موفق چه ناموفق.
+    show_full = result.raw_output and (
+        result.returncode != 0 or (full_output and result.raw_output != result.summary)
+    )
+    if show_full:
         lines.extend(
             [
                 "",
@@ -76,7 +96,9 @@ def _render_detected_project(data: ReportData) -> list[str]:
     return lines
 
 
-def render(data: ReportData, *, include_source: bool = True) -> str:
+def render(
+    data: ReportData, *, include_source: bool = True, full_output: bool = False
+) -> str:
     """Render a full professional Markdown report."""
     status("Rendering Markdown report...")
     now = data.generated_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -226,10 +248,11 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
                 "|------|------|------|---------|",
             ]
         )
-        for t in data.todos[:100]:
+        shown_todos = data.todos if full_output else data.todos[:100]
+        for t in shown_todos:
             content = t.content.replace("|", "\\|")
             parts.append(f"| `{t.path}` | {t.line_number} | {t.kind} | `{content}` |")
-        if len(data.todos) > 100:
+        if not full_output and len(data.todos) > 100:
             parts.append(f"| ... | ... | ... | ({len(data.todos) - 100} more) |")
         parts.append("")
 
@@ -239,17 +262,17 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
         parts.append("")
     else:
         for r in data.test_results:
-            parts.extend(_render_command_block(r))
+            parts.extend(_render_command_block(r, full_output=full_output))
 
     if data.quality_results:
         parts.extend(["## Quality checks", ""])
         for r in data.quality_results:
-            parts.extend(_render_command_block(r))
+            parts.extend(_render_command_block(r, full_output=full_output))
 
     if data.security_results:
         parts.extend(["## Security checks", ""])
         for r in data.security_results:
-            parts.extend(_render_command_block(r))
+            parts.extend(_render_command_block(r, full_output=full_output))
 
     if data.known_issues:
         parts.extend(
@@ -261,8 +284,10 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
     for r in data.test_results + data.quality_results + data.security_results:
         all_warnings.extend(r.warnings)
         all_errors.extend(r.errors)
-    parts.extend(_render_issues("Warnings detected", all_warnings))
-    parts.extend(_render_issues("Errors detected", all_errors))
+    parts.extend(
+        _render_issues("Warnings detected", all_warnings, full_output=full_output)
+    )
+    parts.extend(_render_issues("Errors detected", all_errors, full_output=full_output))
 
     parts.extend(
         [

@@ -262,6 +262,11 @@ class PythonAnalyzer:
         return make_command_result("pytest", rc, output, duration)
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
+        results = await self._run_ruff(root)
+        results.append(await self._run_mypy(root))
+        return results
+
+    async def _run_ruff(self, root: Path) -> list[CommandResult]:
         if shutil.which("ruff") is None:
             return [
                 make_command_result(
@@ -278,6 +283,28 @@ class PythonAnalyzer:
         )
         results.append(make_command_result("ruff format --check", rc, out, dur))
         return results
+
+    async def _run_mypy(self, root: Path) -> CommandResult:
+        # mypy, not pyright: this project already pins mypy>=1.10 as
+        # its type-checker of record (pyproject.toml `[dev]`,
+        # ci.yml's `Run mypy` step) -- adding a second, unrelated type
+        # checker here would mean sarand's own doctor/quality output
+        # disagrees with what its own CI actually enforces. Same
+        # binary, just finally exposed through `--quality` too instead
+        # of living in CI alone.
+        #
+        # mypy، نه pyright: این پروژه از قبل mypy>=1.10 را به‌عنوان
+        # type-checker رسمی‌اش pin کرده (pyproject.toml بخش `[dev]`،
+        # مرحله‌ی «Run mypy» در ci.yml) -- اضافه‌کردن یک type checker
+        # دوم و بی‌ربط اینجا یعنی خروجی doctor/quality خودِ sarand با
+        # چیزی که CI خودش واقعاً اجرا می‌کند فرق کند. همان باینری،
+        # فقط بالاخره از طریق `--quality` هم در دسترس است، نه فقط داخل CI.
+        if shutil.which("mypy") is None:
+            return make_command_result(
+                "mypy", 127, "", 0.0, skipped=True, skip_reason="mypy not installed"
+            )
+        rc, out, dur = await run_cmd_async(["mypy", "."], root, LONG_CMD_TIMEOUT)
+        return make_command_result("mypy", rc, out, dur)
 
     async def run_security(self, root: Path) -> list[CommandResult]:
         # BUG FIX (measured live, three rounds deep into this

@@ -78,7 +78,11 @@ def _via_weasyprint(html_path: Path, output_path: Path) -> RenderOutcome:
 
 
 def render_to_file(
-    data: ReportData, output_path: Path, *, include_source: bool = False
+    data: ReportData,
+    output_path: Path,
+    *,
+    include_source: bool = False,
+    full_output: bool = False,
 ) -> RenderOutcome:
     """Render `data` as PDF directly to `output_path`.
 
@@ -90,6 +94,10 @@ def render_to_file(
             pages via an HTML-to-PDF converter, which is slow and a
             poor reading experience. Use --format html for a browsable
             full-source report instead.
+        full_output: Same reasoning, same default -- uncapped tool
+            output and issue lists belong in a scrollable HTML/JSON
+            report, not a paginated PDF. Use --format html or
+            --format json for the uncapped version.
 
     Returns:
         RenderOutcome(ok=False, detail=<fix-it text>) if no PDF engine
@@ -97,7 +105,9 @@ def render_to_file(
         optional tool.
     """
     status("Rendering PDF report...")
-    html_content = html_renderer.render(data, include_source=include_source)
+    html_content = html_renderer.render(
+        data, include_source=include_source, full_output=full_output
+    )
 
     with tempfile.TemporaryDirectory() as tmp:
         html_path = Path(tmp) / "report.html"

@@ -60,30 +60,59 @@ def _status_badge_html(result: CommandResult) -> str:
     return _badge("PASS", "ok") if result.passed else _badge("FAIL", "fail")
 
 
-def _command_section(title: str, results: list[CommandResult]) -> str:
+def _command_section(
+    title: str, results: list[CommandResult], *, full_output: bool = False
+) -> str:
     if not results:
         return ""
     rows = []
     for r in results:
-        detail = r.skip_reason if r.skipped else (r.summary or "(no output)")
+        if r.skipped:
+            detail = r.skip_reason
+            extra = ""
+        else:
+            detail = r.summary or "(no output)"
+            # Same fix as markdown.py's _render_command_block: previously
+            # full output was never shown here, pass or fail -- HTML was
+            # the least complete of all formats. Now shown on FAIL always,
+            # and under full_output whenever raw_output has more to say
+            # than the tail summary already shown above.
+            #
+            # همان اصلاح _render_command_block در markdown.py: قبلاً خروجی
+            # کامل اینجا هرگز نشان داده نمی‌شد، نه موفق نه ناموفق -- HTML
+            # ناقص‌ترین فرمت بود. حالا روی FAIL همیشه، و زیر full_output
+            # هروقت raw_output چیزی بیش از خلاصه‌ی تِیل بالا برای گفتن
+            # داشته باشد، نشان داده می‌شود.
+            show_full = r.raw_output and (
+                r.returncode != 0 or (full_output and r.raw_output != r.summary)
+            )
+            extra = (
+                f"<details><summary>Full output</summary>"
+                f"<pre>{escape(r.raw_output)}</pre></details>"
+                if show_full
+                else ""
+            )
         rows.append(
             f"<details><summary>{escape(r.kind)} {_status_badge_html(r)}</summary>"
-            f"<pre>{escape(detail)}</pre></details>"
+            f"<pre>{escape(detail)}</pre>{extra}</details>"
         )
     return f"<h2>{escape(title)}</h2>" + "".join(rows)
 
 
-def _issues_table(title: str, issues: list[Issue]) -> str:
+def _issues_table(title: str, issues: list[Issue], *, full_output: bool = False) -> str:
     if not issues:
         return ""
+    shown = issues if full_output else issues[:500]
     rows = "".join(
         f"<tr><td>{escape(i.source)}</td><td><code>{escape(i.message)}</code></td></tr>"
-        for i in issues[:500]
+        for i in shown
     )
     return f"<h2>{escape(title)} ({len(issues)})</h2><table><tr><th>Source</th><th>Message</th></tr>{rows}</table>"
 
 
-def render(data: ReportData, *, include_source: bool = True) -> str:
+def render(
+    data: ReportData, *, include_source: bool = True, full_output: bool = False
+) -> str:
     status("Rendering HTML report...")
     d = data.detection
     s = data.stats
@@ -198,17 +227,29 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
     if data.ai_summary:
         parts.append(f"<h2>AI Summary</h2><pre>{escape(data.ai_summary)}</pre>")
 
-    parts.append(_command_section("Test results", data.test_results))
-    parts.append(_command_section("Quality checks", data.quality_results))
-    parts.append(_command_section("Security checks", data.security_results))
+    parts.append(
+        _command_section("Test results", data.test_results, full_output=full_output)
+    )
+    parts.append(
+        _command_section(
+            "Quality checks", data.quality_results, full_output=full_output
+        )
+    )
+    parts.append(
+        _command_section(
+            "Security checks", data.security_results, full_output=full_output
+        )
+    )
 
     all_warnings: list[Issue] = []
     all_errors: list[Issue] = []
     for r in data.test_results + data.quality_results + data.security_results:
         all_warnings.extend(r.warnings)
         all_errors.extend(r.errors)
-    parts.append(_issues_table("Errors detected", all_errors))
-    parts.append(_issues_table("Warnings detected", all_warnings))
+    parts.append(_issues_table("Errors detected", all_errors, full_output=full_output))
+    parts.append(
+        _issues_table("Warnings detected", all_warnings, full_output=full_output)
+    )
 
     parts.append(f"<h2>Project tree</h2><pre>{escape(data.tree_text)}</pre>")
 

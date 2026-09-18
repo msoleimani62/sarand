@@ -163,8 +163,10 @@ def test_rust_analyzer_run_security_checks_cargo_audit_binary_specifically() -> 
 
         results = asyncio.run(analyzer.run_security(root))
 
-        assert len(results) == 1
+        # cargo audit + cargo deny check, always both, in that order.
+        assert len(results) == 2
         assert results[0].kind == "cargo audit"
+        assert results[1].kind == "cargo deny check"
 
         if shutil.which("cargo-audit") is None:
             assert results[0].skipped
@@ -174,6 +176,17 @@ def test_rust_analyzer_run_security_checks_cargo_audit_binary_specifically() -> 
             # (depends on network + the advisory DB), only that our
             # wrapper didn't treat "tool present" as "tool missing".
             assert results[0].skipped is False
+
+        # cargo-deny has two independent skip gates (binary, then
+        # deny.toml) -- this throwaway project has neither installed
+        # nor configured, so either skip reason is acceptable here;
+        # the dedicated tests below pin down each gate individually.
+        if shutil.which("cargo-deny") is None:
+            assert results[1].skipped
+            assert "cargo-deny" in results[1].skip_reason
+        elif not (root / "deny.toml").exists():
+            assert results[1].skipped
+            assert "deny.toml" in results[1].skip_reason
 
 
 @pytest.mark.slow_external
@@ -507,3 +520,210 @@ def test_without_skip_audit_env_var_pip_audit_runs_normally(
     pip_audit_result = next(r for r in results if r.kind == "pip-audit")
     assert pip_audit_result.skipped is False
     assert any(c[0] == "pip-audit" for c in called_cmds)
+
+
+# --- Rust: cargo fmt / clippy independently gated, cargo-deny (§4.3) ---
+
+
+def test_rust_analyzer_quality_skips_rustfmt_and_clippy_independently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing rustfmt component must not block clippy (and vice
+    versa) -- each is its own rustup component, checked and skipped
+    on its own instead of both failing with a confusing toolchain
+    error."""
+
+    def fake_which(name: str) -> str | None:
+        if name == "cargo":
+            return "/usr/bin/cargo"
+        return None  # neither rustfmt nor cargo-clippy installed
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+
+    analyzer = RustAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Cargo.toml", "[package]\nname='x'\n")
+        results = asyncio.run(analyzer.run_quality(root))
+
+    by_kind = {r.kind: r for r in results}
+    assert by_kind["cargo fmt --check"].skipped is True
+    assert "rustfmt" in by_kind["cargo fmt --check"].skip_reason
+    assert by_kind["cargo clippy"].skipped is True
+    assert "clippy" in by_kind["cargo clippy"].skip_reason
+
+
+def test_rust_analyzer_quality_runs_fmt_and_clippy_when_both_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.rust_analyzer as rust_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(rust_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = RustAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Cargo.toml", "[package]\nname='x'\n")
+        results = asyncio.run(analyzer.run_quality(root))
+
+    assert all(not r.skipped for r in results)
+    assert ["cargo", "fmt", "--all", "--check"] in captured_cmds
+    assert any(cmd[:2] == ["cargo", "clippy"] for cmd in captured_cmds)
+
+
+def test_rust_analyzer_cargo_deny_skips_without_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(name: str) -> str | None:
+        if name == "cargo-deny":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+
+    analyzer = RustAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Cargo.toml", "[package]\nname='x'\n")
+        write(root / "deny.toml", "# empty policy for the test\n")
+        results = asyncio.run(analyzer.run_security(root))
+
+    deny_result = next(r for r in results if r.kind == "cargo deny check")
+    assert deny_result.skipped is True
+    assert "not installed" in deny_result.skip_reason
+
+
+def test_rust_analyzer_cargo_deny_skips_without_deny_toml(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    analyzer = RustAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Cargo.toml", "[package]\nname='x'\n")
+        # deliberately no deny.toml
+        results = asyncio.run(analyzer.run_security(root))
+
+    deny_result = next(r for r in results if r.kind == "cargo deny check")
+    assert deny_result.skipped is True
+    assert "deny.toml" in deny_result.skip_reason
+    assert "cargo deny init" in deny_result.skip_reason
+
+
+def test_rust_analyzer_cargo_deny_runs_when_binary_and_config_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.rust_analyzer as rust_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(rust_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = RustAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Cargo.toml", "[package]\nname='x'\n")
+        write(root / "deny.toml", "# empty policy for the test\n")
+        results = asyncio.run(analyzer.run_security(root))
+
+    deny_result = next(r for r in results if r.kind == "cargo deny check")
+    assert deny_result.skipped is False
+    assert ["cargo", "deny", "check"] in captured_cmds
+
+
+def test_skip_audit_env_var_skips_cargo_deny_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.rust_analyzer as rust_analyzer_module
+
+    called_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        called_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(rust_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+    monkeypatch.setenv("SARAND_SKIP_AUDIT", "1")
+
+    analyzer = RustAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Cargo.toml", "[package]\nname='x'\n")
+        write(root / "deny.toml", "# empty policy for the test\n")
+        results = asyncio.run(analyzer.run_security(root))
+
+    # audit and deny are independent (asyncio.gather, see run_security's
+    # own docstring) -- SARAND_SKIP_AUDIT is checked by each of them
+    # separately, so both end up skipped via the same env var, but
+    # neither ever calls the real subprocess.
+    assert len(results) == 2
+    assert results[0].kind == "cargo audit"
+    assert results[0].skipped is True
+    assert "skip-audit" in results[0].skip_reason
+    assert results[1].kind == "cargo deny check"
+    assert results[1].skipped is True
+    assert "skip-audit" in results[1].skip_reason
+    assert called_cmds == []
+
+
+# --- Python: mypy alongside ruff (project's own pinned type checker) ---
+
+
+def test_python_analyzer_run_quality_skips_mypy_cleanly_without_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(name: str) -> str | None:
+        if name == "mypy":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "pyproject.toml", "[project]\nname='x'\n")
+        results = asyncio.run(analyzer.run_quality(root))
+
+    mypy_result = next(r for r in results if r.kind == "mypy")
+    assert mypy_result.skipped is True
+    assert "not installed" in mypy_result.skip_reason
+
+
+def test_python_analyzer_run_quality_runs_mypy_when_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.python_analyzer as python_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "Success: no issues found", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(python_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = PythonAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "pyproject.toml", "[project]\nname='x'\n")
+        results = asyncio.run(analyzer.run_quality(root))
+
+    mypy_result = next(r for r in results if r.kind == "mypy")
+    assert mypy_result.skipped is False
+    assert ["mypy", "."] in captured_cmds

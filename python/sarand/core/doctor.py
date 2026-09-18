@@ -26,10 +26,20 @@ _MIN_PYTHON = (3, 10)
 _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     ("Python", "pytest", "pip install pytest", "running tests"),
     ("Python", "ruff", "pip install ruff", "--quality"),
+    ("Python", "mypy", "pip install mypy", "--quality (type checking)"),
     ("Python", "pip-audit", "pip install pip-audit", "--security"),
     ("Python", "bandit", "pip install bandit", "--security"),
     ("Rust", "cargo", "install rustup: https://rustup.rs", "running tests"),
+    ("Rust", "rustfmt", "rustup component add rustfmt", "--quality"),
+    ("Rust", "cargo-clippy", "rustup component add clippy", "--quality"),
     ("Rust", "cargo-audit", "cargo install cargo-audit", "--security"),
+    (
+        "Rust",
+        "cargo-deny",
+        "cargo install cargo-deny",
+        "--security (advisories/bans/licenses/sources -- also needs a "
+        "deny.toml, see: cargo deny init)",
+    ),
     ("Go", "go", "install Go: https://go.dev/dl/", "running tests"),
     (
         "Go",

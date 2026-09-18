@@ -397,7 +397,7 @@ code does not actually pick up the changes without an uninstall first).
 | Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 30 analyzers total.** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. `install.sh` added (§4.13) so upgrading an existing pipx install actually picks up new code — a raw `pipx install` over a stale copy silently doesn't, since pipx installs aren't editable by default. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. **AUR: `pkgs/aur/PKGBUILD` written**, not yet verified with a real `makepkg -si` in a clean chroot (see Phase F, still open). Docker/Homebrew/deb/rpm/binary: not started |
 | Report replacement (§4.13) | **Implemented and tested** — `cli.py::remove_previous_report` explicitly checks for, removes, and announces a previous report (+ its `.sha256`) at the exact output path before writing a new one, for the same "check, remove, announce, create fresh" reason as `install.sh` |
-| `--full` flag | **Implemented and tested** — shorthand for maximum-completeness reports: forces `--quality`+`--security` on and removes the file-size/tree-depth/tree-entry truncation limits entirely (raised to effectively-unlimited sentinel values), while still letting an explicit `--max-depth`/`--max-entries`/`--max-file-size` win over `--full`'s own defaults |
+| `--full` flag | **Implemented and tested — completeness gaps found and fixed 2026-09-18.** Forces `--quality`+`--security` on and removes the file-size/tree-depth/tree-entry truncation limits (raised to effectively-unlimited sentinel values), while still letting an explicit `--max-depth`/`--max-entries`/`--max-file-size` win over `--full`'s own defaults. An external audit of a real `--full` report found this description was not the whole truth: the **rendering layer** ignored `--full` entirely — a *passing* tool's output was always cut to an 80-line tail (raw output only shown on FAIL), issue lists capped at 500 rows and TODOs at 100 regardless of `--full`, and **`--format json` never embedded source code at all** (`include_source` was accepted in the signature and silently never read — the one format most likely to be piped straight into another AI's context had zero source, full stop). All four fixed: `config.full` is now stored on `SarandConfig` and threaded into every renderer as `full_output`; JSON gained a real `source_files: [{path, size, content}]` array; markdown/html now show a passing tool's full raw output and uncap issues/TODOs under `--full`. See §5.10 for what's still open (git history/contributor/hotspot depth) |
 | `scripts/paste_chunks.py` | **Rewritten from a maintainer-supplied script and merged in** — chunked, resumable paste helper for chat UIs without file upload (e.g. pasting a `sarand --full` report into ChatGPT). Generalized from a hardcoded README.md/BiMarz-specific tool to work on any file, with per-source-file state namespacing (mirrors `core/cache.py`'s per-project namespacing). Fixed three real bugs found on review (dead `initialize` param, a shallow-copy rollback that only worked by accident, a UX trap where re-running with no flags mid-block silently repeated chunk 0 instead of continuing) — see the module's own docstring for details. Added OSC52 terminal-escape-sequence clipboard support as the primary copy mechanism, since it is the *only* clipboard method that works at all on the maintainer's actual hardware (non-rooted Android, Termux/Kali NetHunter proot, no X11/Wayland session) — `xclip`/`xsel`/`wl-copy` have no display server to talk to there. `OSC52_MAX_BYTES = 6000` applies to the raw text *before* base64 encoding (an empirically-tested ceiling on that hardware/terminal combination, not the final escape-sequence length) |
 | CI | **Confirmed green on all three OSes** — public at `github.com/msoleimani62/sarand`. Two real issues found and fixed across the first three runs (see Phase G notes): a CI-infra bug (`maturin develop` needs a virtualenv CI runners don't have) and a genuine cross-platform test-isolation bug (two tests relied on `XDG_CONFIG_HOME`, which the product code only honors on Linux by design — the product code was correct, the tests weren't platform-independent). Run #3: `ubuntu-latest`, `macos-latest`, `windows-latest` all passed |
 
@@ -624,6 +624,53 @@ happening to work on whichever OS wrote the test.
 Phase G is done -- CI is now the scheduled safety net §4.8 talks about,
 not just an aspiration.
 
+### Phase H — `--full` git-history depth ⚠️ HIGH PRIORITY, not started
+
+Flagged directly by the maintainer (2026-09-18): `--full` is supposed to
+be sarand's single most-complete artifact — full tests, full source,
+full git statistics, built specifically to hand to an AI model without
+the maintainer having to assemble any of it by hand. The rendering-layer
+half of that promise was broken and is now fixed (§6's `--full` row,
+§5.10). The **git-statistics half is still genuinely shallow** and is
+the next thing to fix, before any further language analyzers or
+supply-chain tooling (§5.10's P0–P3 list stays lower priority than this).
+
+Current state (`scanners/git.py::collect_git_snapshot`), confirmed by
+reading the module directly, not assumed:
+- `git log --oneline -20` — **hardcoded to the last 20 commits only**,
+  regardless of `--full`. No total commit count, no full history.
+- No `git shortlog -sn` (or equivalent) — zero contributor/authorship
+  stats anywhere in the report.
+- `git diff --stat` only covers the current uncommitted working-tree
+  diff — no per-file change-frequency / "hotspot" analysis (which files
+  churn most across history is exactly the kind of signal an AI
+  reviewer benefits from and a human wouldn't compute by hand).
+- No repo age / first-commit date, no branch count, no `.gitattributes`
+  or submodule awareness.
+
+Scoped plan for next session:
+1. Extend `GitSnapshot` (`models/results.py`) with new fields: `total_commits`,
+   `contributors: list[tuple[str, int]]` (name, commit count, via
+   `git shortlog -sn --no-merges`), `full_log: str | None` (only populated
+   under `--full` — normal runs keep the existing `-20` summary to stay
+   fast and readable), `hotspots: list[tuple[str, int]]` (path, times
+   changed, via `git log --format= --name-only | sort | uniq -c | sort -rn`,
+   capped like everything else *except* under `--full`), `first_commit_date`.
+2. Every new call joins the existing `asyncio.gather` in
+   `collect_git_snapshot` (§4.7 — independent commands, run concurrently,
+   not appended sequentially).
+3. Thread `full: bool` into `collect_git_snapshot(root, *, full: bool = False)`
+   the same way renderers now take `full_output` (§5.10) — `full_log`/
+   uncapped `hotspots` only computed when true, so a normal run's git
+   step doesn't get slower for data most runs don't need.
+4. Render in markdown/html/json — a `## Git history` section (commit
+   count, top contributors, hotspot files) alongside the existing
+   branch/commit/dirty/tags/stash block, not replacing it.
+5. Regression test mirroring `tests/scanners`'s existing git test
+   pattern (real repo in a tmpdir, `git init` + a few commits, assert
+   `total_commits`/`contributors`/`hotspots` come back correct) — not
+   yet written, since this whole phase is not yet started.
+
 ---
 
 ## 9. Definition of done
@@ -844,3 +891,112 @@ complements Java/Kotlin), PowerShell (top-level
 `.ps1`/`.psm1`/`.psd1`, no manifest), Nix (top-level `.nix`;
 `flake.nix` gets real `nix flake check` tests, unlike the other
 shallow analyzers in this round).
+
+### 5.10 — Quality/security depth round (cargo-deny, mypy, rustfmt/clippy independent gating) + external-audit roadmap
+
+Triggered by a maintainer-supplied external report auditing `sarand
+--doctor`'s tool coverage (2026-09-18). Two things worth recording
+about the report itself before the findings: (1) it claimed Rust only
+checked `cargo-audit` — false, `run_quality` already ran `cargo fmt
+--check` and `cargo clippy`, so always verify a report's claims
+against the actual source before acting on them, same lesson as
+§5.6's "user pushed back... some factually wrong" note; (2) its
+primary type-checker recommendation was `pyright` — rejected, because
+this project already pins `mypy>=1.10` as its type-checker of record
+(`pyproject.toml [dev]`, `ci.yml`'s "Run mypy" step); adding pyright
+instead would mean `--doctor`/`--quality` disagree with what CI
+actually enforces. `mypy` was simply never wired into
+`PythonAnalyzer.run_quality` before now — a CI-only gate, exposed
+through the tool for the first time here.
+
+What shipped this round:
+- `RustAnalyzer.run_quality`: `rustfmt` and `cargo-clippy` binaries
+  now checked **independently** (each is its own rustup component,
+  not guaranteed just because `cargo` is present) — a missing one
+  skips cleanly instead of the subprocess call failing with a
+  confusing toolchain error that reads like a real lint failure.
+- `RustAnalyzer.run_security`: added `cargo deny check`
+  (advisories/bans/licenses/sources — broader than `cargo-audit`'s
+  vulnerability-only scope), gated on both the `cargo-deny` binary
+  *and* a `deny.toml` in the project root (§4.3 — cargo-deny errors
+  confusingly without one, so its presence is the real marker).
+  **Real bug caught during review, not shipped**: the first draft
+  gated `cargo-deny` behind `cargo-audit`'s own binary/`--skip-audit`
+  check, meaning a machine with `cargo-deny` but not `cargo-audit`
+  would never run it. Fixed by making `_run_cargo_audit` and
+  `_run_cargo_deny` fully independent, run concurrently via
+  `asyncio.gather` (§4.7) — same shape as `python_analyzer.py`'s
+  pip-audit+bandit pair.
+- `PythonAnalyzer.run_quality`: added `mypy .` (mirrors `ci.yml`'s own
+  invocation exactly), skips cleanly if not installed.
+- `doctor.py`: new rows for `rustfmt`, `cargo-clippy`, `cargo-deny`,
+  `mypy`.
+- sarand's own `deny.toml` was **not** added as part of this round —
+  out of scope (needs a real license/advisory policy decision, not a
+  mechanical addition) — so `cargo deny check` will show as skipped
+  ("no deny.toml") on this repo itself until that's written.
+
+Roadmap for languages/tools *not* done yet, in the report's own
+priority order (P0 = next, P3 = last — and all of it sits behind
+Phase H above, which the maintainer flagged as higher priority than
+any new language/tool coverage):
+
+**P0**: Node.js — `eslint` (project-aware: skip if no ESLint config
+found, don't run a meaningless check just because the binary exists)
+and `npm audit` in `NodeAnalyzer`; Go — `staticcheck` alongside the
+existing `govulncheck` (kept deliberately narrower than
+`golangci-lint` — "core, not a 200-tool installer" per the report's
+own caution); C/C++ — `clang-tidy` + `clang-format` alongside the
+existing `cppcheck`; Shell — `shfmt` alongside `shellcheck`/`bats`;
+Swift — `swiftlint` (+`swift-format`) alongside `xcodebuild`; a new
+Markdown format analyzer — `markdownlint` (shallow, no-manifest,
+same shape as YAML/JSON/TOML/XML in §5.4).
+
+**P1**: `gitleaks` (secret scanning — complements, doesn't replace,
+the existing content-regex scanner in `core/secrets.py`); `syft`
+(SBOM generation); Java — SpotBugs + Checkstyle; PHP — `phpstan` +
+`phpunit` discovered project-locally (`vendor/bin/`) rather than
+requiring global installs, plus `composer audit`; Ruby —
+`bundler-audit` made visible in `--doctor` specifically (the analyzer
+already runs it via `bundle exec`, per §5.1's bundler-wrapped-tool
+pattern — this is a doctor-visibility gap, not a missing check).
+
+**P2** (supply-chain layer, needs real design, not mechanical
+addition): dependency inventory per language (count + list, not just
+"audit tool found: yes/no"); license policy/conflict detection
+(MIT/Apache-2.0/GPL/LGPL/AGPL/BSD); reproducible-build/lockfile
+validation checks.
+
+**P3** (architecture, lower priority than P0–P2 despite sounding
+foundational): a structured, machine-readable `--doctor` output mode
+(`--doctor --format json`, mirroring the report renderers' own
+`json_renderer.py`); project-local tool preference over global
+installs, generalized beyond just the PHP case above; tool-version
+compatibility checks.
+
+**Explicitly not doing**: adding language coverage for its own sake.
+§5.6's negotiation-then-deliver pattern (verify against
+`registry.py`/`constants.py` before agreeing something is missing)
+applies to this whole list too — re-check each item against the
+current source before implementing, the same way this round's own
+first draft found the report's Rust claim was already stale.
+
+**Real on-device test bugs found running this round's own test suite**
+(confirmed via a real `pytest -v` on the maintainer's device, not
+assumed — §4.8): `test_dart_analyzer_run_tests_skips_cleanly_without_dart_or_flutter`,
+`..._run_quality_skips_cleanly_without_dart_or_flutter`, and
+`test_zig_analyzer_run_tests_skips_cleanly_without_zig` all asserted a
+clean-skip path but never monkeypatched `shutil.which` — they silently
+relied on the real machine not having `dart`/`flutter`/`zig`
+installed. On a machine that has them (this maintainer's — a manual
+Zig 0.16.0 install plus the Dart SDK), the tests ran real subprocesses
+instead of exercising the skip path, and `zig build test` against an
+empty `build.zig` fixture produced a genuine compile error. Fixed by
+monkeypatching `shutil.which` to return `None`, the same pattern every
+other "skips cleanly without X" test in the suite already uses (e.g.
+§5.10's own `mypy`/`cargo-deny` tests above never hit this, precisely
+because they did monkeypatch it from the start). Worth a sweep of the
+rest of the ~40 "without_<tool>" tests across the suite at some point
+— not done this round, since the real `pytest` run only surfaced these
+three as actually broken on this device, and patching untested ones on
+suspicion alone isn't verification (§4.8).

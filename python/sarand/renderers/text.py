@@ -6,7 +6,9 @@ from sarand.models.results import ReportData
 from sarand.progress import status
 
 
-def render(data: ReportData, *, include_source: bool = True) -> str:
+def render(
+    data: ReportData, *, include_source: bool = True, full_output: bool = False
+) -> str:
     status("Rendering plain-text report...")
     lines = [
         f"sarand report — {data.project_root.name}",

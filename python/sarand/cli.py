@@ -446,7 +446,10 @@ async def run(config: SarandConfig) -> int:
         from sarand.renderers import pdf as pdf_renderer
 
         outcome = pdf_renderer.render_to_file(
-            data, output_path, include_source=config.include_source
+            data,
+            output_path,
+            include_source=config.include_source,
+            full_output=config.full,
         )
         if not outcome.ok:
             error(f"PDF rendering failed: {outcome.detail}")
@@ -454,7 +457,7 @@ async def run(config: SarandConfig) -> int:
         digest = write_sha256(output_path)
     else:
         content = _RENDERERS[config.output_format].render(
-            data, include_source=config.include_source
+            data, include_source=config.include_source, full_output=config.full
         )
         output_path.write_text(content, encoding="utf-8")
         digest = write_sha256(output_path)

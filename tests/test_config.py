@@ -172,6 +172,19 @@ def test_full_flag_removes_truncation_limits() -> None:
         assert cfg.max_file_size >= 10 * 1024 * 1024 * 1024
 
 
+def test_full_flag_is_stored_for_renderers_to_read() -> None:
+    """cfg.full must reach the renderer layer too (as `full_output`),
+    not just file-collection limits -- otherwise a passing tool's full
+    output and >500-row issue lists still get cut regardless of --full.
+    Regression guard for the gap found in the 2026-09-18 --full audit."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = SarandConfig.from_args(_args(project=tmp, full=True))
+        assert cfg.full is True
+
+        cfg2 = SarandConfig.from_args(_args(project=tmp))
+        assert cfg2.full is False
+
+
 def test_full_flag_does_not_override_an_explicit_max_depth() -> None:
     """An explicit --max-depth must still win over --full's convenience
     default -- explicit user intent is never silently overridden."""

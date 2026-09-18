@@ -11,9 +11,11 @@ detection integration, and registry integration.
 from __future__ import annotations
 
 import asyncio
+import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
 from _helpers import write
 from sarand.analyzers.dart_analyzer import DartAnalyzer, _is_flutter_project
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
@@ -78,7 +80,29 @@ def test_is_flutter_project_false_without_pubspec() -> None:
         assert _is_flutter_project(Path(tmp)) is False
 
 
-def test_dart_analyzer_run_tests_skips_cleanly_without_dart_or_flutter() -> None:
+def test_dart_analyzer_run_tests_skips_cleanly_without_dart_or_flutter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # BUG FIX: this test used to rely on the *real* machine not having
+    # `dart`/`flutter` installed to exercise the skip path -- on any
+    # device that actually has the Dart SDK (this maintainer's, for
+    # instance), `_tool()` picks up the real binary and the test
+    # exercises "run a real dart command" instead of "skip cleanly",
+    # which isn't what it claims to test. Same fix shape as every other
+    # "skips cleanly without X" test in this suite: monkeypatch
+    # `shutil.which` to actually simulate the binary's absence,
+    # regardless of what's really on PATH.
+    #
+    # اصلاح باگ: این تست قبلاً به این متکی بود که ماشین *واقعی* دستور
+    # `dart`/`flutter` نصب نداشته باشد تا مسیر skip را تمرین کند -- روی
+    # هر دستگاهی که واقعاً Dart SDK نصب دارد (مثلاً دستگاه خود
+    # نگه‌دارنده)، `_tool()` باینری واقعی را پیدا می‌کند و تست به‌جای
+    # «تمیز رد شدن»، «اجرای یک دستور واقعی dart» را تمرین می‌کند که
+    # ادعای تست نیست. همان شکل فیکس همه‌ی تست‌های دیگر «بدون X تمیز رد
+    # می‌شود» در این مجموعه: `shutil.which` را monkeypatch می‌کنیم تا
+    # غیاب باینری را واقعاً شبیه‌سازی کند، صرف‌نظر از اینکه واقعاً روی
+    # PATH چه هست.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = DartAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -93,7 +117,10 @@ def test_dart_analyzer_run_tests_skips_cleanly_without_dart_or_flutter() -> None
     assert "dart" in result.skip_reason.lower()
 
 
-def test_dart_analyzer_run_quality_skips_cleanly_without_dart_or_flutter() -> None:
+def test_dart_analyzer_run_quality_skips_cleanly_without_dart_or_flutter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = DartAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:

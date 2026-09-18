@@ -111,3 +111,104 @@ def test_markdown_renderer_shows_excluded_secrets_and_findings() -> None:
         assert "AWS Access Key ID" in output
         # The finding must never contain an actual key-shaped value.
         assert "AKIA" not in output
+
+
+# --- --full completeness: json source embedding, uncapped output/issues ---
+# Regression guards for the gaps a user-supplied external audit found:
+# JSON never embedded source despite accepting `include_source`, and
+# markdown/html always showed only the tail summary of a *passing*
+# tool + capped issue lists, even under --full (whose own --help text
+# promises "nothing is skipped or cut short").
+
+
+def test_json_renderer_embeds_source_when_include_source_true() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        data = _fixture_data(Path(tmp))
+        output = json_renderer.render(data, include_source=True)
+        parsed = json.loads(output)
+
+        assert "source_files" in parsed
+        assert len(parsed["source_files"]) == 1
+        entry = parsed["source_files"][0]
+        assert entry["path"] == "main.py"
+        assert entry["content"] == "print('hi')\n"
+        assert entry["size"] == len("print('hi')\n")
+
+
+def test_json_renderer_omits_source_when_include_source_false() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        data = _fixture_data(Path(tmp))
+        output = json_renderer.render(data, include_source=False)
+        parsed = json.loads(output)
+
+        assert "source_files" not in parsed
+        # The path list itself is unaffected by include_source -- only
+        # the file *contents* are gated.
+        assert parsed["included_files"] == ["main.py"]
+
+
+def test_markdown_full_output_shows_passing_tools_raw_output() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        data = _fixture_data(Path(tmp))
+        # A passing result whose full output is longer than its tail
+        # summary -- e.g. a verbose test run summarized down to "1 passed".
+        data.test_results = [
+            CommandResult(
+                kind="pytest",
+                returncode=0,
+                summary="1 passed",
+                raw_output="collected 1 item\n\ntest_x.py::test_one PASSED\n\n1 passed",
+            )
+        ]
+
+        default_output = markdown.render(data, include_source=False)
+        full_output = markdown.render(data, include_source=False, full_output=True)
+
+        # Default: PASS never shows the <details> full-output block.
+        assert "collected 1 item" not in default_output
+        # --full: full output reaches the report even though it passed.
+        assert "collected 1 item" in full_output
+
+
+def test_markdown_full_output_uncaps_issue_list() -> None:
+    from sarand.models.results import Issue
+
+    with tempfile.TemporaryDirectory() as tmp:
+        data = _fixture_data(Path(tmp))
+        many_warnings = [
+            Issue(source="ruff", message=f"warning #{i}") for i in range(510)
+        ]
+        data.test_results = [
+            CommandResult(
+                kind="pytest", returncode=0, summary="ok", warnings=many_warnings
+            )
+        ]
+
+        default_output = markdown.render(data, include_source=False)
+        full_output = markdown.render(data, include_source=False, full_output=True)
+
+        assert "(10 more)" in default_output  # 510 - MAX_ISSUE_ROWS(500)
+        assert "warning #509" not in default_output
+        assert "(10 more)" not in full_output
+        assert "warning #509" in full_output
+
+
+def test_html_full_output_shows_passing_tools_raw_output() -> None:
+    from sarand.renderers import html
+
+    with tempfile.TemporaryDirectory() as tmp:
+        data = _fixture_data(Path(tmp))
+        data.test_results = [
+            CommandResult(
+                kind="pytest",
+                returncode=0,
+                summary="1 passed",
+                raw_output="collected 1 item\n\ntest_x.py::test_one PASSED\n\n1 passed",
+            )
+        ]
+
+        default_output = html.render(data, include_source=False)
+        full_output = html.render(data, include_source=False, full_output=True)
+
+        assert "collected 1 item" not in default_output
+        assert "collected 1 item" in full_output

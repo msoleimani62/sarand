@@ -11,7 +11,9 @@ from sarand.models.results import ReportData
 from sarand.progress import status
 
 
-def render(data: ReportData, *, include_source: bool = True) -> str:
+def render(
+    data: ReportData, *, include_source: bool = True, full_output: bool = False
+) -> str:
     status("Rendering JSON report...")
 
     def default(obj: Any) -> Any:
@@ -44,4 +46,39 @@ def render(data: ReportData, *, include_source: bool = True) -> str:
         "excluded_secret_files": [str(p) for p in data.excluded_secret_files],
         "secret_findings": [f.__dict__ for f in data.secret_findings],
     }
+
+    # BUG FIX: `include_source` was accepted in the signature (interface
+    # parity with every other renderer) but never actually read in this
+    # function body -- so JSON output never contained a single byte of
+    # source code, regardless of --no-source/--full, even though
+    # `included_files` (just the *paths*) was right there implying
+    # completeness. For an AI-facing structured format this is the one
+    # gap that matters most, since it's the format most likely to be fed
+    # straight into another model's context. Mirrors the same per-file
+    # embed markdown.py/html.py already do.
+    #
+    # اصلاح باگ: `include_source` در امضای تابع پذیرفته می‌شد (برای
+    # هم‌شکلی رابط با بقیه‌ی رندرکننده‌ها) ولی هرگز در بدنه‌ی تابع خوانده
+    # نمی‌شد -- پس خروجی JSON صرف‌نظر از --no-source/--full حتی یک بایت
+    # کد منبع هم نداشت، با اینکه `included_files` (فقط *مسیرها*) درست
+    # همان‌جا بود و القای کامل‌بودن می‌کرد. برای یک فرمت ساخت‌یافته‌ی
+    # رو-به-AI، این دقیقاً همان خلأیی است که بیشترین اهمیت را دارد، چون
+    # محتمل‌ترین فرمت برای تغذیه‌ی مستقیم context یک مدل دیگر است. همان
+    # embed تک‌فایلی که markdown.py/html.py از قبل دارند اینجا هم تکرار
+    # می‌شود.
+    if include_source:
+        source_files: list[dict[str, Any]] = []
+        for rel in data.included_files:
+            full = data.project_root / rel
+            try:
+                content = full.read_text(encoding="utf-8", errors="replace")
+            except OSError as exc:
+                content = f"(error reading file: {exc})"
+            try:
+                size = full.stat().st_size
+            except OSError:
+                size = 0
+            source_files.append({"path": str(rel), "size": size, "content": content})
+        payload["source_files"] = source_files
+
     return json.dumps(payload, indent=2, default=default, ensure_ascii=False)
