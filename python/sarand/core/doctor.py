@@ -37,8 +37,10 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "Rust",
         "cargo-deny",
         "cargo install cargo-deny",
-        "--security (advisories/bans/licenses/sources -- also needs a "
-        "deny.toml, see: cargo deny init)",
+        (
+            "--security (advisories/bans/licenses/sources -- also needs a "
+            "deny.toml, see: cargo deny init)"
+        ),
     ),
     ("Go", "go", "install Go: https://go.dev/dl/", "running tests"),
     (
@@ -47,7 +49,19 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "go install golang.org/x/vuln/cmd/govulncheck@latest",
         "--security",
     ),
+    (
+        "Go",
+        "staticcheck",
+        "go install honnef.co/go/tools/cmd/staticcheck@latest",
+        "--quality",
+    ),
     ("Node.js", "npm", "install Node.js: https://nodejs.org", "running tests"),
+    (
+        "Node.js",
+        "eslint",
+        "npm install -g eslint (or add to project devDependencies)",
+        "--quality (only when an ESLint config is present in the project)",
+    ),
     (
         "TypeScript",
         "tsc",
@@ -80,6 +94,12 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     ),
     (
         "Swift",
+        "swiftlint",
+        "https://github.com/realm/SwiftLint (or `brew install swiftlint`)",
+        "--quality",
+    ),
+    (
+        "Swift",
         "xcodebuild",
         "install Xcode + Command Line Tools (macOS only)",
         "running tests for Xcode-only projects (no Package.swift)",
@@ -96,6 +116,15 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "cppcheck",
         "install cppcheck (e.g. apt/pacman/brew install cppcheck)",
         "--security",
+    ),
+    (
+        "C/C++",
+        "clang-tidy",
+        "install clang-tidy (e.g. apt/pacman/brew install llvm)",
+        (
+            "--quality (also needs compile_commands.json -- "
+            "cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON)"
+        ),
     ),
     (
         "Java / Kotlin / Android",
@@ -162,11 +191,26 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     ),
     (
         "Shell",
+        "shfmt",
+        (
+            "install shfmt (e.g. apt/pacman/brew install shfmt, or "
+            "go install mvdan.cc/sh/v3/cmd/shfmt@latest)"
+        ),
+        "--quality (formatting)",
+    ),
+    (
+        "Shell",
         "bats",
         "install bats-core: https://bats-core.readthedocs.io/en/stable/installation.html",
         "running tests (only when a tests/*.bats suite exists)",
     ),
     ("YAML", "yamllint", "pip install yamllint", "--quality"),
+    (
+        "Markdown",
+        "markdownlint",
+        "npm install -g markdownlint-cli",
+        "--quality",
+    ),
     (
         "JSON",
         "jsonlint",
@@ -267,6 +311,7 @@ _CATEGORY_ORDER = (
     "JSON",
     "TOML",
     "XML",
+    "Markdown",
     "R",
     "Perl",
     "Julia",

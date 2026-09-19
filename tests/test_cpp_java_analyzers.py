@@ -51,7 +51,7 @@ def test_cpp_analyzer_finds_configured_build_dir() -> None:
         assert build_dir == root / "build"
 
 
-def test_cpp_analyzer_quality_is_noop_without_clang_format_config() -> None:
+def test_cpp_analyzer_quality_skips_clang_format_without_config() -> None:
     analyzer = CppAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -60,7 +60,81 @@ def test_cpp_analyzer_quality_is_noop_without_clang_format_config() -> None:
 
         results = asyncio.run(analyzer.run_quality(root))
 
-        assert results == []
+    # No .clang-format -> clang-format is left out entirely (not even a
+    # skip entry, matching the original behavior). clang-tidy is always
+    # evaluated though (it's independent), and skips on its own gate.
+    assert not any(r.kind == "clang-format --dry-run" for r in results)
+    tidy = next(r for r in results if r.kind == "clang-tidy")
+    assert tidy.skipped is True
+
+
+def test_cpp_analyzer_clang_tidy_skips_without_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(name: str) -> str | None:
+        if name == "clang-tidy":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+    analyzer = CppAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "CMakeLists.txt", "cmake_minimum_required(VERSION 3.10)\n")
+        write(root / "compile_commands.json", "[]")
+
+        results = asyncio.run(analyzer.run_quality(root))
+
+    tidy = next(r for r in results if r.kind == "clang-tidy")
+    assert tidy.skipped is True
+    assert "not installed" in tidy.skip_reason
+
+
+def test_cpp_analyzer_clang_tidy_skips_without_compile_commands(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    analyzer = CppAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "CMakeLists.txt", "cmake_minimum_required(VERSION 3.10)\n")
+        # deliberately no compile_commands.json anywhere
+
+        results = asyncio.run(analyzer.run_quality(root))
+
+    tidy = next(r for r in results if r.kind == "clang-tidy")
+    assert tidy.skipped is True
+    assert "compile_commands.json" in tidy.skip_reason
+
+
+def test_cpp_analyzer_clang_tidy_runs_with_compile_commands(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.cpp_analyzer as cpp_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(cpp_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+
+    analyzer = CppAnalyzer()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "CMakeLists.txt", "cmake_minimum_required(VERSION 3.10)\n")
+        write(root / "main.cpp", "int main() { return 0; }\n")
+        write(root / "build" / "compile_commands.json", "[]")
+
+        results = asyncio.run(analyzer.run_quality(root))
+
+    tidy = next(r for r in results if r.kind == "clang-tidy")
+    assert tidy.skipped is False
+    tidy_cmd = next(c for c in captured_cmds if c[0] == "clang-tidy")
+    assert "-p" in tidy_cmd
+    assert "main.cpp" in tidy_cmd
 
 
 @pytest.mark.slow_external

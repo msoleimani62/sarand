@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
 from _helpers import write
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
 from sarand.analyzers.shell_analyzer import ShellAnalyzer
@@ -88,7 +90,15 @@ def test_shell_analyzer_run_tests_with_bats_suite_present() -> None:
         assert "bats" in result.skip_reason.lower()
 
 
-def test_shell_analyzer_run_quality_skips_cleanly_without_shellcheck() -> None:
+def test_shell_analyzer_run_quality_skips_cleanly_without_shellcheck(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(name: str) -> str | None:
+        if name == "shellcheck":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
     analyzer = ShellAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -97,10 +107,59 @@ def test_shell_analyzer_run_quality_skips_cleanly_without_shellcheck() -> None:
 
         results = asyncio.run(analyzer.run_quality(root))
 
-    assert len(results) == 1
-    assert results[0].kind == "shellcheck"
-    if results[0].skipped:
-        assert "not found" in results[0].skip_reason.lower()
+    shellcheck_result = next(r for r in results if r.kind == "shellcheck")
+    assert shellcheck_result.skipped is True
+    assert "not found" in shellcheck_result.skip_reason.lower()
+
+
+def test_shell_analyzer_run_quality_skips_shfmt_without_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(name: str) -> str | None:
+        if name == "shfmt":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+    analyzer = ShellAnalyzer()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "install.sh", "echo hi\n")
+
+        results = asyncio.run(analyzer.run_quality(root))
+
+    shfmt_result = next(r for r in results if r.kind == "shfmt -d")
+    assert shfmt_result.skipped is True
+    assert "not installed" in shfmt_result.skip_reason
+
+
+def test_shell_analyzer_run_quality_runs_shfmt_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.shell_analyzer as shell_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(shell_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+    analyzer = ShellAnalyzer()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "install.sh", "echo hi\n")
+
+        results = asyncio.run(analyzer.run_quality(root))
+
+    shfmt_result = next(r for r in results if r.kind == "shfmt -d")
+    assert shfmt_result.skipped is False
+    shfmt_cmd = next(c for c in captured_cmds if c[0] == "shfmt")
+    assert shfmt_cmd[1] == "-d"
+    assert "install.sh" in shfmt_cmd
 
 
 def test_shell_analyzer_run_security_is_always_empty() -> None:

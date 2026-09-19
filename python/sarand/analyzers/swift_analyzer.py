@@ -141,9 +141,11 @@ class SwiftAnalyzer:
         return make_command_result(f"xcodebuild test ({scheme})", rc, out, dur)
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
+        results: list[CommandResult] = []
+
         formatter = shutil.which("swift-format")
         if formatter is None:
-            return [
+            results.append(
                 make_command_result(
                     "swift-format lint",
                     127,
@@ -152,11 +154,40 @@ class SwiftAnalyzer:
                     skipped=True,
                     skip_reason="swift-format not found in PATH",
                 )
-            ]
-        rc, out, dur = await run_cmd_async(
-            [formatter, "lint", "--recursive", "."], root, LONG_CMD_TIMEOUT
-        )
-        return [make_command_result("swift-format lint", rc, out, dur)]
+            )
+        else:
+            rc, out, dur = await run_cmd_async(
+                [formatter, "lint", "--recursive", "."], root, LONG_CMD_TIMEOUT
+            )
+            results.append(make_command_result("swift-format lint", rc, out, dur))
+
+        # swiftlint, unlike eslint, ships with a sensible default rule
+        # set and is designed to run with zero config -- no config-file
+        # gate needed here (contrast node_analyzer.py's eslint, which
+        # genuinely does nothing useful unconfigured).
+        #
+        # swiftlint، برخلاف eslint، با یک مجموعه قوانین پیش‌فرض معقول
+        # می‌آید و طوری طراحی شده که بدون کانفیگ هم اجرا شود -- اینجا
+        # نیازی به gate روی فایل کانفیگ نیست (در تضاد با eslint در
+        # node_analyzer.py، که واقعاً بدون کانفیگ کار مفیدی نمی‌کند).
+        if shutil.which("swiftlint") is None:
+            results.append(
+                make_command_result(
+                    "swiftlint",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="swiftlint not installed",
+                )
+            )
+        else:
+            rc, out, dur = await run_cmd_async(
+                ["swiftlint", "lint", "--quiet"], root, LONG_CMD_TIMEOUT
+            )
+            results.append(make_command_result("swiftlint", rc, out, dur))
+
+        return results
 
     async def run_security(self, root: Path) -> list[CommandResult]:
         # No standard SwiftPM dependency-audit tool exists as of this

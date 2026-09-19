@@ -624,7 +624,21 @@ happening to work on whichever OS wrote the test.
 Phase G is done -- CI is now the scheduled safety net §4.8 talks about,
 not just an aspiration.
 
-### Phase H — `--full` git-history depth ⚠️ HIGH PRIORITY, not started
+### Phase H — `--full` git-history depth ⏸️ DEFERRED (kept as a reminder, not a priority)
+
+**2026-09-19 update**: maintainer decision — this is *not* worth
+building right now. `sarand`'s own projects (this one, `ramz`, `odl`,
+etc.) are all solo-developer repos, so `contributors`
+(`git shortlog -sn`) would always render as one name at 100% — a field
+with zero signal for a single-author project. `total_commits`/
+`full_log`/`hotspots` were judged individually reasonable but the
+maintainer chose to prioritize language/tool coverage (P0 below)
+instead for now. Kept here, unimplemented, specifically so a future
+session doesn't have to rediscover the git-stats gap from scratch --
+re-read this whole section before starting it, don't just skim the
+one-line summary. Re-evaluate `contributors` specifically if this ever
+gets picked up in a context with multiple committers; it stays
+low-value for every project this maintainer currently runs it on.
 
 Flagged directly by the maintainer (2026-09-18): `--full` is supposed to
 be sarand's single most-complete artifact — full tests, full source,
@@ -941,16 +955,40 @@ priority order (P0 = next, P3 = last — and all of it sits behind
 Phase H above, which the maintainer flagged as higher priority than
 any new language/tool coverage):
 
-**P0**: Node.js — `eslint` (project-aware: skip if no ESLint config
-found, don't run a meaningless check just because the binary exists)
-and `npm audit` in `NodeAnalyzer`; Go — `staticcheck` alongside the
-existing `govulncheck` (kept deliberately narrower than
-`golangci-lint` — "core, not a 200-tool installer" per the report's
-own caution); C/C++ — `clang-tidy` + `clang-format` alongside the
-existing `cppcheck`; Shell — `shfmt` alongside `shellcheck`/`bats`;
-Swift — `swiftlint` (+`swift-format`) alongside `xcodebuild`; a new
-Markdown format analyzer — `markdownlint` (shallow, no-manifest,
-same shape as YAML/JSON/TOML/XML in §5.4).
+**P0 — done 2026-09-19**: Node.js — `eslint` added (project-aware: a
+config-file gate, `_ESLINT_CONFIG_FILES`, both legacy `.eslintrc*` and
+flat-config `eslint.config.*`; skips cleanly with no config, matching
+the report's own "don't run a meaningless check just because the
+binary exists" caution), run independently of the pre-existing
+"npm run lint" (a project can have an ESLint config with no "lint"
+script wired up, or a "lint" script that runs something unrelated).
+**`npm audit` was already implemented before this round** — the
+report's claim it was missing was stale, second time this exact class
+of error has happened (see the Rust claim at the top of this section);
+always verify against source before agreeing something is missing.
+Go — `staticcheck` added alongside the existing `go vet`, deliberately
+not `golangci-lint` (the report's own "core, not a 200-tool installer"
+reasoning). C/C++ — `clang-tidy` added, gated on `compile_commands.json`
+(root or a known build-dir candidate — clang-tidy without one mostly
+produces noise, same §4.3 reasoning as `_configured_build_dir` for
+ctest). **`clang-format` was already implemented** (gated on
+`.clang-format`) — the one language in this report where the missing-
+tool claim was actually correct. Shell — `shfmt -d` added alongside
+the existing `shellcheck`, independent binary/skip path (formatting
+and linting are unrelated concerns, same split as
+`ruff check`/`ruff format` and `cargo clippy`/`cargo fmt`). Swift —
+`swiftlint` added alongside the existing `swift-format`, deliberately
+**not** config-gated (unlike eslint, swiftlint ships sensible defaults
+and is designed to run unconfigured). New `MarkdownAnalyzer` —
+`markdownlint`, shallow top-level-file detection, no-manifest, same
+shape as YAML/JSON/TOML/XML in §5.4; registered in `registry.py`
+alongside the other format analyzers. `doctor.py` gained rows for all
+six tools plus a new `"Markdown"` category in `_CATEGORY_ORDER`.
+`test_doctor_v2.py::test_p0_language_depth_round_checks_are_registered`
+and `test_markdown_analyzer.py` cover the additions; pre-existing
+tests that hardcoded a shorter expected tool set for C/C++/Shell/Swift
+(`test_cpp_java_analyzers.py`, `test_shell_analyzer.py`,
+`test_swift_analyzer.py`) were updated to match.
 
 **P1**: `gitleaks` (secret scanning — complements, doesn't replace,
 the existing content-regex scanner in `core/secrets.py`); `syft`

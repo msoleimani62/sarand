@@ -70,8 +70,10 @@ class ShellAnalyzer:
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
         scripts = _top_level_shell_scripts(root)
+        results: list[CommandResult] = []
+
         if shutil.which("shellcheck") is None:
-            return [
+            results.append(
                 make_command_result(
                     "shellcheck",
                     127,
@@ -80,11 +82,44 @@ class ShellAnalyzer:
                     skipped=True,
                     skip_reason="shellcheck not found in PATH",
                 )
-            ]
-        rc, out, dur = await run_cmd_async(
-            ["shellcheck", *(str(p.name) for p in scripts)], root, LONG_CMD_TIMEOUT
-        )
-        return [make_command_result("shellcheck", rc, out, dur)]
+            )
+        else:
+            rc, out, dur = await run_cmd_async(
+                ["shellcheck", *(str(p.name) for p in scripts)], root, LONG_CMD_TIMEOUT
+            )
+            results.append(make_command_result("shellcheck", rc, out, dur))
+
+        # shfmt: formatting, independent of shellcheck (a purely
+        # linting tool that never touches formatting). `-d` (diff)
+        # mode exits non-zero when a file isn't already formatted,
+        # same "diff mode as the check" shape as `cargo fmt --check`/
+        # `ruff format --check` elsewhere in this project.
+        #
+        # shfmt: فرمت‌دهی، مستقل از shellcheck (که صرفاً یک ابزار
+        # lint است و اصلاً به فرمت دست نمی‌زند). حالت `-d` (diff)
+        # وقتی فایلی از قبل فرمت‌شده نباشد با کد غیرصفر خارج می‌شود،
+        # همان شکل «حالت diff به‌عنوان چک» که `cargo fmt --check`/
+        # `ruff format --check` در جای دیگر این پروژه دارند.
+        if shutil.which("shfmt") is None:
+            results.append(
+                make_command_result(
+                    "shfmt -d",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="shfmt not installed",
+                )
+            )
+        else:
+            rc, out, dur = await run_cmd_async(
+                ["shfmt", "-d", *(str(p.name) for p in scripts)],
+                root,
+                LONG_CMD_TIMEOUT,
+            )
+            results.append(make_command_result("shfmt -d", rc, out, dur))
+
+        return results
 
     async def run_security(self, root: Path) -> list[CommandResult]:
         # No standard shell-script vulnerability-audit tool exists as

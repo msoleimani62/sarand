@@ -13,9 +13,11 @@ found" skip path already proves run_tests degrades cleanly without it.
 from __future__ import annotations
 
 import asyncio
+import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
 from _helpers import write
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
 from sarand.analyzers.swift_analyzer import SwiftAnalyzer
@@ -98,7 +100,15 @@ def test_swift_analyzer_run_tests_skips_cleanly_without_xcodebuild() -> None:
     assert "xcodebuild" in result.skip_reason.lower()
 
 
-def test_swift_analyzer_run_quality_skips_cleanly_without_swift_format() -> None:
+def test_swift_analyzer_run_quality_skips_cleanly_without_swift_format(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(name: str) -> str | None:
+        if name == "swift-format":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
     analyzer = SwiftAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -107,11 +117,57 @@ def test_swift_analyzer_run_quality_skips_cleanly_without_swift_format() -> None
 
         results = asyncio.run(analyzer.run_quality(root))
 
-        assert len(results) == 1
-        assert results[0].kind == "swift-format lint"
+    fmt_result = next(r for r in results if r.kind == "swift-format lint")
+    assert fmt_result.skipped is True
+    assert "not found" in fmt_result.skip_reason.lower()
 
-        if results[0].skipped:
-            assert "not found" in results[0].skip_reason.lower()
+
+def test_swift_analyzer_run_quality_skips_swiftlint_without_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(name: str) -> str | None:
+        if name == "swiftlint":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+    analyzer = SwiftAnalyzer()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Package.swift", "")
+
+        results = asyncio.run(analyzer.run_quality(root))
+
+    lint_result = next(r for r in results if r.kind == "swiftlint")
+    assert lint_result.skipped is True
+    assert "not installed" in lint_result.skip_reason
+
+
+def test_swift_analyzer_run_quality_runs_swiftlint_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sarand.analyzers.swift_analyzer as swift_analyzer_module
+
+    captured_cmds: list[list[str]] = []
+
+    async def fake_run_cmd_async(cmd, cwd, timeout):
+        captured_cmds.append(cmd)
+        return 0, "ok", 0.1
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(swift_analyzer_module, "run_cmd_async", fake_run_cmd_async)
+    analyzer = SwiftAnalyzer()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Package.swift", "")
+
+        results = asyncio.run(analyzer.run_quality(root))
+
+    lint_result = next(r for r in results if r.kind == "swiftlint")
+    assert lint_result.skipped is False
+    assert ["swiftlint", "lint", "--quiet"] in captured_cmds
 
 
 def test_swift_analyzer_run_security_is_always_empty() -> None:

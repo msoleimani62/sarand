@@ -37,6 +37,7 @@ from sarand.analyzers.json_analyzer import JsonAnalyzer
 from sarand.analyzers.julia_analyzer import JuliaAnalyzer
 from sarand.analyzers.kotlin_analyzer import KotlinAnalyzer
 from sarand.analyzers.lua_analyzer import LuaAnalyzer
+from sarand.analyzers.markdown_analyzer import MarkdownAnalyzer
 from sarand.analyzers.nix_analyzer import NixAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.objectivec_analyzer import ObjectiveCAnalyzer
@@ -150,6 +151,13 @@ _BUILTIN: list[LanguageAnalyzer] = [
     JsonAnalyzer(),
     TomlAnalyzer(),
     XmlAnalyzer(),
+    # MarkdownAnalyzer alongside the other format analyzers above, for
+    # the same reason: a README.md is claimed by no language analyzer
+    # above, so this is the only thing that will ever lint it.
+    # MarkdownAnalyzer کنار بقیه‌ی آنالایزرهای فرمت بالا، به همان دلیل:
+    # یک README.md توسط هیچ آنالایزر زبانی بالا claim نمی‌شود، پس این
+    # تنها چیزی است که تا به‌حال قرار است آن را لینت کند.
+    MarkdownAnalyzer(),
 ]
 
 

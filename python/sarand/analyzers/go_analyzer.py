@@ -41,8 +41,10 @@ class GoAnalyzer:
         return make_command_result("go test", rc, output, duration)
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
+        results: list[CommandResult] = []
+
         if shutil.which("go") is None:
-            return [
+            results.append(
                 make_command_result(
                     "go vet",
                     127,
@@ -51,11 +53,45 @@ class GoAnalyzer:
                     skipped=True,
                     skip_reason="go not found in PATH",
                 )
-            ]
-        rc, out, dur = await run_cmd_async(
-            ["go", "vet", "./..."], root, LONG_CMD_TIMEOUT
-        )
-        return [make_command_result("go vet", rc, out, dur)]
+            )
+        else:
+            rc, out, dur = await run_cmd_async(
+                ["go", "vet", "./..."], root, LONG_CMD_TIMEOUT
+            )
+            results.append(make_command_result("go vet", rc, out, dur))
+
+        # Deliberately just staticcheck, not golangci-lint -- the report
+        # that prompted this called staticcheck "core", golangci-lint a
+        # "200-tool installer"; same "core, not kitchen-sink" reasoning
+        # rust_analyzer.py/python_analyzer.py already follow. Independent
+        # of `go` itself (its own binary, own install path), same shape
+        # as cargo-audit/cargo-deny being independent of plain `cargo`.
+        #
+        # عمداً فقط staticcheck، نه golangci-lint -- همان گزارشی که این
+        # دور را شروع کرد، staticcheck را «core» خواند و golangci-lint
+        # را «یک نصب‌کننده‌ی ۲۰۰ ابزاری»؛ همان استدلال «core، نه
+        # کیف‌ابزار کامل» که rust_analyzer.py/python_analyzer.py از قبل
+        # دنبال می‌کنند. مستقل از خودِ `go` است (باینری خودش، مسیر نصب
+        # خودش)، همان شکلی که cargo-audit/cargo-deny مستقل از `cargo`ی
+        # ساده هستند.
+        if shutil.which("staticcheck") is None:
+            results.append(
+                make_command_result(
+                    "staticcheck",
+                    127,
+                    "",
+                    0.0,
+                    skipped=True,
+                    skip_reason="staticcheck not installed",
+                )
+            )
+        else:
+            rc, out, dur = await run_cmd_async(
+                ["staticcheck", "./..."], root, LONG_CMD_TIMEOUT
+            )
+            results.append(make_command_result("staticcheck", rc, out, dur))
+
+        return results
 
     async def run_security(self, root: Path) -> list[CommandResult]:
         if shutil.which("govulncheck") is None:
