@@ -87,7 +87,15 @@ def test_php_analyzer_prefers_local_vendor_binary_over_global(
     assert found == str(local_phpunit)
 
 
-def test_php_analyzer_run_tests_skips_cleanly_without_phpunit() -> None:
+def test_php_analyzer_run_tests_skips_cleanly_without_phpunit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed (the
+    # Ubuntu CI image ships PHPUnit).
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشین اجراکننده بستگی پیدا می‌کند (image اوبونتوی CI خودش PHPUnit دارد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = PhpAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -101,7 +109,15 @@ def test_php_analyzer_run_tests_skips_cleanly_without_phpunit() -> None:
     assert "phpunit" in result.skip_reason.lower()
 
 
-def test_php_analyzer_run_quality_skips_cleanly_without_phpstan() -> None:
+def test_php_analyzer_run_quality_skips_cleanly_without_phpstan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed (the
+    # Ubuntu CI image ships PHPUnit).
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشین اجراکننده بستگی پیدا می‌کند (image اوبونتوی CI خودش PHPUnit دارد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = PhpAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:

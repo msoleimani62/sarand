@@ -411,7 +411,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, expected 578 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, expected 590 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -1355,8 +1355,46 @@ push the tag. Never tag a red commit.
 sandbox; CI is the arbiter): everything above was checked only by static
 analysis, guard tests, and running the suite under a C locale and a
 temp directory with spaces and non-ASCII characters. **Known gaps, not
-bugs fixed here**: the environment section reads memory only from
-`/proc/meminfo`, so it reports unknown on macOS/Windows; `install.sh` is
+bugs fixed here**: `install.sh` is
 POSIX-only (Windows installs via pip/pipx); the OSC 52 clipboard path
 writes to `/dev/tty`, which does not exist on Windows; `device_report`
 classifies paths with POSIX rules (its purpose is Android/Linux storage).
+
+**Memory reporting parity (2026-09-20).** The environment section used to
+read memory only from `/proc/meminfo`, so it said `(unknown)` on macOS and
+Windows. `scanners/environment.py` now has one reading per platform:
+Linux/Android/Termux/WSL from `/proc/meminfo` (output format unchanged),
+Windows through `GlobalMemoryStatusEx` via stdlib `ctypes`, macOS through
+`vm_stat` (free + inactive + speculative pages, an approximation of
+"available") plus `sysconf` for the total, any other POSIX through
+`sysconf` (total only, printed as `N MiB total`). The parsing and the
+per-platform choice are unit-tested with faked platforms; **the actual
+Windows `ctypes` call and macOS `vm_stat` output were not run on those
+systems** — CI is the arbiter, and a real macOS/Windows report should be
+eyeballed once.
+
+### 5.14 — First real CI results (run #45, commit `22f832f`, 2026-09-20)
+
+- **All three Ubuntu jobs (Python 3.10, 3.12, 3.14) failed on exactly one
+  test**: `test_php_analyzer_run_tests_skips_cleanly_without_phpunit` —
+  the GitHub Ubuntu image ships PHPUnit, so the analyzer ran it instead of
+  skipping. 573 of 574 tests passed. Same class of bug as §5.10/§5.12, and
+  the earlier sweep missed it because it stubbed executables named after the
+  literal arguments of `shutil.which("...")` calls in the source, and the
+  PHP analyzer resolves `phpunit`/`phpstan` through a helper with a variable
+  name. **The reliable sweep patches `shutil.which` itself**: run the whole
+  suite once as-is and once with `shutil.which` returning a fake path for
+  every name it cannot really find; a test whose result changes depends on
+  the machine. After fixing PHPUnit/PHPStan (both tests now monkeypatch
+  `shutil.which`) this sweep reports no env-dependent test. Keep Ubuntu in
+  the matrix: its image has far more tools installed than any developer
+  machine, which makes it the strictest check of this rule.
+- **The Windows job did not finish**: still running after roughly seven
+  hours (GitHub's own limit is six). Cause not identified — Windows had
+  never reached `pytest` before this commit (it failed earlier at `mypy`),
+  so any Windows-only hang is new information. To make this impossible to
+  repeat silently: the job now has `timeout-minutes: 45`, and pytest runs
+  with `-o faulthandler_timeout=90`, which prints the stack of every thread
+  when a single test exceeds 90 s, so a hang names its own culprit in the
+  log. With `-v`, the last line of the `Run pytest -v` step is the test
+  that was running when it hung.

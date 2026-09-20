@@ -15,6 +15,11 @@ jobs:
   quality:
     name: quality (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    # A hung test must fail the job in minutes, not run for hours (a Windows
+    # job once ran for ~7 hours). Normal runs take about 3-4 minutes.
+    # یک تست گیرکرده باید در چند دقیقه job را fail کند، نه ساعت‌ها اجرا شود
+    # (یک job ویندوز یک‌بار حدود ۷ ساعت اجرا شد). اجرای عادی حدود ۳-۴ دقیقه است.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -96,4 +101,8 @@ jobs:
       - name: Run the full Python test suite
         # Plain pytest runs the complete suite, including slow_external tests.
         # اجرای ساده pytest کل suite را شامل تست‌های slow_external اجرا می‌کند.
-        run: pytest -v
+        # `faulthandler_timeout` prints every thread's stack if one test runs
+        # longer than 90 s, so a hang names its own culprit in the log.
+        # `faulthandler_timeout` اگر یک تست بیش از ۹۰ ثانیه طول بکشد stack همه‌ی
+        # threadها را چاپ می‌کند، تا گیرکردن خودش مقصرش را در لاگ نشان دهد.
+        run: pytest -v -o faulthandler_timeout=90
