@@ -8,9 +8,11 @@ and registry integration.
 from __future__ import annotations
 
 import asyncio
+import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
 from _helpers import write
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
 from sarand.analyzers.ruby_analyzer import RubyAnalyzer
@@ -62,7 +64,14 @@ def test_ruby_analyzer_entry_points() -> None:
         assert analyzer.entry_points(root) == ["app.rb"]
 
 
-def test_ruby_analyzer_run_tests_skips_cleanly_without_bundle() -> None:
+def test_ruby_analyzer_run_tests_skips_cleanly_without_bundle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed.
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشینِ اجراکننده‌ی تست بستگی پیدا می‌کند.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = RubyAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -97,7 +106,14 @@ def test_ruby_analyzer_run_tests_reports_missing_spec_and_rakefile() -> None:
     assert result.skipped is True
 
 
-def test_ruby_analyzer_run_quality_and_security_skip_cleanly_without_bundle() -> None:
+def test_ruby_analyzer_run_quality_and_security_skip_cleanly_without_bundle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed.
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشینِ اجراکننده‌ی تست بستگی پیدا می‌کند.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = RubyAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:

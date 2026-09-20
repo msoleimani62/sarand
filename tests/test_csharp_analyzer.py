@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
 from _helpers import write
 from sarand.analyzers.csharp_analyzer import CSharpAnalyzer
 from sarand.analyzers.registry import discover_analyzers, matching_analyzers
@@ -56,7 +58,14 @@ def test_csharp_analyzer_entry_points() -> None:
         assert analyzer.entry_points(root) == ["Program.cs"]
 
 
-def test_csharp_analyzer_run_tests_skips_cleanly_without_dotnet() -> None:
+def test_csharp_analyzer_run_tests_skips_cleanly_without_dotnet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed.
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشینِ اجراکننده‌ی تست بستگی پیدا می‌کند.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = CSharpAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -70,7 +79,14 @@ def test_csharp_analyzer_run_tests_skips_cleanly_without_dotnet() -> None:
     assert "dotnet" in result.skip_reason.lower()
 
 
-def test_csharp_analyzer_run_quality_skips_cleanly_without_dotnet() -> None:
+def test_csharp_analyzer_run_quality_skips_cleanly_without_dotnet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed.
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشینِ اجراکننده‌ی تست بستگی پیدا می‌کند.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = CSharpAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -83,7 +99,14 @@ def test_csharp_analyzer_run_quality_skips_cleanly_without_dotnet() -> None:
     assert results[0].skipped is True
 
 
-def test_csharp_analyzer_run_security_skips_cleanly_without_dotnet() -> None:
+def test_csharp_analyzer_run_security_skips_cleanly_without_dotnet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed.
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشینِ اجراکننده‌ی تست بستگی پیدا می‌کند.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = CSharpAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:

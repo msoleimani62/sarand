@@ -31,6 +31,7 @@ from sarand.core.cache import (
 from sarand.core.gitleaks import run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
+from sarand.core.lockfiles import run_lockfile_check
 from sarand.core.sbom import run_syft
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
 from sarand.discovery.project_detector import detect_project
@@ -423,10 +424,18 @@ async def run(config: SarandConfig) -> int:
         # با SARAND_SKIP_AUDIT گیت نمی‌شوند: هیچ‌کدام تماس شبکه‌ای با
         # یک پایگاه‌داده‌ی آسیب‌پذیری نمی‌زنند، پس استدلال «هزینه‌ی
         # خارجیِ ثابت» که آن پرچم برایش وجود دارد، اینجا صدق نمی‌کند.
-        gitleaks_result, syft_result = await asyncio.gather(
-            run_gitleaks(root), run_syft(root)
+        # The lockfile check is the same shape: project-wide, offline,
+        # pure Python -- it joins the same list for the same reasons.
+        # چک lockfile هم همین شکل را دارد: کل‌پروژه، آفلاین، پایتون خالص --
+        # به همین دلایل به همان لیست می‌پیوندد.
+        gitleaks_result, syft_result, lockfile_result = await asyncio.gather(
+            run_gitleaks(root), run_syft(root), run_lockfile_check(root)
         )
-        security_results = security_results + [gitleaks_result, syft_result]
+        security_results = security_results + [
+            gitleaks_result,
+            syft_result,
+            lockfile_result,
+        ]
 
     known = detect_known_issues(test_results + quality_results + security_results)
 

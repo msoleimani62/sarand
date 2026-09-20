@@ -9,6 +9,7 @@ registry integration.
 from __future__ import annotations
 
 import asyncio
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -113,7 +114,14 @@ def test_php_analyzer_run_quality_skips_cleanly_without_phpstan() -> None:
     assert "phpstan" in results[0].skip_reason.lower()
 
 
-def test_php_analyzer_run_security_skips_cleanly_without_composer() -> None:
+def test_php_analyzer_run_security_skips_cleanly_without_composer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed.
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشینِ اجراکننده‌ی تست بستگی پیدا می‌کند.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = PhpAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:

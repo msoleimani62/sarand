@@ -68,7 +68,14 @@ def test_swift_analyzer_entry_points() -> None:
         assert analyzer.entry_points(root) == ["main.swift"]
 
 
-def test_swift_analyzer_run_tests_skips_cleanly_without_swift() -> None:
+def test_swift_analyzer_run_tests_skips_cleanly_without_swift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: pretend the tool is missing, otherwise the result depends on
+    # what the machine running the tests happens to have installed.
+    # ایزوله: وانمود می‌کنیم ابزار نصب نیست، وگرنه نتیجه به نصب‌بودن آن
+    # روی ماشینِ اجراکننده‌ی تست بستگی پیدا می‌کند.
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = SwiftAnalyzer()
 
     with tempfile.TemporaryDirectory() as tmp:

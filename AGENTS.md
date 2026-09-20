@@ -387,14 +387,14 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 421 tests passing on-device** (`pytest -v`, 2026-09-17), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 540 tests passing on-device at v0.4.0** (`pytest -q`, 2026-09-20; the §5.12 round adds 18 more, expected 558 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
 | HTML dashboard renderer | **Implemented and tested** — `renderers/html.py`, self-contained single file (inline CSS, no external assets), dark-mode, collapsible `<details>` sections, properly HTML-escaped |
 | PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
-| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 30 analyzers total.** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
+| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 31 analyzers total (Markdown added in the P0 round).** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. `install.sh` added (§4.13) so upgrading an existing pipx install actually picks up new code — a raw `pipx install` over a stale copy silently doesn't, since pipx installs aren't editable by default. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. **AUR: `pkgs/aur/PKGBUILD` written**, not yet verified with a real `makepkg -si` in a clean chroot (see Phase F, still open). Docker/Homebrew/deb/rpm/binary: not started |
 | Report replacement (§4.13) | **Implemented and tested** — `cli.py::remove_previous_report` explicitly checks for, removes, and announces a previous report (+ its `.sha256`) at the exact output path before writing a new one, for the same "check, remove, announce, create fresh" reason as `install.sh` |
 | `--full` flag | **Implemented and tested — completeness gaps found and fixed 2026-09-18.** Forces `--quality`+`--security` on and removes the file-size/tree-depth/tree-entry truncation limits (raised to effectively-unlimited sentinel values), while still letting an explicit `--max-depth`/`--max-entries`/`--max-file-size` win over `--full`'s own defaults. An external audit of a real `--full` report found this description was not the whole truth: the **rendering layer** ignored `--full` entirely — a *passing* tool's output was always cut to an 80-line tail (raw output only shown on FAIL), issue lists capped at 500 rows and TODOs at 100 regardless of `--full`, and **`--format json` never embedded source code at all** (`include_source` was accepted in the signature and silently never read — the one format most likely to be piped straight into another AI's context had zero source, full stop). All four fixed: `config.full` is now stored on `SarandConfig` and threaded into every renderer as `full_output`; JSON gained a real `source_files: [{path, size, content}]` array; markdown/html now show a passing tool's full raw output and uncap issues/TODOs under `--full`. See §5.10 for what's still open (git history/contributor/hotspot depth) |
@@ -990,7 +990,7 @@ tests that hardcoded a shorter expected tool set for C/C++/Shell/Swift
 (`test_cpp_java_analyzers.py`, `test_shell_analyzer.py`,
 `test_swift_analyzer.py`) were updated to match.
 
-**P1**: `gitleaks` (secret scanning — complements, doesn't replace,
+**P1 — done 2026-09-19 (§5.11)**: `gitleaks` (secret scanning — complements, doesn't replace,
 the existing content-regex scanner in `core/secrets.py`); `syft`
 (SBOM generation); Java — SpotBugs + Checkstyle; PHP — `phpstan` +
 `phpunit` discovered project-locally (`vendor/bin/`) rather than
@@ -999,7 +999,9 @@ requiring global installs, plus `composer audit`; Ruby —
 already runs it via `bundle exec`, per §5.1's bundler-wrapped-tool
 pattern — this is a doctor-visibility gap, not a missing check).
 
-**P2** (supply-chain layer, needs real design, not mechanical
+**P2 — partly done 2026-09-20 (§5.12: lockfile validation, dependency
+inventory, advisory license check; per-project license policy still
+open)** (supply-chain layer, needs real design, not mechanical
 addition): dependency inventory per language (count + list, not just
 "audit tool found: yes/no"); license policy/conflict detection
 (MIT/Apache-2.0/GPL/LGPL/AGPL/BSD); reproducible-build/lockfile
@@ -1033,11 +1035,9 @@ empty `build.zig` fixture produced a genuine compile error. Fixed by
 monkeypatching `shutil.which` to return `None`, the same pattern every
 other "skips cleanly without X" test in the suite already uses (e.g.
 §5.10's own `mypy`/`cargo-deny` tests above never hit this, precisely
-because they did monkeypatch it from the start). Worth a sweep of the
-rest of the ~40 "without_<tool>" tests across the suite at some point
-— not done this round, since the real `pytest` run only surfaced these
-three as actually broken on this device, and patching untested ones on
-suspicion alone isn't verification (§4.8).
+because they did monkeypatch it from the start). The sweep of the
+rest of the "without_<tool>" tests was done on 2026-09-20 with a
+measured method instead of suspicion — see §5.12.
 
 ### 5.11 — P1 round: gitleaks, syft (SBOM), Java checkstyle/spotbugs, Ruby/PHP doctor-text (2026-09-19)
 
@@ -1161,3 +1161,56 @@ shfmt flags `install.sh` (4-space indent vs shfmt's tab default —
 dominates README/AGENTS.md output, bandit's B101 in `tests/` dominates its
 finding count, and the "Errors detected" section still lists lines like
 `0 failed` (cargo test) and bandit context/nosec warnings.
+
+### 5.12 — Hygiene + P2 first slice (2026-09-20)
+
+**Test-hermeticity sweep (the item §5.10 left open).** Method, so it can
+be repeated: run the whole suite twice in a scratch environment — once
+with none of the external tools on `PATH`, once with a stub executable
+(prints a line, exits 0) for every name any analyzer passes to
+`shutil.which` — and diff the outcomes per test. Any test whose result
+differs is env-dependent by definition. Found 7 more (3 C# `dotnet`, 1 PHP
+`composer`, 2 Ruby `bundle`, 1 Swift `swift`) plus the Java gradle one
+already fixed in the §5.11 follow-up; all now monkeypatch `shutil.which`.
+After the fix both environments give identical results. Not swept
+dynamically: the 7 modules that need `rich` (`test_cli`, `test_doctor*`,
+`test_new_renderers`, `test_rc_state`, `test_renderers`,
+`test_report_replacement`) — `rich` was unavailable in the sandbox; a
+static read found no test in them that depends on a tool being
+installed or missing.
+
+**`core/lockfiles.py` — reproducible-build / lockfile validation (P2).**
+Project-root only, gated on a real manifest marker (§4.3): Cargo.toml,
+package.json *with dependencies*, go.mod *with a `require`*,
+Gemfile, composer.json *with real packages* (not just `php`/`ext-*`), and
+Python only when a lock-producing tool is configured (`[tool.poetry]`,
+`[tool.uv]`, `[tool.pdm]`, Pipfile) — a plain `pyproject.toml` library is
+not expected to have a lockfile. Fails (rc 1) only on a definite problem:
+no lockfile, or the lockfile is git-ignored (`git check-ignore`; an
+unknown result — no git, not a repo — is never a problem). Several
+lockfiles for one ecosystem is a warning. Output lines use `problem:` /
+`ok:` / `warning:`, **never `error:` or `failed`** — the known-issue
+scanner (`KNOWN_ISSUE_PATTERNS`) would otherwise report a lockfile
+problem as "Compilation or lint errors" (a test enforces this). Wired
+into `cli.py` next to gitleaks/syft. **Not done**: checking the lockfile
+is *in sync* with the manifest (needs each ecosystem's own tool).
+
+**`core/sbom.py` — dependency inventory + license check (P2).** syft is
+now asked for `-o json`; sarand renders a per-ecosystem count, a license
+histogram, a package table with a license column, and **advisory**
+`warning:` lines for strong (GPL/AGPL/SSPL/OSL) and weak (LGPL/MPL/EPL/
+CDDL/EUPL/CPL) copyleft. `A OR B` takes the most permissive option, `A AND
+B` the strictest. It never fails the check: whether copyleft matters
+depends on this project's own license and how the dependency is used,
+which sarand cannot know. If the JSON cannot be parsed, the P1 table is
+run instead (second syft call), so the layer cannot make the check worse
+than P1. **Unverified against a real syft binary** — the JSON shape
+(`artifacts[].name/version/type/licenses[].value/spdxExpression`) is
+implemented from syft's documented schema and tested with synthetic
+documents only; confirm with a real `sarand --security` run.
+
+**Still open from P2/P3**: a per-project license *policy* (an allow/deny
+list in config, plus comparing against the project's own declared
+license) — needs a maintainer decision on where that config lives;
+lockfile/manifest sync; the structured `--doctor --format json` mode and
+the rest of P3.
