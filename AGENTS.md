@@ -411,7 +411,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, expected 618 in total — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, confirmed 618; the `/tmp` guard round adds 1, expected 619 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -1520,6 +1520,16 @@ the suite, diff against a normal run) reproduced the last failure and found
 no other newline-sensitive test. Path-separator and case differences cannot
 be simulated that way; they need the real Windows job.
 
-**Still unseen**: two of the ten Windows failures were not in the copied log
-(only eight `FAILED` lines were pasted). Find them with `FAILED` in the
-step log before assuming the Windows job is fixed.
+**The "unseen" failures turned out to be three more `-r /tmp` tests**
+(`test_full_overrides_quick_and_removes_top_cap`,
+`test_explicit_top_beats_full`, `test_plain_quick_without_full` in
+`test_device_report.py`): the assistant had wrongly judged them
+"parse-only", but each calls `resolve_config`, which raises "No valid scan
+roots" when `/tmp` does not exist. Run #49 (the fix for the other seven) was
+therefore still red on Windows. Counting settled it: the 10 failures were
+7 seen plus 3 not pasted. Lessons kept: (1) `tests/test_portability.py` now has
+`test_no_test_hardcodes_a_tmp_path` (AST scan for any string constant
+starting with `/tmp`); (2) **CI now reports its own failures**: pytest runs
+with `-rfE` and `tee pytest.log`, and a `failure()` step writes just the
+`FAILED`/`ERROR` lines and the final count to the job's Summary page, so
+nobody has to copy a long log from a phone.

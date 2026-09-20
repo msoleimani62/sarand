@@ -105,4 +105,23 @@ jobs:
         # longer than 90 s, so a hang names its own culprit in the log.
         # `faulthandler_timeout` اگر یک تست بیش از ۹۰ ثانیه طول بکشد stack همه‌ی
         # threadها را چاپ می‌کند، تا گیرکردن خودش مقصرش را در لاگ نشان دهد.
-        run: pytest -v -o faulthandler_timeout=90
+        # `-rfE` + `tee`: the log is kept in pytest.log so the next step can
+        # copy just the failed tests into the job summary.
+        # `-rfE` + `tee`: لاگ در pytest.log نگه داشته می‌شود تا گام بعدی فقط
+        # تست‌های شکست‌خورده را به خلاصه‌ی job کپی کند.
+        run: pytest -v -rfE -o faulthandler_timeout=90 2>&1 | tee pytest.log
+
+      - name: List failed tests in the job summary
+        # Long logs are hard to copy from a phone; the Summary page of the run
+        # shows this short list at the top.
+        # کپی‌کردن لاگ‌های بلند از موبایل سخت است؛ صفحه‌ی Summary اجرا این
+        # فهرست کوتاه را در بالا نشان می‌دهد.
+        if: failure()
+        run: |
+          {
+            echo "### Failed tests (${{ matrix.os }}, py${{ matrix.python-version }})"
+            echo '```text'
+            grep -E "^(FAILED|ERROR) " pytest.log | cut -c1-220 || true
+            grep -E "^=+ .*(failed|passed|error).* =+$" pytest.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

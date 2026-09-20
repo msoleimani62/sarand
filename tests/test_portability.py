@@ -306,3 +306,34 @@ def test_reported_entry_points_never_use_native_path_separators() -> None:
                 ]
 
     assert offenders == []
+
+
+_MAY_MENTION_TMP = {
+    # A plain value in a fixture dict; the path is never touched.
+    # فقط یک مقدار در dict فیکسچر؛ به آن مسیر هیچ‌وقت دست زده نمی‌شود.
+    "test_health.py",
+    # This guard names the string it forbids.
+    # همین نگهبان رشته‌ای را که ممنوع می‌کند نام می‌برد.
+    "test_portability.py",
+}
+
+
+def test_no_test_hardcodes_a_tmp_path() -> None:
+    """Windows has no `/tmp`, and `resolve_config` drops scan roots that do
+    not exist. Three rounds of Windows CI failures came from tests that
+    passed `-r /tmp`; use `tmp_path` / `tempfile` instead."""
+    tests_dir = Path(__file__).resolve().parent
+    offenders: list[str] = []
+    for path in sorted(tests_dir.glob("test_*.py")):
+        if path.name in _MAY_MENTION_TMP:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        offenders += [
+            f"{path.name}:{node.lineno}"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and node.value.startswith("/tmp")
+        ]
+
+    assert offenders == []

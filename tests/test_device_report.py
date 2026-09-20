@@ -50,24 +50,24 @@ def test_classify_path(path: str, expected: str) -> None:
 # --- config: --full / --quick / --top interaction --------------------------
 
 
-def test_full_overrides_quick_and_removes_top_cap() -> None:
+def test_full_overrides_quick_and_removes_top_cap(tmp_path: Path) -> None:
     parser = build_parser()
-    args = parser.parse_args(["--quick", "--full", "-r", "/tmp"])
+    args = parser.parse_args(["--quick", "--full", "-r", str(tmp_path)])
     config = resolve_config(args)
     assert config.quick_mode is False
     assert config.top_n == UNLIMITED
 
 
-def test_explicit_top_beats_full() -> None:
+def test_explicit_top_beats_full(tmp_path: Path) -> None:
     parser = build_parser()
-    args = parser.parse_args(["--full", "--top", "5", "-r", "/tmp"])
+    args = parser.parse_args(["--full", "--top", "5", "-r", str(tmp_path)])
     config = resolve_config(args)
     assert config.top_n == 5
 
 
-def test_plain_quick_without_full() -> None:
+def test_plain_quick_without_full(tmp_path: Path) -> None:
     parser = build_parser()
-    args = parser.parse_args(["--quick", "-r", "/tmp"])
+    args = parser.parse_args(["--quick", "-r", str(tmp_path)])
     config = resolve_config(args)
     assert config.quick_mode is True
 
