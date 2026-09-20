@@ -167,7 +167,7 @@ def test_resolve_argv_leaves_the_command_alone_off_windows(
 
     monkeypatch.setattr(shutil, "which", must_not_be_called)
 
-    assert _resolve_argv(("npm", "test"), None) == ["npm", "test"]
+    assert _resolve_argv(("npm", "test")) == ["npm", "test"]
 
 
 def test_resolve_argv_resolves_the_executable_through_pathext_on_windows(
@@ -176,23 +176,26 @@ def test_resolve_argv_resolves_the_executable_through_pathext_on_windows(
     """`CreateProcess` only appends .exe, so `npm` (really npm.cmd) must be
     resolved by `shutil.which` first or it is reported "not found"."""
     monkeypatch.setattr(command_module, "os", types.SimpleNamespace(name="nt"))
-    seen: dict[str, object] = {}
+    seen: list[str] = []
 
-    def fake_which(cmd, path=None):
-        seen["cmd"], seen["path"] = cmd, path
+    # One positional argument on purpose: tests all over the suite patch
+    # `shutil.which` with a one-argument lambda, and a `path=` keyword here
+    # once made every such test raise TypeError on Windows.
+    # عمداً فقط یک آرگومان موضعی: تست‌های زیادی `shutil.which` را با یک lambda
+    # تک‌آرگومانه patch می‌کنند و یک keyword به نام `path=` یک‌بار باعث شد همه‌ی
+    # آن‌ها روی Windows با TypeError بشکنند.
+    def fake_which(cmd):
+        seen.append(cmd)
         return "C:\\tools\\npm.CMD"
 
     monkeypatch.setattr(shutil, "which", fake_which)
 
-    assert _resolve_argv(["npm", "test"], {"PATH": "C:\\tools"}) == [
-        "C:\\tools\\npm.CMD",
-        "test",
-    ]
-    assert seen == {"cmd": "npm", "path": "C:\\tools"}
+    assert _resolve_argv(["npm", "test"]) == ["C:\\tools\\npm.CMD", "test"]
+    assert seen == ["npm"]
 
-    monkeypatch.setattr(shutil, "which", lambda cmd, path=None: None)
-    assert _resolve_argv(["ghost", "x"], None) == ["ghost", "x"]
-    assert _resolve_argv([], None) == []
+    monkeypatch.setattr(shutil, "which", lambda cmd: None)
+    assert _resolve_argv(["ghost", "x"]) == ["ghost", "x"]
+    assert _resolve_argv([]) == []
 
 
 def test_harden_stdio_turns_unencodable_characters_into_replacements() -> None:
@@ -234,3 +237,42 @@ def test_is_excluded_on_posix_is_case_and_prefix_exact() -> None:
     assert is_excluded(Path("/a/b"), ["/a/b/"]) is True
     assert is_excluded(Path("/a/B"), ["/a/b"]) is False
     assert is_excluded(Path("/a/bc"), ["/a/b"]) is False
+
+
+_ALLOWED_TO_BRANCH_ON_REAL_TOOLS = {
+    # A deliberate integration test: it only does anything if a PDF engine
+    # is really installed, and a PDF engine finishes in seconds.
+    # یک تست یکپارچگی عمدی: فقط وقتی کاری می‌کند که موتور PDF واقعاً نصب باشد
+    # و موتور PDF در چند ثانیه تمام می‌شود.
+    "test_pdf_renderer_produces_a_real_pdf_when_engine_available",
+}
+
+
+def test_no_test_branches_on_whether_a_real_tool_is_installed() -> None:
+    """`if shutil.which("gradle") is None: assert skipped` runs the REAL tool
+    whenever it is installed. On a Windows CI runner that was a real Gradle
+    build with a one-hour timeout, and the job ran for six hours. A test
+    that wants the "tool missing" path must patch `shutil.which` instead."""
+    tests_dir = Path(__file__).resolve().parent
+    offenders: list[str] = []
+    for path in sorted(tests_dir.glob("test_*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for func in ast.walk(tree):
+            if not isinstance(func, ast.FunctionDef):
+                continue
+            if func.name in _ALLOWED_TO_BRANCH_ON_REAL_TOOLS:
+                continue
+            for node in ast.walk(func):
+                if not isinstance(node, ast.If):
+                    continue
+                offenders += [
+                    f"{path.name}::{func.name}"
+                    for sub in ast.walk(node.test)
+                    if isinstance(sub, ast.Call)
+                    and isinstance(sub.func, ast.Attribute)
+                    and sub.func.attr == "which"
+                    and isinstance(sub.func.value, ast.Name)
+                    and sub.func.value.id == "shutil"
+                ]
+
+    assert sorted(set(offenders)) == []

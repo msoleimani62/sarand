@@ -8,6 +8,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
 from _helpers import write
 from sarand.core.health import compute_health_score
 from sarand.models.results import (
@@ -182,11 +183,12 @@ def test_sarif_renderer_declares_every_used_rule() -> None:
         assert used.issubset(declared)
 
 
-def test_pdf_renderer_reports_a_clear_fix_when_no_engine_installed() -> None:
+def test_pdf_renderer_reports_a_clear_fix_when_no_engine_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """If neither wkhtmltopdf nor weasyprint is on PATH, must fail with
     an actionable message, never a crash."""
-    if shutil.which("wkhtmltopdf") or shutil.which("weasyprint"):
-        return  # this sandbox happens to have one -- covered by the next test
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     from sarand.renderers import pdf
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -196,11 +198,12 @@ def test_pdf_renderer_reports_a_clear_fix_when_no_engine_installed() -> None:
 
         outcome = pdf.render_to_file(data, output_path)
 
-        assert outcome.ok is False
-        assert "wkhtmltopdf" in outcome.detail or "weasyprint" in outcome.detail
-        assert not output_path.exists()
+    assert outcome.ok is False
+    assert "wkhtmltopdf" in outcome.detail or "weasyprint" in outcome.detail
+    assert not output_path.exists()
 
 
+@pytest.mark.slow_external
 def test_pdf_renderer_produces_a_real_pdf_when_engine_available() -> None:
     """When an engine IS installed, confirm real bytes come out --
     not just that the subprocess call didn't crash."""

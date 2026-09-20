@@ -22,7 +22,7 @@ from sarand.constants import DEFAULT_CMD_TIMEOUT, ERROR_PATTERNS, WARNING_PATTER
 from sarand.models.results import CommandResult, Issue
 
 
-def _resolve_argv(cmd: Sequence[str], env: dict[str, str] | None) -> list[str]:
+def _resolve_argv(cmd: Sequence[str]) -> list[str]:
     """Return `cmd` as a list, with a Windows-resolved first element.
 
     On Windows `CreateProcess` only appends `.exe`, so tools that ship as
@@ -44,7 +44,7 @@ def _resolve_argv(cmd: Sequence[str], env: dict[str, str] | None) -> list[str]:
     argv = list(cmd)
     if os.name != "nt" or not argv:
         return argv
-    resolved = shutil.which(argv[0], path=env.get("PATH") if env else None)
+    resolved = shutil.which(argv[0])
     if resolved:
         argv[0] = resolved
     return argv
@@ -61,7 +61,7 @@ def run_cmd(
     start = time.perf_counter()
     try:
         completed = subprocess.run(  # nosec B603
-            _resolve_argv(cmd, env),
+            _resolve_argv(cmd),
             cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -195,7 +195,7 @@ async def run_cmd_async(
     start = time.perf_counter()
     proc: asyncio.subprocess.Process | None = None
     communicate_task: asyncio.Task[tuple[bytes, bytes]] | None = None
-    argv = _resolve_argv(cmd, env)
+    argv = _resolve_argv(cmd)
 
     try:
         if os.name == "posix":

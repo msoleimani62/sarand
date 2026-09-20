@@ -411,7 +411,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, expected 590 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, expected 591 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -1389,12 +1389,38 @@ eyeballed once.
   `shutil.which`) this sweep reports no env-dependent test. Keep Ubuntu in
   the matrix: its image has far more tools installed than any developer
   machine, which makes it the strictest check of this rule.
-- **The Windows job did not finish**: still running after roughly seven
-  hours (GitHub's own limit is six). Cause not identified — Windows had
-  never reached `pytest` before this commit (it failed earlier at `mypy`),
-  so any Windows-only hang is new information. To make this impossible to
-  repeat silently: the job now has `timeout-minutes: 45`, and pytest runs
-  with `-o faulthandler_timeout=90`, which prints the stack of every thread
-  when a single test exceeds 90 s, so a hang names its own culprit in the
-  log. With `-v`, the last line of the `Run pytest -v` step is the test
-  that was running when it hung.
+- **The Windows job hung for six hours, and the log named the test**: the
+  last line of the `Run pytest -v` step was
+  `test_android_analyzer_quality_and_security_skip_cleanly_without_gradle`
+  with no result. That test (and eight siblings: cargo-audit/deny,
+  govulncheck, cppcheck, mvn, gradle, PDF engine, pip-audit/bandit) did
+  `if shutil.which("gradle") is None: assert skipped` — i.e. it ran the
+  **real** tool whenever it was installed. The Windows runner has Gradle;
+  once §5.13 made `gradle.bat` resolvable through PATHEXT, a real Gradle
+  build started in a temp project, and `LONG_CMD_TIMEOUT` is 3600 s per
+  call. All nine tests now patch `shutil.which` and assert the skip path
+  unconditionally, and `tests/test_portability.py` has a guard
+  (`test_no_test_branches_on_whether_a_real_tool_is_installed`) that fails
+  on any `if shutil.which(...)` in a test except one deliberate PDF
+  integration test. CI keeps `timeout-minutes: 45` and
+  `-o faulthandler_timeout=90` so a future hang stays cheap and names
+  itself.
+- **A second Windows-only failure class, seen in the same log**:
+  `test_rust_analyzer_cargo_deny_skips_without_binary`,
+  `..._without_deny_toml` and `test_python_analyzer_run_quality_skips_mypy_
+  cleanly_without_it` failed. Cause: `_resolve_argv` called
+  `shutil.which(name, path=...)`, but those tests patch `shutil.which` with a
+  one-argument function, so every such test raised `TypeError` on Windows
+  only. `_resolve_argv` now calls `shutil.which(name)` with one positional
+  argument (a test pins this). **Technique worth reusing — a forced-Windows
+  run on Linux**: in a scratch copy, delete the `os.name != "nt"` condition
+  and run the suite; it reproduced exactly the three failures from the
+  Windows log plus four more not yet seen (shellcheck, shfmt, swift-format,
+  swiftlint), and after the fix it shows none.
+- **Tripwire sweep** (stub executables created on demand by a patched
+  `shutil.which`, each logging its own invocation, then a per-test list of
+  which tools a test really launched): after these fixes only six
+  lightweight linter tests still launch a real tool when it is installed
+  (`stylelint`, `jsonlint`, `detekt`/`ktlint`, `sqlfluff`, `taplo`). They
+  finish in seconds and their assertions tolerate both outcomes, so they
+  were left alone; convert them the same way if one ever misbehaves.

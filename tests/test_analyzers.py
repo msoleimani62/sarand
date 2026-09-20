@@ -127,10 +127,16 @@ def test_discover_analyzers_includes_all_builtins() -> None:
     assert {"Python", "Rust", "Go", "Node.js", "Lua"}.issubset(names)
 
 
-@pytest.mark.slow_external
-def test_python_analyzer_run_security_skips_cleanly_without_tools() -> None:
-    """pip-audit/bandit are not installed in this sandbox -- exercise the
-    real 'tool missing' path for both, never a crash."""
+def test_python_analyzer_run_security_skips_cleanly_without_tools(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With neither pip-audit nor bandit available, both must skip with a
+    clear reason instead of failing."""
+    # Hermetic: the "tool missing" path must not depend on what is installed
+    # on the machine (a real Gradle/Maven/pip-audit run can take an hour).
+    # ایزوله: مسیر «ابزار نصب نیست» نباید به نصب‌بودن ابزار روی ماشین بستگی
+    # داشته باشد (یک اجرای واقعی Gradle/Maven/pip-audit می‌تواند یک ساعت طول بکشد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = PythonAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -138,20 +144,23 @@ def test_python_analyzer_run_security_skips_cleanly_without_tools() -> None:
 
         results = asyncio.run(analyzer.run_security(root))
 
-        assert {r.kind for r in results} == {"pip-audit", "bandit"}
-        for r in results:
-            if r.skipped:
-                assert "not installed" in r.skip_reason.lower()
+    assert {r.kind for r in results} == {"pip-audit", "bandit"}
+    for r in results:
+        assert r.skipped is True
+        assert "not installed" in r.skip_reason.lower()
 
 
-@pytest.mark.slow_external
-def test_rust_analyzer_run_security_checks_cargo_audit_binary_specifically() -> None:
-    """cargo-audit is a separate binary, not just 'cargo'. This must work
-    correctly whether or not cargo-audit happens to be installed on the
-    machine running the test -- it wasn't in the original sandbox this
-    test was written in, but it may well be on a real dev machine, so we
-    cannot assume either way (that was the actual bug in v1 of this test:
-    it hardcoded the 'not installed' assumption)."""
+def test_rust_analyzer_run_security_checks_cargo_audit_binary_specifically(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """cargo-audit is a separate binary, not just 'cargo': with `cargo` present
+    but `cargo-audit` and `cargo-deny` missing, both must skip with a reason
+    naming the missing binary."""
+
+    def fake_which(name: str) -> str | None:
+        return None if name in {"cargo-audit", "cargo-deny"} else f"/usr/bin/{name}"
+
+    monkeypatch.setattr(shutil, "which", fake_which)
     analyzer = RustAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -163,36 +172,24 @@ def test_rust_analyzer_run_security_checks_cargo_audit_binary_specifically() -> 
 
         results = asyncio.run(analyzer.run_security(root))
 
-        # cargo audit + cargo deny check, always both, in that order.
-        assert len(results) == 2
-        assert results[0].kind == "cargo audit"
-        assert results[1].kind == "cargo deny check"
-
-        if shutil.which("cargo-audit") is None:
-            assert results[0].skipped
-            assert "cargo-audit" in results[0].skip_reason
-        else:
-            # Actually installed -- it really ran. Don't assert pass/fail
-            # (depends on network + the advisory DB), only that our
-            # wrapper didn't treat "tool present" as "tool missing".
-            assert results[0].skipped is False
-
-        # cargo-deny has two independent skip gates (binary, then
-        # deny.toml) -- this throwaway project has neither installed
-        # nor configured, so either skip reason is acceptable here;
-        # the dedicated tests below pin down each gate individually.
-        if shutil.which("cargo-deny") is None:
-            assert results[1].skipped
-            assert "cargo-deny" in results[1].skip_reason
-        elif not (root / "deny.toml").exists():
-            assert results[1].skipped
-            assert "deny.toml" in results[1].skip_reason
+    # cargo audit + cargo deny check, always both, in that order.
+    assert len(results) == 2
+    assert results[0].kind == "cargo audit"
+    assert results[0].skipped is True
+    assert "cargo-audit" in results[0].skip_reason
+    assert results[1].kind == "cargo deny check"
+    assert results[1].skipped is True
+    assert "cargo-deny" in results[1].skip_reason
 
 
-@pytest.mark.slow_external
-def test_go_analyzer_run_security_skips_without_govulncheck() -> None:
-    """Same defensive pattern as the cargo-audit test above: don't assume
-    govulncheck is absent just because it was in the original sandbox."""
+def test_go_analyzer_run_security_skips_without_govulncheck(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: the "tool missing" path must not depend on what is installed
+    # on the machine (a real Gradle/Maven/pip-audit run can take an hour).
+    # ایزوله: مسیر «ابزار نصب نیست» نباید به نصب‌بودن ابزار روی ماشین بستگی
+    # داشته باشد (یک اجرای واقعی Gradle/Maven/pip-audit می‌تواند یک ساعت طول بکشد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = GoAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -200,12 +197,9 @@ def test_go_analyzer_run_security_skips_without_govulncheck() -> None:
 
         results = asyncio.run(analyzer.run_security(root))
 
-        assert len(results) == 1
-        assert results[0].kind == "govulncheck"
-        if shutil.which("govulncheck") is None:
-            assert results[0].skipped
-        else:
-            assert results[0].skipped is False
+    assert len(results) == 1
+    assert results[0].kind == "govulncheck"
+    assert results[0].skipped is True
 
 
 def test_all_builtin_analyzers_implement_run_security() -> None:

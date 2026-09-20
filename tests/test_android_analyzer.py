@@ -7,6 +7,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
 from _helpers import write
 from sarand.analyzers.android_analyzer import AndroidAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
@@ -96,22 +97,27 @@ def test_android_analyzer_entry_points_found() -> None:
         assert "app/src/main/AndroidManifest.xml" in entry_points
 
 
-def test_android_analyzer_run_tests_skips_cleanly_without_gradle() -> None:
+def test_android_analyzer_run_tests_skips_cleanly_without_gradle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: the "tool missing" path must not depend on what is installed
+    # on the machine (a real Gradle/Maven/pip-audit run can take an hour).
+    # ایزوله: مسیر «ابزار نصب نیست» نباید به نصب‌بودن ابزار روی ماشین بستگی
+    # داشته باشد (یک اجرای واقعی Gradle/Maven/pip-audit می‌تواند یک ساعت طول بکشد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = AndroidAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         _make_single_module_android_project(root)
-        # No ./gradlew wrapper written for this fixture, and this
-        # sandbox has no system-wide `gradle` either -- exercises the
-        # real "neither available" skip path.
+        # No ./gradlew wrapper is written for this fixture and `which` finds
+        # no system-wide gradle: the real "neither available" skip path.
 
         result = asyncio.run(analyzer.run_tests(root))
 
-        assert result is not None
-        assert result.kind == "gradle testDebugUnitTest"
-        if shutil.which("gradle") is None:
-            assert result.skipped
-            assert "gradlew" in result.skip_reason
+    assert result is not None
+    assert result.kind == "gradle testDebugUnitTest"
+    assert result.skipped is True
+    assert "gradlew" in result.skip_reason
 
 
 def test_android_analyzer_prefers_gradlew_wrapper_when_present() -> None:
@@ -128,7 +134,14 @@ def test_android_analyzer_prefers_gradlew_wrapper_when_present() -> None:
         assert binary == str(root / "gradlew")
 
 
-def test_android_analyzer_quality_and_security_skip_cleanly_without_gradle() -> None:
+def test_android_analyzer_quality_and_security_skip_cleanly_without_gradle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: the "tool missing" path must not depend on what is installed
+    # on the machine (a real Gradle/Maven/pip-audit run can take an hour).
+    # ایزوله: مسیر «ابزار نصب نیست» نباید به نصب‌بودن ابزار روی ماشین بستگی
+    # داشته باشد (یک اجرای واقعی Gradle/Maven/pip-audit می‌تواند یک ساعت طول بکشد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = AndroidAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -137,9 +150,8 @@ def test_android_analyzer_quality_and_security_skip_cleanly_without_gradle() -> 
         quality = asyncio.run(analyzer.run_quality(root))
         security = asyncio.run(analyzer.run_security(root))
 
-        if shutil.which("gradle") is None:
-            assert len(quality) == 1 and quality[0].skipped
-            assert len(security) == 1 and security[0].skipped
+    assert len(quality) == 1 and quality[0].skipped
+    assert len(security) == 1 and security[0].skipped
 
 
 def test_registry_includes_android_analyzer() -> None:

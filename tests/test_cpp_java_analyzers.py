@@ -208,8 +208,14 @@ def test_cpp_analyzer_clang_tidy_excludes_cmake_generated_probe_files(
     assert not any("CMakeCXXCompilerId.cpp" in arg for arg in tidy_cmd)
 
 
-@pytest.mark.slow_external
-def test_cpp_analyzer_security_skips_cleanly_without_cppcheck() -> None:
+def test_cpp_analyzer_security_skips_cleanly_without_cppcheck(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: the "tool missing" path must not depend on what is installed
+    # on the machine (a real Gradle/Maven/pip-audit run can take an hour).
+    # ایزوله: مسیر «ابزار نصب نیست» نباید به نصب‌بودن ابزار روی ماشین بستگی
+    # داشته باشد (یک اجرای واقعی Gradle/Maven/pip-audit می‌تواند یک ساعت طول بکشد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = CppAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -217,10 +223,9 @@ def test_cpp_analyzer_security_skips_cleanly_without_cppcheck() -> None:
 
         results = asyncio.run(analyzer.run_security(root))
 
-        assert len(results) == 1
-        assert results[0].kind == "cppcheck"
-        if shutil.which("cppcheck") is None:
-            assert results[0].skipped
+    assert len(results) == 1
+    assert results[0].kind == "cppcheck"
+    assert results[0].skipped is True
 
 
 def test_java_analyzer_matches_maven_project() -> None:
@@ -249,8 +254,14 @@ def test_java_analyzer_prefers_maven_when_both_markers_present() -> None:
         assert analyzer._build_tool(root) == "maven"
 
 
-@pytest.mark.slow_external
-def test_java_analyzer_run_tests_skips_cleanly_when_no_tool_available() -> None:
+def test_java_analyzer_run_tests_skips_cleanly_when_no_tool_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Hermetic: the "tool missing" path must not depend on what is installed
+    # on the machine (a real Gradle/Maven/pip-audit run can take an hour).
+    # ایزوله: مسیر «ابزار نصب نیست» نباید به نصب‌بودن ابزار روی ماشین بستگی
+    # داشته باشد (یک اجرای واقعی Gradle/Maven/pip-audit می‌تواند یک ساعت طول بکشد).
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     analyzer = JavaAnalyzer()
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -258,10 +269,9 @@ def test_java_analyzer_run_tests_skips_cleanly_when_no_tool_available() -> None:
 
         result = asyncio.run(analyzer.run_tests(root))
 
-        assert result is not None
-        assert result.kind == "mvn test"
-        if shutil.which("mvn") is None:
-            assert result.skipped
+    assert result is not None
+    assert result.kind == "mvn test"
+    assert result.skipped is True
 
 
 def test_java_analyzer_run_tests_gradle_uses_wrapper_when_present() -> None:
