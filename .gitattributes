@@ -1,0 +1,8 @@
+# Keep line endings identical on every OS: Git for Windows would otherwise
+# check text files out as CRLF, which breaks shell scripts and byte-exact
+# comparisons. Binary files are auto-detected.
+# پایان‌خط‌ها روی هر سیستم‌عامل یکسان بماند: Git برای Windows وگرنه فایل‌های
+# متنی را با CRLF checkout می‌کند که اسکریپت‌های shell و مقایسه‌های بایتی را
+# می‌شکند. فایل‌های باینری خودکار تشخیص داده می‌شوند.
+* text=auto eol=lf
+*.sh text eol=lf

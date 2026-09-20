@@ -194,7 +194,7 @@ def _find_dependencies_array_body(text: str) -> str | None:
 def _project_dependency_names(root: Path) -> list[str]:
     pyproject = root / "pyproject.toml"
     try:
-        text = pyproject.read_text(errors="replace")
+        text = pyproject.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
 
@@ -232,7 +232,11 @@ def _pinned_requirements_file(names: list[str]) -> Path | None:
         return None
 
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".txt", prefix="sarand-pip-audit-", delete=False
+        mode="w",
+        encoding="utf-8",
+        suffix=".txt",
+        prefix="sarand-pip-audit-",
+        delete=False,
     ) as handle:
         handle.write("\n".join(lines) + "\n")
         temp_path = handle.name

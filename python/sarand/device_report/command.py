@@ -20,6 +20,7 @@ from pathlib import Path
 
 from sarand.device_report.config import build_parser, resolve_config
 from sarand.device_report.report import generate_report
+from sarand.utils.stdio import harden_stdio
 
 
 def _fail_write(output_file: Path, exc: OSError) -> int:
@@ -28,6 +29,7 @@ def _fail_write(output_file: Path, exc: OSError) -> int:
 
 
 def main() -> int:
+    harden_stdio()
     parser = build_parser()
     args = parser.parse_args()
 
@@ -38,14 +40,14 @@ def main() -> int:
         return 1
 
     try:
-        config.output_file.write_text("")
+        config.output_file.write_text("", encoding="utf-8")
     except OSError as exc:
         return _fail_write(config.output_file, exc)
 
     report_text = generate_report(config)
 
     try:
-        config.output_file.write_text(report_text)
+        config.output_file.write_text(report_text, encoding="utf-8")
     except OSError as exc:
         return _fail_write(config.output_file, exc)
 

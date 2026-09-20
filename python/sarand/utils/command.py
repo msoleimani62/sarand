@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import shutil
 import signal
 
 # sarand exists to run external tools; every call below passes a fixed argv
@@ -12,12 +13,41 @@ import signal
 # وظیفه‌ی sarand اجرای ابزارهای خارجی است؛ هر فراخوانیِ زیر یک لیست argv
 # ثابت می‌گیرد (هرگز رشته‌ی shell)، پس B404/B603 در bandit عمداً پذیرفته شده.
 import subprocess  # nosec B404
+import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
 
 from sarand.constants import DEFAULT_CMD_TIMEOUT, ERROR_PATTERNS, WARNING_PATTERNS
 from sarand.models.results import CommandResult, Issue
+
+
+def _resolve_argv(cmd: Sequence[str], env: dict[str, str] | None) -> list[str]:
+    """Return `cmd` as a list, with a Windows-resolved first element.
+
+    On Windows `CreateProcess` only appends `.exe`, so tools that ship as
+    `npm.cmd`, `gradle.bat`, `mvn.cmd`, `composer.bat` ... are "not found"
+    when started by bare name even though `shutil.which` (which honors
+    PATHEXT) finds them -- and every analyzer gates on `shutil.which`, so
+    the check would be reported as a failure instead of running. Resolving
+    the first element through `shutil.which` first fixes that. On every
+    other OS the command is passed through untouched.
+
+    روی Windows تابع `CreateProcess` فقط `.exe` اضافه می‌کند، پس ابزارهایی
+    که به‌صورت `npm.cmd`، `gradle.bat`، `mvn.cmd`، `composer.bat` ... نصب
+    می‌شوند با نام ساده «پیدا نمی‌شوند» در حالی که `shutil.which` (که
+    PATHEXT را رعایت می‌کند) پیدایشان می‌کند -- و هر آنالایزر روی
+    `shutil.which` گیت شده، پس چک به‌جای اجرا شدن به‌عنوان شکست گزارش
+    می‌شد. حل‌کردن عنصر اول با `shutil.which` این را درست می‌کند. روی بقیه‌ی
+    سیستم‌عامل‌ها فرمان دست‌نخورده می‌ماند.
+    """
+    argv = list(cmd)
+    if os.name != "nt" or not argv:
+        return argv
+    resolved = shutil.which(argv[0], path=env.get("PATH") if env else None)
+    if resolved:
+        argv[0] = resolved
+    return argv
 
 
 def run_cmd(
@@ -31,7 +61,7 @@ def run_cmd(
     start = time.perf_counter()
     try:
         completed = subprocess.run(  # nosec B603
-            list(cmd),
+            _resolve_argv(cmd, env),
             cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -130,7 +160,13 @@ async def _terminate_process(proc: asyncio.subprocess.Process) -> None:
     if proc.returncode is not None:
         return
 
-    if os.name == "posix":
+    # `sys.platform` (not `os.name`) on purpose: mypy narrows on it, so the
+    # POSIX-only `os.killpg` / `signal.SIGKILL` are not type-checked on
+    # Windows, where they do not exist.
+    # عمداً `sys.platform` (نه `os.name`): mypy روی آن narrow می‌کند، پس
+    # `os.killpg` / `signal.SIGKILL` مخصوص POSIX روی Windows، که وجود
+    # ندارند، type-check نمی‌شوند.
+    if sys.platform != "win32":
         try:
             os.killpg(proc.pid, signal.SIGTERM)
             await asyncio.wait_for(proc.wait(), timeout=2)
@@ -159,11 +195,12 @@ async def run_cmd_async(
     start = time.perf_counter()
     proc: asyncio.subprocess.Process | None = None
     communicate_task: asyncio.Task[tuple[bytes, bytes]] | None = None
+    argv = _resolve_argv(cmd, env)
 
     try:
         if os.name == "posix":
             proc = await asyncio.create_subprocess_exec(
-                *cmd,
+                *argv,
                 cwd=cwd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
@@ -172,7 +209,7 @@ async def run_cmd_async(
             )
         else:
             proc = await asyncio.create_subprocess_exec(
-                *cmd,
+                *argv,
                 cwd=cwd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,

@@ -13,12 +13,26 @@ defaults:
 
 jobs:
   quality:
-    name: quality (${{ matrix.os }})
+    name: quality (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Every OS on one Python, plus the oldest and newest supported Python
+        # on Linux -- `requires-python` is >=3.10, so 3.10 must really work.
+        # ubuntu is pinned so the "ubuntu-latest" migration to a new release
+        # cannot change results by surprise; bump it deliberately.
+        # هر OS روی یک نسخه‌ی پایتون، به‌علاوه‌ی قدیمی‌ترین و جدیدترین پایتونِ
+        # پشتیبانی‌شده روی Linux -- `requires-python` برابر >=3.10 است، پس
+        # 3.10 باید واقعاً کار کند. ubuntu ثابت شده تا مهاجرت "ubuntu-latest"
+        # به نسخه‌ی جدید نتایج را ناگهانی عوض نکند؛ عمداً ارتقایش بده.
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        python-version: ["3.12"]
+        include:
+          - os: ubuntu-24.04
+            python-version: "3.10"
+          - os: ubuntu-24.04
+            python-version: "3.14"
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +40,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable

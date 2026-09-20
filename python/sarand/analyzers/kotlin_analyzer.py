@@ -67,7 +67,7 @@ def _is_kotlin_project(root: Path) -> bool:
     if not gradle_file.is_file():
         return False
     try:
-        text = gradle_file.read_text(errors="replace")
+        text = gradle_file.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
     return any(marker in text for marker in _KOTLIN_PLUGIN_MARKERS)

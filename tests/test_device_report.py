@@ -216,24 +216,28 @@ def test_classify_path_ruff_cache_is_reclaimable() -> None:
     assert classify_path("/home/user/project/.ruff_cache") == LIKELY_RECLAIMABLE
 
 
-def test_full_sets_expand_aggregates_and_removes_min_top_space() -> None:
+def test_full_sets_expand_aggregates_and_removes_min_top_space(tmp_path: Path) -> None:
+    # A real directory, not a hardcoded "/tmp": resolve_config() drops scan
+    # roots that do not exist, and Windows has no /tmp.
+    # یک دایرکتوری واقعی، نه "/tmp" ثابت: resolve_config() ریشه‌های ناموجود
+    # را حذف می‌کند و Windows /tmp ندارد.
     parser = build_parser()
-    config = resolve_config(parser.parse_args(["--full", "-r", "/tmp"]))
+    config = resolve_config(parser.parse_args(["--full", "-r", str(tmp_path)]))
     assert config.expand_aggregates is True
     assert config.min_top_space_mb == 0.0
 
 
-def test_default_min_top_space_and_expand_aggregates() -> None:
+def test_default_min_top_space_and_expand_aggregates(tmp_path: Path) -> None:
     parser = build_parser()
-    config = resolve_config(parser.parse_args(["-r", "/tmp"]))
+    config = resolve_config(parser.parse_args(["-r", str(tmp_path)]))
     assert config.min_top_space_mb == 1.0
     assert config.expand_aggregates is False
     assert config.summary_only is False
 
 
-def test_full_and_summary_only_are_mutually_exclusive() -> None:
+def test_full_and_summary_only_are_mutually_exclusive(tmp_path: Path) -> None:
     parser = build_parser()
-    args = parser.parse_args(["--full", "--summary-only", "-r", "/tmp"])
+    args = parser.parse_args(["--full", "--summary-only", "-r", str(tmp_path)])
     with pytest.raises(ValueError, match="mutually exclusive"):
         resolve_config(args)
 

@@ -50,7 +50,7 @@ _FLUTTER_DEPENDENCY_RE = re.compile(r"^\s*flutter\s*:\s*$", re.MULTILINE)
 
 def _is_flutter_project(root: Path) -> bool:
     try:
-        text = (root / "pubspec.yaml").read_text(errors="replace")
+        text = (root / "pubspec.yaml").read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
     return bool(_FLUTTER_DEPENDENCY_RE.search(text))

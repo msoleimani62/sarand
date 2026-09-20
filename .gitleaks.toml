@@ -11,4 +11,4 @@ useDefault = true
 # که core/secrets.py آن‌ها را تشخیص می‌دهد و از گزارش‌ها دور نگه می‌دارد.
 [allowlist]
 description = "Deliberate fake credentials used as test fixtures"
-paths = ['''tests/test_secrets\.py''']
+paths = ['''tests[\\/]test_secrets\.py''']

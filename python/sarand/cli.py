@@ -46,6 +46,7 @@ from sarand.scanners.stats import collect_project_stats
 from sarand.scanners.todos import scan_todos
 from sarand.userconfig import save_persisted_config
 from sarand.utils.logging import get_logger, setup_logging
+from sarand.utils.stdio import harden_stdio
 
 logger = get_logger("cli")
 
@@ -520,6 +521,7 @@ async def run(config: SarandConfig) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
+    harden_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
 

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 from sarand.utils.command import run_cmd
@@ -42,7 +43,7 @@ def detect_environment() -> str:
     os_release = Path("/etc/os-release")
     if os_release.is_file():
         try:
-            content = os_release.read_text(errors="replace").lower()
+            content = os_release.read_text(encoding="utf-8", errors="replace").lower()
         except OSError:
             content = ""
         if "kali" in content:
@@ -51,10 +52,12 @@ def detect_environment() -> str:
     if os.environ.get("PROOT_TMP_DIR") or os.environ.get("PROOT_LOADER"):
         detected.append("proot")
 
-    try:
-        is_root = os.getuid() == 0
-    except AttributeError:
+    # No UIDs on Windows; `sys.platform` so mypy skips this branch there.
+    # روی Windows UID وجود ندارد؛ `sys.platform` تا mypy آنجا این شاخه را رد کند.
+    if sys.platform == "win32":
         is_root = False
+    else:
+        is_root = os.getuid() == 0
     detected.append("UID0" if is_root else "non-root")
 
     return " + ".join(detected) if detected else "Unknown"

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import os
 import platform
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -101,7 +102,7 @@ def _limit(rows: list, top_n: int) -> list:
 
 def _read_proc_file(path: str) -> str | None:
     try:
-        return Path(path).read_text(errors="replace")
+        return Path(path).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
 
@@ -187,11 +188,17 @@ def collect_system_info(report: Report, config: DeviceReportConfig) -> None:
 
 
 def _username() -> str:
+    # `pwd` and `os.getuid` do not exist on Windows (and mypy checks them
+    # per platform), so Windows takes the environment-variable path.
+    # `pwd` و `os.getuid` روی Windows وجود ندارند (و mypy آن‌ها را به‌ازای
+    # هر پلتفرم بررسی می‌کند)، پس Windows مسیر متغیر محیطی را می‌گیرد.
+    if sys.platform == "win32":
+        return os.environ.get("USERNAME") or os.environ.get("USER") or "unknown"
     try:
         import pwd
 
         return pwd.getpwuid(os.getuid()).pw_name
-    except (ImportError, KeyError, AttributeError):
+    except (ImportError, KeyError):
         return os.environ.get("USER", "unknown")
 
 

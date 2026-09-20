@@ -53,6 +53,8 @@ def _via_wkhtmltopdf(html_path: Path, output_path: Path) -> RenderOutcome:
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=_TIMEOUT_SECONDS,
             check=False,
         )
@@ -72,6 +74,8 @@ def _via_weasyprint(html_path: Path, output_path: Path) -> RenderOutcome:
             [binary, str(html_path), str(output_path)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=_TIMEOUT_SECONDS,
             check=False,
         )

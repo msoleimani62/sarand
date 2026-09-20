@@ -63,7 +63,7 @@ def _osc52_copy(text: str) -> bool:
         sequence = "\x1bP" + sequence + "\x1b\\"
 
     try:
-        with open("/dev/tty", "w") as tty:
+        with open("/dev/tty", "w", encoding="utf-8") as tty:
             tty.write(sequence)
             tty.flush()
         return True
@@ -89,6 +89,7 @@ def clipboard_copy(text: str) -> bool:
                 command,
                 input=text,
                 text=True,
+                encoding="utf-8",
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=False,

@@ -34,9 +34,16 @@ _HASH_CHUNK_SIZE = 1024 * 1024
 
 
 def is_excluded(path: Path, exclude_paths: list[str]) -> bool:
-    path_str = str(path)
+    # Compare in the platform's own spelling (separator, and case on
+    # Windows), so an exclude given as `/a/b` or `C:\\a\\b` matches the
+    # same way on every OS; on POSIX this is the plain string comparison.
+    # مقایسه با املای خودِ پلتفرم (جداکننده، و حروف بزرگ/کوچک روی Windows)
+    # تا یک exclude به شکل `/a/b` یا `C:\\a\\b` روی هر سیستم‌عامل یکسان
+    # مچ شود؛ روی POSIX همان مقایسه‌ی ساده‌ی رشته است.
+    candidate = os.path.normcase(os.path.normpath(str(path)))
     for excluded in exclude_paths:
-        if path_str == excluded or path_str.startswith(excluded.rstrip("/") + "/"):
+        target = os.path.normcase(os.path.normpath(excluded))
+        if candidate == target or candidate.startswith(target.rstrip(os.sep) + os.sep):
             return True
     return False
 

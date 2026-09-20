@@ -390,7 +390,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, expected 574 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -1276,13 +1276,66 @@ report and what was done:
   `[tool.ruff]` and there is no `ruff.toml`. If CI runs a different ruff
   configuration than a maintainer's machine, results can differ; pinning
   the rules in the repo is worth deciding on.
-- **`# nosec` comments must contain test IDs only.** bandit parses every
-  word after `# nosec` as a test id and prints a `Test in comment: <word>
-  is not a test name or id` warning for each one (real runs showed dozens).
-  Keep the justification in a normal comment on the lines above and leave
-  the trailing part as just `# nosec B603`. Verified on-device (v0.5.1):
-  with the nosec markers in place `bandit -r .` reports zero findings.
-  What still prints is the `nosec encountered ... but no failed test`
-  notice for `device_report/environment.py`: bandit applies a `# nosec` to
-  the whole multi-line tuple and warns for every line in it that had no
-  finding — cosmetic, and `scan_for_issues` ignores those log lines.
+
+### 5.13 — Cross-platform contract (2026-09-20)
+
+Requirement (§2): sarand behaves the same on Linux, macOS, Windows and
+Android/Termux. A green run on the maintainer's phone proves only one of
+those. Evidence that this was not being met: CI run #44 (commit `d772c61`,
+after v0.4.0–v0.5.1 had already been tagged) was **green on macOS** (all
+steps, 565 tests), **red on Windows** at `mypy .` (6 `attr-defined`
+errors: `os.killpg`, `signal.SIGKILL`, `os.getuid`, `pwd.getpwuid` do not
+exist there) — so Windows had not even reached `pytest` — and **red on
+Linux** at a step that was not identified when this was written.
+
+Rules (each is enforced by a test or by CI, not by memory):
+
+1. **POSIX-only APIs are guarded with `sys.platform`, not `os.name`.**
+   mypy narrows on `sys.platform == "win32"`; it does not on `os.name`, so
+   `os.killpg`, `os.getuid`, `signal.SIGKILL`, `pwd.*` were type-errors on
+   Windows even behind an `os.name` check.
+2. **Text I/O always names its encoding** (`read_text`, `write_text`,
+   `open`, text-mode temp files, `subprocess` with `text=True`). Windows
+   and a C locale default to a non-UTF-8 codec, which turns Persian/emoji
+   content into mojibake or a `UnicodeEncodeError`. Enforced by
+   `tests/test_portability.py` (AST scan of `python/sarand`).
+3. **No POSIX-only module (`pwd`, `fcntl`, `termios`, `resource`, ...) is
+   imported at module level** — it would break `import` on Windows. Same
+   test.
+4. **Run external tools only through `run_cmd` / `run_cmd_async`.** On
+   Windows they resolve the executable with `shutil.which` (PATHEXT), so
+   `npm.cmd`, `gradle.bat`, `mvn.cmd`, `composer.bat` run instead of being
+   reported as "not found" after the analyzer's own `which` check passed.
+   The three direct `subprocess.run` sites (clipboard, two PDF engines) are
+   the only exceptions.
+5. **Every entry point calls `harden_stdio()`** (`cli.main`,
+   `device_report.command.main`): stdout/stderr get `errors="replace"`, so a
+   non-UTF-8 stream prints `?` instead of crashing on the first `→`. A new
+   entry point must do the same.
+6. **Compare paths in the platform's own spelling**
+   (`os.path.normcase(os.path.normpath(...))`, see `is_excluded`), never by
+   hand-built `"/"` prefixes.
+7. **Tests must not assume a filesystem layout or an installed tool**: no
+   hardcoded `/tmp` where code touches the filesystem (Windows has none;
+   `resolve_config` drops nonexistent scan roots) — use `tmp_path` /
+   `tempfile`; monkeypatch `shutil.which` (§5.10); POSIX-only behavior gets
+   `skipif(os.name != "posix")`.
+8. **`.gitattributes` forces LF** (`* text=auto eol=lf`), so a Windows
+   checkout does not turn shell scripts and byte-exact fixtures into CRLF.
+
+CI: the matrix is every OS on Python 3.12 plus Linux on 3.10 (the
+`requires-python` floor) and 3.14; `ubuntu` is pinned to `ubuntu-24.04`
+so the `ubuntu-latest` migration to a newer image cannot change results
+silently. **Release rule from now on: tag only after CI is green on that
+commit** — commit, push, wait for every matrix job, then `git tag` and
+push the tag. Never tag a red commit.
+
+**Not verified by the assistant** (no Windows/macOS in the build
+sandbox; CI is the arbiter): everything above was checked only by static
+analysis, guard tests, and running the suite under a C locale and a
+temp directory with spaces and non-ASCII characters. **Known gaps, not
+bugs fixed here**: the environment section reads memory only from
+`/proc/meminfo`, so it reports unknown on macOS/Windows; `install.sh` is
+POSIX-only (Windows installs via pip/pipx); the OSC 52 clipboard path
+writes to `/dev/tty`, which does not exist on Windows; `device_report`
+classifies paths with POSIX rules (its purpose is Android/Linux storage).

@@ -57,7 +57,7 @@ def _validate_with_stdlib(files: list[Path]) -> CommandResult:
     errors: list[str] = []
     for path in files:
         try:
-            json.loads(path.read_text(errors="replace"))
+            json.loads(path.read_text(encoding="utf-8", errors="replace"))
         except (json.JSONDecodeError, OSError) as exc:
             errors.append(f"{path.name}: {exc}")
 
