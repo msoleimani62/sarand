@@ -43,7 +43,7 @@ def _via_wkhtmltopdf(html_path: Path, output_path: Path) -> RenderOutcome:
     if not binary:
         return RenderOutcome(False, "wkhtmltopdf not found in PATH")
     try:
-        result = subprocess.run(  # nosec B603 - which()-resolved binary + our own paths
+        result = subprocess.run(  # nosec B603
             [
                 binary,
                 "--quiet",
@@ -68,7 +68,7 @@ def _via_weasyprint(html_path: Path, output_path: Path) -> RenderOutcome:
     if not binary:
         return RenderOutcome(False, "weasyprint not found in PATH")
     try:
-        result = subprocess.run(  # nosec B603 - which()-resolved binary + our own paths
+        result = subprocess.run(  # nosec B603
             [binary, str(html_path), str(output_path)],
             capture_output=True,
             text=True,

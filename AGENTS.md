@@ -1276,3 +1276,13 @@ report and what was done:
   `[tool.ruff]` and there is no `ruff.toml`. If CI runs a different ruff
   configuration than a maintainer's machine, results can differ; pinning
   the rules in the repo is worth deciding on.
+- **`# nosec` comments must contain test IDs only.** bandit parses every
+  word after `# nosec` as a test id and prints a `Test in comment: <word>
+  is not a test name or id` warning for each one (real runs showed dozens).
+  Keep the justification in a normal comment on the lines above and leave
+  the trailing part as just `# nosec B603`. Verified on-device (v0.5.1):
+  with the nosec markers in place `bandit -r .` reports zero findings.
+  What still prints is the `nosec encountered ... but no failed test`
+  notice for `device_report/environment.py`: bandit applies a `# nosec` to
+  the whole multi-line tuple and warns for every line in it that had no
+  finding — cosmetic, and `scan_for_issues` ignores those log lines.

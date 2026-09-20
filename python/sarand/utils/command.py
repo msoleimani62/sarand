@@ -30,7 +30,7 @@ def run_cmd(
     """Execute a command and capture combined stdout/stderr."""
     start = time.perf_counter()
     try:
-        completed = subprocess.run(  # nosec B603 - fixed argv list, no shell
+        completed = subprocess.run(  # nosec B603
             list(cmd),
             cwd=cwd,
             stdout=subprocess.PIPE,

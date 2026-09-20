@@ -85,7 +85,7 @@ def clipboard_copy(text: str) -> bool:
         if shutil.which(command[0]) is None:
             continue
         try:
-            result = subprocess.run(  # nosec B603 - fixed clipboard-tool argv
+            result = subprocess.run(  # nosec B603
                 command,
                 input=text,
                 text=True,
