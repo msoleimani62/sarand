@@ -130,13 +130,21 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "Java / Kotlin / Android",
         "mvn",
         "install Maven: https://maven.apache.org/install.html",
-        "Maven projects",
+        (
+            "Maven projects; also runs checkstyle/spotbugs ad-hoc via plugin "
+            "coordinates under --quality (no pom.xml declaration needed)"
+        ),
     ),
     (
         "Java / Kotlin / Android",
         "gradle",
         "install Gradle, or rely on a project's ./gradlew wrapper",
-        "Gradle & Android projects (skipped automatically if ./gradlew exists)",
+        (
+            "Gradle & Android projects (skipped automatically if ./gradlew "
+            "exists); --quality also runs checkstyleMain/spotbugsMain, but "
+            "only if the project's own build.gradle(.kts) already applies "
+            "those plugins"
+        ),
     ),
     (
         "PDF export",
@@ -152,7 +160,17 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     ),
     ("Lua", "busted", "luarocks install busted", "running tests"),
     ("Lua", "luacheck", "luarocks install luacheck", "--quality"),
-    ("Ruby", "bundle", "gem install bundler", "running tests / --quality / --security"),
+    (
+        "Ruby",
+        "bundle",
+        "gem install bundler",
+        (
+            "running tests (rspec/rake, via bundle exec) / --quality (rubocop) / "
+            "--security (bundler-audit) -- all three gated on this one binary "
+            "since each sub-tool is invoked as `bundle exec <tool>`, not a "
+            "separate binary"
+        ),
+    ),
     (
         "PHP",
         "composer",
@@ -286,6 +304,21 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "nix-env -iA nixpkgs.nixpkgs-fmt",
         "--quality",
     ),
+    (
+        "Supply chain",
+        "gitleaks",
+        "https://github.com/gitleaks/gitleaks#installing",
+        (
+            "--security (project-wide, git-history-aware secret scan -- "
+            "complements, does not replace, the always-on regex scanner)"
+        ),
+    ),
+    (
+        "Supply chain",
+        "syft",
+        "https://github.com/anchore/syft#installation",
+        "--security (project-wide SBOM -- informational, not pass/fail)",
+    ),
 )
 
 _CATEGORY_ORDER = (
@@ -319,6 +352,7 @@ _CATEGORY_ORDER = (
     "Groovy",
     "PowerShell",
     "Nix",
+    "Supply chain",
     "PDF export",
 )
 

@@ -1038,3 +1038,126 @@ rest of the ~40 "without_<tool>" tests across the suite at some point
 — not done this round, since the real `pytest` run only surfaced these
 three as actually broken on this device, and patching untested ones on
 suspicion alone isn't verification (§4.8).
+
+### 5.11 — P1 round: gitleaks, syft (SBOM), Java checkstyle/spotbugs, Ruby/PHP doctor-text (2026-09-19)
+
+Full P1 list from §5.10 attempted in one round, at the maintainer's
+explicit request ("کل لیست P1 ... همه رو با هم شروع کن"). Two of the
+five items turned out to already be done -- same "verify against
+source before implementing" lesson as every prior round:
+
+- **PHP was already fully implemented** (phpunit + phpstan, both
+  preferring `vendor/bin/<tool>` over global, plus `composer audit`) —
+  nothing to add. `doctor.py`'s `composer` row already documented this.
+- **Ruby's bundler-audit was already fully implemented** (`bundle exec
+  bundler-audit check --update`, with the same `bundle exec`-missing-gem
+  detection as rspec/rubocop) — the report's complaint was really about
+  `doctor.py`'s `bundle` row being too vague ("running tests / --quality
+  / --security" names nothing), not a missing feature. Fixed by naming
+  the actual sub-tools (rspec/rake, rubocop, bundler-audit) in the
+  `used_for` text and explaining *why* it's still one binary check, not
+  three (`bundle exec <tool>` — no separate binary to check per tool).
+
+What actually shipped:
+
+- **gitleaks** (`core/gitleaks.py`) — project-wide, not a
+  `LanguageAnalyzer` (no single language owns it), so it's invoked
+  directly from `cli.py` and its `CommandResult` joins
+  `security_results` alongside the per-language ones. Runs with
+  `--redact` — not optional: without it gitleaks prints the actual
+  matched secret into its own output, which sarand would then embed
+  verbatim in the report, exactly the leak §4.10 exists to prevent.
+  Detects `.git` presence to add `--no-git` for non-git working trees.
+  Explicitly *not* SARAND_SKIP_AUDIT-gated: it's a local/offline scan,
+  not a vulnerability-database network call, so that flag's "fixed
+  external cost" reasoning (cargo-audit/pip-audit) doesn't apply.
+- **syft** (`core/sbom.py`) — same project-wide shape, `syft dir:. -o
+  table`. Purely informational (syft's exit code doesn't signal
+  pass/fail the way gitleaks' does) — this is the P1-scope version;
+  a real structured dependency inventory (counted, per-language,
+  license-annotated) stays P2, deliberately not attempted here.
+- **Java** `run_quality` was previously an intentional empty return
+  (documented reasoning: linter configs vary too much to guess safely)
+  — now runs checkstyle + spotbugs for **Maven**, via the same
+  ad-hoc-full-coordinate trick `run_security` already used for OWASP
+  dependency-check (`mvn -B org.apache.maven.plugins:maven-checkstyle-plugin:check`,
+  works without any pom.xml declaration, Checkstyle's bundled Sun
+  ruleset is a safe default). **Gradle has no equivalent ad-hoc path**
+  — a task only exists if the project's own build file applied the
+  plugin — so the Gradle side is genuinely gated on a real project
+  marker (§4.3): grep `build.gradle(.kts)` for `"checkstyle"`/
+  `"spotbugs"` before ever trying `checkstyleMain`/`spotbugsMain`,
+  skip cleanly with a clear reason otherwise. This asymmetry (Maven
+  ad-hoc-safe vs. Gradle marker-gated) is inherent to how the two
+  build tools work, not an inconsistency to "fix" later.
+- **`doctor.py`** — new `"Supply chain"` category (gitleaks, syft),
+  Java's `mvn`/`gradle` rows and Ruby's `bundle` row got clearer
+  `used_for` text.
+
+Tests: `tests/test_gitleaks.py`, `tests/test_sbom.py` (new files),
+Java quality tests added to `tests/test_cpp_java_analyzers.py`,
+`test_doctor_v2.py::test_p1_supply_chain_round_checks_are_registered`.
+**Not covered**: a `cli.py`-level integration test proving gitleaks/syft
+results actually land in `security_results` end-to-end through
+`run()` — the existing cli-level tests need substantial mock scaffolding
+(`_RENDERERS`, `write_sha256`, `remove_previous_report`, ...) and
+duplicating that scaffolding from a partial view risked getting it
+subtly wrong; the unit-level tests for `run_gitleaks`/`run_syft`
+themselves are solid, and the `cli.py` wiring is a three-line
+`asyncio.gather` + list-append, low-risk enough to leave at unit-test
+coverage for now. Worth adding the integration test in a future round
+if this wiring is ever touched again.
+
+Still open from the original P1 list: nothing — all five items are
+now either implemented or confirmed already-done. P2 (dependency
+inventory, license policy, reproducible-build/lockfile checks) and P3
+(architecture: structured `--doctor` output, project-local-tool
+preference generalized, tool-version compatibility) remain, per §5.10.
+
+**Maintainer-found bug, fixed the same day**: clang-tidy's file
+selection (§5.10's P0 addition) globbed every `.c`/`.cpp`/`.cc` under
+`root`, which sweeps up CMake's own generated compiler-ID probe file
+(`build/CMakeFiles/.../CompilerIdCXX/CMakeCXXCompilerId.cpp`) —
+confirmed by the maintainer with a real `sarand --quality --format
+json` run showing clang-tidy actually processing it alongside
+`main.cpp`. Fixed by parsing `compile_commands.json` itself for the
+real source-file list (the authoritative record of what was actually
+compiled) instead of globbing, explicitly excluding anything under a
+`CMakeFiles/` or `cmake-build-*` path even if it somehow ended up in
+the compile db anyway. Also added along the way: `--quiet` on the
+clang-tidy invocation, and a sane default `-checks=` list (bugprone/
+readability/performance/modernize/cppcoreguidelines, a few noisy ones
+disabled) applied only when the project has no `.clang-tidy` of its
+own — same "existing config wins" precedent as `.clang-format`'s gate
+above. `tests/test_cpp_java_analyzers.py` gained a regression test
+(`test_cpp_analyzer_clang_tidy_excludes_cmake_generated_probe_files`)
+that locks this in by planting a fake compiler-ID-probe entry directly
+in a compile db and asserting it never reaches the clang-tidy command
+line, plus updated the existing "runs with compile commands" test to
+use a real compile-db entry instead of an empty `[]` (which, now that
+file selection reads the compile db instead of globbing, would
+correctly skip with "no C/C++ source files found" — the old test only
+passed before because globbing ignored the compile db entirely).
+
+**Follow-up review (2026-09-20)**: the maintainer's own hand-applied
+clang-tidy patch and the assistant's independent rewrite turned out to be
+functionally identical; the device copy of `cpp_analyzer.py` was kept as
+the source of truth (it had already passed the real run + 538 tests) and
+only bilingual comments were added on top. The same review of a fresh
+self-scan report fixed three more things: (1) mypy — `find_dirs_named()` in
+`device_report/walking.py` typed `names` as `set[str]` although it only
+does membership tests and callers pass a `frozenset`; now
+`collections.abc.Set` (`AbstractSet[str]`). (2) gitleaks — the P1 call
+printed only "leaks found: N" plus ANSI colour codes; it now adds
+`--verbose` (findings visible) and `--no-color`. **`--verbose` is only
+safe because `--redact` is always present** — never drop `--redact`;
+`tests/test_gitleaks.py` asserts the pair. Note `--verbose` also prints
+commit author/email for history findings. (3) `test_java_analyzer_gradle_quality_skips_without_plugins_applied`
+never monkeypatched `shutil.which`, so it only passed on machines that
+happen to have gradle installed (same class of bug as the earlier dart/zig
+tests) — now hermetic. Still open (not code bugs):
+shfmt flags `install.sh` (4-space indent vs shfmt's tab default —
+`.editorconfig` would fix it), markdownlint's default MD013 (line length)
+dominates README/AGENTS.md output, bandit's B101 in `tests/` dominates its
+finding count, and the "Errors detected" section still lists lines like
+`0 failed` (cargo test) and bandit context/nosec warnings.

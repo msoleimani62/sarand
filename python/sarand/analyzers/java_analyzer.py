@@ -100,12 +100,136 @@ class JavaAnalyzer:
         return None
 
     async def run_quality(self, root: Path) -> list[CommandResult]:
-        # No default linter assumed: checkstyle/ktlint/spotless configs
-        # vary too much per project to guess safely. Left as an explicit
-        # gap rather than a wrong guess -- see AGENTS.md roadmap.
-        # هیچ linter پیش‌فرضی فرض نمی‌شود: کانفیگ checkstyle/ktlint/spotless
-        # بین پروژه‌ها آن‌قدر متفاوت است که حدس زدنش ایمن نیست -- عمداً
-        # به‌عنوان یک گپ صریح رها شده، نه یک حدس غلط.
+        tool = self._build_tool(root)
+        results: list[CommandResult] = []
+
+        if tool == "maven":
+            if shutil.which("mvn") is None:
+                return [
+                    make_command_result(
+                        "mvn checkstyle:check",
+                        127,
+                        "",
+                        0.0,
+                        skipped=True,
+                        skip_reason="mvn not found in PATH",
+                    )
+                ]
+            # Same ad-hoc-full-coordinate trick run_security already uses
+            # for OWASP dependency-check below: invoking a plugin's goal
+            # by its full groupId:artifactId:goal works even when the
+            # project's own pom.xml never declared it, and Checkstyle's
+            # bundled default ruleset (Sun conventions) means this is a
+            # safe, meaningful default with zero project-specific config
+            # required -- unlike Gradle below, where no such ad-hoc path
+            # exists.
+            #
+            # همان ترفند مختصات-کامل-ad-hoc که run_security پایین‌تر
+            # برای OWASP dependency-check دارد: فراخوانی goal یک پلاگین
+            # با groupId:artifactId:goal کامل حتی وقتی pom.xml خودِ
+            # پروژه هرگز آن را تعریف نکرده هم کار می‌کند، و ruleset
+            # پیش‌فرض داخلیِ Checkstyle (قراردادهای Sun) یعنی این یک
+            # پیش‌فرض امن و معنادار است بدون نیاز به هیچ کانفیگ
+            # مخصوص پروژه -- برخلاف Gradle پایین‌تر، جایی که چنین
+            # مسیر ad-hoc‌ای اصلاً وجود ندارد.
+            rc, out, dur = await run_cmd_async(
+                ["mvn", "-B", "org.apache.maven.plugins:maven-checkstyle-plugin:check"],
+                root,
+                LONG_CMD_TIMEOUT,
+            )
+            results.append(make_command_result("mvn checkstyle:check", rc, out, dur))
+
+            rc, out, dur = await run_cmd_async(
+                ["mvn", "-B", "com.github.spotbugs:spotbugs-maven-plugin:check"],
+                root,
+                LONG_CMD_TIMEOUT,
+            )
+            results.append(make_command_result("mvn spotbugs:check", rc, out, dur))
+            return results
+
+        if tool == "gradle":
+            binary, found = self._gradle_invocation(root)
+            if not found:
+                return [
+                    make_command_result(
+                        "gradle checkstyleMain/spotbugsMain",
+                        127,
+                        "",
+                        0.0,
+                        skipped=True,
+                        skip_reason=(
+                            "gradle not found in PATH and no ./gradlew wrapper present"
+                        ),
+                    )
+                ]
+            # Gradle has no equivalent of Maven's "invoke an undeclared
+            # plugin by full coordinate" -- a task only exists if the
+            # project's own build.gradle(.kts) applied the plugin. So,
+            # unlike Maven above, this is genuinely gated on a real
+            # project marker (§4.3): grep the build file for the plugin
+            # id before ever trying to run its task, rather than letting
+            # gradle fail with "task not found" for every project that
+            # doesn't happen to use these two plugins.
+            #
+            # Gradle معادلی برای «فراخوانی یک پلاگین اعلام‌نشده با
+            # مختصات کامل»ی Maven ندارد -- یک تسک فقط وقتی وجود دارد که
+            # build.gradle(.kts) خودِ پروژه آن پلاگین را apply کرده
+            # باشد. پس، برخلاف Maven بالا، این واقعاً روی یک نشانگر
+            # واقعی پروژه gate شده (§4.3): قبل از هر تلاشی برای اجرای
+            # تسکش، فایل build را برای شناسه‌ی پلاگین grep می‌کنیم، به‌جای
+            # اینکه بگذاریم gradle برای هر پروژه‌ای که این دو پلاگین را
+            # ندارد با «task not found» شکست بخورد.
+            build_file = root / "build.gradle.kts"
+            if not build_file.is_file():
+                build_file = root / "build.gradle"
+            try:
+                build_text = build_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                build_text = ""
+
+            if "checkstyle" in build_text:
+                rc, out, dur = await run_cmd_async(
+                    [binary, "checkstyleMain", "--console=plain"],
+                    root,
+                    LONG_CMD_TIMEOUT,
+                )
+                results.append(
+                    make_command_result("gradle checkstyleMain", rc, out, dur)
+                )
+            else:
+                results.append(
+                    make_command_result(
+                        "gradle checkstyleMain",
+                        0,
+                        "",
+                        0.0,
+                        skipped=True,
+                        skip_reason=(
+                            "checkstyle plugin not applied in build.gradle(.kts)"
+                        ),
+                    )
+                )
+
+            if "spotbugs" in build_text:
+                rc, out, dur = await run_cmd_async(
+                    [binary, "spotbugsMain", "--console=plain"],
+                    root,
+                    LONG_CMD_TIMEOUT,
+                )
+                results.append(make_command_result("gradle spotbugsMain", rc, out, dur))
+            else:
+                results.append(
+                    make_command_result(
+                        "gradle spotbugsMain",
+                        0,
+                        "",
+                        0.0,
+                        skipped=True,
+                        skip_reason="spotbugs plugin not applied in build.gradle(.kts)",
+                    )
+                )
+            return results
+
         return []
 
     async def run_security(self, root: Path) -> list[CommandResult]:

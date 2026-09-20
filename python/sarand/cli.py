@@ -28,8 +28,10 @@ from sarand.core.cache import (
     reconstruct_todos,
     save_cache,
 )
+from sarand.core.gitleaks import run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
+from sarand.core.sbom import run_syft
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
 from sarand.discovery.project_detector import detect_project
 from sarand.models.results import ReportData
@@ -405,6 +407,26 @@ async def run(config: SarandConfig) -> int:
         t0 = time.perf_counter()
         security_results = await run_security_concurrently(root, active)
         status(f"Security checks finished in {time.perf_counter() - t0:.1f}s")
+
+        # Project-wide (not per-language) security passes -- gitleaks
+        # and syft don't belong to any single LanguageAnalyzer, so they
+        # run once here and their results join the same list, same
+        # rendering, same health-score consideration as every other
+        # security check. Not gated by SARAND_SKIP_AUDIT: neither makes
+        # a network call to a vulnerability database, so the "fixed
+        # external cost" reasoning that flag exists for doesn't apply.
+        #
+        # پاس‌های امنیتیِ کل‌پروژه (نه به‌ازای هر زبان) -- gitleaks و
+        # syft به هیچ LanguageAnalyzer خاصی تعلق ندارند، پس یک‌بار
+        # همین‌جا اجرا می‌شوند و نتیجه‌شان به همان لیست، همان رندر،
+        # همان محاسبه‌ی امتیاز سلامت بقیه‌ی چک‌های امنیتی می‌پیوندد.
+        # با SARAND_SKIP_AUDIT گیت نمی‌شوند: هیچ‌کدام تماس شبکه‌ای با
+        # یک پایگاه‌داده‌ی آسیب‌پذیری نمی‌زنند، پس استدلال «هزینه‌ی
+        # خارجیِ ثابت» که آن پرچم برایش وجود دارد، اینجا صدق نمی‌کند.
+        gitleaks_result, syft_result = await asyncio.gather(
+            run_gitleaks(root), run_syft(root)
+        )
+        security_results = security_results + [gitleaks_result, syft_result]
 
     known = detect_known_issues(test_results + quality_results + security_results)
 

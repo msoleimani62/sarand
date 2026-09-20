@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import os
 from collections.abc import Iterator
+from collections.abc import Set as AbstractSet
 from pathlib import Path
 
 _HASH_CHUNK_SIZE = 1024 * 1024
@@ -156,7 +157,7 @@ def iter_files(
 
 def find_dirs_named(
     root: Path,
-    names: set[str],
+    names: AbstractSet[str],
     *,
     exclude_paths: list[str] | None = None,
     max_depth: int = 0,

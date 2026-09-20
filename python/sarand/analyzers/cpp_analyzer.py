@@ -10,6 +10,7 @@ warning before doing anything heavy.
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
@@ -153,18 +154,117 @@ class CppAnalyzer:
                 )
             )
         else:
-            files = [
-                str(p.relative_to(root))
-                for p in sorted(root.rglob("*"))
-                if p.is_file() and p.suffix in {".c", ".cpp", ".cc"}
-            ][:200]
+            # Source list comes from compile_commands.json itself -- the
+            # authoritative record of what was really compiled -- instead
+            # of globbing the tree: a glob also sweeps up CMake's own
+            # generated compiler-ID probe file (build/CMakeFiles/.../
+            # CompilerIdCXX/CMakeCXXCompilerId.cpp), confirmed by a real run.
+            # لیست سورس‌ها از خودِ compile_commands.json می‌آید -- مرجع
+            # واقعیِ چیزی که کامپایل شده -- نه glob روی درخت پروژه: glob
+            # فایل probe خودکارِ CMake را هم می‌گیرد (build/CMakeFiles/.../
+            # CompilerIdCXX/CMakeCXXCompilerId.cpp)، که با اجرای واقعی تأیید شد.
+            compile_db_files: set[str] = set()
+
+            try:
+                compile_db = json.loads(compile_commands.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                compile_db = None
+
+            if isinstance(compile_db, list):
+                for entry in compile_db:
+                    if not isinstance(entry, dict):
+                        continue
+
+                    file_value = entry.get("file")
+                    if not isinstance(file_value, str):
+                        continue
+
+                    file_path = Path(file_value)
+
+                    if not file_path.is_absolute():
+                        directory = entry.get("directory")
+                        if isinstance(directory, str):
+                            file_path = Path(directory) / file_path
+                        else:
+                            file_path = root / file_path
+
+                    # Entries outside the project root are ignored.
+                    # ورودی‌های بیرون از ریشه‌ی پروژه نادیده گرفته می‌شوند.
+                    try:
+                        relative = file_path.resolve().relative_to(root.resolve())
+                    except ValueError:
+                        continue
+
+                    # Defense in depth: drop CMake-generated paths even if
+                    # they ended up in the compile db.
+                    # دفاع لایه‌ای: مسیرهای تولیدشده‌ی CMake حتی اگر در
+                    # compile db باشند حذف می‌شوند.
+                    if (
+                        relative.suffix.lower() in {".c", ".cc", ".cpp", ".cxx"}
+                        and "CMakeFiles" not in relative.parts
+                        and not any(
+                            part.startswith("cmake-build") for part in relative.parts
+                        )
+                    ):
+                        compile_db_files.add(relative.as_posix())
+
+            files = sorted(compile_db_files)[:200]
+
             if files:
+                cmd = [
+                    "clang-tidy",
+                    "-p",
+                    str(compile_commands.parent),
+                    "--quiet",
+                ]
+
+                # Default check set only when the project has no
+                # .clang-tidy of its own (an existing config must win).
+                # مجموعه‌ی چک پیش‌فرض فقط وقتی که پروژه .clang-tidy
+                # خودش را ندارد (کانفیگ موجود باید برنده باشد).
+                if not (root / ".clang-tidy").exists():
+                    checks = (
+                        "-*,"
+                        "clang-diagnostic-*,"
+                        "bugprone-*,"
+                        "readability-*,"
+                        "performance-*,"
+                        "modernize-*,"
+                        "cppcoreguidelines-*,"
+                        "-modernize-use-trailing-return-type,"
+                        "-readability-magic-numbers,"
+                        "-readability-identifier-length"
+                    )
+                    cmd.append(f"-checks={checks}")
+
+                cmd.extend(files)
+
                 rc, out, dur = await run_cmd_async(
-                    ["clang-tidy", "-p", str(compile_commands.parent), *files],
+                    cmd,
                     root,
                     LONG_CMD_TIMEOUT,
                 )
-                results.append(make_command_result("clang-tidy", rc, out, dur))
+                results.append(
+                    make_command_result(
+                        "clang-tidy",
+                        rc,
+                        out,
+                        dur,
+                    )
+                )
+            else:
+                results.append(
+                    make_command_result(
+                        "clang-tidy",
+                        0,
+                        "",
+                        0.0,
+                        skipped=True,
+                        skip_reason=(
+                            "no C/C++ source files found in compile_commands.json"
+                        ),
+                    )
+                )
 
         return results
 

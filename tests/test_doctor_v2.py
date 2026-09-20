@@ -157,3 +157,27 @@ def test_p0_language_depth_round_checks_are_registered() -> None:
 
     eslint_check = next(c for c in checks if c.name == "eslint")
     assert "eslint config" in eslint_check.used_for.lower()
+
+
+def test_p1_supply_chain_round_checks_are_registered() -> None:
+    # Regression guard for the 2026-09-19 P1 round (AGENTS.md §5.10):
+    # gitleaks + syft as a brand-new "Supply chain" category (project-
+    # wide, not per-language), plus the Java checkstyle/spotbugs and
+    # Ruby/PHP visibility-text improvements from the same round.
+    checks = collect_checks()
+    by_category: dict[str, set[str]] = {}
+    for check in checks:
+        by_category.setdefault(check.category, set()).add(check.name)
+
+    assert by_category["Supply chain"] == {"gitleaks", "syft"}
+    assert "Supply chain" in _CATEGORY_ORDER
+
+    mvn_check = next(c for c in checks if c.name == "mvn")
+    assert "checkstyle" in mvn_check.used_for.lower()
+    assert "spotbugs" in mvn_check.used_for.lower()
+
+    gradle_check = next(c for c in checks if c.name == "gradle")
+    assert "checkstylemain" in gradle_check.used_for.lower()
+
+    gitleaks_check = next(c for c in checks if c.name == "gitleaks")
+    assert "regex scanner" in gitleaks_check.used_for.lower()
