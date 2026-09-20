@@ -13,6 +13,7 @@ import ast
 import io
 import ntpath
 import shutil
+import sys
 import types
 from pathlib import Path
 
@@ -199,12 +200,16 @@ def test_resolve_argv_resolves_the_executable_through_pathext_on_windows(
 
 
 def test_harden_stdio_turns_unencodable_characters_into_replacements() -> None:
-    strict = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    strict = io.TextIOWrapper(
+        io.BytesIO(), encoding="cp1252", errors="strict", newline=""
+    )
     with pytest.raises(UnicodeEncodeError):
         strict.write("\u2192 \u062a\u0633\u062a")
 
     raw = io.BytesIO()
-    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    # newline="" so Windows does not turn "\n" into "\r\n" in the expected bytes
+    # newline="" تا Windows در بایت‌های مورد انتظار "\n" را به "\r\n" تبدیل نکند
+    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict", newline="")
     harden_stdio([stream])
     stream.write("\u2192 ok\n")
     stream.flush()
@@ -233,6 +238,9 @@ def test_is_excluded_honors_the_platforms_separator_and_case(
     assert is_excluded(Path("C:/Users/me/bigger"), ["c:\\users\\me\\big"]) is False
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows paths are case-insensitive by design"
+)
 def test_is_excluded_on_posix_is_case_and_prefix_exact() -> None:
     assert is_excluded(Path("/a/b"), ["/a/b/"]) is True
     assert is_excluded(Path("/a/B"), ["/a/b"]) is False
@@ -276,3 +284,25 @@ def test_no_test_branches_on_whether_a_real_tool_is_installed() -> None:
                 ]
 
     assert sorted(set(offenders)) == []
+
+
+def test_reported_entry_points_never_use_native_path_separators() -> None:
+    """`str(path.relative_to(root))` gives `src\\main\\groovy` on Windows and
+    `src/main/groovy` elsewhere, so the same project produced different
+    reports. Entry points are reported with forward slashes: use
+    `.as_posix()` (or a literal), never `str(...)`."""
+    analyzers_dir = _PACKAGE_ROOT / "analyzers"
+    offenders: list[str] = []
+    for path in sorted(analyzers_dir.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for func in ast.walk(tree):
+            if isinstance(func, ast.FunctionDef) and func.name == "entry_points":
+                offenders += [
+                    f"{path.name}:{node.lineno}"
+                    for node in ast.walk(func)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "str"
+                ]
+
+    assert offenders == []

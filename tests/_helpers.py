@@ -26,7 +26,14 @@ def assert_raises(
 
 
 def write(path: Path, content: str = "") -> Path:
-    """Create a file (and parent dirs) with the given content, return the path."""
+    """Create a file (and parent dirs) with the given content, return the path.
+
+    Written as bytes on purpose: `write_text` translates "\\n" to "\\r\\n" on
+    Windows, which made size/byte-exact assertions differ between systems.
+    عمداً به‌صورت بایت نوشته می‌شود: `write_text` روی Windows "\\n" را به
+    "\\r\\n" تبدیل می‌کند و همین باعث می‌شد assertion های اندازه/بایتی بین
+    سیستم‌ها فرق کنند.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    path.write_bytes(content.encode("utf-8"))
     return path

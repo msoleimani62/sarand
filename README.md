@@ -291,10 +291,39 @@ Running sarand again on the same project replaces its previous report at that pa
 | Check | What it does |
 |---|---|
 | Secret scan | `gitleaks` looks for credentials in the working tree and the whole git history. Findings are redacted. |
-| SBOM and licenses | `syft` lists every dependency per ecosystem, summarises licenses and warns, as advice only, about copyleft licenses. |
+| SBOM and licenses | `syft` lists every dependency per ecosystem and summarises licenses. Copyleft is advice only, unless you add a [license policy](#license-policy). |
 | Lockfile check | Confirms that the manifest has a lockfile and that the lockfile is not git-ignored. |
 
 Independently of this flag, sarand never copies a file that contains a detected secret into the report, and reports how many files it left out.
+
+### License policy
+
+By default sarand only *advises* about copyleft licenses, because whether one matters depends on your project. If you know your rules, write them in a `.sarand.toml` at the project root and `--security` enforces them against the SBOM:
+
+```toml
+[licenses]
+allow   = ["MIT", "Apache-2.0", "BSD-*", "ISC", "PSF-2.0"]
+deny    = ["AGPL-*", "GPL-*"]
+warn    = ["MPL-2.0"]
+unknown = "allow"
+
+[[licenses.exceptions]]
+package = "somelib"
+reason  = "GPL-3.0, used only as a build tool and never shipped"
+```
+
+| Key | Meaning |
+|---|---|
+| `allow` | If set, every license must match one of these (or `warn`). Patterns are case-insensitive and support `*`. |
+| `deny` | A match is a violation and fails the check. `deny` always wins. |
+| `warn` | Acceptable, but reported for review. |
+| `unknown` | What to do with a package that reports no license: `allow` (default), `warn` or `deny`. |
+| `exceptions` | Per-package exceptions. A written `reason` is required, a `version` is optional. |
+
+- `A OR B` lets you choose, so a package is judged by its best alternative; `A AND B` needs every part to pass.
+- Common non-SPDX spellings such as `Apache 2.0` or `PSFL` are mapped to their SPDX ids. Any other unrecognised string must be listed in `allow` exactly as it is reported.
+- A mistake in the file (a typo like `alow`, a wrong type, invalid TOML) is an error, never silently ignored.
+- `syft` reads no license for Rust crates because `Cargo.lock` carries none, so keep `unknown = "allow"` there and let `cargo deny` cover Rust.
 
 ## Health score
 

@@ -1,0 +1,14 @@
+# License policy for sarand itself (see README, "License policy").
+# The licenses below are the ones a real `sarand --full` SBOM listed.
+# سیاست لایسنس برای خودِ sarand (بخش «سیاست لایسنس» در README). لایسنس‌های
+# زیر همان‌هایی‌اند که یک SBOM واقعیِ `sarand --full` فهرست کرد.
+
+[licenses]
+allow   = ["MIT", "Apache-2.0", "BSD-*", "ISC", "PSF-2.0"]
+deny    = ["AGPL-*", "GPL-*", "SSPL-*"]
+warn    = ["MPL-2.0"]
+# syft reads no license for Rust crates (Cargo.lock carries none); cargo-deny
+# (deny.toml) is the authority for those.
+# syft برای crate های Rust لایسنسی نمی‌خواند (Cargo.lock ندارد)؛ مرجعِ آن‌ها
+# cargo-deny است (deny.toml).
+unknown = "allow"

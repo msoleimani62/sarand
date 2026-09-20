@@ -55,7 +55,7 @@ class GroovyAnalyzer:
 
     def entry_points(self, root: Path) -> list[str]:
         ep = root / "src" / "main" / "groovy"
-        return [str(ep.relative_to(root))] if ep.is_dir() else []
+        return [ep.relative_to(root).as_posix()] if ep.is_dir() else []
 
     async def run_tests(self, root: Path) -> CommandResult | None:
         # Delegated to JavaAnalyzer's ./gradlew test / gradle test --

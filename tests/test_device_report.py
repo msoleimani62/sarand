@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -78,9 +79,9 @@ def test_missing_scan_root_raises() -> None:
         resolve_config(args)
 
 
-def test_default_top_n_when_neither_full_nor_explicit() -> None:
+def test_default_top_n_when_neither_full_nor_explicit(tmp_path: Path) -> None:
     parser = build_parser()
-    args = parser.parse_args(["-r", "/tmp"])
+    args = parser.parse_args(["-r", str(tmp_path)])
     config = resolve_config(args)
     assert config.top_n == 30
 
@@ -338,7 +339,7 @@ def test_toolchain_aggregates_pycache_by_default(
     # record_space() doesn't print anything itself -- the aggregate's
     # synthetic path only ever appears later, in the Executive
     # Summary's Top Space Users table, not in this section's own text.
-    assert section.count("/__pycache__") == 5  # exactly the top-5 detail lines
+    assert section.count(f"{os.sep}__pycache__") == 5  # exactly the top-5 detail lines
 
 
 def test_toolchain_expand_aggregates_lists_every_pycache(
@@ -367,7 +368,7 @@ def test_toolchain_expand_aggregates_lists_every_pycache(
 
     assert "Aggregated:" not in text
     for i in range(12):
-        assert f"pkg{i}/__pycache__" in text
+        assert f"pkg{i}{os.sep}__pycache__" in text
 
 
 def test_min_top_space_filters_tiny_entries(

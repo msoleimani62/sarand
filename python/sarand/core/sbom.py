@@ -7,9 +7,11 @@ AGENTS.md §5.10 built on top of the P1 "run the tool and show what it
 found" version: syft is asked for JSON, and sarand renders (1) a count
 per ecosystem, (2) a license histogram, (3) advisory warnings for
 copyleft licenses, and (4) the full package table with a license
-column. The license check is advisory only (it never fails the check):
+column. Without a project policy the license check is advisory only
+(it never fails the check):
 whether a copyleft dependency is a problem depends on this project's own
-license and how the dependency is used, which sarand cannot know. If
+license and how the dependency is used, which sarand cannot know; a project that does writes `.sarand.toml`
+(`license_policy.py`) and the check then enforces it. If
 syft's JSON cannot be parsed, the original plain table is used instead,
 so this layer can never make the check worse than P1 was.
 
@@ -27,6 +29,9 @@ copyleft مشکل است یا نه به لایسنس خودِ این پروژه 
 دارد، که sarand نمی‌تواند بداند. اگر JSON خروجی syft parse نشود، همان
 جدول ساده‌ی قبلی استفاده می‌شود، پس این لایه هرگز چک را بدتر از P1
 نمی‌کند.
+
+اگر پروژه سیاست لایسنس خودش را در `.sarand.toml` بنویسد (`license_policy.py`)،
+همین چک آن را اِعمال می‌کند.
 """
 
 from __future__ import annotations
@@ -39,6 +44,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sarand.constants import LONG_CMD_TIMEOUT
+from sarand.core.license_policy import (
+    POLICY_FILENAME,
+    LicensePolicy,
+    PolicyError,
+    evaluate,
+    load_policy,
+)
 from sarand.models.results import CommandResult
 from sarand.utils.command import make_command_result, run_cmd_async
 from sarand.utils.logging import get_logger
@@ -136,15 +148,73 @@ def parse_packages(json_text: str) -> list[SbomPackage] | None:
     ]
 
 
-def render_sbom(packages: list[SbomPackage]) -> str:
-    """Full package table first, then the summary and advisory warnings.
+def _policy_lines(
+    packages: list[SbomPackage], policy: LicensePolicy
+) -> tuple[list[str], int]:
+    """Policy verdict lines and the number of violations that fail the check."""
+    violations, applied = evaluate(packages, policy)
+    problems = [v for v in violations if v.level == 2]
+    warnings = [v for v in violations if v.level == 1]
+    lines = [
+        (
+            f"License policy ({POLICY_FILENAME}): {len(problems)} violation(s), "
+            f"{len(warnings)} warning(s), {len(applied)} exception(s) applied"
+        )
+    ]
+    for prefix, group in (("problem", problems), ("warning", warnings)):
+        for violation in group[:_MAX_LISTED_WARNINGS]:
+            lines.append(
+                f"{prefix}: license policy: {violation.message} -- "
+                f"{violation.package} {violation.version} ({violation.kind})"
+            )
+        if len(group) > _MAX_LISTED_WARNINGS:
+            lines.append(
+                f"{prefix}: license policy: +{len(group) - _MAX_LISTED_WARNINGS} "
+                "more not listed"
+            )
+    lines.extend(
+        f"note: exception for {label}: {exception.reason}"
+        for label, exception in applied
+    )
+    return lines, len(problems)
+
+
+def _advisory_lines(packages: list[SbomPackage]) -> list[str]:
+    """The built-in copyleft advisory, used when the project has no policy."""
+    lines: list[str] = []
+    for level in (2, 1):
+        flagged = [
+            (p, lic)
+            for p in packages
+            for lic in p.licenses
+            if classify_license(lic) == level
+        ]
+        for pkg, lic in flagged[:_MAX_LISTED_WARNINGS]:
+            lines.append(
+                f"warning: {_LEVEL_NAMES[level]} license {lic} -- {pkg.name} "
+                f"{pkg.version} ({pkg.kind}); review against this project's license"
+            )
+        if len(flagged) > _MAX_LISTED_WARNINGS:
+            lines.append(
+                f"warning: +{len(flagged) - _MAX_LISTED_WARNINGS} more "
+                f"{_LEVEL_NAMES[level]} package(s) not listed"
+            )
+    return lines
+
+
+def render_with_policy(
+    packages: list[SbomPackage], policy: LicensePolicy | None = None
+) -> tuple[str, int]:
+    """Full package table first, then the summary and license verdicts.
+
+    Returns (text, number of policy violations that fail the check).
 
     The summary goes LAST on purpose: a passing tool's output is shown as
     its last 80 lines unless `--full` is given, and with the summary first
     a real run showed only the table's tail. Ending with the summary keeps
-    the counts and copyleft warnings in that default view.
+    the counts and license verdicts in that default view.
 
-    جدول کامل پکیج‌ها اول، بعد خلاصه و هشدارهای مشورتی. خلاصه عمداً آخر
+    جدول کامل پکیج‌ها اول، بعد خلاصه و حکم لایسنس‌ها. خلاصه عمداً آخر
     است: خروجی یک ابزارِ موفق بدون `--full` فقط ۸۰ خط آخر نشان داده
     می‌شود، و با خلاصه‌ی اول یک اجرای واقعی فقط انتهای جدول را نشان داد.
     """
@@ -173,32 +243,32 @@ def render_sbom(packages: list[SbomPackage]) -> str:
     if parts:
         lines.append("Licenses: " + ", ".join(parts))
 
-    for level in (2, 1):
-        flagged = [
-            (p, lic)
-            for p in packages
-            for lic in p.licenses
-            if classify_license(lic) == level
-        ]
-        for pkg, lic in flagged[:_MAX_LISTED_WARNINGS]:
-            lines.append(
-                f"warning: {_LEVEL_NAMES[level]} license {lic} -- {pkg.name} "
-                f"{pkg.version} ({pkg.kind}); review against this project's license"
-            )
-        if len(flagged) > _MAX_LISTED_WARNINGS:
-            lines.append(
-                f"warning: +{len(flagged) - _MAX_LISTED_WARNINGS} more "
-                f"{_LEVEL_NAMES[level]} package(s) not listed"
-            )
-    return "\n".join(lines) + "\n"
+    violations = 0
+    if policy is None:
+        lines.extend(_advisory_lines(packages))
+    else:
+        policy_lines, violations = _policy_lines(packages, policy)
+        lines.extend(policy_lines)
+    return "\n".join(lines) + "\n", violations
+
+
+def render_sbom(packages: list[SbomPackage]) -> str:
+    """The report text with the built-in advisory (no project policy)."""
+    return render_with_policy(packages)[0]
 
 
 async def run_syft(root: Path) -> CommandResult:
-    """Generate an SBOM for `root` with syft. Always "passes" (syft's
-    own exit code is 0 whether it finds 0 or 500 components -- it
-    isn't a pass/fail tool the way gitleaks or an audit tool is), so
-    this is purely informational output for the report, same as a
-    `git log` summary."""
+    """Generate an SBOM for `root` with syft.
+
+    syft's own exit code is 0 whether it finds 0 or 500 components, so the
+    inventory by itself is informational. The check fails only on a
+    license-policy violation (see `license_policy.py`) or an invalid
+    `.sarand.toml` -- never merely because a dependency is copyleft.
+
+    کد خروج خودِ syft چه ۰ چه ۵۰۰ مؤلفه پیدا کند ۰ است، پس فهرست به‌تنهایی
+    اطلاعاتی است. چک فقط با نقض سیاست لایسنس (`license_policy.py`) یا
+    `.sarand.toml` نامعتبر fail می‌شود -- نه صرفاً چون یک وابستگی copyleft است.
+    """
     if shutil.which("syft") is None:
         return make_command_result(
             _KIND,
@@ -215,7 +285,16 @@ async def run_syft(root: Path) -> CommandResult:
     if rc == 0:
         packages = parse_packages(out)
         if packages is not None:
-            return make_command_result(_KIND, 0, render_sbom(packages), dur)
+            policy_error = ""
+            try:
+                policy = load_policy(root)
+            except PolicyError as exc:
+                policy, policy_error = None, str(exc)
+            text, violations = render_with_policy(packages, policy)
+            if policy_error:
+                text += f"problem: license policy: {policy_error}\n"
+            failed = violations > 0 or bool(policy_error)
+            return make_command_result(_KIND, 1 if failed else 0, text, dur)
         logger.warning("could not parse syft JSON output; falling back to table")
 
     rc2, out2, dur2 = await run_cmd_async(

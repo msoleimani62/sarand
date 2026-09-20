@@ -411,7 +411,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, expected 591 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, expected 618 in total — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -423,7 +423,7 @@ code does not actually pick up the changes without an uninstall first).
 | Report replacement (§4.13) | **Implemented and tested** — `cli.py::remove_previous_report` explicitly checks for, removes, and announces a previous report (+ its `.sha256`) at the exact output path before writing a new one, for the same "check, remove, announce, create fresh" reason as `install.sh` |
 | `--full` flag | **Implemented and tested — completeness gaps found and fixed 2026-09-18.** Forces `--quality`+`--security` on and removes the file-size/tree-depth/tree-entry truncation limits (raised to effectively-unlimited sentinel values), while still letting an explicit `--max-depth`/`--max-entries`/`--max-file-size` win over `--full`'s own defaults. An external audit of a real `--full` report found this description was not the whole truth: the **rendering layer** ignored `--full` entirely — a *passing* tool's output was always cut to an 80-line tail (raw output only shown on FAIL), issue lists capped at 500 rows and TODOs at 100 regardless of `--full`, and **`--format json` never embedded source code at all** (`include_source` was accepted in the signature and silently never read — the one format most likely to be piped straight into another AI's context had zero source, full stop). All four fixed: `config.full` is now stored on `SarandConfig` and threaded into every renderer as `full_output`; JSON gained a real `source_files: [{path, size, content}]` array; markdown/html now show a passing tool's full raw output and uncap issues/TODOs under `--full`. See §5.10 for what's still open (git history/contributor/hotspot depth) |
 | `scripts/paste_chunks.py` | **Rewritten from a maintainer-supplied script and merged in** — chunked, resumable paste helper for chat UIs without file upload (e.g. pasting a `sarand --full` report into ChatGPT). Generalized from a hardcoded README.md/BiMarz-specific tool to work on any file, with per-source-file state namespacing (mirrors `core/cache.py`'s per-project namespacing). Fixed three real bugs found on review (dead `initialize` param, a shallow-copy rollback that only worked by accident, a UX trap where re-running with no flags mid-block silently repeated chunk 0 instead of continuing) — see the module's own docstring for details. Added OSC52 terminal-escape-sequence clipboard support as the primary copy mechanism, since it is the *only* clipboard method that works at all on the maintainer's actual hardware (non-rooted Android, Termux/Kali NetHunter proot, no X11/Wayland session) — `xclip`/`xsel`/`wl-copy` have no display server to talk to there. `OSC52_MAX_BYTES = 6000` applies to the raw text *before* base64 encoding (an empirically-tested ceiling on that hardware/terminal combination, not the final escape-sequence length) |
-| CI | **Confirmed green on all three OSes** — public at `github.com/msoleimani62/sarand`. Two real issues found and fixed across the first three runs (see Phase G notes): a CI-infra bug (`maturin develop` needs a virtualenv CI runners don't have) and a genuine cross-platform test-isolation bug (two tests relied on `XDG_CONFIG_HOME`, which the product code only honors on Linux by design — the product code was correct, the tests weren't platform-independent). Run #3: `ubuntu-latest`, `macos-latest`, `windows-latest` all passed |
+| CI | **Was green on all three OSes at run #3; NOT confirmed green since run #44 (see §5.13/§5.14) — re-confirm after the latest push** — public at `github.com/msoleimani62/sarand`. Two real issues found and fixed across the first three runs (see Phase G notes): a CI-infra bug (`maturin develop` needs a virtualenv CI runners don't have) and a genuine cross-platform test-isolation bug (two tests relied on `XDG_CONFIG_HOME`, which the product code only honors on Linux by design — the product code was correct, the tests weren't platform-independent). Run #3: `ubuntu-latest`, `macos-latest`, `windows-latest` all passed |
 
 ---
 | pipx install robustness | **A real pipx bug hit and worked around** — pipx's own internal per-venv metadata can get corrupted independently of anything sarand does ("Unknown metadata version N. Perhaps it was installed with a later version of pipx" — a known upstream issue, <https://github.com/pypa/pipx/issues/1619>). When it happens, `pipx list` silently omits the corrupted entry AND `pipx uninstall` fails the same way trying to read it, so `install.sh` now falls back to removing `~/.local/share/pipx/venvs/sarand` directly if either the venv is present-but-untracked or `pipx uninstall` itself fails |
@@ -1424,3 +1424,102 @@ eyeballed once.
   (`stylelint`, `jsonlint`, `detekt`/`ktlint`, `sqlfluff`, `taplo`). They
   finish in seconds and their assertions tolerate both outcomes, so they
   were left alone; convert them the same way if one ever misbehaves.
+
+### 5.15 — License policy (2026-09-20)
+
+`.sarand.toml` in the project root now holds a per-project license policy
+(`core/license_policy.py`, wired into `core/sbom.py`). **Why that file and
+not `[tool.sarand]` in `pyproject.toml`**: sarand audits every ecosystem
+and most audited projects have no `pyproject.toml`; the policy belongs to
+the *audited* project; and `.sarand.toml` sits beside `.gitleaks.toml` and
+`deny.toml`, the other per-project scanner configs. Only the project root
+is read (no parent lookup), so the result is deterministic.
+
+Semantics (close to `cargo-deny`, full description in the module
+docstring and both READMEs): `deny` > not-in-`allow` > `warn`; patterns are
+case-insensitive globs; `A OR B` is judged by its best alternative,
+`A AND B` needs every part; several license entries on one package count as
+alternatives (lenient); a handful of real-world non-SPDX spellings are
+aliased (`Apache 2.0`, `PSFL`, ...), any other unknown string is one opaque
+license that must be allowed verbatim; exceptions need a written `reason`.
+A file with no `[licenses]` table leaves the built-in advisory in place;
+with one, **only the policy applies**. A violation fails the `syft (SBOM)`
+check (`problem:` lines, never `error:`/`failed`, §5.12); an invalid file
+fails it too, because a typo like `alow` must not silently disable the
+policy. Parsing uses stdlib `tomllib` (3.11+) and `tomli` on 3.10 (new
+dependency `tomli>=2.0; python_version < "3.11"`), a full parser, unlike
+`python_analyzer.py`'s regex for `dependencies`, because a mis-parsed policy
+is a wrong verdict rather than a skipped optimization.
+
+The repository dogfoods it (`.sarand.toml` at the root), tested against
+the license mix a real `sarand --full` SBOM listed for this project (one
+`warn`: `certifi`, MPL-2.0). **Not verified**: the Python 3.10 `tomli`
+import path (the build sandbox has 3.12; CI's 3.10 job will exercise it),
+and a real `syft` run with a policy present.
+
+**Open work as of this section** (ordered; the maintainer decides what next):
+
+1. CI green on all five jobs for the latest push, Windows first: its log
+   was cut at about 8 % of the suite by the hang, so failures after that
+   point are still unseen; then tag `v0.5.2` (nothing since `v0.5.1` is
+   released).
+2. Check `README.md` / `README.fa.md` and the banner on GitHub (RTL
+   Persian, phone and desktop); never viewed in a browser by the assistant.
+3. `LICENSE`: checked, the README commit left it unchanged (empty
+   `git diff e9825d5^ e9825d5 -- LICENSE`); nothing to do.
+4. Lockfile-vs-manifest sync check (needs each ecosystem's own tool).
+5. P3: `--doctor --format json`; project-local tool preference beyond PHP;
+   tool-version compatibility checks.
+6. Phase F: `makepkg` in a clean chroot for the AUR package, regenerate
+   `.SRCINFO`, submit.
+7. Pin the ruff rule set in the repo (`pyproject.toml` has no
+   `[tool.ruff]`; three lint rounds were spent on rules the assistant could
+   not see).
+8. CI housekeeping: GitHub Actions on Node 20 are deprecated
+   (`actions/checkout@v4`, `setup-python@v5`, `cache@v4`); `ubuntu-24.04`
+   is pinned and the `ubuntu-latest` migration to 26 should be tested on
+   purpose.
+9. Cross-platform known gaps (§5.13): Windows installer (`install.sh` is
+   POSIX-only), OSC 52 via `/dev/tty` on Windows, `device_report` path
+   rules; a real macOS/Windows report should be eyeballed once.
+10. Optional: six lint tests still launch real tools when installed
+    (§5.14); a `CHANGELOG.md` / GitHub Releases for the tags `v0.4.0` to
+    `v0.5.1`.
+11. Phase H (git-history depth) stays deferred.
+
+### 5.16 — Windows run #48 (commit `7678d03`, 2026-09-20)
+
+Ubuntu 3/3 green (the hermetic-test round worked). Windows finished in
+under four minutes instead of hanging — **10 failed, 577 passed, 4 skipped**.
+Eight failures were visible to the assistant, each a genuine
+"same input, different result per OS" bug in a test or in the product:
+
+- `test_default_top_n_when_neither_full_nor_explicit` still used `-r /tmp`
+  (Windows has none; `resolve_config` drops nonexistent roots) — missed when
+  the sibling tests were fixed in §5.13; now `tmp_path`.
+- `test_toolchain_aggregates_pycache_by_default` /
+  `..._expand_aggregates_lists_every_pycache` asserted `"/__pycache__"`;
+  the report prints native paths — now `os.sep`.
+- **`GroovyAnalyzer.entry_points` returned `src\main\groovy` on Windows**
+  (`str(path.relative_to(root))`): a product bug, the same project gave a
+  different report per OS. Now `.as_posix()`, and
+  `test_reported_entry_points_never_use_native_path_separators` bans `str(...)`
+  inside any analyzer's `entry_points`.
+- `test_harden_stdio_...` compared bytes and got `\r\n` — text streams
+  translate newlines on Windows; the test now uses `newline=""`.
+- `test_is_excluded_on_posix_...` is correct to fail on Windows (paths are
+  case-insensitive there); it is now `skipif(win32)`.
+- `test_json_renderer_embeds_source_...`: `tests/_helpers.write` used
+  `write_text`, which turns `\n` into `\r\n` on Windows, so `size` was 13,
+  not 12. **The helper now writes bytes**, which also protects every other
+  fixture from line-ending drift.
+
+**Technique worth reusing**: a *CRLF simulation* on Linux (patch
+`Path.write_text` and text-mode `open` to default to `newline="\r\n"`, run
+the suite, diff against a normal run) reproduced the last failure and found
+no other newline-sensitive test. Path-separator and case differences cannot
+be simulated that way; they need the real Windows job.
+
+**Still unseen**: two of the ten Windows failures were not in the copied log
+(only eight `FAILED` lines were pasted). Find them with `FAILED` in the
+step log before assuming the Windows job is fixed.

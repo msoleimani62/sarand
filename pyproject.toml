@@ -24,6 +24,7 @@ classifiers = [
 dependencies = [
     "filelock==3.32.3",
     "rich>=13.0",
+    "tomli>=2.0; python_version < \"3.11\"",
 ]
 
 # Single source of truth for local dev / CI setup: `pip install -e ".[dev]"`.
