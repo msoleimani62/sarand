@@ -149,3 +149,17 @@ def test_render_sbom_summarizes_and_flags_copyleft_advisorily() -> None:
     assert "-- dual" not in text
     assert "-- permissive" not in text
     assert "NAME" in text and "LICENSES" in text
+
+
+def test_render_sbom_puts_the_summary_after_the_table() -> None:
+    """A passing tool's output is shown as its last 80 lines by default, so
+    the summary and warnings must come after the (long) table."""
+    packages = parse_packages(
+        _syft_json(*[_artifact(f"pkg{i}", "1", "python", "MIT") for i in range(200)])
+    )
+    assert packages is not None
+
+    text = render_sbom(packages)
+
+    assert text.index("NAME") < text.index("SBOM: 200 package(s)")
+    assert text.rstrip().splitlines()[-2].startswith("SBOM: 200 package(s)")

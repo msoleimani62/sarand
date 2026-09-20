@@ -1,0 +1,14 @@
+title = "sarand gitleaks config"
+
+# Keep gitleaks' built-in rules; without this a custom config replaces them.
+# قوانین داخلی gitleaks را نگه می‌دارد؛ بدون این، کانفیگ سفارشی جایگزین آن‌ها می‌شود.
+[extend]
+useDefault = true
+
+# tests/test_secrets.py holds deliberately fake credentials: it exists to
+# prove that core/secrets.py detects them and keeps them out of reports.
+# tests/test_secrets.py عمداً اعتبارنامه‌ی جعلی دارد: وجودش برای اثبات این است
+# که core/secrets.py آن‌ها را تشخیص می‌دهد و از گزارش‌ها دور نگه می‌دارد.
+[allowlist]
+description = "Deliberate fake credentials used as test fixtures"
+paths = ['''tests/test_secrets\.py''']

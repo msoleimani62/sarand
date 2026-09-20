@@ -1,7 +1,7 @@
 # AGENTS.md — sarand project constitution
 
 > [!IMPORTANT]
-> ### ⚠️ Binding directive
+> **⚠️ Binding directive**
 >
 > Before performing any action in this repository — writing code, modifying files, running commands, reviewing changes, or proposing architectural decisions — every AI agent (Claude Code, Aider, Cursor, Codex, or equivalent) and every human contributor **must** read this document in full. It is the single source of truth for this project. Where anything here conflicts with general "best practice" you might otherwise default to, this file wins, for this repository.
 >
@@ -38,6 +38,7 @@ architecture, a good user experience, and the project's ability to evolve
 for years, not just to pass today's request.
 
 Before writing or modifying any code:
+
 - Fully understand the existing architecture — read the relevant modules,
   don't guess from the file name.
 - Analyze dependency relationships (see the layering rule, §4.1).
@@ -52,7 +53,7 @@ the one case I tested" is not sufficient — see §4.8 on verification.
 
 ## 3. Architecture
 
-```
+```text
 sarand/
 ├── Cargo.toml, src/*.rs        Rust core, compiles to `sarand._core`
 │   ├── walker.rs                parallel, .gitignore-aware file walk
@@ -349,11 +350,13 @@ code does not actually pick up the changes without an uninstall first).
   shells), with no assumptions specific to one.
 - When generating a complete file via heredoc, use the plain, real
   delimiter:
+
   ```bash
   cat > target_file.py <<'EOF'
   # code here
   EOF
   ```
+
   (Inside *this* document specifically, some examples use `<EOF>` instead
   of a bare `EOF` purely to avoid the delimiter being misread as the end of
   this Markdown file's own code fence — never do that in an actual command
@@ -387,7 +390,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 540 tests passing on-device at v0.4.0** (`pytest -q`, 2026-09-20; the §5.12 round adds 18 more, expected 558 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -402,7 +405,7 @@ code does not actually pick up the changes without an uninstall first).
 | CI | **Confirmed green on all three OSes** — public at `github.com/msoleimani62/sarand`. Two real issues found and fixed across the first three runs (see Phase G notes): a CI-infra bug (`maturin develop` needs a virtualenv CI runners don't have) and a genuine cross-platform test-isolation bug (two tests relied on `XDG_CONFIG_HOME`, which the product code only honors on Linux by design — the product code was correct, the tests weren't platform-independent). Run #3: `ubuntu-latest`, `macos-latest`, `windows-latest` all passed |
 
 ---
-| pipx install robustness | **A real pipx bug hit and worked around** — pipx's own internal per-venv metadata can get corrupted independently of anything sarand does ("Unknown metadata version N. Perhaps it was installed with a later version of pipx" — a known upstream issue, https://github.com/pypa/pipx/issues/1619). When it happens, `pipx list` silently omits the corrupted entry AND `pipx uninstall` fails the same way trying to read it, so `install.sh` now falls back to removing `~/.local/share/pipx/venvs/sarand` directly if either the venv is present-but-untracked or `pipx uninstall` itself fails |
+| pipx install robustness | **A real pipx bug hit and worked around** — pipx's own internal per-venv metadata can get corrupted independently of anything sarand does ("Unknown metadata version N. Perhaps it was installed with a later version of pipx" — a known upstream issue, <https://github.com/pypa/pipx/issues/1619>). When it happens, `pipx list` silently omits the corrupted entry AND `pipx uninstall` fails the same way trying to read it, so `install.sh` now falls back to removing `~/.local/share/pipx/venvs/sarand` directly if either the venv is present-but-untracked or `pipx uninstall` itself fails |
 | Android/Kotlin priority | **Implemented ahead of the general "more languages" backlog**, per an explicit maintainer request (upcoming Android tooling work). `.kts`/`.xml`/`.gradle`/`.properties` added to essential extensions (Kotlin build scripts, manifests, layouts, config); `local.properties`/`*.jks`/`*.keystore`/`google-services.json` added to the secret-filename exclusion list (§4.10) — Android projects commonly put SDK paths and sometimes signing credentials in exactly those files. `discovery/android.py` holds the shared detection logic (`is_android_project`) so both `discovery/project_detector.py` (report's top-line language label) and `analyzers/android_analyzer.py` use the same signal, in the dependency direction the architecture diagram implies (analyzers depend on discovery, not the reverse) |
 
 ---
@@ -651,6 +654,7 @@ supply-chain tooling (§5.10's P0–P3 list stays lower priority than this).
 
 Current state (`scanners/git.py::collect_git_snapshot`), confirmed by
 reading the module directly, not assumed:
+
 - `git log --oneline -20` — **hardcoded to the last 20 commits only**,
   regardless of `--full`. No total commit count, no full history.
 - No `git shortlog -sn` (or equivalent) — zero contributor/authorship
@@ -663,6 +667,7 @@ reading the module directly, not assumed:
   or submodule awareness.
 
 Scoped plan for next session:
+
 1. Extend `GitSnapshot` (`models/results.py`) with new fields: `total_commits`,
    `contributors: list[tuple[str, int]]` (name, commit count, via
    `git shortlog -sn --no-merges`), `full_log: str | None` (only populated
@@ -870,6 +875,7 @@ cargo-audit/npm-audit-style tooling simply doesn't exist for these
 ecosystems as of this writing.
 
 Two new marker-detection shapes:
+
 - **Two-signal complementary match**: GroovyAnalyzer (mirrors
   KotlinAnalyzer, §5.2) requires *both* a Gradle marker *and* actual
   Groovy source (`src/main/groovy` or a top-level `.groovy` file)
@@ -924,6 +930,7 @@ actually enforces. `mypy` was simply never wired into
 through the tool for the first time here.
 
 What shipped this round:
+
 - `RustAnalyzer.run_quality`: `rustfmt` and `cargo-clippy` binaries
   now checked **independently** (each is its own rustup component,
   not guaranteed just because `cargo` is present) — a missing one
@@ -1155,12 +1162,8 @@ safe because `--redact` is always present** — never drop `--redact`;
 commit author/email for history findings. (3) `test_java_analyzer_gradle_quality_skips_without_plugins_applied`
 never monkeypatched `shutil.which`, so it only passed on machines that
 happen to have gradle installed (same class of bug as the earlier dart/zig
-tests) — now hermetic. Still open (not code bugs):
-shfmt flags `install.sh` (4-space indent vs shfmt's tab default —
-`.editorconfig` would fix it), markdownlint's default MD013 (line length)
-dominates README/AGENTS.md output, bandit's B101 in `tests/` dominates its
-finding count, and the "Errors detected" section still lists lines like
-`0 failed` (cargo test) and bandit context/nosec warnings.
+tests) — now hermetic. The self-scan noise items that were listed here as still open (shfmt,
+markdownlint, bandit B101, false "Errors detected") were handled in §5.12.
 
 ### 5.12 — Hygiene + P2 first slice (2026-09-20)
 
@@ -1214,3 +1217,62 @@ list in config, plus comparing against the project's own declared
 license) — needs a maintainer decision on where that config lives;
 lockfile/manifest sync; the structured `--doctor --format json` mode and
 the rest of P3.
+
+**Follow-up after the first real `sarand --security` run (v0.5.0).**
+Confirmed on-device: the `lockfile check` passes for this repo, and
+**syft's JSON matched the assumed schema** (license column populated,
+copyleft advisory fired for `certifi`, MPL-2.0). Findings from the real
+report and what was done:
+
+- **gitleaks: all 4 findings were `tests/test_secrets.py` fixtures** (3 AWS
+  keys, 1 private-key block), so the check failed on deliberately fake
+  credentials. Added `.gitleaks.toml` with a path allowlist. It MUST keep
+  `[extend] useDefault = true` — a custom config replaces the built-in
+  rules, and dropping that line would silently make gitleaks report zero
+  leaks forever (a test guards it). Also note `--verbose` output
+  includes the commit author's email for history findings — it appeared
+  in the real report.
+- **syft: Rust crates report no license** (`-` for all of them): syft reads
+  `Cargo.lock`, which carries none. Python and GitHub-Action packages are
+  covered. `cargo deny check licenses` remains the source of truth for
+  Rust; do not read "no license reported" for rust-crate as unlicensed.
+  License strings are not always SPDX (`Apache 2.0`, `PSFL`); they are shown
+  as reported and only recognized copyleft families are flagged.
+- **The SBOM summary was invisible in the default view** (a passing tool
+  shows only its last 80 lines; the summary was first). Moved to the end
+  of the output.
+- **`scan_for_issues` false positives fixed** (`utils/command.py`): bandit
+  context lines (`<lineno>\t<code>`, which quote the project's own test
+  strings — including the new lockfile/SBOM tests' `warning:` strings),
+  bandit's internal `[tester]`/`[main]` log lines (except `ERROR`), and
+  `0 failed` in success summaries are no longer listed under "Warnings
+  detected"/"Errors detected". A real `N failed` (N ≥ 1) is still an error.
+- **bandit now skips `tests`/`test` directories** (`_BANDIT_EXCLUDE_DIRS`):
+  B101 alone gave ~1000 findings on sarand's own tests and buried the real
+  ones (B603/B404 on subprocess use). Trade-off: hardcoded-secret style
+  findings inside test code are no longer reported.
+- **Repo configs added**: `.editorconfig` (`[*.sh]` 4-space indent, which is
+  what `install.sh` uses and shfmt honors) and `.markdownlint.json`
+  (disables MD013 line length, MD033 inline HTML, MD051 link fragments —
+  false positives on the bilingual headings — and MD060 table style).
+  The remaining real markdown issues (fence languages, blank lines around
+  lists/fences, a bare URL, a heading inside the alert block) were fixed
+  in `README.md`, `docs/RC-AI-RECEIVER.md` and this file; `markdownlint`
+  0.48 reports zero errors on all three. **Confirmed on-device**: after these configs a real `sarand --full`
+  shows `shfmt -d`, `markdownlint` and `gitleaks` all passing, and
+  "Errors detected" empty.
+
+- **bandit: the 7 remaining findings are `subprocess` use by design** (B404
+  on `import subprocess`, B603 on the calls in `utils/command.py`,
+  `rc/transport.py`, `renderers/pdf.py`). sarand exists to run external
+  tools, and every call passes a fixed argv list, never a shell string, so
+  each site carries `# nosec B404` / `# nosec B603` next to a bilingual
+  note. Do not add a *new* `subprocess` call without the same reasoning:
+  argv list, no `shell=True`, no user-controlled first element. After this
+  the security category should no longer be capped by bandit; it was the
+  only failing check in the last full report (health 76.0/C).
+- **Observation, not fixed**: the effective ruff rule set (FURB, FLY were
+  enforced) is not defined in the repo — `pyproject.toml` has no
+  `[tool.ruff]` and there is no `ruff.toml`. If CI runs a different ruff
+  configuration than a maintainer's machine, results can differ; pinning
+  the rules in the repo is worth deciding on.

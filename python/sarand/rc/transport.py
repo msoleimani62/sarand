@@ -17,7 +17,12 @@ from __future__ import annotations
 import base64
 import os
 import shutil
-import subprocess
+
+# sarand exists to run external tools; every call below passes a fixed argv
+# list (never a shell string), so bandit B404/B603 is accepted by design.
+# وظیفه‌ی sarand اجرای ابزارهای خارجی است؛ هر فراخوانیِ زیر یک لیست argv
+# ثابت می‌گیرد (هرگز رشته‌ی shell)، پس B404/B603 در bandit عمداً پذیرفته شده.
+import subprocess  # nosec B404
 
 # Raw text size ceiling for OSC52, applied BEFORE base64 -- not the
 # final escape-sequence length. Empirically tested and proven reliable
@@ -80,7 +85,7 @@ def clipboard_copy(text: str) -> bool:
         if shutil.which(command[0]) is None:
             continue
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - fixed clipboard-tool argv
                 command,
                 input=text,
                 text=True,

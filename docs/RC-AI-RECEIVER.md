@@ -12,7 +12,7 @@ how to behave, and mirrors the checks implemented in
 
 A transmission of `total_chunks` chunks looks like:
 
-```
+```text
 ==================== SARAND RC START ====================
 ...metadata + AI-INSTRUCTIONS...
 ==================== SARAND RC START-END ====================
@@ -44,7 +44,7 @@ matters to the protocol.
 
 ## 2. Receiver state machine
 
-```
+```text
 NOT_STARTED -> RECEIVING -> WAITING -> COMPLETE(candidate) -> VERIFIED
                                             |
                                             v

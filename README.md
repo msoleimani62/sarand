@@ -36,7 +36,7 @@ If the Rust extension isn't compiled for your platform, sarand automatically fal
 
 اگر پسوند Rust برای پلتفرمت کامپایل نشده باشد، sarand خودکار به یک اسکنر معادل خالص‌پایتونی برمی‌گردد — کندتر، ولی از نظر عملکردی یکسان. چیزی نمی‌شکند.
 
-```
+```text
 sarand/
 ├── Cargo.toml, src/*.rs        ← Rust core (compiles to sarand._core)
 └── python/sarand/

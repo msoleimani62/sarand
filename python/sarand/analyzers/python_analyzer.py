@@ -71,6 +71,12 @@ _BANDIT_EXCLUDE_DIRS = (
     "build",
     "dist",
     ".tox",
+    # Test code: bandit's B101 (assert) alone produced ~1000 findings on
+    # sarand's own tests and buried the handful of real ones.
+    # کد تست: فقط B101 (assert) روی تست‌های خودِ sarand حدود ۱۰۰۰ finding
+    # تولید کرد و چند مورد واقعی را زیر خودش دفن کرد.
+    "tests",
+    "test",
 )
 _BANDIT_EXCLUDE_ARG = ",".join(f"./{d}" for d in _BANDIT_EXCLUDE_DIRS)
 

@@ -137,8 +137,27 @@ def parse_packages(json_text: str) -> list[SbomPackage] | None:
 
 
 def render_sbom(packages: list[SbomPackage]) -> str:
-    """Summary, advisory copyleft warnings, then the full package table."""
+    """Full package table first, then the summary and advisory warnings.
+
+    The summary goes LAST on purpose: a passing tool's output is shown as
+    its last 80 lines unless `--full` is given, and with the summary first
+    a real run showed only the table's tail. Ending with the summary keeps
+    the counts and copyleft warnings in that default view.
+
+    جدول کامل پکیج‌ها اول، بعد خلاصه و هشدارهای مشورتی. خلاصه عمداً آخر
+    است: خروجی یک ابزارِ موفق بدون `--full` فقط ۸۰ خط آخر نشان داده
+    می‌شود، و با خلاصه‌ی اول یک اجرای واقعی فقط انتهای جدول را نشان داد.
+    """
+    rows = [(p.name, p.version, p.kind, ", ".join(p.licenses) or "-") for p in packages]
+    header = ("NAME", "VERSION", "TYPE", "LICENSES")
+    widths = [max(len(r[i]) for r in [header, *rows]) for i in range(3)]
     lines: list[str] = []
+    for row in [header, *rows]:
+        lines.append(
+            "  ".join(row[i].ljust(widths[i]) for i in range(3)) + "  " + row[3]
+        )
+    lines.append("")
+
     by_type = Counter(p.kind for p in packages)
     breakdown = ", ".join(f"{k}: {n}" for k, n in by_type.most_common())
     lines.append(f"SBOM: {len(packages)} package(s) -- {breakdown or 'none'}")
@@ -171,15 +190,6 @@ def render_sbom(packages: list[SbomPackage]) -> str:
                 f"warning: +{len(flagged) - _MAX_LISTED_WARNINGS} more "
                 f"{_LEVEL_NAMES[level]} package(s) not listed"
             )
-
-    lines.append("")
-    rows = [(p.name, p.version, p.kind, ", ".join(p.licenses) or "-") for p in packages]
-    header = ("NAME", "VERSION", "TYPE", "LICENSES")
-    widths = [max(len(r[i]) for r in [header, *rows]) for i in range(3)]
-    for row in [header, *rows]:
-        lines.append(
-            "  ".join(row[i].ljust(widths[i]) for i in range(3)) + "  " + row[3]
-        )
     return "\n".join(lines) + "\n"
 
 

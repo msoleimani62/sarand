@@ -15,7 +15,12 @@ distinct code path for exactly this reason.
 from __future__ import annotations
 
 import shutil
-import subprocess
+
+# sarand exists to run external tools; every call below passes a fixed argv
+# list (never a shell string), so bandit B404/B603 is accepted by design.
+# وظیفه‌ی sarand اجرای ابزارهای خارجی است؛ هر فراخوانیِ زیر یک لیست argv
+# ثابت می‌گیرد (هرگز رشته‌ی shell)، پس B404/B603 در bandit عمداً پذیرفته شده.
+import subprocess  # nosec B404
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,7 +43,7 @@ def _via_wkhtmltopdf(html_path: Path, output_path: Path) -> RenderOutcome:
     if not binary:
         return RenderOutcome(False, "wkhtmltopdf not found in PATH")
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - which()-resolved binary + our own paths
             [
                 binary,
                 "--quiet",
@@ -63,7 +68,7 @@ def _via_weasyprint(html_path: Path, output_path: Path) -> RenderOutcome:
     if not binary:
         return RenderOutcome(False, "weasyprint not found in PATH")
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - which()-resolved binary + our own paths
             [binary, str(html_path), str(output_path)],
             capture_output=True,
             text=True,

@@ -4,8 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import signal
-import subprocess
+
+# sarand exists to run external tools; every call below passes a fixed argv
+# list (never a shell string), so bandit B404/B603 is accepted by design.
+# وظیفه‌ی sarand اجرای ابزارهای خارجی است؛ هر فراخوانیِ زیر یک لیست argv
+# ثابت می‌گیرد (هرگز رشته‌ی shell)، پس B404/B603 در bandit عمداً پذیرفته شده.
+import subprocess  # nosec B404
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -24,7 +30,7 @@ def run_cmd(
     """Execute a command and capture combined stdout/stderr."""
     start = time.perf_counter()
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # nosec B603 - fixed argv list, no shell
             list(cmd),
             cwd=cwd,
             stdout=subprocess.PIPE,
@@ -60,15 +66,34 @@ def summarize_tail(output: str, lines: int = 80) -> str:
     return "\n".join(data[-lines:])
 
 
+# Lines that look like diagnostics to a substring match but are not:
+#  - bandit prints the source line around every finding as
+#    "<lineno>\t<code>", quoting this project's own test strings verbatim;
+#  - bandit's internal log lines ("[tester]\tWARNING\tnosec encountered
+#    ... no failed test ...") describe bandit itself, not the scanned code;
+#  - cargo/pytest summaries say "0 failed" on success.
+# سطرهایی که برای تطبیق substring شبیه diagnostic‌اند ولی نیستند:
+#  - bandit سورس دور هر finding را به شکل "<شماره‌خط>\t<کد>" چاپ می‌کند و
+#    رشته‌های تستِ خودِ همین پروژه را عیناً نقل می‌کند؛
+#  - خطوط log داخلیِ bandit ("[tester]\tWARNING\tnosec encountered ...")
+#    درباره‌ی خودِ bandit‌اند، نه کدِ اسکن‌شده؛
+#  - خلاصه‌ی cargo/pytest در حالت موفق «0 failed» می‌نویسد.
+_BANDIT_CONTEXT_LINE = re.compile(r"^\d+\t")
+_TOOL_LOG_LINE = re.compile(r"^\[[a-z_]+\]\t(?!ERROR)", re.IGNORECASE)
+_ZERO_FAILED = re.compile(r"\b0 failed\b")
+
+
 def scan_for_issues(source: str, output: str) -> tuple[list[Issue], list[Issue]]:
     """Extract warnings and errors from command output."""
     warnings: list[Issue] = []
     errors: list[Issue] = []
     for line in output.splitlines():
-        lower = line.lower()
         stripped = line.strip()
         if not stripped:
             continue
+        if _BANDIT_CONTEXT_LINE.match(line) or _TOOL_LOG_LINE.match(line):
+            continue
+        lower = _ZERO_FAILED.sub("", line.lower())
         if any(pattern in lower for pattern in WARNING_PATTERNS):
             warnings.append(Issue(source=source, message=stripped, severity="warning"))
         if any(pattern in lower for pattern in ERROR_PATTERNS):
