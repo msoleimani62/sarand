@@ -21,6 +21,7 @@ def generate_ai_summary(data: ReportData) -> str:
 
     if detection.entry_points:
         lines.append(f"Entry points: {', '.join(detection.entry_points)}")
+    lines.extend(f"{label}: {text}" for label, text in detection.details.items())
 
     top_exts = ", ".join(
         f"{ext} ({n})" for ext, n in list(stats.files_by_extension.items())[:8]

@@ -25,6 +25,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 
 from sarand.analyzers.android_analyzer import AndroidAnalyzer
+from sarand.analyzers.assembly_analyzer import AssemblyAnalyzer
 from sarand.analyzers.base import LanguageAnalyzer
 from sarand.analyzers.cpp_analyzer import CppAnalyzer
 from sarand.analyzers.csharp_analyzer import CSharpAnalyzer
@@ -81,6 +82,7 @@ _BUILTIN: list[LanguageAnalyzer] = [
     TypeScriptAnalyzer(),
     CssAnalyzer(),
     ZigAnalyzer(),
+    AssemblyAnalyzer(),
     SwiftAnalyzer(),
     # ObjectiveCAnalyzer right after SwiftAnalyzer: same
     # complementary-match shape as TypeScriptAnalyzer/NodeAnalyzer

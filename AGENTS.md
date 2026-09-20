@@ -411,14 +411,14 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, confirmed 618; the `/tmp` guard round adds 1, expected 619 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, expected 618 in total — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
 | HTML dashboard renderer | **Implemented and tested** — `renderers/html.py`, self-contained single file (inline CSS, no external assets), dark-mode, collapsible `<details>` sections, properly HTML-escaped |
 | PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
-| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 31 analyzers total (Markdown added in the P0 round).** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
+| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 32 analyzers total (Markdown added in the P0 round, Assembly in §5.17).** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. `install.sh` added (§4.13) so upgrading an existing pipx install actually picks up new code — a raw `pipx install` over a stale copy silently doesn't, since pipx installs aren't editable by default. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. **AUR: `pkgs/aur/PKGBUILD` written**, not yet verified with a real `makepkg -si` in a clean chroot (see Phase F, still open). Docker/Homebrew/deb/rpm/binary: not started |
 | Report replacement (§4.13) | **Implemented and tested** — `cli.py::remove_previous_report` explicitly checks for, removes, and announces a previous report (+ its `.sha256`) at the exact output path before writing a new one, for the same "check, remove, announce, create fresh" reason as `install.sh` |
 | `--full` flag | **Implemented and tested — completeness gaps found and fixed 2026-09-18.** Forces `--quality`+`--security` on and removes the file-size/tree-depth/tree-entry truncation limits (raised to effectively-unlimited sentinel values), while still letting an explicit `--max-depth`/`--max-entries`/`--max-file-size` win over `--full`'s own defaults. An external audit of a real `--full` report found this description was not the whole truth: the **rendering layer** ignored `--full` entirely — a *passing* tool's output was always cut to an 80-line tail (raw output only shown on FAIL), issue lists capped at 500 rows and TODOs at 100 regardless of `--full`, and **`--format json` never embedded source code at all** (`include_source` was accepted in the signature and silently never read — the one format most likely to be piped straight into another AI's context had zero source, full stop). All four fixed: `config.full` is now stored on `SarandConfig` and threaded into every renderer as `full_output`; JSON gained a real `source_files: [{path, size, content}]` array; markdown/html now show a passing tool's full raw output and uncap issues/TODOs under `--full`. See §5.10 for what's still open (git history/contributor/hotspot depth) |
@@ -1520,16 +1520,59 @@ the suite, diff against a normal run) reproduced the last failure and found
 no other newline-sensitive test. Path-separator and case differences cannot
 be simulated that way; they need the real Windows job.
 
-**The "unseen" failures turned out to be three more `-r /tmp` tests**
-(`test_full_overrides_quick_and_removes_top_cap`,
-`test_explicit_top_beats_full`, `test_plain_quick_without_full` in
-`test_device_report.py`): the assistant had wrongly judged them
-"parse-only", but each calls `resolve_config`, which raises "No valid scan
-roots" when `/tmp` does not exist. Run #49 (the fix for the other seven) was
-therefore still red on Windows. Counting settled it: the 10 failures were
-7 seen plus 3 not pasted. Lessons kept: (1) `tests/test_portability.py` now has
-`test_no_test_hardcodes_a_tmp_path` (AST scan for any string constant
-starting with `/tmp`); (2) **CI now reports its own failures**: pytest runs
-with `-rfE` and `tee pytest.log`, and a `failure()` step writes just the
-`FAILED`/`ERROR` lines and the final count to the job's Summary page, so
-nobody has to copy a long log from a phone.
+**Still unseen**: two of the ten Windows failures were not in the copied log
+(only eight `FAILED` lines were pasted). Find them with `FAILED` in the
+step log before assuming the Windows job is fixed.
+
+### 5.17 — Assembly detection (2026-09-20)
+
+CI is green on all five jobs (Ubuntu ×3 across Python 3.10/3.12/3.14, macOS,
+Windows) as of the commit before this round — the first time ever.
+
+**What it does.** "Assembly" is not one language, so sarand reports the
+*dialect* of each file and a per-dialect summary, not just "Assembly":
+x86 (NASM, GNU as AT&T, GNU as Intel, MASM/TASM, FASM; 16/32/64-bit), ARM
+(A32/T32), AArch64, RISC-V, MIPS, PowerPC, 6502, Z80, AVR, Motorola 68000
+and 8051. New files: `discovery/assembly.py` (file discovery, classifier,
+`AssemblyProfile`), `analyzers/assembly_analyzer.py` (`name = "Assembly"`,
+matches on sources, reports entry points, **runs nothing** — there is no
+universal assembler or test runner; the right one is the project's own
+Makefile). `ProjectDetection` gained `details: dict[str, str]` (a generic
+"label -> text" slot; today only Assembly fills it) and the markdown, HTML,
+text, JSON and AI-summary renderers show it.
+
+**Design points worth keeping.**
+
+- *Shallow and deterministic*: only the project root plus first-level
+  `src/`, `asm/`, `boot/`, `kernel/`, `firmware/` are searched (max 300
+  files, first 64 KiB of each, read as bytes), so vendored or nested files
+  cannot make a project "an assembly project" (same rule as the other
+  extension-based analyzers, §4.3).
+- *Transparent heuristic, not a parser*: every dialect owns a few weighted
+  regexes (its registers, directives, mnemonics); best score wins; below a
+  threshold the file is `Unidentified` rather than guessed. Plain
+  Intel-style `mov eax, 1` with no NASM/MASM/FASM marker is labelled
+  `Intel syntax`, not NASM — the pattern alone does not prove the assembler.
+- *Assembly does not take over a project*: it becomes the primary language
+  only when nothing else claims the project (no marker, or a bare Makefile
+  with no other source files); a C project with one `startup.s` stays C and
+  lists Assembly as a second language.
+- Labels use `/` and counts use `x` (`x86-64 / NASM x2`) — plain ASCII, so
+  no ambiguous-Unicode lint rule can ever trip on them.
+
+**Not verified.** The classifier was tested on 19 hand-written samples (one
+or more per dialect) and negative cases, not on a real-world corpus; large
+mixed files, macro-heavy sources and less common dialects (SPARC, MSP430,
+Xtensa, LLVM IR, WebAssembly text) are not covered and will show as
+`Unidentified`. If a real project is mislabelled, add its snippet as a test
+and adjust the weights.
+
+**Lint lessons from this round (all "modern idiom" rules the assistant
+cannot run in its sandbox, so they keep showing up as one-line fixes):**
+`ISC004` — implicit string concatenation *inside a tuple/list/dict literal*
+must be wrapped in its own parentheses (`(("a" "b"), 2)`, not
+`("a" "b", 2)`); hit in `sbom.py` and again in `assembly.py` and its test
+table (23 sites). `FURB167` — write `re.MULTILINE`, not `re.M`. `FLY002` —
+no `"\n".join([literal, literal])`. For big literal fixtures prefer a
+triple-quoted string over concatenated pieces. Ruff's effective rule set is
+still not pinned in the repo (§5.15 item 7).

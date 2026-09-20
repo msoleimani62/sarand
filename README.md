@@ -38,7 +38,7 @@ sarand scans a project, works out what it is, runs its tests, linters and securi
     <td width="50%" valign="top"><b>Written for AI</b><br>Includes an AI summary and a suggested reading order, so a model knows where to look first.</td>
   </tr>
   <tr>
-    <td valign="top"><b>31 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, shell, SQL, Nix and more, plus YAML, JSON, TOML, XML and Markdown.</td>
+    <td valign="top"><b>32 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, shell, SQL, Nix, assembly (with its dialect) and more, plus YAML, JSON, TOML, XML and Markdown.</td>
     <td valign="top"><b>Safe by default</b><br>Files that contain secrets, and credential-shaped files, are left out of the report. With <code>--security</code> the git history is scanned too.</td>
   </tr>
   <tr>
@@ -164,6 +164,8 @@ sarand drives the standard tools of each ecosystem. Nothing here is required: a 
 | Groovy | quality: `codenarc` |
 | PowerShell | tests: `pwsh` |
 | Nix | tests: `nix` · quality: `nixpkgs-fmt` |
+
+**Assembly** needs no external tool. sarand recognises `.asm`, `.s`/`.S`, `.nasm`, `.yasm`, `.masm`, `.fasm`, `.a51`, `.a65`, `.a86` and `.z80` files in the project root and in the first-level `src/`, `asm/`, `boot/`, `kernel/` and `firmware/` folders, and names the *dialect* of each file in the "Detected project" section: x86 (NASM, GNU as with AT&T or Intel syntax, MASM/TASM, FASM; 16, 32 or 64-bit), ARM (A32/T32), AArch64, RISC-V, MIPS, PowerPC, 6502, Z80, AVR, Motorola 68000 and 8051. It is a transparent heuristic, not a parser: a file it cannot place is reported as `Unidentified` instead of a guess, and nothing is ever assembled or run.
 
 Project-wide checks that run with `--security`: `gitleaks` (secrets, including git history) and `syft` (software bill of materials with a license summary). PDF output needs `wkhtmltopdf` or `weasyprint`.
 

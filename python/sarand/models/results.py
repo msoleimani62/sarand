@@ -27,6 +27,11 @@ class ProjectDetection:
     build_system: str = "unknown"
     markers_found: list[str] = field(default_factory=list)
     entry_points: list[str] = field(default_factory=list)
+    # Extra "label -> text" facts about the project, shown under "Detected
+    # project" (today: the dialect breakdown of its assembly files).
+    # حقایق اضافه به شکل «برچسب -> متن» درباره‌ی پروژه، زیر «Detected
+    # project» (فعلاً: تفکیک گویش فایل‌های اسمبلیِ آن).
+    details: dict[str, str] = field(default_factory=dict)
 
     @property
     def is_recognized(self) -> bool:

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from sarand.constants import ENTRY_POINT_CANDIDATES, IGNORE_DIRS, PROJECT_MARKERS
 from sarand.discovery.android import is_android_project
+from sarand.discovery.assembly import scan_assembly
 from sarand.models.results import ProjectDetection
 
 logger = logging.getLogger("sarand.discovery")
@@ -56,6 +57,31 @@ def detect_project(root: Path) -> ProjectDetection:
             project_type = "unknown (no build-system marker found)"
             build_system = "none detected"
 
+    details: dict[str, str] = {}
+    assembly = scan_assembly(root)
+    if assembly is not None:
+        if "Assembly" not in languages:
+            languages.append("Assembly")
+        details["Assembly"] = assembly.summary()
+        entry_points.extend(assembly.entry_points)
+        if not markers_found:
+            # An assembly-only project has no build-system marker; its first
+            # source file is the marker that makes the report "recognized".
+            # پروژه‌ی فقط-اسمبلی marker سیستم build ندارد؛ اولین فایل سورسش
+            # marker می‌شود تا گزارش «شناخته‌شده» باشد.
+            markers_found.append(next(iter(assembly.files)))
+        # Promote Assembly to the primary language only when nothing else
+        # claims the project (a C project with one startup.s stays C).
+        # Assembly فقط وقتی زبان اصلی می‌شود که هیچ چیز دیگری پروژه را ادعا
+        # نکند (یک پروژه‌ی C با یک startup.s همچنان C می‌ماند).
+        if primary_language == "Unknown" or (
+            primary_language == "Generic" and not _guess_from_extensions(root)
+        ):
+            primary_language = "Assembly"
+            project_type = "low-level / assembly program"
+            if build_system in ("unknown", "none detected"):
+                build_system = "assembler (project-specific)"
+
     # Relabel generic "Java/Kotlin" (from a bare build.gradle(.kts) or
     # pom.xml marker) as specifically Android when the deeper Android
     # signals are present -- matches what AndroidAnalyzer actually runs
@@ -80,6 +106,7 @@ def detect_project(root: Path) -> ProjectDetection:
         build_system=build_system,
         markers_found=markers_found,
         entry_points=sorted(set(entry_points)),
+        details=details,
     )
 
 

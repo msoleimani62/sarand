@@ -92,6 +92,7 @@ def _render_detected_project(data: ReportData) -> list[str]:
         lines.append(
             f"- **Entry points:** {', '.join(f'`{e}`' for e in d.entry_points)}"
         )
+    lines.extend(f"- **{label}:** {text}" for label, text in d.details.items())
     lines.append("")
     return lines
 

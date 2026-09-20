@@ -137,7 +137,11 @@ def render(
         )
         if d.entry_points:
             parts.append(
-                f'<span class="meta">Entry points: {escape(", ".join(d.entry_points))}</span>'
+                f'<span class="meta">Entry points: {escape(", ".join(d.entry_points))}</span><br>'
+            )
+        for label, text in d.details.items():
+            parts.append(
+                f'<span class="meta">{escape(label)}: {escape(text)}</span><br>'
             )
     else:
         parts.append("No recognized project marker found in this directory.")

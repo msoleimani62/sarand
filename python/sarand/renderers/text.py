@@ -16,6 +16,7 @@ def render(
         f"Host: {data.environment.hostname}",
         "",
         f"Detected: {', '.join(data.detection.languages) or 'unknown'} ({data.detection.build_system})",
+        *(f"{label}: {text}" for label, text in data.detection.details.items()),
         f"Scan engine: {'Rust core' if data.used_rust_core else 'pure-Python fallback'}",
         f"Python: {data.environment.python}",
         f"Git: {data.git.branch} @ {data.git.commit} (dirty={data.git.dirty})",
