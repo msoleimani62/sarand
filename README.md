@@ -1,284 +1,489 @@
-# sarand
+<h1 align="center"><img src="assets/banner.svg" alt="sarand" width="100%"></h1>
 
-[![CI](https://github.com/msoleimani62/sarand/actions/workflows/ci.yml/badge.svg)](https://github.com/msoleimani62/sarand/actions/workflows/ci.yml)
+<p align="center">
+  <b>English</b> · <a href="README.fa.md">فارسی</a>
+</p>
 
-**A cross-platform CLI that scans any project, detects its architecture, runs its tests, and generates a single AI-ready intelligence report.**
+<p align="center">
+  <a href="https://github.com/msoleimani62/sarand/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/msoleimani62/sarand/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/msoleimani62/sarand/tags"><img alt="Version" src="https://img.shields.io/github/v/tag/msoleimani62/sarand?label=version&color=2dd4bf"></a>
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white">
+  <img alt="Rust core" src="https://img.shields.io/badge/core-Rust%20%2B%20PyO3-dea584?logo=rust&logoColor=white">
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Termux-a78bfa">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
+</p>
 
-Point it at any directory — Python, Rust, Go, Node.js, C++, Java, or a mix — and it produces one Markdown/JSON/text/HTML/SARIF/PDF file containing the project tree, full source, test results, health score, and an AI-oriented summary. Built to run *before* you hand a codebase to an AI coding assistant.
+<p align="center">
+  <b>Point it at any codebase. Get one report an AI assistant can actually use.</b>
+</p>
 
-**یک ابزار خط‌فرمان چندسکویی که هر پروژه‌ای را اسکن می‌کند، معماری‌اش را تشخیص می‌دهد، تست‌هایش را اجرا می‌کند و یک گزارش هوشمند و آماده برای هوش مصنوعی تولید می‌کند.**
-
-آن را روی هر دایرکتوری اجرا کن — پایتون، Rust، Go، Node.js یا ترکیبی از این‌ها — و یک فایل Markdown/JSON/متنی تولید می‌شود که شامل درخت پروژه، سورس کامل، نتایج تست، امتیاز سلامت، و یک خلاصه‌ی مخصوص هوش مصنوعی است. برای اجرا *قبل از* دادن کدبیس به هر دستیار برنامه‌نویسی هوش مصنوعی ساخته شده.
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#whats-in-the-report">The report</a> ·
+  <a href="#more-tools">More tools</a> ·
+  <a href="#uninstall">Uninstall</a>
+</p>
 
 ---
 
-## Table of contents · فهرست
+sarand scans a project, works out what it is, runs its tests, linters and security checks, and writes **one file** with everything an AI coding assistant needs: the project tree, the full source, the results, a health score and a written summary. Run it *before* you hand a codebase to an assistant, so the assistant starts with facts instead of guesses.
 
-- [Architecture · معماری](#architecture--معماری)
-- [Install · نصب](#install--نصب)
-- [Usage · استفاده](#usage--استفاده)
-- [Persisted config · کانفیگ پایدار](#persisted-config--کانفیگ-پایدار)
-- [Pasting a large report into a chat · پیست گزارش بزرگ در چت](#pasting-a-large-report-into-a-chat-with-no-file-upload--پیست-گزارش-بزرگ-در-چتی-بدون-آپلود-فایل)
-- [Device storage & environment audit · بازرسی فضای دستگاه](#device-storage--environment-audit--بازرسی-فضای-ذخیره‌سازی-و-محیط-دستگاه)
-- [Writing a plugin analyzer · نوشتن یک آنالایزر پلاگین](#writing-a-plugin-analyzer--نوشتن-یک-آنالایزر-پلاگین)
-- [Current scope · دامنه‌ی فعلی](#current-scope--دامنهی-فعلی)
-- [Uninstall · حذف نصب](#uninstall--حذف-نصب)
+## Why sarand
 
----
+<table>
+  <tr>
+    <td width="50%" valign="top"><b>One command, one file</b><br>Tree, source, test results, lint output, security findings and a health score, in a single Markdown, JSON, text, HTML, PDF or SARIF file.</td>
+    <td width="50%" valign="top"><b>Written for AI</b><br>Includes an AI summary and a suggested reading order, so a model knows where to look first.</td>
+  </tr>
+  <tr>
+    <td valign="top"><b>31 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, shell, SQL, Nix and more, plus YAML, JSON, TOML, XML and Markdown.</td>
+    <td valign="top"><b>Safe by default</b><br>Files that contain secrets, and credential-shaped files, are left out of the report. With <code>--security</code> the git history is scanned too.</td>
+  </tr>
+  <tr>
+    <td valign="top"><b>Fast, and never blocked</b><br>The heavy scanning runs in a Rust core. If it is not available, an equivalent pure-Python scanner takes over. A missing tool is skipped with a hint, never a crash.</td>
+    <td valign="top"><b>Cross-platform by design</b><br>Meant to behave the same on Linux, macOS, Windows and Android (Termux). CI runs on all three desktop systems.</td>
+  </tr>
+</table>
 
-## Architecture · معماری
+## Quick start
 
-Hybrid Rust + Python. The CPU-heavy part (walking the whole tree, counting lines, hashing files for duplicate detection) is a Rust crate exposed via [PyO3](https://pyo3.rs)/[maturin](https://www.maturin.rs). Everything that changes often — language analyzers, output renderers, health scoring, the CLI, and the RC (report-communication) subsystem — is plain Python, loosely coupled and independently testable.
+Install it once (needs Python 3.10+, a Rust toolchain and [pipx](https://pipx.pypa.io)):
 
-هیبرید Rust + پایتون. بخش سنگین محاسباتی (پیمایش کل درخت، شمارش خط، هش کردن فایل‌ها برای تشخیص تکراری) یک crate از جنس Rust است که از طریق PyO3/maturin به پایتون صادر می‌شود. هرچیزی که زیاد تغییر می‌کند — آنالایزرهای زبان، رندررهای خروجی، امتیازدهی سلامت، خود CLI، و زیرسیستم RC (ارتباط گزارش) — پایتون خالص است، کم‌وابسته و به‌صورت مستقل قابل‌تست.
-
-If the Rust extension isn't compiled for your platform, sarand automatically falls back to an equivalent pure-Python scanner — slower, but functionally identical. Nothing breaks.
-
-اگر پسوند Rust برای پلتفرمت کامپایل نشده باشد، sarand خودکار به یک اسکنر معادل خالص‌پایتونی برمی‌گردد — کندتر، ولی از نظر عملکردی یکسان. چیزی نمی‌شکند.
-
-```text
-sarand/
-├── Cargo.toml, src/*.rs        ← Rust core (compiles to sarand._core)
-└── python/sarand/
-    ├── rust_bridge.py          ← the one place that decides Rust-or-fallback
-    ├── discovery/              ← project/language detection
-    ├── analyzers/              ← one file per language, pluggable via entry_points
-    ├── scanners/                ← git, environment, stats, tree, TODOs
-    ├── core/                    ← health score, AI summary, secrets
-    ├── renderers/               ← one file per output format
-    ├── rc/                      ← report-communication (chunked paste) subsystem
-    └── cli.py
+```bash
+git clone https://github.com/msoleimani62/sarand.git
+pipx install ./sarand
+sarand --version
 ```
 
-## Install · نصب
+Then run it inside any project:
 
-Requires a Rust toolchain (for the fast path) and Python ≥ 3.10.
+```bash
+cd ~/my-project
+sarand --full
+```
 
-نیازمند زنجیره‌ابزار Rust (برای مسیر سریع) و پایتون ≥ ۳.۱۰ است.
+The last lines tell you where the report went (by default the `Downloads` folder). Example output:
 
-### Recommended: pipx (globally available, no manual venv/PATH management)
+```text
+→ Detected: Rust, Python (cargo)
+→ Scan engine: Rust core
+→ Running tests (Python, Rust, Shell, JSON, TOML, Markdown)...
+→ Running quality checks (Python, Rust, Shell, JSON, TOML, Markdown)...
+→ Running security checks (Python, Rust, Shell, JSON, TOML, Markdown)...
+→ Rendering Markdown report...
+✓ Report completed
 
-`pipx` builds sarand into its own isolated environment and puts the `sarand` command on your PATH automatically — no `source activate`, no editing `.zshrc`.
+============================================================
+Project: /home/you/my-project
+Detected: Rust, Python
+Engine  : Rust core
+Output  : /home/you/Downloads/sarand-my-project-report.md
+Files   : 163 included / 0 skipped / 1 excluded (secrets)
+Health  : 76.0/100 (C)
+============================================================
+```
 
-`pipx` sarand را در محیط ایزوله‌ی خودش می‌سازد و دستور `sarand` را خودکار به PATH اضافه می‌کند — بدون `source activate`، بدون ویرایش دستی `.zshrc`.
+> [!TIP]
+> Run `sarand --doctor` first if you want to see which tools are installed and how to add the missing ones.
+
+## How it works
+
+```mermaid
+flowchart LR
+    P[("Your project")] --> D["Detect languages<br/>and layout"]
+    D --> S["Rust core scan<br/>tree, stats, hashes"]
+    D --> A["Language analyzers<br/>tests, quality, security"]
+    D --> G["Git, environment,<br/>TODOs, secrets"]
+    S --> H["Health score<br/>and AI summary"]
+    A --> H
+    G --> H
+    H --> R{"Renderer"}
+    R --> O1["Markdown"]
+    R --> O2["JSON, text, HTML"]
+    R --> O3["PDF, SARIF"]
+    O1 --> AI(["Your AI assistant"])
+```
+
+The CPU-heavy part (walking the tree, counting lines, hashing files to find duplicates) is a Rust crate exposed to Python through [PyO3](https://pyo3.rs) and [maturin](https://www.maturin.rs). Everything that changes often, the analyzers, renderers, health score and CLI, is plain Python. If the Rust extension cannot be built or loaded on your platform, sarand falls back to a pure-Python scanner that produces the same report, only slower.
+
+## What's in the report
+
+| Section | What it tells you |
+|---|---|
+| Detected project | Languages, build tools and entry points |
+| Environment | OS, CPU, memory and toolchain versions |
+| Git | Branch, dirty state and recent history |
+| Health score | 0–100 with a grade and concrete recommendations |
+| AI summary | A written overview and a suggested reading order |
+| Project statistics | Files, lines and language breakdown |
+| TODO / FIXME markers | Every marker, with its location |
+| Test results | Pass or fail per language, with output |
+| Quality checks | Linters, formatters and type checkers (`--quality`) |
+| Security checks | Vulnerability, secret and supply-chain checks (`--security`) |
+| Known issues | Problems sarand recognised in the tool output |
+| Project tree and files | The tree and, unless you pass `--no-source`, every included file |
+
+<details>
+<summary><b>Which tools does sarand use for each language?</b></summary>
+
+<br>
+
+sarand drives the standard tools of each ecosystem. Nothing here is required: a tool that is not installed is skipped and `sarand --doctor` tells you how to install it.
+
+| Ecosystem | Tools sarand can drive |
+|---|---|
+| Python | tests: `pytest` · quality: `ruff`, `mypy` · security: `pip-audit`, `bandit` |
+| Rust | tests: `cargo` · quality: `rustfmt`, `cargo-clippy` · security: `cargo-audit`, `cargo-deny` |
+| Go | tests: `go` · quality: `staticcheck` · security: `govulncheck` |
+| Node.js | tests: `npm` · quality: `eslint` |
+| TypeScript | quality: `tsc` |
+| CSS | quality: `stylelint` |
+| Zig | tests: `zig` |
+| Swift | tests: `swift`, `xcodebuild` · quality: `swift-format`, `swiftlint` |
+| SQL | quality: `sqlfluff` |
+| C/C++ | detection: `cmake` · quality: `clang-tidy` · security: `cppcheck` |
+| Java / Kotlin / Android | tests: `mvn`, `gradle` (uses `./gradlew` when present) · quality: checkstyle and spotbugs |
+| Lua | tests: `busted` · quality: `luacheck` |
+| Ruby | tests: `bundle` |
+| PHP | security: `composer` |
+| Dart / Flutter | tests: `dart` |
+| Kotlin | quality: `ktlint`, `detekt` |
+| C# | tests: `dotnet` |
+| Shell | tests: `bats` · quality: `shellcheck`, `shfmt` |
+| YAML | quality: `yamllint` |
+| Markdown | quality: `markdownlint` |
+| JSON | quality: `jsonlint` |
+| TOML | quality: `taplo` |
+| XML | quality: `xmllint` |
+| R | tests: `Rscript` |
+| Perl | tests: `prove` · quality: `perlcritic` |
+| Julia | tests: `julia` |
+| Objective-C | tests: `xcodebuild` |
+| Groovy | quality: `codenarc` |
+| PowerShell | tests: `pwsh` |
+| Nix | tests: `nix` · quality: `nixpkgs-fmt` |
+
+Project-wide checks that run with `--security`: `gitleaks` (secrets, including git history) and `syft` (software bill of materials with a license summary). PDF output needs `wkhtmltopdf` or `weasyprint`.
+
+</details>
+
+## Install
+
+### Requirements
+
+| Needed | For |
+|---|---|
+| Python 3.10 or newer | Running sarand |
+| A Rust toolchain ([rustup.rs](https://rustup.rs)) | Building the fast core |
+| [pipx](https://pipx.pypa.io) | Recommended installer |
+| Per-language tools | Optional, see `sarand --doctor` |
+
+### Recommended: pipx
+
+pipx builds sarand in its own isolated environment and puts the `sarand` command on your `PATH`.
 
 ```bash
 pipx install ~/sarand
 sarand --version
 ```
 
-**Upgrading after pulling new sarand source:** a plain `pipx install` does not automatically refresh an already-installed copy. Use `install.sh` (in the repo root) instead of a raw `pipx install` from the second install onward — it checks whether a previous pipx installation exists, removes it first (printing what it's doing), then builds and installs the current source fresh:
-
-**آپدیت بعد از دریافت سورس جدید sarand:** یک `pipx install` ساده نصب قبلی را خودکار تازه نمی‌کند. از دومین نصب به بعد به‌جای `pipx install` خام از `install.sh` (در ریشه‌ی ریپو) استفاده کن — بررسی می‌کند که آیا نصب قبلی pipx وجود دارد، اول آن را حذف می‌کند (و اعلامش می‌کند)، سپس نسخه‌ی فعلی سورس را از نو می‌سازد و نصب می‌کند:
+To upgrade after pulling new source, use the installer script instead of a plain `pipx install`, which does not refresh an existing copy. It removes the old installation first, then builds the current source:
 
 ```bash
 ./install.sh
 ```
 
-If `pipx` itself isn't installed yet:
-
-اگر خودِ `pipx` هنوز نصب نشده:
+If pipx itself is missing, install it with your package manager (`sudo pacman -S python-pipx`, `brew install pipx`, `sudo apt install pipx`) or with pip, then reload your shell:
 
 ```bash
-pip install pipx --break-system-packages
+python3 -m pip install --user pipx
 pipx ensurepath
 ```
 
-(`pipx ensurepath` adds pipx's own bin directory to PATH — restart your shell, or `source ~/.zshrc`/`~/.bashrc`, afterward.)
+> [!NOTE]
+> On systems that protect the system Python (PEP 668) add `--break-system-packages` to the pip command.
 
-(`pipx ensurepath` دایرکتوری bin خود pipx را به PATH اضافه می‌کند — بعدش شل را ری‌استارت کن یا `source ~/.zshrc`/`~/.bashrc` بزن.)
+### Arch Linux (AUR)
 
-### Arch Linux: AUR
+The AUR package is drafted but not published yet, so `yay -S sarand` does not work today. Use pipx.
 
-### آرچ‌لینوکس: AUR
-
-If the `sarand` package has been published to the AUR, install it with any AUR helper:
-
-اگر پکیج `sarand` روی AUR منتشر شده باشد، با هر AUR helperای نصبش کن:
+### Development install
 
 ```bash
-yay -S sarand
-# or, without a helper · یا بدون هلپر:
-git clone https://aur.archlinux.org/sarand.git
-cd sarand
-makepkg -si
-```
-
-This builds the same Rust extension as the pipx path, using `rust` and `python-maturin` as build dependencies — no manual venv/PATH steps either way.
-
-این هم دقیقاً همان extension راستی مسیر pipx را می‌سازد، با `rust` و `python-maturin` به‌عنوان وابستگی‌های build — اینجا هم بدون هیچ مرحله‌ی دستی venv/PATH.
-
-### Alternative: development venv (editable, for working on sarand itself)
-
-### جایگزین: venv توسعه (editable، برای کار کردن روی خود sarand)
-
-```bash
-pip install maturin --break-system-packages
+pip install maturin
 cd sarand
 maturin develop --release
 ```
 
-If `maturin develop` fails to compile on your platform (rare, but can happen on some Termux/aarch64 toolchains), install without it — sarand will run on the pure-Python fallback:
-
-اگر `maturin develop` روی پلتفرمت کامپایل نشد (نادر، ولی ممکن است روی برخی زنجیره‌ابزار Termux/aarch64 پیش بیاید)، بدون آن نصب کن — sarand روی fallback خالص‌پایتونی اجرا می‌شود:
+If the Rust extension will not build on your platform (rare, but possible on some Termux/aarch64 toolchains), install without it and sarand runs on the pure-Python fallback:
 
 ```bash
-pip install -e . --break-system-packages
+pip install -e .
 ```
 
-## Usage · استفاده
+<details>
+<summary><b>Platform notes: Windows, macOS, Android/Termux</b></summary>
 
-```bash
-sarand                                   # analyse the current directory
-sarand --project ~/myproject --quality   # explicit path + lint/format checks
-sarand --skip-tests --format json -o report.json
-sarand --set-output-dir ~/ai-reports     # persist output location, once
-sarand --cache                           # skip re-scanning unchanged files (opt-in)
-sarand --doctor                          # environment diagnostics
-sarand --full                            # everything on, nothing truncated -- the most complete report possible
-```
+<br>
 
-`--full` is shorthand for "give me the absolute maximum": it turns on `--quality` and `--security`, and removes the file-size/tree-depth/tree-entry truncation limits entirely, so nothing gets skipped or cut short. An explicit `--max-depth`/`--max-entries`/`--max-file-size` you also pass still wins over `--full`'s defaults.
+- **Windows.** `install.sh` is a Bash script. In PowerShell run `pipx install .` from the repository instead.
+- **macOS.** Nothing special: install pipx with Homebrew and follow the steps above.
+- **Android / Termux.** Everything works in the terminal. The paste helper (`sarand.rc`) copies to the clipboard through the OSC 52 terminal sequence, so it needs no clipboard tool and no graphical session.
 
-`--full` مخفف «حداکثر مطلق بده» است: `--quality` و `--security` را روشن می‌کند، و محدودیت‌های اندازه‌فایل/عمق‌درخت/تعداد‌ورودی‌های‌درخت را کاملاً حذف می‌کند تا چیزی رد یا کوتاه نشود. اگر خودت هم `--max-depth`/`--max-entries`/`--max-file-size` صریح بدهی، همچنان بر پیش‌فرض‌های `--full` اولویت دارد.
+</details>
 
-Re-running against the same project replaces its previous report at that output path automatically (and says so) — reports never pile up under the same filename.
+## Usage
 
-اجرای مجدد روی همان پروژه، گزارش قبلی‌اش در همان مسیر خروجی را خودکار جایگزین می‌کند (و اعلامش می‌کند) — گزارش‌ها زیر یک نام فایل روی هم انباشته نمی‌شوند.
-
-| Flag · پرچم | Meaning · معنی |
+| I want to… | Command |
 |---|---|
-| `--project, -p PATH` | Project root (default: current directory) · ریشه‌ی پروژه (پیش‌فرض: دایرکتوری فعلی) |
-| `--output-dir, -d PATH` | Where to write the report · مسیر خروجی گزارش |
-| `--output-name, -o NAME` | Report filename (default: `sarand-<project>-report.<ext>`) · نام فایل گزارش |
-| `--set-output-dir PATH` | Persist PATH as the default output dir and exit · مسیر خروجی پیش‌فرض را ذخیره و خارج شو |
-| `--format, -f {markdown,json,text,html,pdf,sarif}` | Output format · فرمت خروجی |
-| `--skip-tests` | Skip running tests · صرف‌نظر از اجرای تست‌ها |
-| `--quality` | Run lint/format checks per detected language · بررسی lint/format برای هر زبان تشخیص‌داده‌شده |
-| `--security` | Run security/vulnerability checks per detected language · بررسی امنیتی/آسیب‌پذیری |
-| `--full` | Maximum completeness: `--quality` + `--security` + no truncation limits · حداکثر کامل بودن |
-| `--cache` | Skip re-scanning TODOs/secrets in files unchanged since the last `--cache` run (opt-in) · صرف‌نظر از اسکن مجدد فایل‌های بدون‌تغییر |
-| `--clear-cache` | Delete the incremental-scan cache for this project and exit · حذف کش اسکن افزایشی |
-| `--doctor` | Run environment diagnostics (Rust core, per-language toolchains, PDF engines) and exit · تشخیص محیط |
-| `--no-source` | Don't embed source file contents · عدم embed کردن سورس |
-| `--no-health` | Skip health-score calculation · صرف‌نظر از محاسبه‌ی امتیاز سلامت |
-| `--verbose, -v` / `--debug` | Logging verbosity · سطح جزئیات لاگ |
+| Analyse the current directory | `sarand` |
+| Analyse another project and lint it | `sarand --project ~/my-project --quality` |
+| Get the most complete report possible | `sarand --full` |
+| Run security checks | `sarand --security` |
+| Skip the slow vulnerability lookups | `sarand --security --skip-audit` |
+| Write JSON without running tests | `sarand --skip-tests --format json -o report.json` |
+| Export a PDF | `sarand --format pdf` |
+| Feed code-scanning tools | `sarand --security --format sarif` |
+| Leave the source out of the report | `sarand --no-source` |
+| Choose the output folder once | `sarand --set-output-dir ~/ai-reports` |
+| Speed up repeat runs | `sarand --cache` |
+| Check the environment | `sarand --doctor` |
 
-## Persisted config · کانفیگ پایدار
+`--full` is shorthand for "give me everything": it turns on `--quality` and `--security` and removes the limits on file size, tree depth and tree entries. A `--max-depth` or `--max-entries` you pass yourself still wins.
 
-`sarand --set-output-dir <path>` writes to an OS-appropriate config file, so every future run (without `-d`) drops the report there:
+Running sarand again on the same project replaces its previous report at that path and says so, so reports never pile up under one filename.
 
-`sarand --set-output-dir <path>` یک فایل کانفیگ متناسب با سیستم‌عامل می‌نویسد، تا هر اجرای بعدی (بدون `-d`) گزارش را همان‌جا بگذارد:
+<details>
+<summary><b>All options</b></summary>
 
-- Linux: `$XDG_CONFIG_HOME/sarand/config.json` or `~/.config/sarand/config.json`
-- macOS: `~/Library/Application Support/sarand/config.json`
-- Windows: `%APPDATA%\sarand\config.json`
+<br>
 
-## Pasting a large report into a chat with no file upload · پیست گزارش بزرگ در چتی بدون آپلود فایل
+| Option | Meaning |
+|---|---|
+| `-p, --project PATH` | Project root (default: current directory) |
+| `-d, --output-dir PATH` | Folder for the report |
+| `-o, --output-name NAME` | Report file name (default: `sarand-<project>-report.<ext>`) |
+| `--set-output-dir PATH` | Save PATH as the default output folder and exit |
+| `-f, --format FORMAT` | `markdown` (default), `json`, `text`, `html`, `pdf` or `sarif` |
+| `--skip-tests` | Do not run tests |
+| `--quality` | Run lint, format and type checks for each detected language |
+| `--security` | Run security and vulnerability checks for each detected language |
+| `--skip-audit` | Skip `pip-audit` and `cargo-audit`, whose database lookups can take tens of seconds |
+| `--full` | `--quality` + `--security` + no truncation limits |
+| `--max-depth N` | Maximum project tree depth |
+| `--max-entries N` | Maximum entries per tree level |
+| `--no-source` | Do not embed file contents |
+| `--no-health` | Skip the health score |
+| `--cache` | Skip re-scanning TODOs and secrets in files unchanged since the last `--cache` run |
+| `--clear-cache` | Delete this project's scan cache and exit |
+| `--doctor` | Diagnose the environment and exit |
+| `-v, --verbose` / `--debug` | More logging |
+| `--version` | Print the version and exit |
 
-`python3 -m sarand.rc.command` (the RC subsystem) splits any file (typically a `sarand --full` report) into paste-sized chunks wrapped in an integrity-checked protocol envelope (`SARAND RC START/CHUNK/END`, each with a `session_id`, `chunk_hash`, and a final `report_hash` an AI receiver can verify before treating the transfer as complete), and walks you through them one at a time, with resumable state (next/back/history/jump-to-block) across separate invocations. On a terminal that supports the OSC52 escape sequence (Termux included) each chunk is copied straight to the system clipboard with no external clipboard tool and no graphical session needed — the only thing that works on a non-rooted Android phone with no X11/Wayland.
+</details>
 
-`python3 -m sarand.rc.command` (زیرسیستم RC) هر فایلی (معمولاً یک گزارش `sarand --full`) را به تکه‌های اندازه‌مناسب پیست می‌شکند، هرکدام داخل یک قاب پروتکل صحت‌سنج (`SARAND RC START/CHUNK/END`، با `session_id`، `chunk_hash`، و یک `report_hash` نهایی که یک AI گیرنده می‌تواند قبل از کامل دانستن انتقال verify کند)، و یکی‌یکی طی‌شان می‌کند، با وضعیت قابل‌ازسرگیری بین اجراهای جدا. روی ترمینالی که OSC52 را پشتیبانی می‌کند (از جمله Termux) هر تکه مستقیم در کلیپ‌بورد سیستم کپی می‌شود، بدون ابزار کلیپ‌بورد خارجی و بدون نشست گرافیکی — تنها چیزی که روی گوشی اندروید بدون روت و بدون X11/Wayland کار می‌کند.
+## Security checks
+
+`--security` adds the security tools of every detected language (for example `bandit` and `pip-audit` for Python, `cargo-audit` and `cargo-deny` for Rust, `govulncheck` for Go) and three project-wide checks:
+
+| Check | What it does |
+|---|---|
+| Secret scan | `gitleaks` looks for credentials in the working tree and the whole git history. Findings are redacted. |
+| SBOM and licenses | `syft` lists every dependency per ecosystem, summarises licenses and warns, as advice only, about copyleft licenses. |
+| Lockfile check | Confirms that the manifest has a lockfile and that the lockfile is not git-ignored. |
+
+Independently of this flag, sarand never copies a file that contains a detected secret into the report, and reports how many files it left out.
+
+## Health score
+
+The score is transparent and adds up to 100:
+
+| Part | Points |
+|---|---|
+| Tests pass | 25 |
+| No critical errors in quality or security | 20 |
+| Test and quality tooling present | 15 |
+| Reasonable TODO count and code hygiene | 15 |
+| Security tooling run and clean | 15 |
+| Clean git state | 10 |
+
+Grades: **A** 90 and above, **B** 80, **C** 70, **D** 60, **F** below 60.
+
+## Configuration
+
+The report folder is chosen in this order:
+
+1. `--output-dir` on the command line
+2. The `SARAND_OUTPUT_DIR` environment variable
+3. The folder saved with `--set-output-dir`
+4. `~/Downloads`
+
+The saved setting lives in a per-user config file:
+
+| System | Location |
+|---|---|
+| Linux | `$XDG_CONFIG_HOME/sarand/config.json` or `~/.config/sarand/config.json` |
+| macOS | `~/Library/Application Support/sarand/config.json` |
+| Windows | `%APPDATA%\sarand\config.json` |
+
+The `--cache` data is stored in the output folder under `.sarand-cache`.
+
+## More tools
+
+### Paste a large report into a chat
+
+Some chats take no file upload. `python3 -m sarand.rc.command` splits any file, typically a `sarand --full` report, into paste-sized chunks. Every chunk sits inside an integrity-checked envelope (session id, per-chunk hash and a final report hash) that an AI receiver can verify. It walks you through the chunks one at a time and remembers where you stopped, and on terminals that support OSC 52 (Termux included) it copies each chunk straight to the clipboard.
 
 ```bash
-sarand --full -d /tmp/reports
-python3 -m sarand.rc.command --source /tmp/reports/sarand-*-report.md
-# paste the chunk, then run again with no flags for the next one:
-python3 -m sarand.rc.command --source /tmp/reports/sarand-*-report.md
+sarand --full -d ~/reports
+python3 -m sarand.rc.command --source ~/reports/sarand-my-project-report.md
 ```
 
-State lives under `.sarand-rc/` (namespaced per source file). Useful commands:
+Run the second command again with no options for the next chunk. State is kept in `.sarand-rc/`. See [docs/RC-AI-RECEIVER.md](docs/RC-AI-RECEIVER.md) for the protocol as the receiving AI sees it.
 
-وضعیت زیر `.sarand-rc/` نگهداری می‌شود (جداگانه برای هر فایل منبع). دستورات کاربردی:
-
-| Command · دستور | Effect · اثر |
+| Option | Effect |
 |---|---|
-| *(no flags)* | Emit next unsent chunk · ارسال تکه‌ی بعدی |
-| `--info, -i` | Show session/progress status · نمایش وضعیت نشست |
-| `--back, -b` | Re-emit the previous block · بازارسال بلاک قبلی |
-| `--back-run, -br` | Re-emit the previous history entry · بازارسال آخرین ارسال |
-| `-n N` | Jump to block N · پرش به بلاک N |
-| `--chunk, -c N` | Emit chunk N of the current block · ارسال تکه‌ی N از بلاک فعلی |
-| `--reset` / `--clean` | Delete state and start a fresh session · پاک‌کردن وضعیت و شروع نشست تازه |
+| `--source FILE` | File to split (default: `README.md`, or the `SARAND_RC_SOURCE` variable) |
+| *(none)* | Send the next unsent chunk |
+| `-i, --info` | Show session and progress |
+| `-b, --back` | Send the previous block again |
+| `-br, --back-run` | Send the last history entry again |
+| `-n N` | Jump to block N |
+| `-c, --chunk N` | Send chunk N of the current block |
+| `--verify` | Check that the saved chunks rebuild the source byte for byte; sends nothing |
+| `--reset`, `--clean` | Delete the state and start a new session |
 
-## Device storage & environment audit · بازرسی فضای ذخیره‌سازی و محیط دستگاه
+### Device storage and environment audit
 
-`python3 -m sarand.device_report.command` is a separate, read-only tool ported from a standalone bash script into sarand proper: it scans your whole device (not a single project) for space hogs, duplicate files, stale files, build-artifact caches, package-manager footprints, and Android/Termux/Kali/proot environment details, and writes one Markdown report. It never deletes, moves, modifies, chmods, chowns, or installs anything — evidence for a cleanup decision, not an automated cleanup.
-
-`python3 -m sarand.device_report.command` ابزاری جدا و فقط‌خواندنی است که از یک اسکریپت مستقل بش به خودِ sarand پورت شده: کل دستگاهت را (نه یک پروژه‌ی خاص) برای فضاخورهای بزرگ، فایل‌های تکراری، فایل‌های قدیمی، کش‌های build artifact، ردپای package managerها، و جزئیات محیط Android/Termux/Kali/proot اسکن می‌کند و یک گزارش Markdown می‌نویسد. هیچ‌وقت چیزی را حذف، جابه‌جا، تغییر، chmod، chown، یا نصب نمی‌کند — شاهد برای تصمیم پاک‌سازی است، نه خودِ پاک‌سازی خودکار.
+`python3 -m sarand.device_report.command` is a separate, **read-only** tool. It scans a whole device, not one project, for space hogs, duplicate and stale files, build caches, package-manager footprints and Android/Termux environment details, and writes one Markdown report as evidence for a cleanup decision. It never deletes, moves, changes or installs anything.
 
 ```bash
-python3 -m sarand.device_report.command
 python3 -m sarand.device_report.command --full -o ~/device-report.md
-python3 -m sarand.device_report.command -r ~/Projects -x ~/Projects/big-archive --old-days 90
 ```
 
-| Flag | Effect · اثر |
+<details>
+<summary><b>Device audit options</b></summary>
+
+<br>
+
+| Option | Effect |
 |---|---|
-| `-o, --output PATH` | Output report path · مسیر خروجی گزارش |
-| `-r, --root DIR` | Extra scan root, repeatable (default: `$HOME` + `/sdcard` if present) · روت اضافه، تکرارپذیر |
-| `-x, --exclude PATH` | Exclude a path from every scan, repeatable · حذف یک مسیر از همه‌ی اسکن‌ها |
-| `-q, --quick` | Skip duplicate and stale-file scans (the two slowest) · رد کردن اسکن تکراری‌ها و فایل‌های قدیمی |
-| `--full` | Always run duplicate/stale scans (overrides `--quick`) and remove the `--top` row cap so every match is listed · همیشه اسکن تکراری/قدیمی را اجرا کن و سقف ردیف `--top` را حذف کن |
-| `-n, --top N` | Rows per top-space table (default 30; `--full` makes this unlimited unless set explicitly) · تعداد ردیف در جدول‌های فضا |
-| `-d, --old-days N` | Stale-file threshold in days (default 180) · آستانه‌ی روز برای فایل قدیمی |
-| `-m, --min-file-size MB` | Minimum size for the large-files section (default 50) · حداقل اندازه برای بخش فایل‌های بزرگ |
-| `-u, --dup-min-size MB` | Minimum size considered for duplicate scanning (default 5) · حداقل اندازه برای اسکن تکراری‌ها |
-| `-D, --max-depth N` | Maximum scan depth, 0 = unlimited (default) · حداکثر عمق اسکن |
-| `--min-top-space MB` | Minimum size for a row in the Executive Summary's Top Space Users table, 0 = no filter (default 1.0) · حداقل اندازه برای ردیف جدول Top Space Users |
-| `--expand-aggregates` | List every `__pycache__`/`.mypy_cache`/`.pytest_cache`/`.ruff_cache` instance individually instead of one aggregated line per pattern (`--full` implies this) · لیست تک‌تک نمونه‌های کش به‌جای یک خط تجمیعی |
-| `--summary-only` | Only render sections 1 and 12 -- all scanning still happens (for an accurate summary), but per-section detail is omitted; mutually exclusive with `--full` · فقط بخش‌های ۱ و ۱۲ را رندر کن |
+| `-o, --output PATH` | Report path |
+| `-r, --root DIR` | Extra scan root, repeatable (default: `$HOME`, plus `/sdcard` if present) |
+| `-x, --exclude PATH` | Exclude a path from every scan, repeatable |
+| `-q, --quick` | Skip the duplicate and stale-file scans, the two slowest |
+| `--full` | Always run those scans and remove the `--top` row cap |
+| `-n, --top N` | Rows per top-space table (default 30) |
+| `-d, --old-days N` | Age in days for a stale file (default 180) |
+| `-m, --min-file-size MB` | Minimum size for the large-files section (default 50) |
+| `-u, --dup-min-size MB` | Minimum size considered for duplicate scanning (default 5) |
+| `-D, --max-depth N` | Maximum scan depth, 0 for unlimited (default) |
+| `--min-top-space MB` | Minimum size for a row in the summary's top-space table (default 1.0) |
+| `--expand-aggregates` | List every cache directory instead of one line per pattern |
+| `--summary-only` | Render only the executive summary; excludes `--full` |
 
-A real run against a full development machine produced a 5+ MiB report — almost entirely thousands of individually-listed `__pycache__`-style cache directories, plus KB-sized entries cluttering the summary table, neither of which added anything to a cleanup decision. `--min-top-space` and the default aggregation behavior above exist specifically to fix that; `--summary-only` is for repeat runs (e.g. handing the report to an AI repeatedly) where only the Executive Summary is actually read.
+</details>
 
-یک اجرای واقعی روی یک ماشین توسعه‌ی کامل گزارشی ۵+ مگابایتی تولید کرد — تقریباً تماماً هزاران پوشه‌ی کش شبیه `__pycache__` که تک‌تک لیست شده بودند، به‌علاوه موارد چند-کیلوبایتیِ شلوغ‌کننده‌ی جدول خلاصه، که هیچ‌کدام به تصمیم پاک‌سازی چیزی اضافه نمی‌کردند. `--min-top-space` و رفتار پیش‌فرض تجمیع بالا دقیقاً برای رفع همین ساخته شدند؛ `--summary-only` برای اجراهای مکرر (مثلاً دادن گزارش به یک هوش مصنوعی به‌طور مکرر) است که فقط Executive Summary واقعاً خوانده می‌شود.
+### Built-in diagnostics
 
-**Not yet implemented:** directory-level duplicate detection (comparing whole directory *trees* for overlapping content, not just individual files ≥5 MB) — flagged as valuable but scoped out of this pass for its own design/performance review, since a naive version would mean hashing every file in every candidate directory.
+`sarand --doctor` checks the Rust core, your Python version, every per-language tool and the PDF engines. Each line says whether the tool is present and, if it is not, the exact command that installs it. A missing tool is informational; only an unsupported Python version fails the command. Every command above also answers to `--help`.
 
-**هنوز پیاده‌سازی نشده:** تشخیص تکراری در سطح دایرکتوری (مقایسه‌ی کل *درخت* پوشه‌ها برای محتوای هم‌پوشان، نه فقط فایل‌های تکی ≥۵ مگابایت) — به‌عنوان چیزی ارزشمند علامت‌گذاری شده ولی از این دور بیرون گذاشته شد تا بازبینی طراحی/عملکرد جداگانه‌ی خودش را داشته باشد، چون نسخه‌ی ساده‌اش یعنی هش‌کردن هر فایل در هر دایرکتوری کاندید.
+### Add a language with a plugin
 
-Every filesystem-sizing, walking, and hashing operation (`du`, `find -printf`, `numfmt`, `sha256sum` in the original bash version) is pure Python stdlib here instead — `os.walk`/`hashlib` behave identically across glibc, musl, BusyBox (Termux's default), and Toybox (stock Android) userlands, where GNU-specific flags on those external tools do not. Only genuinely platform-specific data (package-manager listings, `getprop`, `git status`, the system mount table) still shells out to the real tool and skips cleanly when it's absent, exactly like every sarand language analyzer.
-
-هر عملیات اندازه‌گیری، پیمایش، و هش‌کردن فایل‌سیستم (`du`، `find -printf`، `numfmt`، `sha256sum` در نسخه‌ی بش) اینجا پایتون خالص stdlib است -- `os.walk`/`hashlib` روی محیط‌های glibc، musl، BusyBox (پیش‌فرض Termux)، و Toybox (اندروید خام) یکسان رفتار می‌کنند، جایی که فلگ‌های مخصوص GNU آن ابزارهای بیرونی یکسان رفتار نمی‌کنند. فقط داده‌ی واقعاً مخصوصِ پلتفرم (فهرست package manager، `getprop`، `git status`، جدول mount سیستم) همچنان به ابزار واقعی متکی است و در نبودش تمیز رد می‌شود، دقیقاً مثل هر آنالایزر زبانِ sarand.
-
-## Writing a plugin analyzer · نوشتن یک آنالایزر پلاگین
-
-Add support for a new language without touching sarand's source: implement the `LanguageAnalyzer` protocol (`matches`, `entry_points`, `run_tests`, `run_quality`) in your own package, and register it under the `sarand.analyzers` entry-point group:
-
-اضافه‌کردن پشتیبانی یک زبان جدید بدون دست‌زدن به سورس sarand: پروتکل `LanguageAnalyzer` (`matches`, `entry_points`, `run_tests`, `run_quality`) را در پکیج خودت پیاده کن، و آن را زیر گروه entry-point با نام `sarand.analyzers` ثبت کن:
+Implement the `LanguageAnalyzer` protocol (`matches`, `entry_points`, `run_tests`, `run_quality`) in your own package and register it in your `pyproject.toml`:
 
 ```toml
-# in your plugin's pyproject.toml
 [project.entry-points."sarand.analyzers"]
 zig = "sarand_zig_plugin:ZigAnalyzer"
 ```
 
-sarand discovers and runs it automatically, concurrently with every other matching analyzer.
+sarand finds it and runs it alongside the built-in analyzers.
 
-sarand آن را خودکار پیدا و اجرا می‌کند، به‌صورت هم‌زمان با هر آنالایزر دیگری که مطابقت دارد.
+## Troubleshooting
 
-## Current scope · دامنه‌ی فعلی
+<details>
+<summary><b><code>sarand: command not found</code></b></summary>
 
-Implemented: Python/Rust/Go/Node.js/C++/Java/Lua/Ruby/PHP/Dart analyzers (tests + quality + security checks — Dart has no `run_security` yet since no broadly standard vulnerability-audit tool exists for that ecosystem), Markdown/JSON/text/HTML/SARIF renderers, PDF export (via an installed `wkhtmltopdf`/`weasyprint`), secret detection and exclusion, an opt-in incremental scan cache, `sarand --doctor`, an RC (report-communication) subsystem for chunked/pasted transfer to AI chats, a device storage/environment audit (`python3 -m sarand.device_report.command`), and CI across Linux/macOS/Windows. Not yet implemented: Zig/Swift/C# analyzers, and packaging beyond pipx (AUR is drafted but not yet confirmed on the actual AUR; Docker/Homebrew/deb-rpm/standalone binary not started) — added only as actually needed, per `AGENTS.md`'s roadmap.
+<br>
 
-پیاده‌سازی‌شده: آنالایزرهای Python/Rust/Go/Node.js/C++/Java/Lua/Ruby/PHP/Dart (تست + کیفیت + امنیت — Dart هنوز `run_security` ندارد چون هیچ ابزار audit آسیب‌پذیریِ به‌طور گسترده استانداردی برای این اکوسیستم وجود ندارد)، رندررهای Markdown/JSON/متن/HTML/SARIF، خروجی PDF (از طریق `wkhtmltopdf`/`weasyprint` نصب‌شده)، تشخیص و حذف secret، کش افزایشی اختیاری، `sarand --doctor`، زیرسیستم RC برای انتقال تکه‌ای/پیستی به چت‌های هوش مصنوعی، بازرسی فضای ذخیره‌سازی/محیط دستگاه (`python3 -m sarand.device_report.command`)، و CI روی لینوکس/مک/ویندوز. هنوز نیست: آنالایزرهای Zig/Swift/C#، و پکیجینگ فراتر از pipx (AUR طراحی شده ولی هنوز روی خودِ AUR تأیید نشده؛ Docker/Homebrew/deb-rpm/باینری مستقل شروع نشده) — طبق نقشه‌راه `AGENTS.md` فقط در صورت نیاز واقعی اضافه می‌شوند.
+Run `pipx ensurepath`, then open a new terminal. On Windows, also check that the pipx bin folder is on `PATH`.
 
-## Uninstall · حذف نصب
+</details>
 
-If installed via pipx:
+<details>
+<summary><b>The build fails with a Rust error</b></summary>
 
-اگر با pipx نصب شده:
+<br>
+
+Install a Rust toolchain from [rustup.rs](https://rustup.rs) and try again, or use the pure-Python route: `pip install -e .`.
+
+</details>
+
+<details>
+<summary><b>A check shows as skipped</b></summary>
+
+<br>
+
+The tool behind it is not installed. `sarand --doctor` lists it with the install command.
+
+</details>
+
+<details>
+<summary><b>The security checks are slow</b></summary>
+
+<br>
+
+Vulnerability databases are queried over the network. Add `--skip-audit` to skip `pip-audit` and `cargo-audit`; the static checks still run.
+
+</details>
+
+<details>
+<summary><b>The report says files were excluded because of secrets</b></summary>
+
+<br>
+
+That is intended. Files that contain a detected secret are never written into the report. Remove or rotate the secret, then run again.
+
+</details>
+
+## Uninstall
+
+Installed with pipx:
 
 ```bash
 pipx uninstall sarand
-rm -rf ~/.config/sarand
 ```
 
-If installed via the development venv (`pip install -e .` / `maturin develop`):
-
-اگر با venv توسعه نصب شده:
+Installed as a development install:
 
 ```bash
-pip uninstall sarand --break-system-packages
-rm -rf ~/.config/sarand
+pip uninstall sarand
 ```
+
+sarand keeps a few things outside the package. Delete them if you want a clean removal:
+
+| What | Where |
+|---|---|
+| Saved settings | The config file listed under [Configuration](#configuration) |
+| Reports | Your output folder, `~/Downloads` by default |
+| Scan cache | `.sarand-cache` inside the output folder (or run `sarand --clear-cache` first) |
+| Paste-helper state | `.sarand-rc/` in the directory where you ran it |
+
+## Contributing
+
+[AGENTS.md](AGENTS.md) is the source of truth for architecture, conventions and the roadmap. Before opening a pull request, run:
+
+```bash
+ruff format .
+ruff check .
+mypy python
+pytest -q
+```
+
+Continuous integration runs the same checks on Linux, macOS and Windows.
+
+## License
+
+Released under the [MIT License](LICENSE).

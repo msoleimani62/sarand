@@ -312,6 +312,27 @@ in sync with the actual CLI flags (don't let README drift from `cli.py`'s
 prose; use badges/emoji only where they add real scannability, not as
 decoration on every heading.
 
+**Structure (2026-09-20):** the README is two files, not one interleaved
+bilingual file — `README.md` (English) and `README.fa.md` (Persian, wrapped
+in `<div dir="rtl">`), each linking to the other, sharing `assets/banner.svg`
+and a `LICENSE` file. Both are linted by `markdownlint` (`.markdownlint.json`)
+and pinned to the real argparse definitions by `tests/test_readme_sync.py`:
+every long option of `cli.py`, `rc/command.py` and `device_report/config.py`
+must be documented in both files, and neither may mention an option that
+no parser defines. When you add or change an option, update **both**
+READMEs; the test names what you forgot. The rewrite found real drift the
+old README had accumulated: it documented a `--max-file-size` flag that
+never existed, `--output-dir`'s `--help` text contradicted
+`resolve_output_dir()` (the code is the truth: `--output-dir` >
+`SARAND_OUTPUT_DIR` > saved config > `~/Downloads`; the help text was
+corrected), `--verify`, `--source` and `SARAND_RC_SOURCE` were
+undocumented, and its "Current scope" paragraph still said Zig/Swift/C#
+analyzers were missing. Do not put numbers that go stale (test counts,
+versions) in the README; the version badge reads the git tag. Note: the
+RTL rendering of the Persian file and the banner SVG were not viewed in a
+browser by the assistant that wrote them — check them on GitHub, on a
+phone and on a desktop, before treating them as final.
+
 ### 4.13 "Check, remove, announce, then create fresh" for anything that replaces a previous artifact
 
 Any time sarand (or its install tooling) is about to produce something at
@@ -390,7 +411,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, expected 574 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, expected 578 — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |

@@ -81,7 +81,7 @@ Examples:
         "--output-dir",
         "-d",
         default=None,
-        help="Directory for the report (default: persisted config, then SARAND_OUTPUT_DIR, then ~/Downloads)",
+        help="Directory for the report (default: SARAND_OUTPUT_DIR, then the saved config, then ~/Downloads)",
     )
     parser.add_argument(
         "--output-name",

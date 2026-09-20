@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="t d">
+  <title id="t">sarand</title>
+  <desc id="d">sarand: scan any project and get one AI-ready report</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#1b1140"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="320" rx="24" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="6" rx="3" fill="url(#accent)"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace">
+    <text x="72" y="150" font-size="96" font-weight="700" fill="url(#accent)">sarand</text>
+    <text x="76" y="200" font-size="26" fill="#cbd5e1">scan any project. get one AI-ready report.</text>
+
+    <rect x="72" y="234" width="360" height="46" rx="10" fill="#0f172a" stroke="#334155"/>
+    <circle cx="94" cy="257" r="5" fill="#f87171"/>
+    <circle cx="112" cy="257" r="5" fill="#fbbf24"/>
+    <circle cx="130" cy="257" r="5" fill="#4ade80"/>
+    <text x="150" y="264" font-size="20" fill="#e2e8f0">$ sarand --full</text>
+  </g>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="20" fill="#e2e8f0">
+    <rect x="760" y="70"  width="360" height="52" rx="12" fill="#111a33" stroke="#2dd4bf" stroke-opacity="0.55"/>
+    <text x="784" y="103">tree + source</text>
+    <rect x="760" y="134" width="360" height="52" rx="12" fill="#111a33" stroke="#60a5fa" stroke-opacity="0.55"/>
+    <text x="784" y="167">tests + quality + security</text>
+    <rect x="760" y="198" width="360" height="52" rx="12" fill="#111a33" stroke="#a78bfa" stroke-opacity="0.55"/>
+    <text x="784" y="231">health score + AI summary</text>
+    <text x="760" y="286" font-size="18" fill="#94a3b8">md · json · text · html · pdf · sarif</text>
+  </g>
+</svg>
