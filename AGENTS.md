@@ -411,7 +411,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, confirmed 618; the `/tmp` guard round adds 1, confirmed 619; the assembly round adds 34, confirmed 653 with all five CI jobs green; the §5.18 round adds 43, expected 696 — re-confirm), covering every analyzer/renderer/core module added through §5. CI green on all five jobs (Ubuntu x3 on Python 3.10/3.12/3.14, macOS, Windows) at commit `79cfe3d`; re-confirm after each push before tagging (see the release rule in the 5.13 section). `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, confirmed 618; the `/tmp` guard round adds 1, confirmed 619; the assembly round adds 34, confirmed 653 with all five CI jobs green; the §5.18 round adds 43, confirmed 696 with `ruff`/`mypy` clean; the doctor-visibility fix adds 2, confirmed 698; the `install.sh` fix adds 6 (703 passed and the one signal-based test timed out on the phone, so it was replaced); the final install-script suite has 9 tests, expected 707 — re-confirm), covering every analyzer/renderer/core module added through §5. CI green on all five jobs (Ubuntu x3 on Python 3.10/3.12/3.14, macOS, Windows) at commit `79cfe3d`; re-confirm after each push before tagging (see the release rule in the 5.13 section). `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -1583,13 +1583,20 @@ CI is green on all five jobs at `79cfe3d` (assembly detection included). The
 maintainer pasted the `sarand --doctor` output together with an outside
 review of it. What was taken, adjusted or refused, and why:
 
-- **"Assembly is missing from `--doctor`" — refused as a defect.** `--doctor`
-  lists *external tools*; the Assembly analyzer runs none (§5.17), so it has
-  no row by design, and adding `nasm`/`as` would tell users sarand uses
-  them. It is visible in the new coverage matrix as "detection only". (The
-  review also suggested the installed copy might predate the change. That is
-  the real caveat: `pipx install` does **not** refresh an existing
-  installation, `./install.sh` does — see the README's install section.)
+- **"Assembly is missing from `--doctor`" — first refused, then accepted;
+  the refusal was wrong.** The assistant argued `--doctor` lists *external
+  tools* and Assembly runs none, so it had no row "by design". The
+  maintainer objected: `--doctor` is where a user looks to learn what sarand
+  supports, and an ecosystem absent from it looks unsupported — a real,
+  user-visible defect. Fixed: `core/doctor.py` has `_DETECTION_ONLY` rows
+  (`detection_only_catalog()`), shown as a ✓ "built-in dialect detection"
+  entry that never counts as a missing tool; the README tables list it too.
+  Guards: `test_every_analyzer_is_visible_in_doctor` (an analyzer with no
+  `--doctor` presence fails the suite) and the README test now includes the
+  detection-only categories. Lesson: judge a feature by what the user can
+  *see*, not by how the code is organised. (The other half of the review still
+  stands: `pipx install` does **not** refresh an existing installation,
+  `./install.sh` does.)
 - **Tier 1 implemented**: Haskell (`stack`/`cabal` tests, `hlint`), Elixir
   (`mix test`, `mix format --check-formatted`, `mix hex.audit`; Credo and
   MixAudit only when `mix.exs` names them), Erlang (`rebar3 eunit`, `rebar3
@@ -1631,3 +1638,47 @@ and JSON: they do not become a project's primary language. **Not verified**:
 none of the eight tools was run for real (the build sandbox has none of them);
 the exact command lines are from each tool's documentation and are tested only
 as recorded commands. Expect to fix an option or two on first real use.
+
+### 5.19 — `install.sh` no longer removes the old install first (2026-09-21)
+
+**Incident.** Running `./install.sh` on the maintainer's phone uninstalled
+the pipx copy of sarand and then failed to build the new one — `maturin`
+could not be downloaded from PyPI (`operation timed out`, uv's message
+format). The script had been written to uninstall first (a plain
+`pipx install` leaves a stale snapshot), so a transient network failure
+left **no `sarand` command at all**. (The dev venv's editable copy still
+worked, which is why nothing was lost.) A failed upgrade must never do that.
+
+**Fix.** The old venv is now *set aside* (moved to
+`$PIPX_HOME/.sarand-previous-venv`), the new one is built with up to
+`SARAND_INSTALL_ATTEMPTS` tries (default 3, `SARAND_INSTALL_RETRY_DELAY`
+seconds apart, `PIP_DEFAULT_TIMEOUT`/`UV_HTTP_TIMEOUT` raised to 180 s), and
+only a successful build deletes the old copy. On failure, or on Ctrl-C/TERM
+(a `trap`), the old venv is moved back exactly as it was. Moving the
+directory also works when pipx cannot read its metadata (pypa/pipx#1619),
+the case the previous `pipx uninstall` fallback existed for. Tested against a fake `pipx` (`tests/test_install_script.py`: success
+replaces, failure restores, transient failure retries, a failed first
+install leaves nothing behind, and a guard that no non-comment line runs
+`pipx uninstall`). **The interrupt logic is tested without signals**: the
+script is now a sourceable `main()` (`SARAND_INSTALL_SOURCE_ONLY=1 .
+install.sh` defines the functions and installs nothing) driven by a small
+state variable (`idle` / `aside` / `fresh`), and the tests call
+`interrupted` in each state. The first version tested this by sending
+`SIGINT` to the script's process group; it passed five local runs but
+**timed out on the maintainer's Kali proot** — signal delivery there
+differs — so it was replaced rather than tuned. Replacing it exposed a real
+bug in that first version: the trap handler deleted the pipx venv
+unconditionally, so a Ctrl-C *before* the old install had been set aside would
+have destroyed it. The `idle` state makes `restore_previous` a no-op then, and
+`test_an_interrupt_before_anything_changed_never_touches_an_existing_install`
+guards it (checked by re-introducing the bug). Lesson: a test that depends on
+OS signal semantics is not portable across the maintainer's own devices. **Not verified**: the script
+against real pipx (the sandbox has none).
+
+**Also verified for real in the same session.** `sarand --quality` on the
+maintainer's phone ran the new GitHub Actions analyzer against a real
+`actionlint`: `### actionlint [PASS]`, and `actionlint -no-color
+.github/workflows/ci.yml` printed nothing — the first of the eight §5.18
+tools confirmed with the real binary (the command form is right). The other
+seven (`stack`, `cabal`, `hlint`, `mix`, `rebar3`, `sbt`, `hadolint`,
+`terraform`, `tflint`, `buf`) are still unverified.

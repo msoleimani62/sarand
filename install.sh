@@ -2,78 +2,155 @@
 # sarand installer / upgrader.
 #
 # Run from anywhere -- it locates itself via its own script path, not
-# the current working directory. Checks whether a previous pipx
-# installation exists; if so, removes it first (with clear messages)
-# before building and installing the current source tree. This is
-# what makes re-running this script after pulling new sarand code
-# actually pick up the changes -- a plain `pipx install` without first
-# uninstalling can leave a stale snapshot from whenever it was last
-# run, since pipx installs are not editable by default.
+# the current working directory. It replaces a previous pipx installation
+# with a fresh build of the current source tree (a plain `pipx install`
+# can leave a stale snapshot, since pipx installs are not editable).
+#
+# The old installation is only *set aside* while the new one is built,
+# never deleted up front: the build needs the network (it downloads
+# `maturin` and the dependencies) and a Rust toolchain, and either can
+# fail. If every attempt fails, the previous installation is restored
+# exactly as it was, so a failed upgrade never leaves you without sarand.
+# Only after a successful build is the old copy removed.
+#
+# Tuning (environment variables):
+#   SARAND_INSTALL_ATTEMPTS      build attempts before giving up (default 3)
+#   SARAND_INSTALL_RETRY_DELAY   seconds between attempts (default 5)
 #
 # نصب‌کننده/به‌روزرسان sarand. از هر جایی اجرا شود کار می‌کند -- خودش را
-# از روی مسیر اسکریپت پیدا می‌کند، نه دایرکتوری فعلی. بررسی می‌کند که
-# نصب قبلی pipx وجود دارد یا نه؛ اگر دارد، اول آن را حذف می‌کند (با
-# پیام‌های واضح) پیش از ساخت و نصب نسخه‌ی فعلی سورس. همین چیزی است که
-# باعث می‌شود اجرای دوباره‌ی این اسکریپت بعد از دریافت کد جدید sarand
-# واقعاً تغییرات را اعمال کند -- یک `pipx install` ساده بدون uninstall
-# اول، ممکن است snapshot قدیمی از آخرین باری که اجرا شده را نگه دارد،
-# چون نصب‌های pipx به‌طور پیش‌فرض editable نیستند.
+# از روی مسیر اسکریپت پیدا می‌کند، نه دایرکتوری فعلی. نصب قبلی pipx را با
+# یک build تازه از سورس فعلی جایگزین می‌کند (یک `pipx install` ساده ممکن
+# است snapshot قدیمی نگه دارد، چون نصب‌های pipx به‌طور پیش‌فرض editable
+# نیستند).
+#
+# نصب قدیمی فقط *کنار گذاشته می‌شود* تا نسخه‌ی جدید ساخته شود و هیچ‌وقت
+# از اول پاک نمی‌شود: build به شبکه (دانلود `maturin` و وابستگی‌ها) و یک
+# زنجیره‌ابزار Rust نیاز دارد و هر دو می‌توانند شکست بخورند. اگر همه‌ی
+# تلاش‌ها شکست بخورند، نصب قبلی دقیقاً همان‌طور که بود برمی‌گردد، پس یک
+# به‌روزرسانی ناموفق هرگز تو را بدون sarand رها نمی‌کند. فقط بعد از یک build
+# موفق، نسخه‌ی قدیمی حذف می‌شود.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PIPX_VENV_DIR="$HOME/.local/share/pipx/venvs/sarand"
+PIPX_HOME_DIR="${PIPX_HOME:-$HOME/.local/share/pipx}"
+PIPX_VENV_DIR="$PIPX_HOME_DIR/venvs/sarand"
+BACKUP_DIR="$PIPX_HOME_DIR/.sarand-previous-venv"
+ATTEMPTS="${SARAND_INSTALL_ATTEMPTS:-3}"
+RETRY_DELAY="${SARAND_INSTALL_RETRY_DELAY:-5}"
+# What this script has done to the pipx venv so far -- what an interrupt or a
+# failed build has to undo:
+#   idle   nothing touched yet (an existing install is left exactly alone)
+#   aside  the previous install was moved to $BACKUP_DIR
+#   fresh  there was no previous install; a build may have left a partial venv
+# آنچه این اسکریپت تا اینجا با venv ی pipx کرده -- چیزی که یک وقفه یا build
+# ناموفق باید برگرداند:
+#   idle   هنوز به چیزی دست نزده (نصب موجود دقیقاً دست‌نخورده می‌ماند)
+#   aside  نصب قبلی به $BACKUP_DIR منتقل شده
+#   fresh  نصب قبلی نبوده؛ ممکن است build یک venv ناقص به‌جا گذاشته باشد
+STATE=idle
 
-echo "==> sarand installer/upgrader"
-echo "==> Source: $SCRIPT_DIR"
+# Slow mobile networks are the usual cause of a failed build; give both
+# pip and uv (pipx can use either) a generous timeout.
+# شبکه‌ی کند موبایل علت معمول شکست build است؛ به pip و uv (pipx می‌تواند
+# از هر دو استفاده کند) timeout سخاوتمندانه می‌دهیم.
+export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-180}"
+export UV_HTTP_TIMEOUT="${UV_HTTP_TIMEOUT:-180}"
 
-if ! command -v pipx >/dev/null 2>&1; then
-    echo "==> pipx not found."
-    echo "    Install it first: pip install pipx --break-system-packages && pipx ensurepath"
-    exit 1
-fi
+# Undo what this run changed. Safe to call at any point: in the `idle` state
+# it does nothing, so it can never delete an install it has not set aside.
+# هر چه این اجرا عوض کرده را برمی‌گرداند. در هر لحظه امن است: در حالت `idle`
+# کاری نمی‌کند، پس هرگز نصبی را که کنار نگذاشته پاک نمی‌کند.
+restore_previous() {
+    case "$STATE" in
+        aside)
+            rm -rf "$PIPX_VENV_DIR"
+            mv "$BACKUP_DIR" "$PIPX_VENV_DIR"
+            echo "==> The previous installation was restored -- nothing was lost."
+            ;;
+        fresh)
+            rm -rf "$PIPX_VENV_DIR"
+            ;;
+    esac
+    STATE=idle
+}
 
-if pipx list --short 2>/dev/null | grep -q '^sarand '; then
-    echo "==> Previous pipx installation found -- removing it first..."
-    if ! pipx uninstall sarand; then
-        # pipx itself can fail to read a previous install's metadata
-        # (a known pipx bug: "Unknown metadata version X. Perhaps it
-        # was installed with a later version of pipx" -- pipx's own
-        # internal venv bookkeeping got corrupted, not a sarand issue).
-        # `pipx uninstall` hits the same read and fails the same way,
-        # so fall back to removing the venv directory directly.
-        # خودِ pipx می‌تواند در خواندن متادیتای نصب قبلی شکست بخورد (یک
-        # باگ شناخته‌شده‌ی pipx: خرابی بوکیپینگ داخلی venv، نه مشکلی از
-        # sarand). چون `pipx uninstall` هم به همان خواندن برمی‌خورد و
-        # به همان شکل شکست می‌خورد، به حذف مستقیم پوشه‌ی venv برمی‌گردیم.
-        echo "==> pipx uninstall failed (likely corrupted pipx metadata, see"
-        echo "    https://github.com/pypa/pipx/issues/1619) -- removing the"
-        echo "    venv directory directly instead: $PIPX_VENV_DIR"
-        rm -rf "$PIPX_VENV_DIR"
+# Ctrl-C (or a terminated shell) in the middle of a slow build must not
+# leave the old installation set aside and sarand missing.
+# Ctrl-C (یا بسته‌شدن شل) وسط یک build کند نباید نصب قدیمی را کنار گذاشته و
+# sarand را ناپدید کند.
+interrupted() {
+    echo "==> Interrupted." >&2
+    restore_previous >&2
+    exit 130
+}
+
+main() {
+    trap interrupted INT TERM
+
+    echo "==> sarand installer/upgrader"
+    echo "==> Source: $SCRIPT_DIR"
+
+    if ! command -v pipx >/dev/null 2>&1; then
+        echo "==> pipx not found."
+        echo "    Install it first: pip install pipx --break-system-packages && pipx ensurepath"
+        exit 1
     fi
-    echo "==> Previous installation removed."
-elif [ -d "$PIPX_VENV_DIR" ]; then
-    # A venv directory can exist on disk without `pipx list` showing it
-    # at all, for the same corrupted-metadata reason above -- pipx
-    # silently omits entries it can't parse rather than erroring on
-    # `list`. Left alone, `pipx install` would hit the same broken
-    # metadata and fail with the cryptic "Unknown metadata version" error.
-    # یک پوشه‌ی venv می‌تواند روی دیسک باشد بدون این‌که `pipx list` اصلاً
-    # نشانش دهد، به همان دلیل خرابی متادیتا -- pipx ورودی‌هایی را که
-    # نمی‌تواند parse کند بی‌صدا از `list` حذف می‌کند، نه این‌که خطا بدهد.
-    echo "==> Found a stale pipx venv directory not tracked by 'pipx list'"
-    echo "    (likely corrupted pipx metadata) -- removing it directly: $PIPX_VENV_DIR"
-    rm -rf "$PIPX_VENV_DIR"
-elif command -v sarand >/dev/null 2>&1; then
-    echo "==> A 'sarand' command exists on PATH but wasn't installed via pipx"
-    echo "    ($(command -v sarand)). Not touching it automatically -- if this"
-    echo "    is a stale dev-venv install, remove it manually first."
-else
-    echo "==> No previous installation found."
+
+    # Set the previous installation aside. Moving the directory works even
+    # when pipx cannot read its metadata (a known pipx bug, see
+    # https://github.com/pypa/pipx/issues/1619), where `pipx uninstall` fails.
+    # نصب قبلی را کنار می‌گذاریم. جابه‌جاکردن پوشه حتی وقتی pipx نتواند
+    # متادیتایش را بخواند کار می‌کند (باگ شناخته‌شده‌ی pipx) که
+    # `pipx uninstall` آنجا شکست می‌خورد.
+    if [ -e "$PIPX_VENV_DIR" ]; then
+        echo "==> Previous installation found -- setting it aside while the new one is built..."
+        rm -rf "$BACKUP_DIR"
+        mv "$PIPX_VENV_DIR" "$BACKUP_DIR"
+        STATE=aside
+    else
+        if command -v sarand >/dev/null 2>&1; then
+            echo "==> A 'sarand' command exists on PATH but wasn't installed via pipx"
+            echo "    ($(command -v sarand)). Not touching it automatically -- if this"
+            echo "    is a stale dev-venv install, remove it manually first."
+        else
+            echo "==> No previous installation found."
+        fi
+        STATE=fresh
+    fi
+
+    echo "==> Building and installing the current version..."
+    attempt=1
+    until pipx install "$SCRIPT_DIR"; do
+        # pipx cleans up after itself, but make sure no half-built venv stays.
+        rm -rf "$PIPX_VENV_DIR"
+        if [ "$attempt" -ge "$ATTEMPTS" ]; then
+            echo "==> The build failed $ATTEMPTS time(s)." >&2
+            echo "    Likely causes: no/slow network (it downloads maturin and the" >&2
+            echo "    dependencies) or no Rust toolchain (https://rustup.rs)." >&2
+            restore_previous >&2
+            exit 1
+        fi
+        attempt=$((attempt + 1))
+        echo "==> Build failed -- retrying in ${RETRY_DELAY}s (attempt $attempt of $ATTEMPTS)..."
+        sleep "$RETRY_DELAY"
+    done
+
+    trap - INT TERM
+    rm -rf "$BACKUP_DIR"
+    STATE=idle
+    echo "==> Done."
+    if command -v sarand >/dev/null 2>&1; then
+        sarand --version
+    else
+        echo "==> Installed, but 'sarand' is not on PATH yet: open a new shell or run 'pipx ensurepath'."
+    fi
+}
+
+# `SARAND_INSTALL_SOURCE_ONLY=1 . install.sh` defines the functions without
+# installing anything -- that is how the tests exercise the restore logic.
+# `SARAND_INSTALL_SOURCE_ONLY=1 . install.sh` فقط تابع‌ها را تعریف می‌کند و
+# چیزی نصب نمی‌کند -- تست‌ها منطق برگرداندن را همین‌طور امتحان می‌کنند.
+if [ "${SARAND_INSTALL_SOURCE_ONLY:-}" != "1" ]; then
+    main "$@"
 fi
-
-echo "==> Building and installing the current version..."
-pipx install "$SCRIPT_DIR"
-
-echo "==> Done."
-sarand --version

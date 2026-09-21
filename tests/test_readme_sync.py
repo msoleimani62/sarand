@@ -86,9 +86,10 @@ def test_the_readmes_link_each_other_and_their_assets() -> None:
 
 
 def test_every_ecosystem_sarand_can_drive_is_listed_in_both_readmes() -> None:
-    from sarand.core.doctor import tool_catalog
+    from sarand.core.doctor import detection_only_catalog, tool_catalog
 
     categories = {category for category, _bin, _hint, _use in tool_catalog()}
+    categories |= {category for category, _name, _what in detection_only_catalog()}
     for readme in _READMES:
         text = readme.read_text(encoding="utf-8")
         missing = sorted(

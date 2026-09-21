@@ -398,6 +398,33 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     ),
 )
 
+# Ecosystems sarand supports that need NO external tool: they are detected and
+# described, never linted or tested. They still get a `--doctor` row, because
+# `--doctor` is where a user looks to learn what sarand supports -- an
+# ecosystem missing from it looks unsupported (that is exactly how Assembly
+# was once overlooked). (category, check name, what it does)
+# اکوسیستم‌هایی که sarand پشتیبانی می‌کند و به هیچ ابزار خارجی نیاز ندارند:
+# شناسایی و توصیف می‌شوند، هرگز lint یا تست نمی‌شوند. باز هم یک ردیف در
+# `--doctor` می‌گیرند، چون `--doctor` جایی است که کاربر می‌بیند sarand چه چیزی
+# را پشتیبانی می‌کند -- اکوسیستمی که آنجا نباشد پشتیبانی‌نشده به نظر می‌رسد.
+_DETECTION_ONLY: tuple[tuple[str, str, str], ...] = (
+    (
+        "Assembly",
+        "built-in dialect detection",
+        (
+            "detection only, no assembler needed: names the dialect of every "
+            "assembly file (x86: NASM, GNU as, MASM/TASM, FASM; ARM; AArch64; "
+            "RISC-V; MIPS; PowerPC; 6502; Z80; AVR; Motorola 68000; 8051)"
+        ),
+    ),
+)
+
+
+def detection_only_catalog() -> tuple[tuple[str, str, str], ...]:
+    """(category, check name, description) for the ecosystems that need no
+    external tool but are still supported and shown by `--doctor`."""
+    return _DETECTION_ONLY
+
 
 def tool_catalog() -> tuple[tuple[str, str, str, str], ...]:
     """(category, binary, install hint, what it is used for) for every tool
@@ -414,6 +441,7 @@ _CATEGORY_ORDER = (
     "TypeScript",
     "CSS",
     "Zig",
+    "Assembly",
     "Swift",
     "C/C++",
     "Java / Kotlin / Android",
@@ -522,6 +550,17 @@ def collect_checks() -> list[DoctorCheck]:
 
     for category, binary, fix, used_for in _TOOL_CHECKS:
         checks.append(_tool_check(category, binary, fix, used_for))
+
+    for category, name, description in _DETECTION_ONLY:
+        checks.append(
+            DoctorCheck(
+                name=name,
+                ok=True,
+                detail="built in",
+                category=category,
+                used_for=description,
+            )
+        )
 
     return checks
 

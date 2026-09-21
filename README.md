@@ -141,6 +141,7 @@ sarand drives the standard tools of each ecosystem. Nothing here is required: a 
 | TypeScript | quality: `tsc` |
 | CSS | quality: `stylelint` |
 | Zig | tests: `zig` |
+| Assembly | built in: names the dialect of every assembly file, no external tool needed |
 | Swift | tests: `swift`, `xcodebuild` · quality: `swift-format`, `swiftlint` |
 | SQL | quality: `sqlfluff` |
 | C/C++ | detection: `cmake` · quality: `clang-tidy` · security: `cppcheck` |
@@ -199,7 +200,7 @@ pipx install ~/sarand
 sarand --version
 ```
 
-To upgrade after pulling new source, use the installer script instead of a plain `pipx install`, which does not refresh an existing copy. It removes the old installation first, then builds the current source:
+To upgrade after pulling new source, use the installer script instead of a plain `pipx install`, which does not refresh an existing copy. It builds the current source first and only then replaces the old installation; if the build fails (no network, no Rust toolchain) your previous installation is restored, and it retries slow network failures on its own:
 
 ```bash
 ./install.sh

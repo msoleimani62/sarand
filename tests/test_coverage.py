@@ -11,7 +11,7 @@ from sarand.core.coverage import (
     build_coverage,
     render_markdown,
 )
-from sarand.core.doctor import tool_catalog
+from sarand.core.doctor import collect_checks, tool_catalog
 
 _ROOT = Path(__file__).resolve().parent.parent
 
@@ -20,6 +20,20 @@ def test_every_builtin_analyzer_is_classified_for_the_matrix() -> None:
     names = {analyzer.name for analyzer in builtin_analyzers()}
 
     assert names == set(DOCTOR_CATEGORIES)
+
+
+def test_every_analyzer_is_visible_in_doctor() -> None:
+    """An ecosystem missing from `--doctor` looks unsupported to the user
+    (Assembly once was). Every analyzer must be shown there, either through
+    the tools it drives or through a built-in, detection-only row."""
+    shown = {check.category for check in collect_checks() if check.category != "Core"}
+    hidden = sorted(
+        name
+        for name, categories in DOCTOR_CATEGORIES.items()
+        if not any(category in shown for category in categories)
+    )
+
+    assert hidden == []
 
 
 def test_every_doctor_category_belongs_to_some_analyzer() -> None:

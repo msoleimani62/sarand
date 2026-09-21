@@ -36,10 +36,12 @@ from sarand.analyzers.registry import builtin_analyzers
 from sarand.constants import PROJECT_MARKERS
 from sarand.core.doctor import tool_catalog
 
-# analyzer name -> the `--doctor` categories that list its tools. An empty
-# tuple means "needs no external tool" (detection only).
-# نام آنالایزر -> دسته‌های `--doctor` که ابزارهایش را فهرست می‌کنند. تاپل
-# خالی یعنی «به ابزار خارجی نیاز ندارد» (فقط شناسایی).
+# analyzer name -> the `--doctor` categories that show it. Every analyzer must
+# be visible there: either through the tools it drives or, for the ones that
+# need none (Assembly), through a "built-in" detection-only row.
+# نام آنالایزر -> دسته‌های `--doctor` که آن را نشان می‌دهند. هر آنالایزر باید
+# آنجا دیده شود: یا از راه ابزارهایی که اجرا می‌کند، یا -- برای آن‌هایی که
+# ابزاری لازم ندارند (Assembly) -- با یک ردیف «داخلی» فقط-شناسایی.
 DOCTOR_CATEGORIES: dict[str, tuple[str, ...]] = {
     "Python": ("Python",),
     "Rust": ("Rust",),
@@ -48,7 +50,7 @@ DOCTOR_CATEGORIES: dict[str, tuple[str, ...]] = {
     "TypeScript": ("TypeScript",),
     "CSS": ("CSS",),
     "Zig": ("Zig",),
-    "Assembly": (),
+    "Assembly": ("Assembly",),
     "Swift": ("Swift",),
     "Objective-C": ("Objective-C",),
     "C/C++": ("C/C++",),

@@ -78,6 +78,19 @@ def test_zig_swift_sql_checks_are_registered() -> None:
     assert by_category["SQL"] == {"sqlfluff"}
 
 
+def test_assembly_is_shown_as_a_built_in_ecosystem_and_never_counts_as_missing() -> (
+    None
+):
+    # Assembly needs no external tool, but it is supported -- `--doctor` must
+    # say so instead of leaving it looking unsupported.
+    checks = [c for c in collect_checks() if c.category == "Assembly"]
+
+    assert [c.name for c in checks] == ["built-in dialect detection"]
+    assert checks[0].ok is True
+    assert "dialect" in checks[0].used_for
+    assert "Assembly" in _CATEGORY_ORDER
+
+
 def test_kotlin_csharp_shell_format_checks_are_registered() -> None:
     # Same regression guard as above, for the KotlinAnalyzer/
     # CSharpAnalyzer/ShellAnalyzer/YamlAnalyzer/JsonAnalyzer/
