@@ -411,14 +411,14 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, expected 618 in total — re-confirm), covering every analyzer/renderer/core module added through §5. CI confirmed green on Linux/macOS/Windows as of the last verified run (see Phase G); re-confirm CI on the current test count next. `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, confirmed 618; the `/tmp` guard round adds 1, confirmed 619; the assembly round adds 34, confirmed 653 with all five CI jobs green; the §5.18 round adds 43, expected 696 — re-confirm), covering every analyzer/renderer/core module added through §5. CI green on all five jobs (Ubuntu x3 on Python 3.10/3.12/3.14, macOS, Windows) at commit `79cfe3d`; re-confirm after each push before tagging (see the release rule in the 5.13 section). `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
 | HTML dashboard renderer | **Implemented and tested** — `renderers/html.py`, self-contained single file (inline CSS, no external assets), dark-mode, collapsible `<details>` sections, properly HTML-escaped |
 | PDF / SARIF renderers | **Implemented and tested** — `renderers/sarif.py` (valid SARIF 2.1.0 JSON: secret findings as located errors, TODOs as located notes, tool warnings/errors unlocated). `renderers/pdf.py` shells out to an installed `wkhtmltopdf`/`weasyprint` on the HTML renderer's output rather than adding a heavy Python PDF dependency — gates cleanly with a fix-it message if neither is present. Verified end-to-end: real PDF produced (`%PDF-1.4` magic bytes, 42 KB) via `wkhtmltopdf` |
 | Incremental scan cache | **Implemented and tested** — opt-in via `--cache` (deliberately NOT default; see the rationale in Phase E notes below and §4.8). Scoped to the Python side only: skips re-scanning TODOs/secrets in files whose content hash is unchanged since the last `--cache` run for the same project; does not change how `walker.rs` itself works. Cache lives under the *output* dir (`.sarand-cache/`), never inside the scanned project. Auto-invalidates if the detection rules themselves change (`rules_fingerprint`). `--clear-cache` wipes it. Verified end-to-end on a real 3-run sequence: cold run, warm run (byte-identical report, confirmed via matching SHA256), and a changed-file run that correctly found a newly added FIXME marker while still skipping the untouched file |
-| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 32 analyzers total (Markdown added in the P0 round, Assembly in §5.17).** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
+| Additional language analyzers (C/C++, Java/Kotlin, Android, Zig, Dart, Ruby, PHP, Lua, Swift, C#, TypeScript, CSS, SQL, Kotlin, Shell, YAML, JSON, TOML, XML, R, Perl, Julia, Objective-C, Groovy, PowerShell, Nix) | **All implemented and tested — 40 analyzers total (Markdown added in the P0 round, Assembly in §5.17, eight more in §5.18).** C/C++, Java/Kotlin, Android landed first (Phase C); Lua, Ruby, PHP, Dart/Flutter, TypeScript, CSS, Zig, Swift, SQL, Kotlin, C#, Shell, and the YAML/JSON/TOML/XML format analyzers (§5.4) landed in the first post-§4 round; R, Perl, Julia, Objective-C, Groovy, PowerShell, and Nix landed in a second round (§5.8) — see §5 for the conventions established along the way (bundler-wrapped-tool pattern, complementary-match analyzers, honest-empty precedent, format-analyzer category). Full roster in §5.6/§5.9 |
 | Packaging (pipx, Docker, AUR, Homebrew, deb/rpm, standalone binary) | **pipx: implemented and confirmed** — `pipx install ~/sarand` builds the Rust extension inside pipx's isolated venv and installs cleanly; `sarand --doctor` confirmed "Rust core: compiled and loaded" post-install, no manual venv/PATH steps needed. `install.sh` added (§4.13) so upgrading an existing pipx install actually picks up new code — a raw `pipx install` over a stale copy silently doesn't, since pipx installs aren't editable by default. LICENSE (MIT) and full `pyproject.toml` metadata (classifiers, keywords) added. **AUR: `pkgs/aur/PKGBUILD` written**, not yet verified with a real `makepkg -si` in a clean chroot (see Phase F, still open). Docker/Homebrew/deb/rpm/binary: not started |
 | Report replacement (§4.13) | **Implemented and tested** — `cli.py::remove_previous_report` explicitly checks for, removes, and announces a previous report (+ its `.sha256`) at the exact output path before writing a new one, for the same "check, remove, announce, create fresh" reason as `install.sh` |
 | `--full` flag | **Implemented and tested — completeness gaps found and fixed 2026-09-18.** Forces `--quality`+`--security` on and removes the file-size/tree-depth/tree-entry truncation limits (raised to effectively-unlimited sentinel values), while still letting an explicit `--max-depth`/`--max-entries`/`--max-file-size` win over `--full`'s own defaults. An external audit of a real `--full` report found this description was not the whole truth: the **rendering layer** ignored `--full` entirely — a *passing* tool's output was always cut to an 80-line tail (raw output only shown on FAIL), issue lists capped at 500 rows and TODOs at 100 regardless of `--full`, and **`--format json` never embedded source code at all** (`include_source` was accepted in the signature and silently never read — the one format most likely to be piped straight into another AI's context had zero source, full stop). All four fixed: `config.full` is now stored on `SarandConfig` and threaded into every renderer as `full_output`; JSON gained a real `source_files: [{path, size, content}]` array; markdown/html now show a passing tool's full raw output and uncap issues/TODOs under `--full`. See §5.10 for what's still open (git history/contributor/hotspot depth) |
@@ -1576,3 +1576,58 @@ table (23 sites). `FURB167` — write `re.MULTILINE`, not `re.M`. `FLY002` —
 no `"\n".join([literal, literal])`. For big literal fixtures prefer a
 triple-quoted string over concatenated pieces. Ruff's effective rule set is
 still not pinned in the repo (§5.15 item 7).
+
+### 5.18 — Review of `sarand --doctor` and the Tier-1 ecosystems (2026-09-20)
+
+CI is green on all five jobs at `79cfe3d` (assembly detection included). The
+maintainer pasted the `sarand --doctor` output together with an outside
+review of it. What was taken, adjusted or refused, and why:
+
+- **"Assembly is missing from `--doctor`" — refused as a defect.** `--doctor`
+  lists *external tools*; the Assembly analyzer runs none (§5.17), so it has
+  no row by design, and adding `nasm`/`as` would tell users sarand uses
+  them. It is visible in the new coverage matrix as "detection only". (The
+  review also suggested the installed copy might predate the change. That is
+  the real caveat: `pipx install` does **not** refresh an existing
+  installation, `./install.sh` does — see the README's install section.)
+- **Tier 1 implemented**: Haskell (`stack`/`cabal` tests, `hlint`), Elixir
+  (`mix test`, `mix format --check-formatted`, `mix hex.audit`; Credo and
+  MixAudit only when `mix.exs` names them), Erlang (`rebar3 eunit`, `rebar3
+  xref`), Scala (`sbt -batch test`; `scalafmtCheckAll` only when
+  `project/plugins.sbt` names `sbt-scalafmt`), Dockerfile (`hadolint`), GitHub
+  Actions (`actionlint`, given explicit workflow paths), Terraform
+  (`terraform fmt -check`, `tflint`; **never** `init`/`plan`/`apply`),
+  Protobuf (`buf lint`). Deviations from the review: **Protobuf uses `buf`, not
+  `protoc`** (protoc compiles but cannot lint); **Erlang does not run
+  Dialyzer** (its first run builds a PLT of all of OTP, minutes long, and
+  would make a scan unpredictable); the plugin-based checks are gated so the
+  report never blames a project for a check it never adopted (the same rule as
+  RuboCop under Bundler). They share `analyzers/_tooling.py` (`run_tool`,
+  which returns a *skipped* result when the binary is missing).
+- **Tier 2/3 deferred, on purpose** (Fortran, OCaml, Clojure, Nim, Crystal, D,
+  F#, V, GraphQL, Kubernetes manifests): the review itself said not to add
+  languages just to raise the count. Kubernetes has no unambiguous root marker
+  (any YAML with `apiVersion`/`kind`) and needs schemas; that needs a design
+  before code.
+- **"Build the matrix first" — done**: `core/coverage.py` derives
+  Language → Tests/Quality/Security/Tools/Build tools from the real sources
+  (an `ast` read of each analyzer, the doctor catalog, the project markers)
+  and writes `docs/COVERAGE.md`; `tests/test_coverage.py` fails when the
+  file is stale, when an analyzer is not classified, or when a doctor category
+  belongs to no analyzer. Read it before adding another ecosystem.
+- **The supply-chain gap is real**: syft produces an SBOM, not vulnerability
+  findings. Its `--doctor` text now says so (and that a `.sarand.toml` license
+  policy makes it fail on a violation). A multi-ecosystem vulnerability scanner
+  (`osv-scanner` or `grype`) is the natural next step, **but its command line
+  differs between major versions and could not be checked here**: get
+  `osv-scanner --help` (and `--version`) from the maintainer's machine first.
+- **Kept and tested**: "a missing tool is not a broken sarand" — every new
+  analyzer has a test that all its tools skip cleanly when absent.
+
+New project markers/entry points: `stack.yaml`, `cabal.project`, `mix.exs`,
+`rebar.config`, `build.sbt` (`constants.py`). The infrastructure formats
+(Dockerfile, GitHub Actions, Terraform, Protobuf) are analyzer-only like YAML
+and JSON: they do not become a project's primary language. **Not verified**:
+none of the eight tools was run for real (the build sandbox has none of them);
+the exact command lines are from each tool's documentation and are tested only
+as recorded commands. Expect to fix an option or two on first real use.

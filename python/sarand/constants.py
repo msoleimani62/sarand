@@ -202,6 +202,11 @@ PROJECT_MARKERS: dict[str, tuple[str, str, str]] = {
     "DESCRIPTION": ("R", "package", "renv (optional)"),
     "cpanfile": ("Perl", "application/module", "cpanm"),
     "Project.toml": ("Julia", "package", "Pkg"),
+    "stack.yaml": ("Haskell", "application/library", "stack"),
+    "cabal.project": ("Haskell", "application/library", "cabal"),
+    "mix.exs": ("Elixir", "application/library", "mix"),
+    "rebar.config": ("Erlang", "application/library", "rebar3"),
+    "build.sbt": ("Scala", "application/library", "sbt"),
 }
 
 ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
@@ -221,6 +226,10 @@ ENTRY_POINT_CANDIDATES: dict[str, tuple[str, ...]] = {
     "R": ("R/main.R", "main.R", "app.R"),
     "Perl": ("bin/app.pl", "script/app.pl", "main.pl"),
     "Julia": ("src/main.jl", "main.jl"),
+    "Haskell": ("app/Main.hs", "Main.hs", "src/Main.hs"),
+    "Elixir": ("mix.exs", "config/config.exs"),
+    "Erlang": ("rebar.config", "src"),
+    "Scala": ("build.sbt", "src/main/scala"),
 }
 
 # Filename patterns that must NEVER be embedded in a generated report,

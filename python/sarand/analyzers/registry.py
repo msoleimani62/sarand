@@ -31,8 +31,13 @@ from sarand.analyzers.cpp_analyzer import CppAnalyzer
 from sarand.analyzers.csharp_analyzer import CSharpAnalyzer
 from sarand.analyzers.css_analyzer import CssAnalyzer
 from sarand.analyzers.dart_analyzer import DartAnalyzer
+from sarand.analyzers.dockerfile_analyzer import DockerfileAnalyzer
+from sarand.analyzers.elixir_analyzer import ElixirAnalyzer
+from sarand.analyzers.erlang_analyzer import ErlangAnalyzer
+from sarand.analyzers.github_actions_analyzer import GitHubActionsAnalyzer
 from sarand.analyzers.go_analyzer import GoAnalyzer
 from sarand.analyzers.groovy_analyzer import GroovyAnalyzer
+from sarand.analyzers.haskell_analyzer import HaskellAnalyzer
 from sarand.analyzers.java_analyzer import JavaAnalyzer
 from sarand.analyzers.json_analyzer import JsonAnalyzer
 from sarand.analyzers.julia_analyzer import JuliaAnalyzer
@@ -45,13 +50,16 @@ from sarand.analyzers.objectivec_analyzer import ObjectiveCAnalyzer
 from sarand.analyzers.perl_analyzer import PerlAnalyzer
 from sarand.analyzers.php_analyzer import PhpAnalyzer
 from sarand.analyzers.powershell_analyzer import PowerShellAnalyzer
+from sarand.analyzers.protobuf_analyzer import ProtobufAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
 from sarand.analyzers.r_analyzer import RAnalyzer
 from sarand.analyzers.ruby_analyzer import RubyAnalyzer
 from sarand.analyzers.rust_analyzer import RustAnalyzer
+from sarand.analyzers.scala_analyzer import ScalaAnalyzer
 from sarand.analyzers.shell_analyzer import ShellAnalyzer
 from sarand.analyzers.sql_analyzer import SqlAnalyzer
 from sarand.analyzers.swift_analyzer import SwiftAnalyzer
+from sarand.analyzers.terraform_analyzer import TerraformAnalyzer
 from sarand.analyzers.toml_analyzer import TomlAnalyzer
 from sarand.analyzers.typescript_analyzer import TypeScriptAnalyzer
 from sarand.analyzers.xml_analyzer import XmlAnalyzer
@@ -83,6 +91,14 @@ _BUILTIN: list[LanguageAnalyzer] = [
     CssAnalyzer(),
     ZigAnalyzer(),
     AssemblyAnalyzer(),
+    HaskellAnalyzer(),
+    ElixirAnalyzer(),
+    ErlangAnalyzer(),
+    ScalaAnalyzer(),
+    DockerfileAnalyzer(),
+    GitHubActionsAnalyzer(),
+    TerraformAnalyzer(),
+    ProtobufAnalyzer(),
     SwiftAnalyzer(),
     # ObjectiveCAnalyzer right after SwiftAnalyzer: same
     # complementary-match shape as TypeScriptAnalyzer/NodeAnalyzer
@@ -161,6 +177,11 @@ _BUILTIN: list[LanguageAnalyzer] = [
     # تنها چیزی است که تا به‌حال قرار است آن را لینت کند.
     MarkdownAnalyzer(),
 ]
+
+
+def builtin_analyzers() -> list[LanguageAnalyzer]:
+    """The analyzers that ship with sarand (no third-party plugins)."""
+    return list(_BUILTIN)
 
 
 def discover_analyzers() -> list[LanguageAnalyzer]:

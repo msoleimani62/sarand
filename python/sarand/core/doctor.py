@@ -305,6 +305,79 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "--quality",
     ),
     (
+        "Haskell",
+        "stack",
+        "https://docs.haskellstack.org/en/stable/install_and_upgrade/",
+        "running tests (when the project has a stack.yaml)",
+    ),
+    (
+        "Haskell",
+        "cabal",
+        "https://www.haskell.org/cabal/",
+        "running tests (Cabal projects, no stack.yaml)",
+    ),
+    (
+        "Haskell",
+        "hlint",
+        "cabal install hlint (or `stack install hlint`)",
+        "--quality",
+    ),
+    (
+        "Elixir",
+        "mix",
+        "install Elixir: https://elixir-lang.org/install.html",
+        (
+            "running tests / --quality (mix format; Credo only when mix.exs "
+            "depends on it) / --security (mix hex.audit; MixAudit only when "
+            "mix.exs depends on it)"
+        ),
+    ),
+    (
+        "Erlang",
+        "rebar3",
+        "https://rebar3.org/docs/getting-started/",
+        "running tests (EUnit) / --quality (xref)",
+    ),
+    (
+        "Scala",
+        "sbt",
+        "https://www.scala-sbt.org/download.html",
+        (
+            "running tests / --quality (scalafmtCheckAll, only when "
+            "project/plugins.sbt names sbt-scalafmt)"
+        ),
+    ),
+    (
+        "Dockerfile",
+        "hadolint",
+        "https://github.com/hadolint/hadolint (or `brew install hadolint`)",
+        "--quality (Dockerfile lint)",
+    ),
+    (
+        "GitHub Actions",
+        "actionlint",
+        "https://github.com/rhysd/actionlint (or `brew install actionlint`)",
+        "--quality (workflow lint)",
+    ),
+    (
+        "Terraform",
+        "terraform",
+        "install Terraform: https://developer.hashicorp.com/terraform/install",
+        "--quality (terraform fmt -check; never init/plan/apply)",
+    ),
+    (
+        "Terraform",
+        "tflint",
+        "https://github.com/terraform-linters/tflint (or `brew install tflint`)",
+        "--quality",
+    ),
+    (
+        "Protobuf",
+        "buf",
+        "https://buf.build/docs/cli/installation/ (or `brew install bufbuild/buf/buf`)",
+        "--quality (buf lint)",
+    ),
+    (
         "Supply chain",
         "gitleaks",
         "https://github.com/gitleaks/gitleaks#installing",
@@ -317,9 +390,21 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "Supply chain",
         "syft",
         "https://github.com/anchore/syft#installation",
-        "--security (project-wide SBOM -- informational, not pass/fail)",
+        (
+            "--security (project-wide SBOM and license summary -- informational "
+            "unless the project has a .sarand.toml license policy, which then "
+            "fails the check on a violation)"
+        ),
     ),
 )
+
+
+def tool_catalog() -> tuple[tuple[str, str, str, str], ...]:
+    """(category, binary, install hint, what it is used for) for every tool
+    sarand can drive -- the static part of `--doctor`, independent of what
+    happens to be installed on this machine."""
+    return _TOOL_CHECKS
+
 
 _CATEGORY_ORDER = (
     "Python",
@@ -352,6 +437,14 @@ _CATEGORY_ORDER = (
     "Groovy",
     "PowerShell",
     "Nix",
+    "Haskell",
+    "Elixir",
+    "Erlang",
+    "Scala",
+    "Dockerfile",
+    "GitHub Actions",
+    "Terraform",
+    "Protobuf",
     "Supply chain",
     "PDF export",
 )

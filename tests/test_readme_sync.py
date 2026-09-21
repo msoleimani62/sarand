@@ -24,6 +24,7 @@ _READMES = (_ROOT / "README.md", _ROOT / "README.fa.md")
 # instructions, or that argparse adds on its own.
 # گزینه‌های بلندی که مال ابزارهای دیگرند (pip، maturin) یا argparse خودش
 # اضافه می‌کند.
+_NOT_ECOSYSTEMS = {"Supply chain", "PDF export"}
 _FOREIGN_OPTIONS = {"--break-system-packages", "--user", "--release", "--help"}
 
 
@@ -82,3 +83,23 @@ def test_the_readmes_link_each_other_and_their_assets() -> None:
         for target in ("assets/banner.svg", "LICENSE", "docs/RC-AI-RECEIVER.md"):
             assert target in text
             assert (_ROOT / target).is_file(), f"{target} is linked but missing"
+
+
+def test_every_ecosystem_sarand_can_drive_is_listed_in_both_readmes() -> None:
+    from sarand.core.doctor import tool_catalog
+
+    categories = {category for category, _bin, _hint, _use in tool_catalog()}
+    for readme in _READMES:
+        text = readme.read_text(encoding="utf-8")
+        missing = sorted(
+            category
+            for category in categories - _NOT_ECOSYSTEMS
+            if f"| {category} |" not in text
+        )
+        assert missing == [], f"{readme.name} does not list: {missing}"
+
+
+def test_the_readmes_link_the_coverage_matrix() -> None:
+    for readme in _READMES:
+        assert "docs/COVERAGE.md" in readme.read_text(encoding="utf-8")
+    assert (_ROOT / "docs" / "COVERAGE.md").is_file()

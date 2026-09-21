@@ -42,7 +42,7 @@ sarand یک پروژه را اسکن می‌کند، می‌فهمد چه نوع
     <td width="50%" valign="top"><b>ساخته‌شده برای هوش مصنوعی</b><br>خلاصه‌ی هوش مصنوعی و ترتیب پیشنهادی مطالعه هم دارد، تا مدل بداند از کجا شروع کند.</td>
   </tr>
   <tr>
-    <td valign="top"><b>۳۲ آنالایزر برای زبان و فرمت</b><br>Python، Rust، Go، Node.js، TypeScript، C/C++‎، Java، Kotlin، Android، C#‎، Swift، PHP، Ruby، Lua، Dart، Zig، shell، SQL، Nix و بیشتر، به‌علاوه‌ی YAML، JSON، TOML، XML و Markdown.</td>
+    <td valign="top"><b>۴۰ آنالایزر برای زبان و فرمت</b><br>Python، Rust، Go، Node.js، TypeScript، C/C++‎، Java، Kotlin، Android، C#‎، Swift، PHP، Ruby، Lua، Dart، Zig، Haskell، Elixir، Erlang، Scala، shell، SQL، Nix، اسمبلی (با گویش آن) و بیشتر، به‌علاوه‌ی Dockerfile، GitHub Actions، Terraform، Protobuf، YAML، JSON، TOML، XML و Markdown. <a href="docs/COVERAGE.md">ماتریس پوشش</a> را ببین.</td>
     <td valign="top"><b>به‌طور پیش‌فرض امن</b><br>فایل‌هایی که راز (secret) دارند و فایل‌های شبیه اعتبارنامه وارد گزارش نمی‌شوند. با <code>--security</code> تاریخچه‌ی git هم اسکن می‌شود.</td>
   </tr>
   <tr>
@@ -174,6 +174,14 @@ sarand ابزارهای استاندارد هر اکوسیستم را اجرا �
 | Groovy | کیفیت: `codenarc` |
 | PowerShell | تست: `pwsh` |
 | Nix | تست: `nix` · کیفیت: `nixpkgs-fmt` |
+| Haskell | تست: `stack`، `cabal` · کیفیت: `hlint` |
+| Elixir | تست، کیفیت، امنیت: `mix` (Credo و MixAudit فقط وقتی پروژه به آن‌ها وابسته باشد) |
+| Erlang | تست، کیفیت: `rebar3` (‏EUnit، xref) |
+| Scala | تست: `sbt` · کیفیت: scalafmt از طریق `sbt`، وقتی پروژه از آن استفاده کند |
+| Dockerfile | کیفیت: `hadolint` |
+| GitHub Actions | کیفیت: `actionlint` |
+| Terraform | کیفیت: `terraform fmt`، `tflint` (هرگز init، plan یا apply) |
+| Protobuf | کیفیت: `buf lint` |
 
 **اسمبلی** به هیچ ابزار خارجی نیاز ندارد. sarand فایل‌های `.asm`، `.s`/`.S`، `.nasm`، `.yasm`، `.masm`، `.fasm`، `.a51`، `.a65`، `.a86` و `.z80` را در ریشه‌ی پروژه و پوشه‌های سطح اول `src/`، `asm/`، `boot/`، `kernel/` و `firmware/` می‌شناسد و *گویش* هر فایل را در بخش «Detected project» نام می‌برد: x86 (‏NASM، GNU as با سینتکس AT&T یا Intel، MASM/TASM، FASM؛ ۱۶، ۳۲ یا ۶۴ بیتی)، ARM (‏A32/T32)، AArch64، RISC-V، MIPS، PowerPC، 6502، Z80، AVR، Motorola 68000 و 8051. این یک heuristic شفاف است، نه parser: فایلی که نتواند جایش را پیدا کند به‌جای حدس به‌عنوان `Unidentified` گزارش می‌شود و هیچ چیزی اسمبل یا اجرا نمی‌شود.
 
