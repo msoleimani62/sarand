@@ -6,11 +6,13 @@ import argparse
 import asyncio
 import hashlib
 import os
+import sys
 import time
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
-from sarand import __version__
 from sarand.analyzers.registry import (
     discover_analyzers,
     matching_analyzers,
@@ -28,6 +30,7 @@ from sarand.core.cache import (
     reconstruct_todos,
     save_cache,
 )
+from sarand.core.estimate import estimate_source_bytes, size_advice
 from sarand.core.gitleaks import run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
@@ -39,13 +42,19 @@ from sarand.models.results import ReportData
 from sarand.progress import error, status, success, warning
 from sarand.renderers import html, json_renderer, markdown, sarif, text
 from sarand.rust_bridge import RUST_CORE_AVAILABLE, build_tree_text, scan_project
-from sarand.scanners.environment import collect_environment_info
+from sarand.scanners.environment import (
+    available_memory_bytes,
+    collect_environment_info,
+)
 from sarand.scanners.essential_files import collect_essential_files
 from sarand.scanners.git import collect_git_snapshot
 from sarand.scanners.stats import collect_project_stats
 from sarand.scanners.todos import scan_todos
 from sarand.userconfig import save_persisted_config
+from sarand.utils.fs import human_size
+from sarand.utils.installation import installation_info, stale_note
 from sarand.utils.logging import get_logger, setup_logging
+from sarand.utils.sizes import size_argument
 from sarand.utils.stdio import harden_stdio
 
 logger = get_logger("cli")
@@ -57,6 +66,44 @@ _RENDERERS = {
     "html": html,
     "sarif": sarif,
 }
+
+
+class _VersionAction(argparse.Action):
+    """`--version`: the version, plus a note when the copy that is running is a
+    stale editable install (its recorded version lags the source tree).
+
+    `--version`: نسخه، و اگر نسخه‌ای که اجرا می‌شود یک نصب editable کهنه باشد
+    (نسخه‌ی ثبت‌شده‌اش از سورس عقب مانده) یک یادداشت هم می‌دهد.
+    """
+
+    def __init__(
+        self,
+        option_strings: Sequence[str],
+        dest: str = argparse.SUPPRESS,
+        default: str = argparse.SUPPRESS,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            option_strings=option_strings,
+            dest=dest,
+            default=default,
+            nargs=0,
+            **kwargs,
+        )
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | Sequence[Any] | None,
+        option_string: str | None = None,
+    ) -> None:
+        info = installation_info()
+        print(f"sarand {info.version}")
+        note = stale_note(info)
+        if note:
+            print(note, file=sys.stderr)
+        parser.exit()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -81,7 +128,7 @@ Examples:
         "--output-dir",
         "-d",
         default=None,
-        help="Directory for the report (default: SARAND_OUTPUT_DIR, then the saved config, then ~/Downloads)",
+        help="Directory for the report (default: persisted config, then SARAND_OUTPUT_DIR, then ~/Downloads)",
     )
     parser.add_argument(
         "--output-name",
@@ -159,10 +206,25 @@ Examples:
         "--max-entries", type=int, default=None, help="Maximum entries per tree level"
     )
     parser.add_argument(
+        "--max-file-size",
+        type=size_argument,
+        default=None,
+        metavar="SIZE",
+        help=(
+            "Largest source file to embed, e.g. 512K, 2M, 1G (default: 2M). "
+            "Larger files are listed as skipped. Overrides the no-limit "
+            "behaviour of --full"
+        ),
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose (INFO) logging"
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--version", action="version", version=f"sarand {__version__}")
+    parser.add_argument(
+        "--version",
+        action=_VersionAction,
+        help="Print the version (and warn if this is a stale editable install)",
+    )
     return parser
 
 
@@ -232,6 +294,22 @@ async def run(config: SarandConfig) -> int:
         root, records=records, max_file_size=config.max_file_size
     )
     stats = collect_project_stats(root, records=records)
+
+    # Say up front how much source will be embedded, and warn when that looks
+    # too big for this machine (a 2 GB laptop or a phone can run out of memory
+    # on a large `--full` report). Informational only: never blocks the run.
+    # از همان اول بگو چقدر سورس embed می‌شود و وقتی برای این ماشین زیاد به نظر
+    # برسد هشدار بده (یک لپ‌تاپ ۲ گیگابایتی یا گوشی ممکن است روی یک گزارش
+    # بزرگ `--full` حافظه کم بیاورد). فقط اطلاع‌رسانی: هرگز اجرا را متوقف نمی‌کند.
+    if config.include_source:
+        estimated = estimate_source_bytes(records, included)
+        status(
+            f"Embedding about {human_size(estimated)} of source "
+            f"from {len(included)} file(s)"
+        )
+        advice = size_advice(estimated, available_memory_bytes())
+        if advice:
+            warning(advice)
 
     # Incremental cache (opt-in via --cache, AGENTS.md Phase E): split
     # this run's files into "hash matches last run, reuse cached
@@ -514,7 +592,14 @@ async def run(config: SarandConfig) -> int:
             f"Cache   : {len(cache_hits)} file(s) skipped (unchanged since last --cache run)"
         )
     if data.health:
-        print(f"Health  : {data.health.score}/100 ({data.health.grade})")
+        health_text = f"{data.health.score}/100 ({data.health.grade})"
+        if data.health.checks_skipped:
+            health_text += (
+                f" -- confidence {round(data.health.confidence * 100)}%: "
+                f"{len(data.health.checks_skipped)} check(s) skipped, "
+                "tool not installed"
+            )
+        print(f"Health  : {health_text}")
     print("=" * 60)
     return 0
 

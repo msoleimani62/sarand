@@ -206,6 +206,8 @@ To upgrade after pulling new source, use the installer script instead of a plain
 ./install.sh
 ```
 
+It finishes by printing the version it installed and tells you if a different `sarand` earlier on your `PATH` would still run instead of it.
+
 If pipx itself is missing, install it with your package manager (`sudo pacman -S python-pipx`, `brew install pipx`, `sudo apt install pipx`) or with pip, then reload your shell:
 
 ```bash
@@ -259,10 +261,15 @@ pip install -e .
 | Feed code-scanning tools | `sarand --security --format sarif` |
 | Leave the source out of the report | `sarand --no-source` |
 | Choose the output folder once | `sarand --set-output-dir ~/ai-reports` |
+| Cap the size of each embedded file | `sarand --full --max-file-size 1M` |
 | Speed up repeat runs | `sarand --cache` |
 | Check the environment | `sarand --doctor` |
 
-`--full` is shorthand for "give me everything": it turns on `--quality` and `--security` and removes the limits on file size, tree depth and tree entries. A `--max-depth` or `--max-entries` you pass yourself still wins.
+`--full` is shorthand for "give me everything": it turns on `--quality` and `--security` and removes the limits on file size, tree depth and tree entries. A `--max-depth`, `--max-entries` or `--max-file-size` you pass yourself still wins.
+
+### Large projects and small devices
+
+Before it renders anything, sarand tells you how much source it is about to embed (`Embedding about 12.4 MiB of source from 163 file(s)`) and warns when that looks too large for the memory this machine has free. A complete `--full` report of a big project can be slow, or run out of memory, on a phone or a 2 GB laptop; the warning never blocks the run. To get a lighter report, use `--no-source`, lower `--max-file-size` (the default is 2M; `--full` removes it), or leave `--full` out.
 
 Running sarand again on the same project replaces its previous report at that path and says so, so reports never pile up under one filename.
 
@@ -285,13 +292,14 @@ Running sarand again on the same project replaces its previous report at that pa
 | `--full` | `--quality` + `--security` + no truncation limits |
 | `--max-depth N` | Maximum project tree depth |
 | `--max-entries N` | Maximum entries per tree level |
+| `--max-file-size SIZE` | Largest source file to embed, for example `512K`, `2M` or `1G` (default `2M`; larger files are listed as skipped). Overrides the no-limit behaviour of `--full` |
 | `--no-source` | Do not embed file contents |
 | `--no-health` | Skip the health score |
 | `--cache` | Skip re-scanning TODOs and secrets in files unchanged since the last `--cache` run |
 | `--clear-cache` | Delete this project's scan cache and exit |
 | `--doctor` | Diagnose the environment and exit |
 | `-v, --verbose` / `--debug` | More logging |
-| `--version` | Print the version and exit |
+| `--version` | Print the version and exit; warns when the running copy is a stale editable install |
 
 </details>
 
@@ -350,6 +358,8 @@ The score is transparent and adds up to 100:
 | Clean git state | 10 |
 
 Grades: **A** 90 and above, **B** 80, **C** 70, **D** 60, **F** below 60.
+
+A score is only as trustworthy as the checks behind it, so the report also says how many checks actually ran. A check whose tool is not installed is skipped, and a skipped check proves nothing: when any were skipped, the Health section lists how many ran and how many did not, gives a **confidence** percentage, and names the tools to install. A security run in which every check was skipped no longer earns the full security points.
 
 ## Configuration
 
@@ -428,7 +438,7 @@ python3 -m sarand.device_report.command --full -o ~/device-report.md
 
 ### Built-in diagnostics
 
-`sarand --doctor` checks the Rust core, your Python version, every per-language tool and the PDF engines. Each line says whether the tool is present and, if it is not, the exact command that installs it. A missing tool is informational; only an unsupported Python version fails the command. Every command above also answers to `--help`.
+`sarand --doctor` checks the Rust core, your Python version, every per-language tool and the PDF engines. Each line says whether the tool is present and, if it is not, the exact command that installs it. A missing tool is informational; only an unsupported Python version fails the command. `sarand --doctor` also shows which copy of sarand is running (its version, where it lives, whether it is an editable development install) and warns when a second copy on your `PATH` shadows it or when an editable install lags behind its source tree. Every command above also answers to `--help`.
 
 ### Add a language with a plugin
 
@@ -442,6 +452,15 @@ zig = "sarand_zig_plugin:ZigAnalyzer"
 sarand finds it and runs it alongside the built-in analyzers.
 
 ## Troubleshooting
+
+<details>
+<summary><b><code>sarand --version</code> shows an old version right after installing</b></summary>
+
+<br>
+
+Another copy of sarand comes first on your `PATH`, typically a development virtualenv that is still active, and it shadows the one pipx just installed. `./install.sh` names both copies when this happens, and `sarand --doctor` lists them. Run `deactivate` (or remove the old copy) and then `hash -r`. If it is a development install whose recorded version lags the source, `maturin develop --release` refreshes it.
+
+</details>
 
 <details>
 <summary><b><code>sarand: command not found</code></b></summary>

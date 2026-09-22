@@ -152,6 +152,16 @@ def _memory_reading() -> _MemoryReading | None:
     return reading
 
 
+def available_memory_bytes() -> int | None:
+    """Free memory in bytes, or None when this system does not report it.
+
+    Uses the same per-platform reading as the report's Environment section
+    (/proc/meminfo, Windows API, macOS vm_stat).
+    """
+    reading = _memory_reading()
+    return None if reading is None else reading[0]
+
+
 def _memory_summary() -> str:
     reading = _memory_reading()
     if reading is None:

@@ -411,7 +411,7 @@ code does not actually pick up the changes without an uninstall first).
 | Persisted output-dir config | Implemented (`sarand --set-output-dir`, OS-appropriate path) |
 | Markdown / JSON / text renderers | Implemented |
 | Health score engine | Implemented (tests/quality/security/git/code/tooling breakdown) |
-| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, confirmed 618; the `/tmp` guard round adds 1, confirmed 619; the assembly round adds 34, confirmed 653 with all five CI jobs green; the §5.18 round adds 43, confirmed 696 with `ruff`/`mypy` clean; the doctor-visibility fix adds 2, confirmed 698; the `install.sh` fix adds 6 (703 passed and the one signal-based test timed out on the phone, so it was replaced); the final install-script suite has 9 tests, expected 707 — re-confirm), covering every analyzer/renderer/core module added through §5. CI green on all five jobs (Ubuntu x3 on Python 3.10/3.12/3.14, macOS, Windows) at commit `79cfe3d`; re-confirm after each push before tagging (see the release rule in the 5.13 section). `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
+| Automated test suite (pytest) | **Implemented and confirmed — 565 tests passing on-device** (`pytest -q`, 2026-09-20, after the §5.12 follow-up on top of v0.5.0; the §5.13 round adds 9 more, confirmed 574; the README round adds 4 more, confirmed 578; the memory-reporting round adds 12, confirmed 590; the hang-fix round adds 1, confirmed 591; the license-policy round adds 26, confirmed only up to the ruff step (its `ruff check` stopped the chain); the Windows-portability round adds 1 more, confirmed 618; the `/tmp` guard round adds 1, confirmed 619; the assembly round adds 34, confirmed 653 with all five CI jobs green; the §5.18 round adds 43, confirmed 696 with `ruff`/`mypy` clean; the doctor-visibility fix adds 2, confirmed 698; the `install.sh` fix adds 6, confirmed 707; the §5.20 round (report-size guard, health-check transparency, installation diagnostics, README rewrite) adds 47, expected 754 — re-confirm), covering every analyzer/renderer/core module added through §5. CI green on all five jobs (Ubuntu x3 on Python 3.10/3.12/3.14, macOS, Windows) at commit `79cfe3d`; re-confirm after each push before tagging (see the release rule in the 5.13 section). `pytest` runs everything by default (no `addopts` filtering, §4.8); use `pytest -m "not slow_external"` for a fast local-iteration subset. Two lasting lessons from this project's test-bug history: (1) don't hardcode a "tool not installed" assumption in a test — branch on `shutil.which(...)` (Phase B); (2) don't fake a platform-specific mechanism (env var, well-known dir) — monkeypatch the function that reads it directly, or the test only really runs on whichever OS wrote it (Phase G) |
 | `--security` checks | **Implemented and tested** — per-language `run_security` (pip-audit + bandit / cargo-audit / govulncheck / npm audit), all gated on real markers + toolchain presence, run concurrently via `run_security_concurrently` |
 | Secrets exclusion from reports (§4.10) | **Implemented and tested** — filename-based exclusion (`.pem`, `.env*`, `id_rsa`, service-account JSON, ...) always on; content-based regex scan (`core/secrets.py`) always on; any file with a content-level finding is moved out of the source-embed list entirely (`exclude_flagged_files`), not just flagged — regression-tested end-to-end (`tests/test_secrets.py::test_end_to_end_flagged_file_content_never_reaches_markdown_report`) |
 | `sarand doctor` command (§4.11) | **Implemented, tested, and redesigned for readability** — `sarand --doctor` (flag, not a subcommand — see Phase C note below): checks Python version (critical), Rust core, persisted config, and 15 tool binaries, now grouped into two `rich.table.Table`s (Core, then per-language tools) inside `rich.panel.Panel`s instead of a flat list — a maintainer read the flat version as "many things sarand doesn't support" rather than "optional external tools you can install if you use that language"; each row now states explicitly what it's used for (e.g. "--security", "Gradle & Android projects"). Real `rich` isn't available in the build sandbox, so the visual result is unverified by the assistant — confirm it looks right on-device |
@@ -1682,3 +1682,95 @@ maintainer's phone ran the new GitHub Actions analyzer against a real
 tools confirmed with the real binary (the command form is right). The other
 seven (`stack`, `cabal`, `hlint`, `mix`, `rebar3`, `sbt`, `hadolint`,
 `terraform`, `tflint`, `buf`) are still unverified.
+
+### 5.20 — Outside review: report size, health transparency, install confusion, README bidi (2026-09-21)
+
+CI green on all five jobs, `a1c71b4` (Assembly visible in `--doctor`,
+confirmed on-device). The maintainer forwarded a structured outside review
+of the whole project plus a live symptom from their own terminal, and
+disagreed with one part of the review (see below). What was built:
+
+**Report size, made visible, not newly limited.** The review's core
+argument — a `--full` report of a real project can exceed the memory of a
+2 GB laptop or a 6 GB phone, and there was no warning before the crash —
+is correct and was not previously handled. `--max-file-size SIZE` (`512K`,
+`2M`, `1G`; default `2M`, parsed in `utils/sizes.py`) caps any one embedded
+file and, unlike `--max-depth`/`--max-entries`, is **not** cleared by
+`--full` unless given explicitly, because a single huge generated file
+(a lockfile, a bundle) has historically been the actual cause of report
+bloat, not file count. Before rendering, `core/estimate.py` sums the size
+of every file that will be embedded, prints
+`Embedding about N of source from M file(s)`, and — reading the same
+per-platform memory figure as the Environment section — warns when that
+total exceeds 50 MiB or a quarter of free memory. It is advice only: sarand
+runs unattended in CI, so it never asks a question or blocks the run,
+exactly as the maintainer's own proposal specified.
+
+**Health score transparency.** The review's sharpest point: a check whose
+tool is not installed is skipped, not failed, so a project with half its
+security tools missing could still show a clean score — the score looked
+more certain than the checks behind it. `HealthScore` now carries
+`checks_run`, `checks_skipped` (by tool name) and `confidence` (ran /
+(ran + skipped)); a security category where *every* check was skipped
+drops from 15 to 8 points instead of the full 15 (some skipped, some
+clean, still scores 15 — only *total* silence is penalized). All four
+renderers and the CLI summary show a "Check coverage: N ran, M skipped,
+confidence X%" line, but **only when something was actually skipped** —
+an unremarkable report stays unremarkable.
+
+**Refused, then accepted: a live symptom, not covered by the review
+itself.** The maintainer's own terminal showed `installed package sarand
+0.5.1` immediately followed by `sarand 0.1.5` — pipx had just installed
+0.5.1, but the shell ran a stale `.venv` editable install instead. Cause:
+several sarand installations can exist on one machine, which one runs
+depends on `PATH` order, and an editable install's recorded version does
+not follow the source tree. Fixed with real, verified logic (not a lint
+rule): `utils/installation.py` compares an editable install's recorded
+version against `[project] version` in its own source `pyproject.toml`
+and walks `PATH` (resolving symlinks, so pipx's own venv-into-`~/.local/bin`
+link is not flagged as "another" copy) for a **different** `sarand`
+executable. `--version` now warns to stderr when the running copy is a
+stale editable install; `--doctor` gets an "Installation" row (the running
+copy, editable or not, and whether it is stale) and an "Other sarand on
+PATH" row naming every shadowing copy with its own `--version` output.
+`install.sh` verifies its own result: after a successful build it asks the
+`pipx`-installed copy directly for its version (not "whatever `sarand`
+answers first"), and warns by name if a different copy earlier on `PATH`
+would still run instead.
+
+**README: disagreed with the review, on purpose.** The review's own
+alternative take called the README's Persian prose "very literal, machine
+translated". The maintainer's answer, followed here: keep the README
+long and exhaustive — cutting content was never the ask — but write the
+Persian side as Persian, not as a sentence-by-sentence mirror of the
+English one. `README.fa.md` was rewritten prose-first from the same
+information (sentences reordered and merged in the ways Persian
+technical writing actually reads, not just word-substituted), with three
+mechanical rules applied throughout: (1) every code block, inline command
+and file path sits inside `<div dir="ltr">…</div>`, since Latin text and
+punctuation inside an RTL paragraph otherwise reorders unpredictably;
+(2) a Latin token or `code span` is never followed directly by Persian
+text inside the same parenthetical — split into two clauses or reworded
+instead of `مثل X (که Y است)`; (3) all half-space (ZWNJ) compounds
+(`می‌کند`, `پیش‌فرض`, `فایل‌ها`, …) are checked, not just typed once and
+copied. **Not automatically verified**: no browser or phone was available
+to render the result; the maintainer should look at both the RTL flow and
+the LTR code islands on GitHub, on a phone and on a desktop, exactly as
+asked after the first README round in §4.12, which this addresses.
+
+**Review points read and deliberately deferred** (recorded here so they
+are not silently dropped): analyzer depth is uneven across ecosystems by
+design (§5.18's Tier system) — Kubernetes/Helm, Docker Compose, and a
+bare Makefile without another build marker are real, common gaps the
+review is right about and are not yet designed; a pure-Python fallback
+speed pass, real large-project testing on the maintainer's own low-RAM
+Termux device, `--ai-model-hint` output profiles, monorepo/workspace
+awareness, and publishing to the AUR and PyPI are all still open and
+ranked in §5.15/§5.18's numbered lists, not duplicated here.
+
+`CHANGELOG.md` was added (Keep a Changelog style, newest first, covering
+`v0.4.0` through the pending `v0.6.0`) and is linked from both READMEs'
+Contributing section. **Not verified**: none of the eight §5.18 tool
+integrations beyond `actionlint` has been run for real; the installation
+diagnostics were tested with fake `pipx`/`PATH` fixtures, not a real
+multi-install machine.

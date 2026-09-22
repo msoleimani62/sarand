@@ -164,6 +164,15 @@ class HealthScore:
     breakdown: dict[str, float] = field(default_factory=dict)
     recommendations: list[str] = field(default_factory=list)
     critical_failures: list[str] = field(default_factory=list)
+    # How much of the score rests on checks that really ran. A check whose
+    # tool is not installed is skipped, and a skipped check proves nothing:
+    # `checks_skipped` names them, `confidence` is ran / (ran + skipped).
+    # چه مقدار از امتیاز روی چک‌هایی است که واقعاً اجرا شده‌اند. چکی که ابزارش
+    # نصب نیست رد می‌شود و چک ردشده چیزی ثابت نمی‌کند: `checks_skipped` اسم
+    # آن‌ها را می‌آورد و `confidence` برابر ran / (ran + skipped) است.
+    checks_run: int = 0
+    checks_skipped: list[str] = field(default_factory=list)
+    confidence: float = 1.0
 
 
 @dataclass

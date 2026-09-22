@@ -140,10 +140,41 @@ main() {
     rm -rf "$BACKUP_DIR"
     STATE=idle
     echo "==> Done."
-    if command -v sarand >/dev/null 2>&1; then
-        sarand --version
+    verify_installed
+}
+
+# Report what was just installed -- by asking the pipx copy directly, not
+# whatever `sarand` happens to come first on PATH -- and say so if a different
+# copy shadows it. Without this, a stale development virtualenv earlier on PATH
+# makes `sarand --version` print the OLD version right after a successful
+# install, which looks like a failed upgrade.
+# آنچه تازه نصب شد را گزارش می‌کند -- با پرسیدن مستقیم از نسخه‌ی pipx، نه هر
+# `sarand` ی که اول PATH باشد -- و اگر نسخه‌ی دیگری روی آن سایه انداخته باشد
+# همین را می‌گوید. بدون این، یک virtualenv توسعه‌ی کهنه‌ی جلوتر در PATH باعث
+# می‌شود `sarand --version` درست بعد از یک نصب موفق نسخه‌ی *قدیمی* را نشان بدهد،
+# که شبیه به‌روزرسانی ناموفق به نظر می‌رسد.
+verify_installed() {
+    local bin_dir="${PIPX_BIN_DIR:-$HOME/.local/bin}"
+    local installed="$bin_dir/sarand"
+    local installed_version="" first_on_path="" shadow_version=""
+
+    if [ -x "$installed" ]; then
+        installed_version="$("$installed" --version 2>/dev/null | head -n 1 || true)"
+        echo "==> Installed: ${installed_version:-version unknown}  ($installed)"
     else
-        echo "==> Installed, but 'sarand' is not on PATH yet: open a new shell or run 'pipx ensurepath'."
+        echo "==> Installed, but $installed was not found: run 'pipx ensurepath' and open a new shell."
+        return 0
+    fi
+
+    first_on_path="$(command -v sarand 2>/dev/null || true)"
+    if [ -z "$first_on_path" ]; then
+        echo "==> 'sarand' is not on PATH yet: run 'pipx ensurepath' and open a new shell."
+    elif [ "$first_on_path" != "$installed" ]; then
+        shadow_version="$("$first_on_path" --version 2>/dev/null | head -n 1 || true)"
+        echo "==> WARNING: another 'sarand' comes first on PATH and shadows the one just installed:"
+        echo "      running now : $first_on_path (${shadow_version:-version unknown})"
+        echo "      just installed: $installed (${installed_version:-version unknown})"
+        echo "    Deactivate the virtualenv that provides it (or remove it), then run 'hash -r'."
     fi
 }
 

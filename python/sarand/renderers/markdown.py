@@ -179,6 +179,18 @@ def render(
                 "",
                 f"**Score:** {h.score} / {h.max_score}  **Grade:** {h.grade}",
                 "",
+                *(
+                    [
+                        (
+                            f"**Check coverage:** {h.checks_run} ran, "
+                            f"{len(h.checks_skipped)} skipped (tool not installed) "
+                            f"-- confidence {round(h.confidence * 100)}%"
+                        ),
+                        "",
+                    ]
+                    if h.checks_skipped
+                    else []
+                ),
                 "| Category | Points |",
                 "|----------|--------|",
             ]

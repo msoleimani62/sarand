@@ -76,6 +76,16 @@ def _text_io_without_encoding(tree: ast.AST) -> list[int]:
         if "encoding" in kwargs:
             continue
         if name in {"read_text", "write_text"}:
+            # `importlib.metadata.Distribution.read_text(filename)` takes a
+            # file name, not an encoding, and always decodes UTF-8.
+            # `Distribution.read_text(filename)` نام فایل می‌گیرد، نه انکودینگ،
+            # و همیشه UTF-8 می‌خواند.
+            receiver = getattr(node.func, "value", None)
+            if isinstance(receiver, ast.Name) and receiver.id in {
+                "dist",
+                "distribution",
+            }:
+                continue
             lines.append(node.lineno)
         elif name == "open":
             mode = _const_str(kwargs.get("mode"))
@@ -132,6 +142,7 @@ def test_the_encoding_rule_detects_violations() -> None:
         "p.open('rb')\n"
         "open('f', encoding='utf-8')\n"
         "tempfile.NamedTemporaryFile()\n"
+        "distribution.read_text('direct_url.json')\n"
         "subprocess.run(['x'], text=True, encoding='utf-8')\n"
     )
     assert _text_io_without_encoding(fine) == []

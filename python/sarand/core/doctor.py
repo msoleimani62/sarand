@@ -16,6 +16,12 @@ from dataclasses import dataclass
 from sarand.progress import console
 from sarand.rust_bridge import RUST_CORE_AVAILABLE
 from sarand.userconfig import get_config_path, load_persisted_config
+from sarand.utils.installation import (
+    installation_info,
+    other_sarand_executables,
+    probe_version,
+    stale_note,
+)
 
 _MIN_PYTHON = (3, 10)
 
@@ -489,6 +495,41 @@ class DoctorCheck:
     used_for: str = ""
 
 
+def _installation_checks() -> list[DoctorCheck]:
+    """Which sarand is running, and does another one shadow or trail it?"""
+    info = installation_info()
+    where = f"{info.package_dir}" + (" (editable install)" if info.editable else "")
+    checks = [
+        DoctorCheck(
+            name="Installation",
+            ok=not info.stale,
+            detail=f"sarand {info.version} -- {where}",
+            fix=(stale_note(info) or "").removeprefix("note: "),
+            category="Core",
+        )
+    ]
+    others = other_sarand_executables()
+    if others:
+        described = "; ".join(
+            f"{path} (sarand {probe_version(path) or 'version unknown'})"
+            for path in others
+        )
+        checks.append(
+            DoctorCheck(
+                name="Other sarand on PATH",
+                ok=False,
+                detail=f"{len(others)} other installation(s): {described}",
+                fix=(
+                    "Which one runs depends on PATH order (`which -a sarand`). "
+                    "Keep the one you want: `deactivate` a development "
+                    "virtualenv, or `pipx uninstall sarand`."
+                ),
+                category="Core",
+            )
+        )
+    return checks
+
+
 def _tool_check(category: str, binary: str, fix: str, used_for: str) -> DoctorCheck:
     found = shutil.which(binary) is not None
     return DoctorCheck(
@@ -531,6 +572,8 @@ def collect_checks() -> list[DoctorCheck]:
             category="Core",
         )
     )
+
+    checks.extend(_installation_checks())
 
     persisted = load_persisted_config()
     output_dir = persisted.get("output_dir")

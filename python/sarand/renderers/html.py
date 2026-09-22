@@ -153,6 +153,12 @@ def render(
             f'<div class="card"><span class="health-score grade-{escape(h.grade)}">{h.score}/100 '
             f"({escape(h.grade)})</span>"
         )
+        if h.checks_skipped:
+            parts.append(
+                f'<p class="meta">Check coverage: {h.checks_run} ran, '
+                f"{len(h.checks_skipped)} skipped (tool not installed), "
+                f"confidence {round(h.confidence * 100)}%</p>"
+            )
         rows = "".join(
             f"<tr><td>{escape(k)}</td><td>{v}</td></tr>" for k, v in h.breakdown.items()
         )

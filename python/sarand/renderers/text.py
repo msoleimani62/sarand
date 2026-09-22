@@ -24,7 +24,14 @@ def render(
         f"Files: {data.stats.total_files}  LOC: {data.stats.total_loc}",
     ]
     if data.health:
-        lines.append(f"Health: {data.health.score}/100 ({data.health.grade})")
+        health_line = f"Health: {data.health.score}/100 ({data.health.grade})"
+        if data.health.checks_skipped:
+            health_line += (
+                f" -- confidence {round(data.health.confidence * 100)}% "
+                f"({len(data.health.checks_skipped)} check(s) skipped: "
+                "tool not installed)"
+            )
+        lines.append(health_line)
     if data.secret_findings:
         lines.append(
             f"Secrets: {len(data.secret_findings)} potential finding(s) -- see full report"

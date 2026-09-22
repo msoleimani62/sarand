@@ -36,6 +36,11 @@ if [ "$1" = "install" ]; then
     fi
     mkdir -p "$PIPX_HOME/venvs/sarand"
     echo new > "$PIPX_HOME/venvs/sarand/marker"
+    if [ -n "${PIPX_BIN_DIR:-}" ]; then
+        mkdir -p "$PIPX_BIN_DIR"
+        printf '#!/bin/sh\necho "sarand 9.9.9"\n' > "$PIPX_BIN_DIR/sarand"
+        chmod +x "$PIPX_BIN_DIR/sarand"
+    fi
 fi
 exit 0
 """
@@ -195,3 +200,58 @@ def test_the_interrupt_trap_is_installed_around_the_build() -> None:
 
     assert "trap interrupted INT TERM" in text
     assert "trap - INT TERM" in text
+
+
+def _run_verifying(root: Path, *, shadow: bool):
+    """Successful install with PIPX_BIN_DIR set; optionally a stale `sarand`
+    earlier on PATH (like a development virtualenv)."""
+    home, pipx_home = root / "home", root / "pipx"
+    bin_dir, pipx_bin, stale_bin = root / "bin", root / "pipxbin", root / "stalebin"
+    for directory in (home, pipx_home, bin_dir, stale_bin):
+        directory.mkdir()
+    (bin_dir / "pipx").write_bytes(_FAKE_PIPX.encode("utf-8"))
+    (bin_dir / "pipx").chmod(0o755)
+    (stale_bin / "sarand").write_bytes(b'#!/bin/sh\necho "sarand 0.1.5"\n')
+    (stale_bin / "sarand").chmod(0o755)
+    path_parts = [str(pipx_bin), str(bin_dir), os.environ["PATH"]]
+    if shadow:
+        path_parts.insert(0, str(stale_bin))
+    env = {
+        **os.environ,
+        "HOME": str(home),
+        "PIPX_HOME": str(pipx_home),
+        "PIPX_BIN_DIR": str(pipx_bin),
+        "PATH": os.pathsep.join(path_parts),
+        "FAKE_STATE": str(root / "attempts"),
+        "SARAND_INSTALL_RETRY_DELAY": "0",
+    }
+    return subprocess.run(
+        ["bash", str(_SCRIPT)],
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=60,
+        check=False,
+    )
+
+
+def test_the_installed_version_is_reported_from_the_pipx_copy() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        result = _run_verifying(Path(tmp), shadow=False)
+
+    assert result.returncode == 0, result.stderr
+    assert "Installed: sarand 9.9.9" in result.stdout
+    assert "WARNING" not in result.stdout
+
+
+def test_a_shadowing_copy_on_path_is_named_with_its_version() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        result = _run_verifying(Path(tmp), shadow=True)
+
+    assert result.returncode == 0, result.stderr
+    assert "Installed: sarand 9.9.9" in result.stdout
+    assert "another 'sarand' comes first on PATH" in result.stdout
+    assert "sarand 0.1.5" in result.stdout
+    assert "stalebin" in result.stdout

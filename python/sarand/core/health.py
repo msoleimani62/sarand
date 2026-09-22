@@ -63,10 +63,21 @@ def compute_health_score(data: ReportData) -> HealthScore:
     security = data.security_results
     if security:
         s_failed = sum(1 for r in security if not r.passed and not r.skipped)
+        s_ran = sum(1 for r in security if not r.skipped)
         if s_failed:
             breakdown["security"] = 5.0
             critical.append("Security tool reported issues.")
             recommendations.append("Review the security tool findings.")
+        elif s_ran == 0:
+            # Every security check was skipped (no tool installed): nothing
+            # was checked, so this must not earn the "clean" full score.
+            # همه‌ی چک‌های امنیتی رد شده‌اند (ابزاری نصب نیست): چیزی بررسی
+            # نشده، پس این نباید امتیاز کامل «تمیز» بگیرد.
+            breakdown["security"] = 8.0
+            recommendations.append(
+                "No security check could run: install the security tools "
+                "(see `sarand --doctor`)."
+            )
         else:
             breakdown["security"] = 15.0
     else:
@@ -160,6 +171,30 @@ def compute_health_score(data: ReportData) -> HealthScore:
     else:
         grade = "F"
 
+    # --- Transparency: how much of this score rests on checks that ran? ---
+    requested = [*test_results, *quality, *security]
+    checks_run = sum(1 for r in requested if not r.skipped)
+    missing_tools = sorted(
+        {
+            r.kind
+            for r in requested
+            if r.skipped and "not installed" in r.skip_reason.lower()
+        }
+    )
+    confidence = (
+        round(checks_run / (checks_run + len(missing_tools)), 2)
+        if checks_run + len(missing_tools)
+        else 1.0
+    )
+    if missing_tools:
+        shown = ", ".join(missing_tools[:8])
+        more = f" and {len(missing_tools) - 8} more" if len(missing_tools) > 8 else ""
+        recommendations.append(
+            f"{len(missing_tools)} check(s) were skipped because their tool is "
+            f"not installed ({shown}{more}); the score does not reflect them. "
+            "See `sarand --doctor` for how to install them."
+        )
+
     if not recommendations:
         recommendations.append(
             "Project looks healthy. Keep tests and quality checks green."
@@ -172,4 +207,7 @@ def compute_health_score(data: ReportData) -> HealthScore:
         breakdown=breakdown,
         recommendations=recommendations,
         critical_failures=critical,
+        checks_run=checks_run,
+        checks_skipped=missing_tools,
+        confidence=confidence,
     )
