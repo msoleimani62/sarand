@@ -158,7 +158,9 @@ def compute_health_score(data: ReportData) -> HealthScore:
     todo_count = _count_actionable_todos(data)
     if todo_count > 50:
         code_score -= 5.0
-        recommendations.append(f"Reduce actionable TODO/FIXME count (currently {todo_count}).")
+        recommendations.append(
+            f"Reduce actionable TODO/FIXME count (currently {todo_count})."
+        )
     if stats.broken_symlinks:
         code_score -= 3.0
         critical.append(f"{len(stats.broken_symlinks)} broken symlinks found.")
@@ -240,22 +242,13 @@ def compute_health_score(data: ReportData) -> HealthScore:
     # requested is already computed in the tooling block above.
     # متغیر requested بالاتر در بلوک tooling محاسبه شده است.
     checks_run = sum(1 for r in requested if not r.skipped)
-    checks_skipped = sorted(
-        {
-            r.kind
-            for r in requested
-            if r.skipped
-        }
-    )
+    checks_skipped = sorted({r.kind for r in requested if r.skipped})
     missing_tools = sorted(
         {
             r.kind
             for r in requested
             if r.skipped
-            and (
-                r.returncode == 127
-                or "not installed" in r.skip_reason.lower()
-            )
+            and (r.returncode == 127 or "not installed" in r.skip_reason.lower())
         }
     )
     confidence = (
