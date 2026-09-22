@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sarand report — hybrid-project</title>
+<style>
+:root {
+  color-scheme: dark light;
+  --bg: #0f1117; --fg: #e6e6e6; --muted: #9aa0aa; --card: #171a21;
+  --border: #262a33; --accent: #4f8cff; --ok: #3fb950; --warn: #d29922; --fail: #f85149;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); margin: 0; padding: 2rem;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
+  max-width: 960px; margin-inline: auto;
+}
+h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
+h2 { font-size: 1.15rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; margin-top: 2rem; }
+.meta { color: var(--muted); font-size: 0.9rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+code, pre { font-family: "SF Mono", Consolas, monospace; }
+pre { background: #0b0d12; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; }
+.badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+.badge-ok { background: rgba(63,185,80,0.15); color: var(--ok); }
+.badge-warn { background: rgba(210,153,34,0.15); color: var(--warn); }
+.badge-fail { background: rgba(248,81,73,0.15); color: var(--fail); }
+details { margin: 0.5rem 0; }
+summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+.health-score { font-size: 2.2rem; font-weight: 700; }
+.grade-A, .grade-B { color: var(--ok); }
+.grade-C, .grade-D { color: var(--warn); }
+.grade-F { color: var(--fail); }
+@media print { body { color: #111; background: #fff; } .card { border-color: #ccc; } pre { background: #f4f4f4; } }
+</style>
+</head>
+<body>
+<h1>sarand report — hybrid-project</h1>
+<p class="meta">Generated 2026-01-01 12:00:00 on kali · scan engine: Rust core</p>
+<div class="card">
+<strong>Python</strong> — workspace (pip + cargo + go mod)<br>
+<span class="meta">Languages: Python, Rust, Go</span><br>
+<span class="meta">Entry points: src/main.py, src/lib.rs, cmd/server/main.go</span><br>
+<span class="meta">Assembly dialects: x86 (NASM): 2 file(s), ARM: 1 file(s)</span><br>
+</div>
+<div class="card"><span class="health-score grade-C">76.0/100 (C)</span>
+<p class="meta">Check coverage: 9 ran, 1 skipped (tool not installed), confidence 90%</p>
+<table><tr><td>Tests</td><td>18.0</td></tr><tr><td>Quality</td><td>15.0</td></tr><tr><td>Security</td><td>12.0</td></tr><tr><td>Git</td><td>10.0</td></tr><tr><td>Code</td><td>11.0</td></tr><tr><td>Tooling</td><td>10.0</td></tr></table>
+<p><strong>Critical:</strong></p><ul><li>1 potential secret was found in tracked source</li></ul>
+<p><strong>Recommendations:</strong></p><ul><li>Fix the failing cargo test</li><li>Rotate the leaked credential</li></ul>
+</div>
+<h2>⚠ Secrets</h2>
+<p>Excluded (credential-shaped filenames, never read — AGENTS.md §4.10):</p><ul><li><code>.env</code></li></ul>
+<p>Excluded (content matched a secret pattern — see findings below):</p><ul><li><code>config/secrets.env</code></li></ul>
+<table><tr><th>File</th><th>Line</th><th>Pattern</th></tr><tr><td><code>config/secrets.env</code></td><td>3</td><td>AWS Secret Key</td></tr><tr><td><code>tests/fixtures/dummy_key.py</code></td><td>1</td><td>Generic API Key</td></tr></table>
+<h2>Project statistics</h2><div class='card'>Total files: <strong>196</strong> · LOC: <strong>12000</strong><br>By extension: .ext0 (12), .ext1 (11), .ext2 (10), .ext3 (9), .ext4 (8), .ext5 (7), .ext6 (6), .ext7 (5), .ext8 (4), .ext9 (3)<br>Binary: 2 · Hidden: 3 · Empty: 1 · Broken symlinks: 1</div>
+<h2>AI Summary</h2><pre>This is a hybrid Python/Rust/Go workspace with one failing test.</pre>
+<h2>Test results</h2><details><summary>pytest <span class="badge badge-ok">PASS</span></summary><pre>120 passed</pre></details><details><summary>cargo test <span class="badge badge-fail">FAIL</span></summary><pre>1 failed, 40 passed</pre><details><summary>Full output</summary><pre>test add ... FAILED
+thread &#x27;main&#x27; panicked</pre></details></details><details><summary>go test <span class="badge badge-warn">SKIP</span></summary><pre>go not installed</pre></details>
+<h2>Quality checks</h2><details><summary>ruff <span class="badge badge-ok">PASS</span></summary><pre>All checks passed!</pre></details><details><summary>cargo clippy <span class="badge badge-fail">FAIL</span></summary><pre>2 warnings</pre><details><summary>Full output</summary><pre>warning: unused import
+warning: needless clone</pre></details></details>
+<h2>Security checks</h2><details><summary>bandit <span class="badge badge-ok">PASS</span></summary><pre>No issues identified.</pre></details><details><summary>gitleaks <span class="badge badge-fail">FAIL</span></summary><pre>1 leak found</pre><details><summary>Full output</summary><pre>1 leak found</pre></details></details>
+<h2>Errors detected (2)</h2><table><tr><th>Source</th><th>Message</th></tr><tr><td>cargo test</td><td><code>add() off by one</code></td></tr><tr><td>gitleaks</td><td><code>possible API key</code></td></tr></table>
+<h2>Warnings detected (3)</h2><table><tr><th>Source</th><th>Message</th></tr><tr><td>ruff</td><td><code>line too long</code></td></tr><tr><td>clippy</td><td><code>unused import</code></td></tr><tr><td>clippy</td><td><code>needless clone</code></td></tr></table>
+<h2>Project tree</h2><pre>hybrid-project/
+├── src/
+│   ├── main.py
+│   └── lib.rs
+└── README.md</pre>
+<h2>Included files (3 included / 1 skipped / 2 excluded)</h2>
+<details><summary><code>src/main.py</code> (28.0 B)</summary><pre>def main():
+    print(&quot;hi&quot;)
+</pre></details>
+<details><summary><code>src/lib.rs</code> (48.0 B)</summary><pre>pub fn add(a: i32, b: i32) -&gt; i32 {
+    a + b
+}
+</pre></details>
+<details><summary><code>README.md</code> (14.0 B)</summary><pre># Hybrid demo
+</pre></details>
+</body>
+</html>

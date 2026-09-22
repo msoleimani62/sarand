@@ -1,0 +1,13 @@
+sarand report — hybrid-project
+Generated: 2026-01-01 12:00:00+00:00
+Host: kali
+
+Detected: Python, Rust, Go (pip + cargo + go mod)
+Assembly dialects: x86 (NASM): 2 file(s), ARM: 1 file(s)
+Scan engine: Rust core
+Python: Python 3.14.6
+Git: main @ 1e99b0ce56c28c2472531bf4683ca8d93899b1f9 (dirty=True)
+
+Files: 196  LOC: 12000
+Health: 76.0/100 (C) -- confidence 90% (1 check(s) skipped: tool not installed)
+Secrets: 2 potential finding(s) -- see full report

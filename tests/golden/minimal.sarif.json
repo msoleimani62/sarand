@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "sarand",
+          "informationUri": "https://github.com/example/sarand",
+          "rules": []
+        }
+      },
+      "results": [],
+      "originalUriBaseIds": {
+        "PROJECTROOT": {
+          "uri": "file://<PROJECT_ROOT>/"
+        }
+      }
+    }
+  ]
+}

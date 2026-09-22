@@ -1774,3 +1774,315 @@ Contributing section. **Not verified**: none of the eight §5.18 tool
 integrations beyond `actionlint` has been run for real; the installation
 diagnostics were tested with fake `pipx`/`PATH` fixtures, not a real
 multi-install machine.
+
+
+### 5.21 — P0 golden-report regression suite (2026-09-22)
+
+Starting the P0 backlog from the "Engineering Backlog & Gap Audit"
+document (post-v0.6.2, `1e99b0c`): item 6.1, golden/representative
+report regression infrastructure. Evidence-first check confirmed the
+gap was real -- `grep`-ing `tests/` for `golden`/`snapshot`/`fixture`
+found nothing before this round; every existing renderer test
+(`test_renderers.py`, `test_new_renderers.py`) asserts "output
+contains X", never the full report shape.
+
+Scope chosen deliberately narrow (see Non-goals below), not the
+"real per-ecosystem source-tree fixtures" the backlog doc describes as
+the eventual goal:
+
+- `tests/_golden_fixtures.py` -- two hand-built `ReportData` fixtures
+  (`hybrid`: dense multi-language project hitting every truncation
+  limit, mixed pass/fail/skipped results, secrets, untracked files;
+  `minimal`: an unrecognized empty project hitting every renderer's
+  "nothing found" branch). Built directly from the dataclasses in
+  `models/results.py`, not from a real scan.
+- `tests/test_golden_reports.py` -- renders both fixtures through
+  markdown/json/text/sarif/html (not pdf -- see below) and diffs
+  against a stored snapshot under `tests/golden/`. A
+  `SARAND_UPDATE_GOLDEN=1` env var regenerates the snapshots
+  deliberately; a guard test fails loudly if a fixture or renderer is
+  ever added without also running that regeneration step once.
+- `tests/golden/README.md` -- bilingual, explains what's stored, why,
+  and exactly how to update a snapshot (with the "review the diff
+  before committing" rule spelled out).
+
+Why renderer-level and not scan-level: `ReportData` is the exact
+seam every renderer already shares (`renderers/base.py`'s `Renderer`
+protocol), so building it by hand makes every fixture fully
+deterministic with zero network access and zero optional-tool
+dependency -- both explicit Definition of Done requirements in the
+backlog doc. The one non-determinism this doesn't remove for free is
+the tempdir's own random name leaking into `project_root.name`
+(embedded verbatim in every renderer's title/header); fixed by
+creating a fixed-name subdirectory (`f"{fixture_name}-project"`)
+inside the tempdir rather than trying to string-scrub it out after
+the fact.
+
+`pdf.py` is excluded -- it always shells out to a real,
+optionally-installed tool (`wkhtmltopdf`/`weasyprint`) via
+`render_to_file`, not an in-process `render(data) -> str`, so there is
+no text output to snapshot without installing and invoking a real
+external binary (would violate "tests do not require unavailable
+optional tools").
+
+Verified locally before handoff (no `pytest`/`rich` available in this
+sandbox -- no network to install them): imported the real renderer
+modules against a minimal local `rich` stub, ran the exact functions
+defined in `test_golden_reports.py` (not a reimplementation) against
+all 2×5 fixture/format combinations, confirmed byte-for-byte identical
+output across two independent runs from different random tempdirs
+(the determinism claim), and confirmed a deliberately corrupted golden
+file makes the test fail (the regression-detection claim actually
+works, not just "the code runs"). Still needs a real on-device
+`pytest tests/test_golden_reports.py` run to fully close item 6.1's
+Definition of Done, since this sandbox cannot install the project's
+real dependencies.
+
+Non-goals (left for the next phase of this same backlog item, per
+its own "minimal implementation scope" discipline):
+
+- Real per-ecosystem source-tree fixtures (Python/Rust/JS/Go/hybrid/
+  infra/multi-language) scanned end-to-end through analyzers + real
+  tool execution -- the backlog doc's actual stated goal for 6.1.
+  Deferred because it needs either bundling small real source trees
+  per ecosystem or mocking every analyzer's tool execution, and
+  because analyzer/tool-execution regressions are a distinct concern
+  (see backlog item 7.1, analyzer capability matrix -- also P0, not
+  yet started) from renderer/report-structure regressions (what this
+  round covers).
+- `pdf.py` -- no in-process output to snapshot (see above); its own
+  Definition of Done already lives under backlog item P3 "PDF and
+  report portability".
+- CLI-level end-to-end golden tests (`sarand --full` on a real repo,
+  diffed) -- would reintroduce all the non-determinism (timestamps,
+  host info, tool versions, absolute paths) this round deliberately
+  sidesteps by building `ReportData` directly.
+
+
+### 5.22 — P0 analyzer capability matrix + depth classification (2026-09-22)
+
+Second P0 item from the same "Engineering Backlog & Gap Audit" doc
+(item 7.1), continuing straight from section 5.21 above in the same
+round. Evidence-first check: `docs/COVERAGE.md` already existed
+(§5.18) and was already code-derived (`core/coverage.py`) with a
+sync test -- but it only covered Tests/Quality/Security/Tools/Build
+tools, none of 7.1's other requested columns (Fixture coverage, CI,
+Real-project validation, Depth). Confirmed via direct inspection, not
+assumed.
+
+Extended `core/coverage.py` (still 100% code-derived, still
+regenerated with `python -m sarand.core.coverage > docs/COVERAGE.md`,
+still sync-tested) with three new columns, each a mechanical rule
+over real evidence -- per the backlog doc's own repeated warning ("do
+not invent values", "no analyzer is labeled deep merely because it
+has a wrapper"):
+
+- **Fixture coverage** -- true iff the analyzer's class name is
+  referenced anywhere under `tests/` (a grep of real test source, not
+  a `test_<name>_analyzer.py` filename convention, since several
+  analyzers -- Haskell/Elixir/Erlang/Scala/Dockerfile/GitHub Actions/
+  Terraform/Protobuf, for instance -- share one test module).
+- **CI-installed** -- true iff at least one of the ecosystem's tool
+  binaries is a token sarand's own `.github/workflows/ci.yml` actually
+  installs *and* invokes (not merely lists as a package extra). Caught
+  and fixed a real false positive before shipping: a naive
+  whole-file word-boundary search matched Haskell's `stack` binary
+  against the workflow's own prose comment "...prints every thread's
+  *stack*...". Fixed by stripping `#`-comment lines before matching;
+  regression test added
+  (`test_ci_installed_does_not_false_positive_on_a_prose_comment`).
+  **Finding, not a defect to fix in this round**: only Python and Rust
+  show CI-installed=yes. sarand's CI runs its own Python test suite
+  and its own Rust core's tests -- it never installs any of the other
+  ~35 per-language tools and never runs `sarand --full`/`--quality`/
+  `--security` against a real target project in any language. Even
+  for Python, `bandit`/`pip-audit` are installed as `[dev]` extras but
+  never actually invoked as commands in the workflow (only `ruff`,
+  `mypy`, `pytest` are). This is real-tool-validation's actual current
+  state, made visible instead of assumed.
+- **Depth** -- Deep / Partial / Shallow, from a fixed rule over the
+  four booleans above (Deep = Tests and Quality and Security and
+  Fixture coverage; Shallow = none of Tests/Quality/Security;
+  otherwise Partial), documented in the module and locked in by
+  `test_depth_classification_is_a_fixed_rule`. Result: 11 "Deep"
+  ecosystems (Python, Rust, Go, Node.js, Elixir, C/C++, Ruby, PHP,
+  Android/Kotlin, Java/Kotlin, C#), Assembly alone "Shallow"
+  (detection-only, no tool needed), everything else "Partial" --
+  including every format analyzer (YAML/JSON/TOML/XML/Markdown/CSS/
+  SQL) by the rule itself, matching their own documented category in
+  section 5.4 rather than a hand-typed label.
+
+`Real-project validation` (7.1's last requested column) was
+deliberately kept OUT of the generated table -- it is a fact about a
+past session, not something derivable from the current source tree,
+and mixing hand-curated history into a "do not edit by hand" file
+would rot silently. Evidence gathered this round instead, cited here:
+per the terminal transcript the user supplied in this same session
+(commit `1e99b0c`, `sarand --full` run on sarand's own repo, dated
+2026-09-22), sarand's Tests/Quality/Security actually executed for
+real against a real project (itself) for exactly these seven
+ecosystems: **Python, Rust, GitHub Actions, Shell, JSON, TOML,
+Markdown** (763 pytest passed, Rust cargo tests included, health
+100.0/100). No other ecosystem in the roster has comparable
+first-party evidence of a real run in this project's history that
+this session can point to; everything else's per-analyzer real-tool
+behavior is UNVERIFIED by this standard, whatever earlier session
+summaries claim about specific tools (e.g. clang-tidy, actionlint,
+Ruby bundler) -- those were real but happened on the user's own
+device in unlogged sessions, not evidenced in this repository the way
+the Evidence-First Rule asks for. Re-confirming them from repository
+evidence (a dated report, a CI log) rather than chat history is
+exactly backlog item 7.1's "Real-project validation" column waiting
+to be filled in properly, and is left as the explicit next step:
+either a real `sarand --full` self-scan log gets committed somewhere
+citable, or the CLI-level golden-report work from item 6.1's
+deferred "Non-goals" (real per-ecosystem source-tree fixtures,
+scanned end-to-end) starts producing that evidence directly.
+
+Verified locally the same way as section 5.21 (no `pytest` available
+in this sandbox, no network to install it): ran the actual functions
+from `test_coverage.py` (not a reimplementation) directly, all 10
+tests passing including the 6 pre-existing ones (confirming nothing
+broke) and the 6 new ones (4 targeted at the new columns/rule, 1
+locking in the `stack`/comment false-positive fix, 1 confirming the
+docs stay in sync). `docs/COVERAGE.md` regenerated and included in
+this round's delivery. Still needs a real on-device
+`pytest tests/test_coverage.py` (and the full suite) run to fully
+close item 7.1's Definition of Done, same caveat as 5.21.
+
+Non-goals (left for later phases of this backlog item, consistent
+with 6.1's own "minimal implementation scope" discipline):
+
+- Actually closing the CI gap this round surfaced (installing and
+  running the ~35 other per-language tools in CI against real fixture
+  projects) -- a large, separate P1-adjacent effort in its own right,
+  not a P0.7.1 documentation task.
+- A committed, citable real-project validation log/report that this
+  table's "Real-project validation" column could eventually read from
+  mechanically, the way Fixtures/CI already do.
+
+
+### 5.23 — Real on-device verification of 5.21/5.22, two fixes (2026-09-22)
+
+User ran both deliveries for real (`pytest`, `ruff check`, `ruff format
+--check`, `mypy`, full suite) on-device and reported back -- closing the
+"still needs a real on-device run" caveat both sections above ended
+with. Two real issues found and fixed; one apparent issue investigated
+and attributed to a stale cache, not new code.
+
+**Fixed -- `ruff format --check` (5.21):** `tests/_golden_fixtures.py`
+had four call sites (`write(...)`, `TodoItem(...)`, two `Issue(...)`
+list literals) ruff's formatter wanted wrapped across lines. `ruff
+check` (lint) had already passed clean -- this project has no E501
+line-length lint rule selected -- but `ruff format` (the formatter)
+enforces its own line-length independent of which lint rules are
+selected. Reformatted to match ruff's own diff exactly; reran the
+golden-snapshot harness after, still 10/10 (formatting-only change,
+no output changed).
+
+**Fixed -- `ruff check` RUF100 (5.22):** `tests/test_coverage.py`'s
+`test_fixture_coverage_is_false_for_an_unreferenced_class_name` had a
+`# noqa: N801` comment justifying an intentionally non-CamelCase-ish
+probe class name. This project's ruff config has no pep8-naming (`N`)
+rules selected, so the directive itself was flagged unused
+(`RUF100`). Replaced with a plain bilingual comment -- the noqa was
+never load-bearing, nothing before it was ever actually being
+suppressed.
+
+**Investigated, not changed -- `mypy` "Module has no attribute"
+(5.21+5.22):** the user's first mypy run (2 files only, before
+applying 5.22's delivery) reported `sarand.models.results` /
+`sarand.renderers` as `import-untyped` (no py.typed marker found --
+mypy fell back to treating the editable-installed package as an
+external, unstubbed library). Their second run (`mypy .`, the same
+invocation `ci.yml` actually uses, 174 files) resolved `sarand.*`
+correctly as first-party source everywhere else, but replayed 5
+`attr-defined` errors on `test_golden_reports.py`'s
+`from sarand.renderers import html, json_renderer, markdown, sarif,
+text` -- the *exact same statement*, word for word, already lives at
+`cli.py:43` and checked clean in that same run. Same line, same
+config, one file clean and one file erroring, is not explainable by
+anything in the code; it matches `.mypy_cache/` retaining
+`test_golden_reports.py`'s analysis from the first (import-untyped)
+run and never invalidating it under the second run's different
+resolution. Per the Evidence-First Rule, this is a plausible
+explanation from the transcript's own evidence, not a confirmed
+diagnosis -- asked the user to `rm -rf .mypy_cache` and rerun `mypy .`
+to confirm before anything in the code is touched over it. Do not
+"fix" `cli.py`'s already-working import pattern on the strength of an
+unconfirmed cache theory.
+
+Both fixes delivered in `sarand-golden-reports-fix-v1.zip` (just the
+two changed files, since the 5.21/5.22 deliveries are already applied
+on-device).
+
+
+### 5.24 — Second real-device run: two more `ruff format` fixes, one config change (2026-09-22)
+
+Continuation of 5.23. `rm -rf .mypy_cache && mypy .` came back clean
+(`Success: no issues found in 174 source files`) -- confirms 5.23's
+cache-staleness theory was correct; `cli.py`'s import pattern was never
+broken and was rightly left untouched. `ruff check .` and the full
+suite (779 passed) were clean too. `ruff format --check .` flagged two
+real files:
+
+**`python/sarand/core/coverage.py:356`** -- a string containing both
+an escaped `\"-\"` and an apostrophe (`sarand's`); ruff's quote-style
+normalization picked single-quote delimiters (one escape) over the
+existing double-quote delimiters (two escapes). Applied ruff's own
+diff verbatim. Content unchanged (verified `render_markdown()`'s
+output is byte-identical before/after -- only the Python source
+literal's delimiter style changed, not the string value), so
+`docs/COVERAGE.md` did not need regenerating.
+
+**`tests/golden/hybrid.md:458`** -- more interesting: this project's
+ruff (>=0.16) formats Python it finds inside `.md` code fences by
+default, and `hybrid.md`'s "FILE: src/main.py" section embeds real
+Python source verbatim inside a ` ```python ` fence (that's the whole
+point of a golden report -- it's supposed to look like a real report).
+Two separate problems bundled in one flagged diff:
+
+1. The fixture's own source string used single-quoted
+   `print('hi')` -- ruff wanted `print("hi")`. Fixed by changing the
+   fixture's source content in `_golden_fixtures.py` to already be in
+   ruff's preferred style, so this can't recur.
+2. `markdown.py`'s renderer leaves a blank line between a file's
+   content and the closing fence (content already ends in `\n`, then
+   the line-join adds another). Ruff's embedded-Python formatter
+   strips that trailing blank line as part of formatting the snippet
+   as a real Python file would be formatted -- but the golden test's
+   whole contract is byte-exact match against what the renderer
+   *actually* emits, blank line included. Hand-editing the snapshot to
+   match ruff's preference would make the golden test assert something
+   the renderer doesn't produce -- the snapshot would then be lying
+   about report structure, which is exactly the failure mode section
+   5.21 exists to catch. Renderer behavior itself is untouched here on
+   purpose (Scope Discipline: a real, minor, unrelated formatting
+   quirk in `markdown.py`'s file-embedding logic, not this round's
+   item -- noted as a backlog candidate, not fixed).
+
+Fix for problem 2, and the real fix here: added a minimal
+`[tool.ruff]` section to `pyproject.toml` (none existed before) with
+only `extend-exclude = ["tests/golden"]` -- nothing about lint-rule
+selection, so this cannot change what `ruff check` enforces anywhere
+else. Golden snapshots are recorded tool *output*, not authored
+source; a formatter silently rewriting recorded output on every run
+(turning a passing snapshot red with zero actual code change) is a
+structural conflict between two kinds of file that happen to share an
+extension, not a style problem to negotiate away by hand-editing the
+snapshot. `hybrid.md` reverted back to exactly what `markdown.py`
+actually renders (blank line included); reran the golden-snapshot
+harness after every change in this round, still 10/10.
+
+Also regenerated (no manual edits needed, automatic consequence of
+fixing the fixture's source content): `hybrid.json` and `hybrid.html`
+both embed the same `src/main.py` content and picked up the
+`'hi'` -> `"hi"` change too, correctly -- diffed against the
+pre-change files to confirm nothing else moved.
+
+Delivered as `sarand-golden-reports-fix-v2.zip`: `pyproject.toml`,
+`python/sarand/core/coverage.py`, `tests/_golden_fixtures.py`,
+`tests/golden/hybrid.md`, `tests/golden/hybrid.json`,
+`tests/golden/hybrid.html`, full `AGENTS.md`. Not yet re-verified on
+device -- ask for `ruff check . && ruff format --check .`,
+`rm -rf .mypy_cache && mypy .`, and `pytest -q` once more.

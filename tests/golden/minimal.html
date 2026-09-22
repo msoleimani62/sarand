@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sarand report — minimal-project</title>
+<style>
+:root {
+  color-scheme: dark light;
+  --bg: #0f1117; --fg: #e6e6e6; --muted: #9aa0aa; --card: #171a21;
+  --border: #262a33; --accent: #4f8cff; --ok: #3fb950; --warn: #d29922; --fail: #f85149;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); margin: 0; padding: 2rem;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
+  max-width: 960px; margin-inline: auto;
+}
+h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
+h2 { font-size: 1.15rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; margin-top: 2rem; }
+.meta { color: var(--muted); font-size: 0.9rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+code, pre { font-family: "SF Mono", Consolas, monospace; }
+pre { background: #0b0d12; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; }
+.badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+.badge-ok { background: rgba(63,185,80,0.15); color: var(--ok); }
+.badge-warn { background: rgba(210,153,34,0.15); color: var(--warn); }
+.badge-fail { background: rgba(248,81,73,0.15); color: var(--fail); }
+details { margin: 0.5rem 0; }
+summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+.health-score { font-size: 2.2rem; font-weight: 700; }
+.grade-A, .grade-B { color: var(--ok); }
+.grade-C, .grade-D { color: var(--warn); }
+.grade-F { color: var(--fail); }
+@media print { body { color: #111; background: #fff; } .card { border-color: #ccc; } pre { background: #f4f4f4; } }
+</style>
+</head>
+<body>
+<h1>sarand report — minimal-project</h1>
+<p class="meta">Generated 2026-01-01 12:00:00 on (unknown) · scan engine: pure-Python fallback</p>
+<div class="card">
+No recognized project marker found in this directory.
+</div>
+<h2>Project statistics</h2><div class='card'>Total files: <strong>0</strong> · LOC: <strong>0</strong><br>By extension: n/a<br>Binary: 0 · Hidden: 0 · Empty: 0 · Broken symlinks: 0</div>
+
+
+
+
+
+<h2>Project tree</h2><pre>minimal-project/
+(empty)</pre>
+<h2>Included files (0 included / 0 skipped / 0 excluded)</h2>
+</body>
+</html>

@@ -1,0 +1,1086 @@
+{
+  "project_root": "<PROJECT_ROOT>",
+  "generated_at": "2026-01-01T12:00:00+00:00",
+  "used_rust_core": true,
+  "detection": {
+    "languages": [
+      "Python",
+      "Rust",
+      "Go"
+    ],
+    "primary_language": "Python",
+    "project_type": "workspace",
+    "build_system": "pip + cargo + go mod",
+    "markers_found": [
+      "pyproject.toml",
+      "Cargo.toml",
+      "go.mod"
+    ],
+    "entry_points": [
+      "src/main.py",
+      "src/lib.rs",
+      "cmd/server/main.go"
+    ],
+    "details": {
+      "Assembly dialects": "x86 (NASM): 2 file(s), ARM: 1 file(s)"
+    }
+  },
+  "environment": {
+    "python": "Python 3.14.6",
+    "rust_core": "compiled and loaded",
+    "os_name": "Linux",
+    "architecture": "aarch64",
+    "cpu_summary": "8-core",
+    "memory_summary": "6.0 GiB total / 2.1 GiB free",
+    "disk_free": "41.2 GiB free",
+    "hostname": "kali",
+    "tool_versions": {
+      "ruff": "0.8.0",
+      "cargo": "1.83.0",
+      "go": "1.23.0"
+    }
+  },
+  "git": {
+    "branch": "main",
+    "commit": "1e99b0ce56c28c2472531bf4683ca8d93899b1f9",
+    "status": "M src/main.py\n?? scratch.py",
+    "log": "1e99b0c style: format health module\nbd88701 fix health tooling score",
+    "diff": "",
+    "dirty": true,
+    "ahead": 1,
+    "behind": 0,
+    "tags": "v0.6.2",
+    "stashes": "",
+    "untracked": [
+      "scratch/untracked-0.tmp",
+      "scratch/untracked-1.tmp",
+      "scratch/untracked-2.tmp",
+      "scratch/untracked-3.tmp",
+      "scratch/untracked-4.tmp",
+      "scratch/untracked-5.tmp",
+      "scratch/untracked-6.tmp",
+      "scratch/untracked-7.tmp",
+      "scratch/untracked-8.tmp",
+      "scratch/untracked-9.tmp",
+      "scratch/untracked-10.tmp",
+      "scratch/untracked-11.tmp",
+      "scratch/untracked-12.tmp",
+      "scratch/untracked-13.tmp",
+      "scratch/untracked-14.tmp",
+      "scratch/untracked-15.tmp",
+      "scratch/untracked-16.tmp",
+      "scratch/untracked-17.tmp",
+      "scratch/untracked-18.tmp",
+      "scratch/untracked-19.tmp",
+      "scratch/untracked-20.tmp",
+      "scratch/untracked-21.tmp",
+      "scratch/untracked-22.tmp",
+      "scratch/untracked-23.tmp",
+      "scratch/untracked-24.tmp",
+      "scratch/untracked-25.tmp",
+      "scratch/untracked-26.tmp",
+      "scratch/untracked-27.tmp",
+      "scratch/untracked-28.tmp",
+      "scratch/untracked-29.tmp",
+      "scratch/untracked-30.tmp",
+      "scratch/untracked-31.tmp",
+      "scratch/untracked-32.tmp",
+      "scratch/untracked-33.tmp",
+      "scratch/untracked-34.tmp",
+      "scratch/untracked-35.tmp",
+      "scratch/untracked-36.tmp",
+      "scratch/untracked-37.tmp",
+      "scratch/untracked-38.tmp",
+      "scratch/untracked-39.tmp",
+      "scratch/untracked-40.tmp",
+      "scratch/untracked-41.tmp",
+      "scratch/untracked-42.tmp",
+      "scratch/untracked-43.tmp",
+      "scratch/untracked-44.tmp",
+      "scratch/untracked-45.tmp",
+      "scratch/untracked-46.tmp",
+      "scratch/untracked-47.tmp",
+      "scratch/untracked-48.tmp",
+      "scratch/untracked-49.tmp",
+      "scratch/untracked-50.tmp",
+      "scratch/untracked-51.tmp"
+    ]
+  },
+  "stats": {
+    "total_files": 196,
+    "total_loc": 12000,
+    "code_lines": 9800,
+    "comment_lines": 1500,
+    "blank_lines": 700,
+    "files_by_extension": {
+      ".ext0": 12,
+      ".ext1": 11,
+      ".ext2": 10,
+      ".ext3": 9,
+      ".ext4": 8,
+      ".ext5": 7,
+      ".ext6": 6,
+      ".ext7": 5,
+      ".ext8": 4,
+      ".ext9": 3,
+      ".ext10": 2,
+      ".ext11": 1
+    },
+    "largest_directories": [
+      [
+        "src",
+        40
+      ],
+      [
+        "tests",
+        30
+      ]
+    ],
+    "largest_files": [
+      [
+        "big/file-0.bin",
+        1024
+      ],
+      [
+        "big/file-1.bin",
+        2048
+      ],
+      [
+        "big/file-2.bin",
+        3072
+      ],
+      [
+        "big/file-3.bin",
+        4096
+      ],
+      [
+        "big/file-4.bin",
+        5120
+      ],
+      [
+        "big/file-5.bin",
+        6144
+      ],
+      [
+        "big/file-6.bin",
+        7168
+      ],
+      [
+        "big/file-7.bin",
+        8192
+      ],
+      [
+        "big/file-8.bin",
+        9216
+      ],
+      [
+        "big/file-9.bin",
+        10240
+      ],
+      [
+        "big/file-10.bin",
+        11264
+      ],
+      [
+        "big/file-11.bin",
+        12288
+      ],
+      [
+        "big/file-12.bin",
+        13312
+      ],
+      [
+        "big/file-13.bin",
+        14336
+      ],
+      [
+        "big/file-14.bin",
+        15360
+      ],
+      [
+        "big/file-15.bin",
+        16384
+      ]
+    ],
+    "duplicate_files": [
+      [
+        "hash-abc",
+        [
+          "a.txt",
+          "b.txt"
+        ]
+      ]
+    ],
+    "broken_symlinks": [
+      "dead-link"
+    ],
+    "temporary_files": [
+      "scratch.tmp"
+    ],
+    "unused_cache_files": [
+      "__pycache__/x.pyc"
+    ],
+    "empty_files": [
+      "empty.txt"
+    ],
+    "executable_scripts": [
+      "run.sh"
+    ],
+    "hidden_files": 3,
+    "binary_files": 2
+  },
+  "todos": [
+    {
+      "path": "src/todo_0.py",
+      "line_number": 1,
+      "kind": "TODO",
+      "content": "item 0"
+    },
+    {
+      "path": "src/todo_1.py",
+      "line_number": 2,
+      "kind": "TODO",
+      "content": "item 1"
+    },
+    {
+      "path": "src/todo_2.py",
+      "line_number": 3,
+      "kind": "TODO",
+      "content": "item 2"
+    },
+    {
+      "path": "src/todo_3.py",
+      "line_number": 4,
+      "kind": "TODO",
+      "content": "item 3"
+    },
+    {
+      "path": "src/todo_4.py",
+      "line_number": 5,
+      "kind": "TODO",
+      "content": "item 4"
+    },
+    {
+      "path": "src/todo_5.py",
+      "line_number": 6,
+      "kind": "TODO",
+      "content": "item 5"
+    },
+    {
+      "path": "src/todo_6.py",
+      "line_number": 7,
+      "kind": "TODO",
+      "content": "item 6"
+    },
+    {
+      "path": "src/todo_7.py",
+      "line_number": 8,
+      "kind": "TODO",
+      "content": "item 7"
+    },
+    {
+      "path": "src/todo_8.py",
+      "line_number": 9,
+      "kind": "TODO",
+      "content": "item 8"
+    },
+    {
+      "path": "src/todo_9.py",
+      "line_number": 10,
+      "kind": "TODO",
+      "content": "item 9"
+    },
+    {
+      "path": "src/todo_10.py",
+      "line_number": 11,
+      "kind": "TODO",
+      "content": "item 10"
+    },
+    {
+      "path": "src/todo_11.py",
+      "line_number": 12,
+      "kind": "TODO",
+      "content": "item 11"
+    },
+    {
+      "path": "src/todo_12.py",
+      "line_number": 13,
+      "kind": "TODO",
+      "content": "item 12"
+    },
+    {
+      "path": "src/todo_13.py",
+      "line_number": 14,
+      "kind": "TODO",
+      "content": "item 13"
+    },
+    {
+      "path": "src/todo_14.py",
+      "line_number": 15,
+      "kind": "TODO",
+      "content": "item 14"
+    },
+    {
+      "path": "src/todo_15.py",
+      "line_number": 16,
+      "kind": "TODO",
+      "content": "item 15"
+    },
+    {
+      "path": "src/todo_16.py",
+      "line_number": 17,
+      "kind": "TODO",
+      "content": "item 16"
+    },
+    {
+      "path": "src/todo_17.py",
+      "line_number": 18,
+      "kind": "TODO",
+      "content": "item 17"
+    },
+    {
+      "path": "src/todo_18.py",
+      "line_number": 19,
+      "kind": "TODO",
+      "content": "item 18"
+    },
+    {
+      "path": "src/todo_19.py",
+      "line_number": 20,
+      "kind": "TODO",
+      "content": "item 19"
+    },
+    {
+      "path": "src/todo_20.py",
+      "line_number": 21,
+      "kind": "TODO",
+      "content": "item 20"
+    },
+    {
+      "path": "src/todo_21.py",
+      "line_number": 22,
+      "kind": "TODO",
+      "content": "item 21"
+    },
+    {
+      "path": "src/todo_22.py",
+      "line_number": 23,
+      "kind": "TODO",
+      "content": "item 22"
+    },
+    {
+      "path": "src/todo_23.py",
+      "line_number": 24,
+      "kind": "TODO",
+      "content": "item 23"
+    },
+    {
+      "path": "src/todo_24.py",
+      "line_number": 25,
+      "kind": "TODO",
+      "content": "item 24"
+    },
+    {
+      "path": "src/todo_25.py",
+      "line_number": 26,
+      "kind": "TODO",
+      "content": "item 25"
+    },
+    {
+      "path": "src/todo_26.py",
+      "line_number": 27,
+      "kind": "TODO",
+      "content": "item 26"
+    },
+    {
+      "path": "src/todo_27.py",
+      "line_number": 28,
+      "kind": "TODO",
+      "content": "item 27"
+    },
+    {
+      "path": "src/todo_28.py",
+      "line_number": 29,
+      "kind": "TODO",
+      "content": "item 28"
+    },
+    {
+      "path": "src/todo_29.py",
+      "line_number": 30,
+      "kind": "TODO",
+      "content": "item 29"
+    },
+    {
+      "path": "src/todo_30.py",
+      "line_number": 31,
+      "kind": "TODO",
+      "content": "item 30"
+    },
+    {
+      "path": "src/todo_31.py",
+      "line_number": 32,
+      "kind": "TODO",
+      "content": "item 31"
+    },
+    {
+      "path": "src/todo_32.py",
+      "line_number": 33,
+      "kind": "TODO",
+      "content": "item 32"
+    },
+    {
+      "path": "src/todo_33.py",
+      "line_number": 34,
+      "kind": "TODO",
+      "content": "item 33"
+    },
+    {
+      "path": "src/todo_34.py",
+      "line_number": 35,
+      "kind": "TODO",
+      "content": "item 34"
+    },
+    {
+      "path": "src/todo_35.py",
+      "line_number": 36,
+      "kind": "TODO",
+      "content": "item 35"
+    },
+    {
+      "path": "src/todo_36.py",
+      "line_number": 37,
+      "kind": "TODO",
+      "content": "item 36"
+    },
+    {
+      "path": "src/todo_37.py",
+      "line_number": 38,
+      "kind": "TODO",
+      "content": "item 37"
+    },
+    {
+      "path": "src/todo_38.py",
+      "line_number": 39,
+      "kind": "TODO",
+      "content": "item 38"
+    },
+    {
+      "path": "src/todo_39.py",
+      "line_number": 40,
+      "kind": "TODO",
+      "content": "item 39"
+    },
+    {
+      "path": "src/todo_40.py",
+      "line_number": 41,
+      "kind": "TODO",
+      "content": "item 40"
+    },
+    {
+      "path": "src/todo_41.py",
+      "line_number": 42,
+      "kind": "TODO",
+      "content": "item 41"
+    },
+    {
+      "path": "src/todo_42.py",
+      "line_number": 43,
+      "kind": "TODO",
+      "content": "item 42"
+    },
+    {
+      "path": "src/todo_43.py",
+      "line_number": 44,
+      "kind": "TODO",
+      "content": "item 43"
+    },
+    {
+      "path": "src/todo_44.py",
+      "line_number": 45,
+      "kind": "TODO",
+      "content": "item 44"
+    },
+    {
+      "path": "src/todo_45.py",
+      "line_number": 46,
+      "kind": "TODO",
+      "content": "item 45"
+    },
+    {
+      "path": "src/todo_46.py",
+      "line_number": 47,
+      "kind": "TODO",
+      "content": "item 46"
+    },
+    {
+      "path": "src/todo_47.py",
+      "line_number": 48,
+      "kind": "TODO",
+      "content": "item 47"
+    },
+    {
+      "path": "src/todo_48.py",
+      "line_number": 49,
+      "kind": "TODO",
+      "content": "item 48"
+    },
+    {
+      "path": "src/todo_49.py",
+      "line_number": 50,
+      "kind": "TODO",
+      "content": "item 49"
+    },
+    {
+      "path": "src/todo_50.py",
+      "line_number": 51,
+      "kind": "TODO",
+      "content": "item 50"
+    },
+    {
+      "path": "src/todo_51.py",
+      "line_number": 52,
+      "kind": "TODO",
+      "content": "item 51"
+    },
+    {
+      "path": "src/todo_52.py",
+      "line_number": 53,
+      "kind": "TODO",
+      "content": "item 52"
+    },
+    {
+      "path": "src/todo_53.py",
+      "line_number": 54,
+      "kind": "TODO",
+      "content": "item 53"
+    },
+    {
+      "path": "src/todo_54.py",
+      "line_number": 55,
+      "kind": "TODO",
+      "content": "item 54"
+    },
+    {
+      "path": "src/todo_55.py",
+      "line_number": 56,
+      "kind": "TODO",
+      "content": "item 55"
+    },
+    {
+      "path": "src/todo_56.py",
+      "line_number": 57,
+      "kind": "TODO",
+      "content": "item 56"
+    },
+    {
+      "path": "src/todo_57.py",
+      "line_number": 58,
+      "kind": "TODO",
+      "content": "item 57"
+    },
+    {
+      "path": "src/todo_58.py",
+      "line_number": 59,
+      "kind": "TODO",
+      "content": "item 58"
+    },
+    {
+      "path": "src/todo_59.py",
+      "line_number": 60,
+      "kind": "TODO",
+      "content": "item 59"
+    },
+    {
+      "path": "src/todo_60.py",
+      "line_number": 61,
+      "kind": "TODO",
+      "content": "item 60"
+    },
+    {
+      "path": "src/todo_61.py",
+      "line_number": 62,
+      "kind": "TODO",
+      "content": "item 61"
+    },
+    {
+      "path": "src/todo_62.py",
+      "line_number": 63,
+      "kind": "TODO",
+      "content": "item 62"
+    },
+    {
+      "path": "src/todo_63.py",
+      "line_number": 64,
+      "kind": "TODO",
+      "content": "item 63"
+    },
+    {
+      "path": "src/todo_64.py",
+      "line_number": 65,
+      "kind": "TODO",
+      "content": "item 64"
+    },
+    {
+      "path": "src/todo_65.py",
+      "line_number": 66,
+      "kind": "TODO",
+      "content": "item 65"
+    },
+    {
+      "path": "src/todo_66.py",
+      "line_number": 67,
+      "kind": "TODO",
+      "content": "item 66"
+    },
+    {
+      "path": "src/todo_67.py",
+      "line_number": 68,
+      "kind": "TODO",
+      "content": "item 67"
+    },
+    {
+      "path": "src/todo_68.py",
+      "line_number": 69,
+      "kind": "TODO",
+      "content": "item 68"
+    },
+    {
+      "path": "src/todo_69.py",
+      "line_number": 70,
+      "kind": "TODO",
+      "content": "item 69"
+    },
+    {
+      "path": "src/todo_70.py",
+      "line_number": 71,
+      "kind": "TODO",
+      "content": "item 70"
+    },
+    {
+      "path": "src/todo_71.py",
+      "line_number": 72,
+      "kind": "TODO",
+      "content": "item 71"
+    },
+    {
+      "path": "src/todo_72.py",
+      "line_number": 73,
+      "kind": "TODO",
+      "content": "item 72"
+    },
+    {
+      "path": "src/todo_73.py",
+      "line_number": 74,
+      "kind": "TODO",
+      "content": "item 73"
+    },
+    {
+      "path": "src/todo_74.py",
+      "line_number": 75,
+      "kind": "TODO",
+      "content": "item 74"
+    },
+    {
+      "path": "src/todo_75.py",
+      "line_number": 76,
+      "kind": "TODO",
+      "content": "item 75"
+    },
+    {
+      "path": "src/todo_76.py",
+      "line_number": 77,
+      "kind": "TODO",
+      "content": "item 76"
+    },
+    {
+      "path": "src/todo_77.py",
+      "line_number": 78,
+      "kind": "TODO",
+      "content": "item 77"
+    },
+    {
+      "path": "src/todo_78.py",
+      "line_number": 79,
+      "kind": "TODO",
+      "content": "item 78"
+    },
+    {
+      "path": "src/todo_79.py",
+      "line_number": 80,
+      "kind": "TODO",
+      "content": "item 79"
+    },
+    {
+      "path": "src/todo_80.py",
+      "line_number": 81,
+      "kind": "TODO",
+      "content": "item 80"
+    },
+    {
+      "path": "src/todo_81.py",
+      "line_number": 82,
+      "kind": "TODO",
+      "content": "item 81"
+    },
+    {
+      "path": "src/todo_82.py",
+      "line_number": 83,
+      "kind": "TODO",
+      "content": "item 82"
+    },
+    {
+      "path": "src/todo_83.py",
+      "line_number": 84,
+      "kind": "TODO",
+      "content": "item 83"
+    },
+    {
+      "path": "src/todo_84.py",
+      "line_number": 85,
+      "kind": "TODO",
+      "content": "item 84"
+    },
+    {
+      "path": "src/todo_85.py",
+      "line_number": 86,
+      "kind": "TODO",
+      "content": "item 85"
+    },
+    {
+      "path": "src/todo_86.py",
+      "line_number": 87,
+      "kind": "TODO",
+      "content": "item 86"
+    },
+    {
+      "path": "src/todo_87.py",
+      "line_number": 88,
+      "kind": "TODO",
+      "content": "item 87"
+    },
+    {
+      "path": "src/todo_88.py",
+      "line_number": 89,
+      "kind": "TODO",
+      "content": "item 88"
+    },
+    {
+      "path": "src/todo_89.py",
+      "line_number": 90,
+      "kind": "TODO",
+      "content": "item 89"
+    },
+    {
+      "path": "src/todo_90.py",
+      "line_number": 91,
+      "kind": "TODO",
+      "content": "item 90"
+    },
+    {
+      "path": "src/todo_91.py",
+      "line_number": 92,
+      "kind": "TODO",
+      "content": "item 91"
+    },
+    {
+      "path": "src/todo_92.py",
+      "line_number": 93,
+      "kind": "TODO",
+      "content": "item 92"
+    },
+    {
+      "path": "src/todo_93.py",
+      "line_number": 94,
+      "kind": "TODO",
+      "content": "item 93"
+    },
+    {
+      "path": "src/todo_94.py",
+      "line_number": 95,
+      "kind": "TODO",
+      "content": "item 94"
+    },
+    {
+      "path": "src/todo_95.py",
+      "line_number": 96,
+      "kind": "TODO",
+      "content": "item 95"
+    },
+    {
+      "path": "src/todo_96.py",
+      "line_number": 97,
+      "kind": "TODO",
+      "content": "item 96"
+    },
+    {
+      "path": "src/todo_97.py",
+      "line_number": 98,
+      "kind": "TODO",
+      "content": "item 97"
+    },
+    {
+      "path": "src/todo_98.py",
+      "line_number": 99,
+      "kind": "TODO",
+      "content": "item 98"
+    },
+    {
+      "path": "src/todo_99.py",
+      "line_number": 100,
+      "kind": "TODO",
+      "content": "item 99"
+    },
+    {
+      "path": "src/todo_100.py",
+      "line_number": 101,
+      "kind": "TODO",
+      "content": "item 100"
+    },
+    {
+      "path": "src/todo_101.py",
+      "line_number": 102,
+      "kind": "TODO",
+      "content": "item 101"
+    },
+    {
+      "path": "src/todo_102.py",
+      "line_number": 103,
+      "kind": "TODO",
+      "content": "item 102"
+    }
+  ],
+  "test_results": [
+    {
+      "kind": "pytest",
+      "returncode": 0,
+      "summary": "120 passed",
+      "raw_output": "120 passed in 4.20s",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 4.2,
+      "skipped": false,
+      "skip_reason": ""
+    },
+    {
+      "kind": "cargo test",
+      "returncode": 1,
+      "summary": "1 failed, 40 passed",
+      "raw_output": "test add ... FAILED\nthread 'main' panicked",
+      "warnings": [],
+      "errors": [
+        {
+          "source": "cargo test",
+          "message": "add() off by one",
+          "severity": "error"
+        }
+      ],
+      "duration_seconds": 1.1,
+      "skipped": false,
+      "skip_reason": ""
+    },
+    {
+      "kind": "go test",
+      "returncode": 0,
+      "summary": "",
+      "raw_output": "",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": true,
+      "skip_reason": "go not installed"
+    }
+  ],
+  "quality_results": [
+    {
+      "kind": "ruff",
+      "returncode": 0,
+      "summary": "All checks passed!",
+      "raw_output": "All checks passed!",
+      "warnings": [
+        {
+          "source": "ruff",
+          "message": "line too long",
+          "severity": "warning"
+        }
+      ],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    },
+    {
+      "kind": "cargo clippy",
+      "returncode": 1,
+      "summary": "2 warnings",
+      "raw_output": "warning: unused import\nwarning: needless clone",
+      "warnings": [
+        {
+          "source": "clippy",
+          "message": "unused import",
+          "severity": "warning"
+        },
+        {
+          "source": "clippy",
+          "message": "needless clone",
+          "severity": "warning"
+        }
+      ],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    }
+  ],
+  "security_results": [
+    {
+      "kind": "bandit",
+      "returncode": 0,
+      "summary": "No issues identified.",
+      "raw_output": "No issues identified.",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    },
+    {
+      "kind": "gitleaks",
+      "returncode": 1,
+      "summary": "1 leak found",
+      "raw_output": "1 leak found",
+      "warnings": [],
+      "errors": [
+        {
+          "source": "gitleaks",
+          "message": "possible API key",
+          "severity": "error"
+        }
+      ],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    }
+  ],
+  "health": {
+    "score": 76.0,
+    "max_score": 100.0,
+    "grade": "C",
+    "breakdown": {
+      "Tests": 18.0,
+      "Quality": 15.0,
+      "Security": 12.0,
+      "Git": 10.0,
+      "Code": 11.0,
+      "Tooling": 10.0
+    },
+    "recommendations": [
+      "Fix the failing cargo test",
+      "Rotate the leaked credential"
+    ],
+    "critical_failures": [
+      "1 potential secret was found in tracked source"
+    ],
+    "checks_run": 9,
+    "checks_skipped": [
+      "go test (go not installed)"
+    ],
+    "confidence": 0.9
+  },
+  "known_issues": [
+    "Compilation or lint errors were detected"
+  ],
+  "ai_summary": "This is a hybrid Python/Rust/Go workspace with one failing test.",
+  "suggested_reading_order": [
+    "src/module_0.py",
+    "src/module_1.py",
+    "src/module_2.py",
+    "src/module_3.py",
+    "src/module_4.py",
+    "src/module_5.py",
+    "src/module_6.py",
+    "src/module_7.py",
+    "src/module_8.py",
+    "src/module_9.py",
+    "src/module_10.py",
+    "src/module_11.py",
+    "src/module_12.py",
+    "src/module_13.py",
+    "src/module_14.py",
+    "src/module_15.py",
+    "src/module_16.py",
+    "src/module_17.py",
+    "src/module_18.py",
+    "src/module_19.py",
+    "src/module_20.py",
+    "src/module_21.py",
+    "src/module_22.py",
+    "src/module_23.py",
+    "src/module_24.py",
+    "src/module_25.py",
+    "src/module_26.py",
+    "src/module_27.py",
+    "src/module_28.py",
+    "src/module_29.py",
+    "src/module_30.py",
+    "src/module_31.py",
+    "src/module_32.py",
+    "src/module_33.py",
+    "src/module_34.py",
+    "src/module_35.py",
+    "src/module_36.py",
+    "src/module_37.py",
+    "src/module_38.py",
+    "src/module_39.py",
+    "src/module_40.py",
+    "src/module_41.py",
+    "src/module_42.py",
+    "src/module_43.py",
+    "src/module_44.py"
+  ],
+  "included_files": [
+    "src/main.py",
+    "src/lib.rs",
+    "README.md"
+  ],
+  "skipped_files": [
+    [
+      "assets/huge.bin",
+      52428800
+    ]
+  ],
+  "excluded_secret_files": [
+    ".env",
+    "config/secrets.env"
+  ],
+  "secret_findings": [
+    {
+      "path": "config/secrets.env",
+      "line_number": 3,
+      "pattern_name": "AWS Secret Key",
+      "is_test_fixture": false
+    },
+    {
+      "path": "tests/fixtures/dummy_key.py",
+      "line_number": 1,
+      "pattern_name": "Generic API Key",
+      "is_test_fixture": true
+    }
+  ],
+  "source_files": [
+    {
+      "path": "src/main.py",
+      "size": 28,
+      "content": "def main():\n    print(\"hi\")\n"
+    },
+    {
+      "path": "src/lib.rs",
+      "size": 48,
+      "content": "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n"
+    },
+    {
+      "path": "README.md",
+      "size": 14,
+      "content": "# Hybrid demo\n"
+    }
+  ]
+}

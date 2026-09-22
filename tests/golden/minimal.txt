@@ -1,0 +1,10 @@
+sarand report — minimal-project
+Generated: 2026-01-01 12:00:00+00:00
+Host: (unknown)
+
+Detected: unknown (unknown)
+Scan engine: pure-Python fallback
+Python: (unavailable)
+Git: (unavailable) @ (unavailable) (dirty=False)
+
+Files: 0  LOC: 0
