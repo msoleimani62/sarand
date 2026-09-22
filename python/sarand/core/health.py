@@ -51,12 +51,24 @@ def compute_health_score(data: ReportData) -> HealthScore:
     """Compute a 0-100 health score with breakdown and recommendations.
 
     Scoring rules (simplified, transparent):
-    - Tests pass: +25
-    - No critical errors in quality/security: +20
-    - Clean git (not dirty, not far behind): +10
-    - Reasonable TODO count & code hygiene: +15
-    - Presence of tests & quality tooling: +15
-    - Security tooling run and clean: +15
+    - Tests:                    up to 25
+    - Quality checks:           up to 20
+    - Security checks:          up to 15
+    - Git hygiene:              up to 10
+    - Code hygiene (TODOs etc): up to 15
+    - Tooling availability:     up to 15
+    --------------------------------
+    Maximum possible score:     100
+
+    قوانین امتیازدهی (ساده و شفاف):
+    - تست‌ها:                    حداکثر ۲۵
+    - بررسی کیفیت:               حداکثر ۲۰
+    - بررسی امنیت:               حداکثر ۱۵
+    - وضعیت Git:                 حداکثر ۱۰
+    - بهداشت کد (TODO و غیره):   حداکثر ۱۵
+    - در دسترس بودن ابزارها:     حداکثر ۱۵
+    --------------------------------
+    حداکثر امتیاز ممکن:          ۱۰۰
     """
     breakdown: dict[str, float] = {}
     recommendations: list[str] = []
@@ -194,11 +206,22 @@ def compute_health_score(data: ReportData) -> HealthScore:
             )
     breakdown["code"] = max(0.0, code_score)
 
-    # --- Tooling presence ---
-    tooling = 0.0
-    if data.environment.tool_versions:
-        tooling += min(10.0, 2.0 * len(data.environment.tool_versions))
-    breakdown["tooling"] = tooling
+    # --- Tooling availability ---
+    # Score is based on the ratio of checks that actually ran for this project,
+    # not on how many tools happen to be installed on the machine.
+    # امتیاز بر اساس نسبت چک‌هایی است که واقعاً برای این پروژه اجرا شده‌اند،
+    # نه بر اساس تعداد ابزارهایی که روی ماشین نصب هستند.
+    requested = [*test_results, *quality, *security]
+    applicable_checks = len(requested)
+    runnable_checks = sum(1 for r in requested if not r.skipped)
+
+    if applicable_checks:
+        breakdown["tooling"] = round(
+            15.0 * runnable_checks / applicable_checks,
+            1,
+        )
+    else:
+        breakdown["tooling"] = 0.0
 
     score = max(0.0, min(100.0, sum(breakdown.values())))
 
@@ -214,18 +237,30 @@ def compute_health_score(data: ReportData) -> HealthScore:
         grade = "F"
 
     # --- Transparency: how much of this score rests on checks that ran? ---
-    requested = [*test_results, *quality, *security]
+    # requested is already computed in the tooling block above.
+    # متغیر requested بالاتر در بلوک tooling محاسبه شده است.
     checks_run = sum(1 for r in requested if not r.skipped)
+    checks_skipped = sorted(
+        {
+            r.kind
+            for r in requested
+            if r.skipped
+        }
+    )
     missing_tools = sorted(
         {
             r.kind
             for r in requested
-            if r.skipped and "not installed" in r.skip_reason.lower()
+            if r.skipped
+            and (
+                r.returncode == 127
+                or "not installed" in r.skip_reason.lower()
+            )
         }
     )
     confidence = (
-        round(checks_run / (checks_run + len(missing_tools)), 2)
-        if checks_run + len(missing_tools)
+        round(checks_run / (checks_run + len(checks_skipped)), 2)
+        if checks_run + len(checks_skipped)
         else 1.0
     )
     if missing_tools:

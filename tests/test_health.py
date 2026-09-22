@@ -2,7 +2,7 @@
 
 Expected sums below are computed by hand from the exact weights in
 core/health.py (tests=25, quality=20, security=15, git=10, code=15,
-tooling<=10). If you change those weights, update these expectations
+tooling<=15). If you change those weights, update these expectations
 in the same commit -- this test exists specifically to catch silent
 scoring drift.
 """
@@ -44,7 +44,7 @@ def test_empty_report_scores_low_and_grade_f() -> None:
     assert result.breakdown["tooling"] == 0.0
 
 
-def test_passing_tests_and_quality_score_grade_b() -> None:
+def test_passing_tests_and_quality_score_grade_a() -> None:
     data = _base_report(
         test_results=[
             CommandResult(kind="pytest", returncode=0, summary="ok"),
@@ -59,8 +59,8 @@ def test_passing_tests_and_quality_score_grade_b() -> None:
         ),
     )
     result = compute_health_score(data)
-    assert result.score == 88.0
-    assert result.grade == "B"
+    assert result.score == 93.0
+    assert result.grade == "A"
 
 
 def test_adding_clean_security_pushes_to_grade_a() -> None:
@@ -73,8 +73,35 @@ def test_adding_clean_security_pushes_to_grade_a() -> None:
         ),
     )
     result = compute_health_score(data)
-    assert result.score == 95.0
+    assert result.score == 100.0
     assert result.grade == "A"
+    assert result.breakdown["tooling"] == 15.0
+
+
+def test_tooling_score_uses_actual_checks_not_environment_inventory() -> None:
+    """Tooling score must reflect runnable checks, not installed tool count."""
+    data = _base_report(
+        test_results=[
+            CommandResult(kind="pytest", returncode=0, summary="ok"),
+            CommandResult(
+                kind="cargo test",
+                returncode=127,
+                summary="cargo not installed",
+                skipped=True,
+                skip_reason="cargo not installed",
+            ),
+        ],
+        environment=EnvironmentInfo(
+            tool_versions={f"tool{i}": "1.0" for i in range(20)}
+        ),
+    )
+
+    result = compute_health_score(data)
+
+    # 1 of 2 checks ran → 7.5 out of 15
+    assert result.breakdown["tooling"] == 7.5
+    assert result.confidence == 0.5
+    assert "cargo test" in result.checks_skipped
 
 
 def test_failing_test_is_flagged_as_critical() -> None:
