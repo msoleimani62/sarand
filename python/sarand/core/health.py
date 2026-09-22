@@ -2,7 +2,49 @@
 
 from __future__ import annotations
 
-from sarand.models.results import HealthScore, ReportData
+import re
+
+from sarand.models.results import HealthScore, ReportData, TodoItem
+
+# Only markers written with explicit task syntax count as technical debt.
+# فقط markerهایی که با syntax صریح task نوشته شده‌اند به‌عنوان بدهی فنی حساب می‌شوند.
+# Accepted forms: TODO: ..., TODO - ..., FIXME: ..., FIXME - ...
+_ACTIONABLE_TODO_RE = re.compile(
+    r"\b(?:TODO|FIXME)\b\s*(?::|-)\s*\S",
+    re.IGNORECASE,
+)
+
+
+def _is_actionable_todo(item: TodoItem) -> bool:
+    """Return whether a TODO/FIXME uses explicit task-marker syntax.
+
+    The TODO scanner intentionally reports every marker occurrence.
+    Health scoring uses a stricter contract: only TODO/FIXME markers
+    written as ``TODO: ...``, ``TODO - ...``, ``FIXME: ...``, or
+    ``FIXME - ...`` count toward technical-debt scoring.
+
+    اسکنر عمداً همه occurrenceها را گزارش می‌کند.
+    امتیازدهی سلامت قرارداد سخت‌گیرانه‌تری دارد: فقط markerهای TODO/FIXME
+    که به شکل ``TODO: ...``، ``TODO - ...``، ``FIXME: ...`` یا
+    ``FIXME - ...`` نوشته شده‌اند به‌عنوان بدهی فنی حساب می‌شوند.
+    """
+    if (item.kind or "").upper() not in {"TODO", "FIXME"}:
+        return False
+
+    return bool(_ACTIONABLE_TODO_RE.search((item.content or "").strip()))
+
+
+def _count_actionable_todos(data: ReportData) -> int:
+    """Count actionable TODO/FIXME markers for the code-health metric.
+
+    Report / JSON / SARIF continue to show every marker the scanner found.
+    Only this count affects the health score.
+
+    فقط markerهای actionable از نوع TODO/FIXME را برای متریک code-health می‌شمارد.
+    گزارش / JSON / SARIF همچنان تمام markerهایی که اسکنر پیدا کرده را نشان می‌دهند.
+    فقط این عدد روی امتیاز سلامت اثر می‌گذارد.
+    """
+    return sum(1 for item in data.todos if _is_actionable_todo(item))
 
 
 def compute_health_score(data: ReportData) -> HealthScore:
@@ -101,10 +143,10 @@ def compute_health_score(data: ReportData) -> HealthScore:
     # --- Code health ---
     stats = data.stats
     code_score = 15.0
-    todo_count = len(data.todos)
+    todo_count = _count_actionable_todos(data)
     if todo_count > 50:
         code_score -= 5.0
-        recommendations.append(f"Reduce TODO/FIXME count (currently {todo_count}).")
+        recommendations.append(f"Reduce actionable TODO/FIXME count (currently {todo_count}).")
     if stats.broken_symlinks:
         code_score -= 3.0
         critical.append(f"{len(stats.broken_symlinks)} broken symlinks found.")

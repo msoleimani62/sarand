@@ -12,13 +12,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sarand.core.health import compute_health_score
+from sarand.core.health import _is_actionable_todo, compute_health_score
 from sarand.models.results import (
     CommandResult,
     EnvironmentInfo,
     GitSnapshot,
     ProjectStats,
     ReportData,
+    TodoItem,
 )
 
 
@@ -145,3 +146,237 @@ def test_secret_findings_are_always_critical() -> None:
     )
     assert with_secret.breakdown["code"] < clean.breakdown["code"]
     assert any("secret" in c.lower() for c in with_secret.critical_failures)
+
+
+def test_actionable_todo_is_counted() -> None:
+    data = _base_report(
+        todos=[
+            TodoItem(
+                path="src/example.py",
+                line_number=i,
+                kind="TODO",
+                content="# TODO: implement incremental cache invalidation",
+            )
+            for i in range(51)
+        ]
+    )
+    result = compute_health_score(data)
+    assert result.breakdown["code"] == 10.0
+    assert any("actionable TODO/FIXME" in r for r in result.recommendations)
+
+
+def test_actionable_fixme_is_counted() -> None:
+    data = _base_report(
+        todos=[
+            TodoItem(
+                path="src/example.py",
+                line_number=i,
+                kind="FIXME",
+                content="# FIXME: handle malformed manifest",
+            )
+            for i in range(51)
+        ]
+    )
+    result = compute_health_score(data)
+    assert result.breakdown["code"] == 10.0
+
+
+def test_non_actionable_todo_references_are_ignored() -> None:
+    """Infrastructure and self-references must not reduce the score."""
+    data = _base_report(
+        todos=[
+            TodoItem(
+                path="python/sarand/constants.py",
+                line_number=170,
+                kind="TODO",
+                content="TODO_PATTERNS: tuple[str, ...] = (...)",
+            ),
+            TodoItem(
+                path="python/sarand/renderers/markdown.py",
+                line_number=258,
+                kind="TODO",
+                content='"## TODO / FIXME markers"',
+            ),
+            TodoItem(
+                path="python/sarand/cli.py",
+                line_number=316,
+                kind="TODO",
+                content="# TODO/secret results vs changed files",
+            ),
+            TodoItem(
+                path="python/sarand/scanners/todos.py",
+                line_number=28,
+                kind="TODO",
+                content='"""Scan non-binary source files for TODO-style markers."""',
+            ),
+            TodoItem(
+                path="python/sarand/scanners/todos.py",
+                line_number=87,
+                kind="TODO",
+                content='logger.info("Found %d TODO-style markers", len(items))',
+            ),
+            TodoItem(
+                path="python/sarand/cli.py",
+                line_number=335,
+                kind="TODO",
+                content="# TODOs have no such safety requirement",
+            ),
+        ]
+    )
+    result = compute_health_score(data)
+    assert result.breakdown["code"] == 15.0
+    assert not any("actionable TODO/FIXME" in r for r in result.recommendations)
+
+
+def test_non_todo_markers_are_ignored_for_todo_score() -> None:
+    data = _base_report(
+        todos=[
+            TodoItem(
+                path="src/example.py",
+                line_number=i,
+                kind="BUG",
+                content="# BUG: something broken",
+            )
+            for i in range(60)
+        ]
+    )
+    result = compute_health_score(data)
+    assert result.breakdown["code"] == 15.0
+
+
+def test_actionable_todo_requires_explicit_syntax() -> None:
+    """Only explicit TODO/FIXME task syntax is actionable."""
+    data = _base_report(
+        todos=[
+            TodoItem(
+                path="src/example.py",
+                line_number=1,
+                kind="TODO",
+                content="# TODO_IMPLEMENT cache invalidation",
+            ),
+            TodoItem(
+                path="src/example.py",
+                line_number=2,
+                kind="TODO",
+                content="# TODOs are tracked separately",
+            ),
+            TodoItem(
+                path="src/example.py",
+                line_number=3,
+                kind="TODO",
+                content="# TODO: implement cache invalidation",
+            ),
+            TodoItem(
+                path="src/example.py",
+                line_number=4,
+                kind="FIXME",
+                content="# FIXME - handle malformed manifest",
+            ),
+        ]
+    )
+    result = compute_health_score(data)
+    assert result.breakdown["code"] == 15.0
+
+
+def test_todo_classification_is_case_insensitive() -> None:
+    data = _base_report(
+        todos=[
+            TodoItem(
+                path="src/example.py",
+                line_number=1,
+                kind="todo",
+                content="# todo: implement cache invalidation",
+            ),
+            TodoItem(
+                path="src/example.py",
+                line_number=2,
+                kind="fixme",
+                content="# fixme - handle malformed manifest",
+            ),
+            TodoItem(
+                path="src/example.py",
+                line_number=3,
+                kind="BUG",
+                content="# bug: something broken",
+            ),
+        ]
+    )
+    result = compute_health_score(data)
+    assert result.breakdown["code"] == 15.0
+
+
+def test_actionable_todo_classification() -> None:
+    actionable = [
+        TodoItem(
+            path="src/example.py",
+            line_number=1,
+            kind="TODO",
+            content="# TODO: implement cache invalidation",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=2,
+            kind="TODO",
+            content="# TODO - implement cache invalidation",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=3,
+            kind="FIXME",
+            content="# FIXME: handle malformed manifest",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=4,
+            kind="FIXME",
+            content="# FIXME - handle malformed manifest",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=5,
+            kind="todo",
+            content="# todo: implement cache invalidation",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=6,
+            kind="fixme",
+            content="# fixme - handle malformed manifest",
+        ),
+    ]
+
+    non_actionable = [
+        TodoItem(
+            path="src/example.py",
+            line_number=7,
+            kind="TODO",
+            content="TODO_PATTERNS: tuple[str, ...] = (...)",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=8,
+            kind="TODO",
+            content='"## TODO / FIXME markers"',
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=9,
+            kind="TODO",
+            content="# TODO/secret results",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=10,
+            kind="TODO",
+            content="# TODOs have no such safety requirement",
+        ),
+        TodoItem(
+            path="src/example.py",
+            line_number=11,
+            kind="BUG",
+            content="# BUG: something broken",
+        ),
+    ]
+
+    assert all(_is_actionable_todo(item) for item in actionable)
+    assert not any(_is_actionable_todo(item) for item in non_actionable)
