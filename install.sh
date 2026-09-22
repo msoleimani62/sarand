@@ -63,14 +63,14 @@ export UV_HTTP_TIMEOUT="${UV_HTTP_TIMEOUT:-180}"
 # کاری نمی‌کند، پس هرگز نصبی را که کنار نگذاشته پاک نمی‌کند.
 restore_previous() {
     case "$STATE" in
-        aside)
-            rm -rf "$PIPX_VENV_DIR"
-            mv "$BACKUP_DIR" "$PIPX_VENV_DIR"
-            echo "==> The previous installation was restored -- nothing was lost."
-            ;;
-        fresh)
-            rm -rf "$PIPX_VENV_DIR"
-            ;;
+    aside)
+        rm -rf "$PIPX_VENV_DIR"
+        mv "$BACKUP_DIR" "$PIPX_VENV_DIR"
+        echo "==> The previous installation was restored -- nothing was lost."
+        ;;
+    fresh)
+        rm -rf "$PIPX_VENV_DIR"
+        ;;
     esac
     STATE=idle
 }
