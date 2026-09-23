@@ -97,6 +97,32 @@ def _render_detected_project(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_workspace(data: ReportData) -> list[str]:
+    """Nothing at all when no workspace was detected (the common
+    case) -- this section must never change what an ordinary,
+    non-workspace project's report looks like, unlike
+    `_render_detected_project` which always shows something.
+    """
+    ws = data.workspace
+    if ws is None:
+        return []
+    lines = [
+        "## Workspace",
+        "",
+        f"- **Kind:** {ws.kind}",
+        f"- **Members:** {len(ws.members)}",
+    ]
+    if ws.exclude_patterns:
+        excluded = ", ".join(f"`{p}`" for p in ws.exclude_patterns)
+        lines.append(f"- **Excluded:** {excluded}")
+    lines.append("")
+    if ws.members:
+        lines.extend(["| Member | Path |", "|---|---|"])
+        lines.extend(f"| {m.name} | `{m.path}` |" for m in ws.members)
+        lines.append("")
+    return lines
+
+
 def render(
     data: ReportData, *, include_source: bool = True, full_output: bool = False
 ) -> str:
@@ -115,6 +141,7 @@ def render(
         "---",
         "",
         *_render_detected_project(data),
+        *_render_workspace(data),
         "---",
         "",
         "## Environment",

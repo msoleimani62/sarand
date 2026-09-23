@@ -2086,3 +2086,161 @@ Delivered as `sarand-golden-reports-fix-v2.zip`: `pyproject.toml`,
 `tests/golden/hybrid.html`, full `AGENTS.md`. Not yet re-verified on
 device -- ask for `ruff check . && ruff format --check .`,
 `rm -rf .mypy_cache && mypy .`, and `pytest -q` once more.
+
+
+### 5.25 — P1 item 8: Monorepo/Workspace architecture, Cargo-only first scope (2026-09-22)
+
+First P1 item from the backlog doc's own priority order, started right
+after P0 items 6.1/7.1 were committed, tagged (v0.6.3), and pushed.
+Item 8's own text is explicit that this is a big, multi-ecosystem ask
+and that the first pass must be narrow ("do not implement all
+ecosystems automatically... do not implement every monorepo ecosystem
+in one change") -- so 8.1's required audit came first, then exactly
+one ecosystem.
+
+**8.1 audit (evidence-first, against current source, not assumed):**
+of the eight workspace models the doc names, confirmed via direct
+`grep`/inspection that sarand detects none of them structurally.
+Two are genuinely out of scope rather than merely deferred -- Bazel
+and Nx/Turborepo -- because sarand has no Bazel analyzer at all (Nx/
+Turborepo also need an npm/pnpm/Yarn workspace base first), so there
+is no existing execution to represent workspace structure *for* yet;
+adding either is a new-analyzer item, prior to anything workspace-
+shaped. The other five (npm, pnpm, Yarn workspaces; Gradle multi-
+project; Maven multi-module) split into two different kinds of gap,
+worth recording because it changes what "fixing" them later means:
+Gradle/Maven are representation-only gaps (`./gradlew test`/`mvn
+test` from the root already build+test every subproject/module via
+those tools' own native multi-project support -- sarand's report just
+doesn't say so), while npm/pnpm/Yarn are gaps in both representation
+*and* execution (`npm test` at the root only runs the root package's
+own script; it does not cascade into workspace packages without that
+script opting in or a task runner like Turborepo driving it). Full
+detail in `core/workspace.py`'s module docstring, not repeated here.
+
+**8.2 implementation, Cargo workspaces only:** new `core/workspace.py`
+(`detect_workspace(root)`, generic name on purpose -- the next
+ecosystem becomes another internal check in the same function, not a
+new `cli.py` call site) parses the root `Cargo.toml` with the same
+`tomllib`/`tomli` pattern `core/license_policy.py` already
+established. Handles: `[workspace] members = [...]` including glob
+patterns (`"crates/*"`) resolved via `Path.glob` and filtered to only
+directories that actually contain a `Cargo.toml` (a glob can otherwise
+sweep up a non-crate directory that merely matches); `exclude = [...]`
+patterns applied the same way; a root manifest with both `[workspace]`
+and its own `[package]` counting the root itself as a member (path
+`"."`, a common, valid Cargo layout); a member whose own manifest
+fails to parse or names no package falling back to its directory name
+rather than crashing or being silently dropped; any Cargo.toml parse
+failure (malformed TOML, unreadable file) returning `None` rather than
+raising -- deliberately not this detector's job to report a bad
+`Cargo.toml`, `RustAnalyzer`'s own `cargo test`/`cargo fmt` runs
+already do that loudly.
+
+`WorkspaceInfo`/`WorkspaceMember` live in `models/results.py` (the
+project's one canonical models module -- every other result type,
+`HealthScore`/`GitSnapshot`/etc., lives there too, and that module's
+own docstring forbids it importing from anywhere else in sarand, so
+`core/workspace.py` imports the types from there rather than each
+module defining its own competing copy). New `ReportData.workspace:
+WorkspaceInfo | None = None` field, defaulted so every other
+`ReportData` construction anywhere in the codebase and test suite
+needed zero changes.
+
+Wired into `cli.py` right next to `detect_project`; a new `## Workspace`
+markdown section (`_render_workspace`) and a new (conditionally
+present) `"workspace"` JSON key, both **only emitted when a workspace
+was actually detected** -- an ordinary, non-workspace project's report
+must look exactly as it did before this feature existed. This was not
+just a style choice: it's what let this land without touching a single
+byte of item 6.1's already-shipped, already-verified-on-device golden
+snapshots (both `hybrid`/`minimal` fixtures have `workspace=None`, so
+`_render_workspace`/the JSON key are no-ops for them) -- confirmed by
+rerunning the golden suite after every change in this round, still
+10/10. `html.py`/`text.py`/`sarif.py` were not given a workspace
+section this round (non-goal below).
+
+**Definition of Done, checked against the checklist item 8.2 itself
+lists:** workspace detection implemented for one explicitly selected
+ecosystem (Cargo) -- yes. Root/workspace relationship represented
+internally -- yes, `WorkspaceMember.path == "."` for the root-as-member
+case. Duplicate execution prevented -- yes by construction: this round
+only adds representation/metadata, it does not change which analyzers
+run or add any per-member execution, so there is nothing to duplicate.
+Report distinguishes root from workspace findings -- partially: the
+new section lists members and their paths (markdown + json), but does
+not yet attribute individual test/quality/security findings to
+specific members (see non-goals). Health aggregation rules defined --
+not yet needed: `RustAnalyzer` already runs one aggregate `cargo test
+--all` for the whole workspace and health scoring already scores that
+one aggregate result the same way it always did, so there is no
+per-member health to aggregate yet (would only become relevant once
+per-member execution/attribution exists). Representative fixture
+exists -- yes, built inline in `tests/test_workspace.py` (a 3-member
++ 1 excluded + 1 non-crate-glob-match Cargo workspace, plus the
+root-as-member and fallback-naming cases as separate small fixtures)
+rather than a committed fixture directory, since these are tiny and
+synthesized per-test. Regression tests exist -- yes, 10 in
+`tests/test_workspace.py`: 6 for `detect_workspace` itself (no
+Cargo.toml, single-package, malformed TOML, glob+exclude, root-as-
+member, name-fallback) and 4 for the two renderers (present/absent for
+each). Documentation explains unsupported workspace models -- yes,
+`core/workspace.py`'s module docstring audit.
+
+**Non-goals (explicitly, for the next phase of this same backlog
+item):** the next ecosystem to detect -- npm/pnpm/Yarn workspaces are
+the natural pick per the 8.1 audit above, being both representation
+*and* execution gaps, versus Gradle/Maven's representation-only gap.
+Per-member test/quality/security attribution (today `cargo test --all`
+still runs and reports as one aggregate result; splitting that per
+member -- e.g. running `cargo test -p <member>` separately, or parsing
+`cargo test --all`'s own output back apart by crate -- is real,
+separate work item 8.2's "duplicate execution is prevented" /
+"report distinguishes root from workspace findings" checklist items
+anticipate but this round does not attempt). Workspace-aware health
+aggregation (same dependency as the point above). `html.py`, `text.py`,
+`sarif.py` workspace sections. README.md/README.fa.md were
+deliberately not updated this round -- advertising a single-ecosystem,
+detection-only feature as a headline capability felt premature; this
+gets revisited once at least one more ecosystem lands.
+
+Verified locally the same way as 5.21-5.24 (no real `pytest`/`rich` in
+this sandbox): ran `detect_workspace` directly against several
+constructed temp Cargo-workspace trees before writing the pytest
+version, then ran the actual `tests/test_workspace.py` functions
+directly -- 10/10 passing -- and reran the full golden-report harness
+from 5.21 afterward to confirm the new renderer code paths are true
+no-ops for every existing fixture (still 10/10). `tests/test_renderers.py`
+(10/10) and `tests/test_coverage.py` (10/10) also rerun clean;
+`tests/test_new_renderers.py` could not be run in this sandbox's
+minimal `pytest` stub (it uses `pytest.mark.slow_external`, a real
+marker registered in `pyproject.toml` that the stub does not define --
+a sandbox/stub limitation, not evidence of anything wrong with this
+round's changes) but was confirmed syntactically valid and contains
+no full-output equality assertions that this round's additive-only
+changes could disturb.
+
+Learning from 5.23/5.24's real `ruff format --check` diffs (this
+sandbox cannot run `ruff` itself), proactively scanned every line
+this round touched for anything over ~88 characters and hand-wrapped
+the three real function-call offenses found (one in
+`core/workspace.py`, one in `markdown.py`, one in
+`tests/test_workspace.py`) the same way ruff's own diffs wrapped
+similar calls in 5.24 -- long comment/docstring lines (mostly Persian
+prose) were left alone, since ruff format does not reflow comments or
+break strings, only wrappable code constructs, which is exactly what
+5.24's real diffs showed and what the pre-existing, already-clean
+codebase's own long comment lines confirm. Not a guarantee this
+sandbox's guess matches ruff's actual output byte-for-byte, but a
+real reduction in how many rounds this is likely to take.
+
+On-device run: `ruff check .` and `mypy .` (fresh cache, 176 files)
+both clean, full suite 789/789 passed (779 + this round's 10). One
+`ruff format --check` miss, smaller than 5.23/5.24's: a quote-style
+guess, not a wrapping one -- `tests/test_workspace.py:48` used single
+quotes for a string with no internal double quotes to protect
+(`'[workspace]\n'`), so ruff preferred double quotes there, same rule
+as 5.24's `coverage.py` fix but the other direction. Fixed; every
+other single-quoted string in that file has internal double quotes
+and was correctly left alone. Item 8's Cargo-only scope is now fully
+done and verified.

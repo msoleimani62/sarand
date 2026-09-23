@@ -47,6 +47,24 @@ def render(
         "secret_findings": [f.__dict__ for f in data.secret_findings],
     }
 
+    # Only present when a workspace was actually detected, same
+    # rationale as `source_files` below: an ordinary, non-workspace
+    # project's JSON output must not gain a new key just because this
+    # feature exists (and, not incidentally, keeps the existing golden
+    # snapshots -- item 6.1 -- untouched by this unrelated addition).
+    #
+    # فقط وقتی workspace واقعاً تشخیص داده شده باشد حاضر است، همان
+    # منطق `source_files` پایین‌تر: خروجی JSON یک پروژه‌ی معمولیِ
+    # غیر-workspace نباید فقط به‌خاطر وجود این قابلیت یک کلید جدید
+    # بگیرد (و، نه اتفاقی، snapshotهای golden موجود -- آیتم ۶.۱ -- را
+    # با این افزوده‌ی نامرتبط دست‌نخورده نگه می‌دارد).
+    if data.workspace is not None:
+        payload["workspace"] = {
+            "kind": data.workspace.kind,
+            "members": [m.__dict__ for m in data.workspace.members],
+            "exclude_patterns": data.workspace.exclude_patterns,
+        }
+
     # BUG FIX: `include_source` was accepted in the signature (interface
     # parity with every other renderer) but never actually read in this
     # function body -- so JSON output never contained a single byte of

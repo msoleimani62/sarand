@@ -176,6 +176,55 @@ class HealthScore:
 
 
 @dataclass
+class WorkspaceMember:
+    """One member package/crate of a detected workspace. Populated by
+    `core/workspace.py` -- see that module for detection logic and
+    which workspace models are (and are not yet) supported.
+    """
+
+    # POSIX-style, relative to the project root ("." for the root
+    # itself when the root manifest carries both a workspace table
+    # and its own package -- a common, valid layout, e.g. Cargo).
+    # به‌سبک POSIX، نسبت به ریشه‌ی پروژه (ریشه‌ی خودش وقتی مانیفست
+    # ریشه هم جدول workspace دارد هم بسته‌ی خودش را -- چیدمانی رایج
+    # و معتبر، مثلاً در Cargo).
+    path: str
+    # The member's own package name, read from its manifest. Falls
+    # back to the directory name when that manifest could not be read
+    # or names no package (a nested virtual manifest).
+    # نام بسته‌ی خودِ عضو، از مانیفست خودش خوانده می‌شود. اگر آن
+    # مانیفست خوانده نشود یا نامی نداشته باشد (یک مانیفست مجازیِ
+    # تودرتو)، به نام دایرکتوری برمی‌گردد.
+    name: str
+
+
+@dataclass
+class WorkspaceInfo:
+    """A detected monorepo/workspace structure at the project root.
+
+    Detection only -- which analyzer(s) actually run, and how their
+    results roll up, is unchanged by this: `core/workspace.py`'s own
+    docstring notes that the underlying tools (e.g. `cargo test
+    --all`) are already workspace-aware for every ecosystem audited so
+    far, so this is purely extra structure shown in the report, not a
+    change to what gets executed.
+    """
+
+    # Which detector found this ("cargo" today; "npm"/"pnpm"/"yarn"/
+    # "gradle"/"maven" are the documented next candidates, not yet
+    # implemented -- see core/workspace.py's module docstring audit).
+    kind: str
+    members: list[WorkspaceMember] = field(default_factory=list)
+    # Raw, unresolved exclude patterns from the workspace manifest
+    # (e.g. Cargo's `[workspace] exclude = [...]`), kept for the
+    # report to show verbatim.
+    # الگوهای exclude خام و حل‌نشده از مانیفست workspace (مثلاً
+    # `exclude` خودِ `[workspace]` در Cargo)، برای نمایش عیناً در
+    # گزارش نگه داشته می‌شوند.
+    exclude_patterns: list[str] = field(default_factory=list)
+
+
+@dataclass
 class ReportData:
     """Complete data package used to render any report format."""
 
@@ -199,4 +248,5 @@ class ReportData:
     known_issues: list[str] = field(default_factory=list)
     ai_summary: str = ""
     suggested_reading_order: list[str] = field(default_factory=list)
+    workspace: WorkspaceInfo | None = None
     extra: dict[str, Any] = field(default_factory=dict)

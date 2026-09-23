@@ -37,6 +37,7 @@ from sarand.core.issues import detect_known_issues
 from sarand.core.lockfiles import run_lockfile_check
 from sarand.core.sbom import run_syft
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
+from sarand.core.workspace import detect_workspace
 from sarand.discovery.project_detector import detect_project
 from sarand.models.results import ReportData
 from sarand.progress import error, status, success, warning
@@ -276,6 +277,16 @@ async def run(config: SarandConfig) -> int:
     output_path = config.output_dir / config.output_name
 
     detection = detect_project(root)
+    # Cheap (one small TOML parse at most) and self-gating -- returns
+    # None immediately for the common case of no root Cargo.toml or a
+    # single-package (non-workspace) one. See core/workspace.py for
+    # which workspace models this does and does not detect yet.
+    # ارزان (حداکثر یک پارس کوچک TOML) و خودش تصمیم می‌گیرد -- برای
+    # حالت رایجِ نبودِ Cargo.toml ریشه یا یک Cargo.toml تک‌بسته‌ای
+    # (غیر-workspace) بلافاصله None برمی‌گرداند. برای اینکه کدام
+    # مدل‌های workspace فعلاً تشخیص داده می‌شوند و کدام نه،
+    # core/workspace.py را ببینید.
+    workspace = detect_workspace(root)
     if detection.is_recognized:
         status(f"Detected: {', '.join(detection.languages)} ({detection.build_system})")
     else:
@@ -536,6 +547,7 @@ async def run(config: SarandConfig) -> int:
         excluded_secret_files=excluded_secrets,
         secret_findings=secret_findings,
         known_issues=known,
+        workspace=workspace,
     )
 
     data.ai_summary = generate_ai_summary(data)
