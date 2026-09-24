@@ -41,9 +41,9 @@ def render(
         "known_issues": data.known_issues,
         "ai_summary": data.ai_summary,
         "suggested_reading_order": data.suggested_reading_order,
-        "included_files": [str(p) for p in data.included_files],
-        "skipped_files": [(str(p), s) for p, s in data.skipped_files],
-        "excluded_secret_files": [str(p) for p in data.excluded_secret_files],
+        "included_files": [p.as_posix() for p in data.included_files],
+        "skipped_files": [(p.as_posix(), s) for p, s in data.skipped_files],
+        "excluded_secret_files": [p.as_posix() for p in data.excluded_secret_files],
         "secret_findings": [f.__dict__ for f in data.secret_findings],
     }
 
@@ -96,7 +96,9 @@ def render(
                 size = full.stat().st_size
             except OSError:
                 size = 0
-            source_files.append({"path": str(rel), "size": size, "content": content})
+            source_files.append(
+                {"path": rel.as_posix(), "size": size, "content": content}
+            )
         payload["source_files"] = source_files
 
     return json.dumps(payload, indent=2, default=default, ensure_ascii=False)

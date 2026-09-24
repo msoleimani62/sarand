@@ -2244,3 +2244,206 @@ as 5.24's `coverage.py` fix but the other direction. Fixed; every
 other single-quoted string in that file has internal double quotes
 and was correctly left alone. Item 8's Cargo-only scope is now fully
 done and verified.
+
+
+### 5.26 — P1 item 9, phase 1: memory audit + real benchmark tooling, no --low-memory yet (2026-09-23)
+
+Next P1 item after item 8 (Cargo workspaces, v0.6.4). Item 9's own
+text puts a hard requirement before any implementation: "Do not claim
+OOM risk without measurement" and an explicit "Required measurements"
+step (small/medium/large project, runtime + peak memory + report size
++ source size) that must happen *before* "9.2 Desired Capabilities"
+is designed ("The exact interface must be designed after profiling").
+This sandbox cannot produce those measurements -- no representative
+constrained device, and fabricating numbers would violate the
+Evidence-First Rule outright. So this round is deliberately phase 1
+only: a code-level audit (which needs no device, just reading source)
+plus a real measurement tool for the user's own devices -- not a
+`--low-memory` implementation, which would mean designing blind.
+
+**9.1 audit (confirmed via direct source inspection, not guessed):**
+three real, evidence-backed memory-heavy stages, all in `core/`/
+`renderers/`, none in the Rust-core scan path:
+
+1. **The selected renderer reads every embedded file's full content
+   and joins it into one in-memory string before a single
+   `write_text()` call** -- confirmed at `markdown.py`/`json_renderer.py`/
+   `html.py`, each with their own `full.read_text(encoding="utf-8",
+   errors="replace")` inside their file-embedding loop (`cli.py` only
+   invokes ONE of these per run, per `--format`, so it's not 3x -- but
+   within that one renderer, nothing streams to disk; the whole report
+   is one Python string, sized proportionally to total embedded
+   source, before it ever touches the filesystem). This is exactly
+   what `core/estimate.py` (added in an earlier round) already warns
+   about via `size_advice()` -- but only as a warning; `--no-source`/
+   `--max-file-size`/dropping `--full` are the existing, *manual*
+   mitigations. No streaming write path exists yet.
+2. **`CommandResult.raw_output` is stored full and untruncated for
+   every tool invocation, unconditionally** (`utils/command.py`'s
+   `make_command_result`), even though only `summary` (last 80 lines,
+   via `summarize_tail`) is ever rendered for a *successful* check;
+   `raw_output` only actually reaches the report when
+   `result.returncode != 0` or `full_output=True` (`markdown.py`/
+   `html.py`'s `show_full` condition). For a `--full` run across many
+   analyzers, every passing check's full stdout/stderr sits in memory
+   for the rest of the run, unused.
+3. **`core/issues.py`'s `detect_known_issues()` unconditionally joins
+   every result's full `raw_output` into one combined string, twice**
+   (once filtered, once lowercased) -- `combined = "\n".join(r.raw_output
+   for r in results if r.raw_output)`, called on every single run
+   regardless of `--full`, from `cli.py`. Transiently duplicates the
+   total tool-output volume 2-3x, every run, not just large ones.
+
+**PDF path** (`weasyprint`, in-process HTML→PDF) is flagged but not
+measured this round either -- well-documented externally as
+memory-intensive for large documents, but "well-documented externally"
+is not this project's own evidence, so it stays a candidate, not a
+confirmed finding, until benchmarked.
+
+**Deliverable this round:** `scripts/benchmark_report.py`, a
+dependency-free dev script (not part of the installed `sarand`
+package) that runs `sarand --full` and `sarand --full --no-source`
+against however many real projects the user points it at, using GNU
+`time -v` (present on both dev machines -- Kali NetHunter proot and
+Arch -- per `topics/dev-environment` conventions) for real peak-RSS
+numbers, wall-clock time, and report-file size, printing a Markdown
+table with exactly item 9.1's requested columns plus a computed
+"embedded-source contribution to report size" delta between the two
+modes. Explicitly Linux-only (`time -v`); falls back to reporting
+"peak RSS: n/a" rather than guessing when `time -v` is unavailable,
+never silently substitutes a fake number. Verified in this sandbox as
+far as possible without a real `sarand` install or GNU `time`: both
+regexes (`Maximum resident set size`, the `Elapsed (h:mm:ss or m:ss)`
+line whose own unit-hint parenthetical contains colons that could trip
+a naive parser) tested against real sample `time -v` output for both
+the `m:ss.cc` and `h:mm:ss.cc` elapsed-time formats, both correct.
+
+**Explicitly not done this round:** no `--low-memory` flag, no
+streaming renderer, no `raw_output` truncation, no
+`detect_known_issues` optimization -- all three audit findings above
+are real, concrete *candidates* for what `--low-memory` (or an
+always-on optimization, for #2/#3 which look like pure wins with no
+behavior change even outside a `--low-memory` mode) could target, but
+item 9's own text requires the real numbers before that design
+decision, and this sandbox cannot produce them. **Next step, waiting
+on the user:** run `python scripts/benchmark_report.py <small>
+<sarand's own repo as medium> <something bigger>` on both real
+devices and report the output back -- that closes item 9.1's
+"Required measurements" for real, and is what the next round's
+`--low-memory` design will be built from.
+
+
+### 5.27 — CI broke on two releases (v0.6.3, v0.6.4): wheel-install path bug + real Windows cross-platform bugs (2026-09-23)
+
+User reported CI red on both of the last two tags. This interrupted
+the P1 item 9 work (5.26) -- fixing a regression on `main` takes
+priority over starting new backlog items, per the doc's own P0
+framing ("correctness / regression infrastructure" outranks
+everything). Investigated the actual GitHub Actions failure summary
+the user pasted (all three of ubuntu/macos/windows py3.12 "quality"
+jobs failed; py3.10/py3.14 ubuntu jobs' own failures were not shown in
+the pasted summary but are presumably the same root cause) rather than
+guessing.
+
+**Bug 1 -- `core/coverage.py`'s `_REPO_ROOT` broke under CI's own
+"test the real wheel" step (all 3 platforms, root cause of the
+`test_coverage.py` failures from 5.22 onward).** `_REPO_ROOT` was
+`Path(__file__).resolve().parent.parent.parent.parent` -- correct only
+when the *imported* `sarand.core.coverage` is the source-tree copy.
+`ci.yml`'s "quality" job does not stop at the editable dev install: it
+then runs `maturin build --release` and `pip install dist/*.whl`,
+deliberately testing the real installed artifact, before running
+`pytest`. From that point on `__file__` points into site-packages, so
+`tests/`/`.github/workflows/ci.yml` silently resolved to nonexistent
+paths, every `fixture_coverage`/`ci_installed` check went to `False`,
+every depth was miscomputed, and `docs/COVERAGE.md` looked "stale"
+against that -- explains all three `test_coverage.py` failures, on
+every OS, and explains why this passed every local verification round
+(5.22-5.24): the user's local dev environment is always editable-mode,
+never rebuilds+installs a wheel mid-session, so nothing ever exercised
+this path locally. Real lesson, not just a fixed bug: **local
+verification in an editable install is not equivalent to what CI's
+own "quality" job actually tests**, for any project-introspection code
+that relies on `__file__`. Fixed with a new `_find_repo_root()`:
+search upward from `Path.cwd()` for `pyproject.toml` + `.github/`
+first (both the documented `python -m sarand.core.coverage >
+docs/COVERAGE.md` invocation and CI's own `pytest` step always run
+with the checkout as cwd, in *every* install mode), falling back to
+the old `__file__`-relative guess only if that search finds nothing.
+Verified directly: `_find_repo_root()` returns the correct root both
+from the repo root itself and from a nested subdirectory
+(`python/sarand/core`), confirming the upward search actually walks.
+
+**Bug 2 -- three renderers embedded relative file paths without
+`.as_posix()` (Windows-only, real correctness bugs beyond golden-test
+failures, pre-existing before item 6.1 ever touched these files).**
+`markdown.py`'s `f"### FILE: \`{rel}\`"`, `html.py`'s
+`escape(str(rel))`, and `json_renderer.py`'s `"path": str(rel)` (plus
+the same pattern for `skipped_files`/`excluded_secret_files` in all
+three, and `included_files` in `json_renderer.py`) all implicitly
+`str()`-format a `Path`, which uses native separators -- backslashes
+on Windows. Two distinct consequences, both real: (a) cosmetic --
+report headers/JSON showed `src\main.py` on Windows instead of
+`src/main.py`, which is what made `md-hybrid`/`html-hybrid`/parts of
+`json-hybrid` fail the byte-exact golden comparison (item 6.1's
+snapshots were captured on Linux) -- **this validates the whole point
+of golden-report testing**: this bug predates item 6.1 entirely
+(untouched by any of my edits to these files) and no "contains X"
+style test ever caught it, because the text still *contained* enough
+to pass a loose check, just not byte-exact. (b) functional, not just
+cosmetic -- `markdown.py`/`html.py`'s filename-vs-content exclusion
+split compares `str(p)` (backslash form) against
+`{f.path for f in data.secret_findings}` (always forward-slash
+strings, from the scanner) -- on Windows this comparison silently
+never matches, so every excluded-secret file would be mis-labeled
+"credential-shaped filename" even when it was really a content match.
+Fixed all of it: every `Path` embedded in rendered text or compared
+against a plain-string set now goes through `.as_posix()`. Confirmed
+this is a pure Windows-only fix and changes nothing on Linux/macOS:
+reran the full golden-report harness after, still 10/10 with *zero*
+snapshot changes needed (`.as_posix()` and `str()` are identical for
+an already-relative path on POSIX).
+
+**Bug 3 -- `test_golden_reports.py`'s own `_normalize()` did not
+account for JSON string-escaping of the tempdir's absolute path
+(Windows-only, explains the remaining `json-*`/`sarif.json-*`
+failures).** `json_renderer.py`/`sarif.py` embed `data.project_root`
+inside a JSON string; `json.dumps` escapes every backslash as `\\`.
+The single-backslash `str(root)` the test replaced never appears
+literally in that escaped text on Windows, so normalization silently
+did nothing and the real (un-normalized, machine-specific) path leaked
+into the "normalized" output, which could then never match a snapshot
+captured on Linux. Fixed by also trying the JSON-escaped form of the
+path. Same as Bug 2, confirmed a no-op on Linux (no backslashes to
+escape there) -- golden harness still 10/10, zero snapshot changes.
+
+All three bugs independently explain a disjoint subset of the observed
+failures and were each verified in isolation before combining: Bug 1
+-> the 3 `test_coverage.py` failures (all platforms); Bug 2 -> the
+Windows-only `md-hybrid`/`html-hybrid` failures (and contributes to
+`json-hybrid`); Bug 3 -> the remaining Windows-only `json-*`/
+`sarif.json-*` failures. Together they account for everything in the
+pasted summary. **Not independently confirmed against the real Windows
+CI run yet** (this sandbox is Linux-only, same limitation as every
+prior round) -- confidence is high (each bug was traced to an exact
+line via direct code reading, not guessed from symptoms alone, and the
+"which combos fail vs pass" pattern in the user's paste matches each
+bug's predicted footprint exactly: `txt` never embeds paths so never
+fails, `minimal` has no `included_files` so only the Bug-1/Bug-3
+failures apply to it, `hybrid` has both), but the honest status is
+"strongly evidenced, not yet reproduced" until the next CI run
+confirms it.
+
+On-device run of the 5.27 fixes: `pytest -q` clean (789/789), but two
+small misses caught by tools this sandbox can't run. `ruff check`
+(I001): the new `_find_repo_root` def needed a second blank line
+before it (PEP 8 two-blank-lines-before-a-top-level-def) -- one-line
+fix. `mypy .`: `scripts/benchmark_report.py`'s `_parse_gnu_time_elapsed`
+reassigned `parts` from `list[str]` to `list[float]` in the same
+variable -- mypy fixes a variable's type at first assignment in a
+scope and does not allow narrowing it differently on reassignment
+without an explicit annotation; renamed the second list to `values`
+instead of fighting the type checker. Both fixed, verified locally
+(`docs/COVERAGE.md` still byte-identical, `_parse_gnu_time_elapsed`
+re-tested against the `m:ss.cc` and `h:mm:ss.cc` sample strings from
+5.26, both still correct).

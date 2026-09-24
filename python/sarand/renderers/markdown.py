@@ -347,14 +347,16 @@ def render(
 
     # Separate filename-based exclusions from content-based exclusions.
     # تفکیک حذف‌های ناشی از نام‌فایل از حذف‌های ناشی از تطبیق محتوای حساس.
-    content_flagged_paths = {str(f.path) for f in data.secret_findings}
+    content_flagged_paths = {f.path for f in data.secret_findings}
 
     filename_excluded = [
-        p for p in data.excluded_secret_files if str(p) not in content_flagged_paths
+        p
+        for p in data.excluded_secret_files
+        if p.as_posix() not in content_flagged_paths
     ]
 
     content_excluded = [
-        p for p in data.excluded_secret_files if str(p) in content_flagged_paths
+        p for p in data.excluded_secret_files if p.as_posix() in content_flagged_paths
     ]
 
     if filename_excluded:
@@ -362,7 +364,7 @@ def render(
             [
                 "### Excluded (credential-shaped filenames, never read — AGENTS.md §4.10)",
                 "",
-                *[f"- `{p}`" for p in filename_excluded],
+                *[f"- `{p.as_posix()}`" for p in filename_excluded],
                 "",
             ]
         )
@@ -372,7 +374,7 @@ def render(
             [
                 "### Excluded (content matched a secret pattern — see findings below)",
                 "",
-                *[f"- `{p}`" for p in content_excluded],
+                *[f"- `{p.as_posix()}`" for p in content_excluded],
                 "",
             ]
         )
@@ -404,7 +406,10 @@ def render(
             [
                 "### Skipped (too large)",
                 "",
-                *[f"- `{p}` ({human_size(sz)})" for p, sz in data.skipped_files],
+                *[
+                    f"- `{p.as_posix()}` ({human_size(sz)})"
+                    for p, sz in data.skipped_files
+                ],
                 "",
             ]
         )
@@ -424,7 +429,7 @@ def render(
             parts.extend(
                 [
                     "",
-                    f"### FILE: `{rel}`",
+                    f"### FILE: `{rel.as_posix()}`",
                     "",
                     f"Size: {human_size(size)}",
                     "",

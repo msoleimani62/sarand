@@ -82,11 +82,86 @@ from sarand.analyzers.registry import builtin_analyzers
 from sarand.constants import PROJECT_MARKERS
 from sarand.core.doctor import tool_catalog
 
-# The repo root, to read tests/ and the CI workflow the same way
-# `test_docs_coverage_md_is_up_to_date` locates docs/COVERAGE.md.
-# ریشه‌ی مخزن، برای خواندن tests/ و workflow ماژول CI، به همان شکلی که
-# `test_docs_coverage_md_is_up_to_date` مسیر docs/COVERAGE.md را پیدا می‌کند.
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
+def _find_repo_root() -> Path:
+    """Locate sarand's own repo root without trusting `__file__`.
+
+    BUG FIX: this used to be a bare `Path(__file__).resolve().parent
+    .parent.parent.parent`, which only works when the *imported*
+    `sarand.core.coverage` is the source-tree copy (an editable/dev
+    install). CI's own "quality" job does not stop there: after the
+    editable-mode dev install it builds the real release wheel
+    (`maturin build --release`) and installs *that*
+    (`pip install dist/*.whl`) -- deliberately testing what an actual
+    `pip install sarand` user gets -- before running `pytest`. From
+    that point on, `sarand.core.coverage.__file__` points into
+    site-packages, nowhere near the git checkout, so `tests/` and
+    `.github/workflows/ci.yml` silently resolved to paths that do not
+    exist. Every fixture_coverage/ci_installed check then went to
+    `False` (`Path.is_dir()`/`Path.is_file()` on a nonexistent path),
+    every analyzer's depth was miscomputed, and `docs/COVERAGE.md`
+    looked "stale" against that -- reliably, on every OS, only in CI's
+    post-wheel-install step, which is exactly why this passed cleanly
+    in every local (editable-install) verification but broke `main`
+    across two releases (v0.6.3, v0.6.4) before anyone ran it against
+    an actually-installed wheel.
+
+    Fixed by searching upward from the current working directory
+    instead: both the documented way to regenerate this file
+    (`python -m sarand.core.coverage > docs/COVERAGE.md`, always run
+    from repo root) and CI's own `pytest` step (workflow `run:` steps
+    execute with cwd = the checkout root, `actions/checkout@v4`'s
+    default) are invoked with the checkout as cwd, in *every* install
+    mode -- unlike where the currently-*importable* `sarand` package
+    happens to live. Falls back to the old `__file__`-relative guess
+    only if no marker is found walking up from cwd, for an unusual
+    invocation from some other directory while editable-installed.
+
+    مکان‌یابیِ ریشه‌ی خودِ مخزن sarand بدون اعتماد به `__file__`.
+
+    اصلاح باگ: قبلاً یک `Path(__file__).resolve().parent.parent
+    .parent.parent` ساده بود، که فقط وقتی کار می‌کند که خودِ
+    `sarand.core.coverage` *وارد‌شده*، نسخه‌ی درخت سورس باشد (یک نصب
+    editable/توسعه). job «quality» خودِ CI همین‌جا متوقف نمی‌شود: بعد
+    از نصب حالت editable، wheel واقعیِ انتشار را می‌سازد (`maturin
+    build --release`) و همان را نصب می‌کند (`pip install dist/*.whl`)
+    -- عمداً همان چیزی که یک کاربر واقعیِ `pip install sarand` می‌گیرد
+    را تست می‌کند -- پیش از اجرای `pytest`. از آن نقطه به بعد،
+    `sarand.core.coverage.__file__` به داخل site-packages اشاره
+    می‌کند، جایی دور از checkout گیت، پس `tests/` و
+    `.github/workflows/ci.yml` خاموشانه به مسیرهایی حل می‌شدند که
+    اصلاً وجود ندارند. هر چک fixture_coverage/ci_installed آنگاه
+    `False` می‌شد، عمق هر آنالایزر غلط محاسبه می‌شد، و
+    `docs/COVERAGE.md` در برابر آن «کهنه» به نظر می‌رسید -- به‌طور
+    قابل‌اعتماد، روی هر سیستم‌عامل، فقط در گامِ پس‌از-نصب-wheel CI،
+    دقیقاً به همین دلیل در هر اعتبارسنجیِ محلی (نصب editable) تمیز رد
+    می‌شد ولی روی main در دو انتشار (v0.6.3، v0.6.4) پیش از آنکه کسی
+    آن را در برابر یک wheel واقعاً-نصب‌شده اجرا کند، شکست.
+
+    با جست‌وجو رو به بالا از دایرکتوری کاریِ فعلی اصلاح شد: هم روش
+    مستندشده‌ی بازتولید این فایل (`python -m sarand.core.coverage >
+    docs/COVERAGE.md`، همیشه از ریشه‌ی مخزن اجرا می‌شود) و هم خودِ گام
+    `pytest` در CI (گام‌های `run:` در workflow با cwd برابر ریشه‌ی
+    checkout اجرا می‌شوند، پیش‌فرض خودِ `actions/checkout@v4`) با
+    checkout به‌عنوان cwd فراخوانده می‌شوند، در *هر* حالت نصبی --
+    برخلاف اینکه بسته‌ی *وارد‌شدنیِ* sarand فعلاً کجا زندگی می‌کند.
+    فقط وقتی هیچ نشانه‌ای با جست‌وجو رو به بالا از cwd پیدا نشود به
+    حدسِ قدیمیِ مبتنی‌بر `__file__` برمی‌گردد، برای یک فراخوانیِ
+    غیرمعمول از یک دایرکتوری دیگر هنگام نصب editable.
+    """
+    candidate = Path.cwd()
+    for _ in range(6):
+        has_pyproject = (candidate / "pyproject.toml").is_file()
+        has_github = (candidate / ".github").is_dir()
+        if has_pyproject and has_github:
+            return candidate
+        if candidate.parent == candidate:
+            break
+        candidate = candidate.parent
+    return Path(__file__).resolve().parent.parent.parent.parent
+
+
+_REPO_ROOT = _find_repo_root()
 _TESTS_DIR = _REPO_ROOT / "tests"
 _CI_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
 

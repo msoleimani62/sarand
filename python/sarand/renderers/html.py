@@ -190,18 +190,23 @@ def render(
         # فایل‌هایی که فقط به‌خاطر تطبیق محتوا با یک الگوی secret مستثنا
         # شده بودند (دلیل متفاوت). دقیقاً مثل markdown.py تفکیک می‌کنیم تا
         # برچسب با دلیل واقعی هم‌خوانی داشته باشد.
-        content_flagged_paths = {str(f.path) for f in data.secret_findings}
+        content_flagged_paths = {f.path for f in data.secret_findings}
         filename_excluded = [
-            p for p in data.excluded_secret_files if str(p) not in content_flagged_paths
+            p
+            for p in data.excluded_secret_files
+            if p.as_posix() not in content_flagged_paths
         ]
         content_excluded = [
-            p for p in data.excluded_secret_files if str(p) in content_flagged_paths
+            p
+            for p in data.excluded_secret_files
+            if p.as_posix() in content_flagged_paths
         ]
         if filename_excluded:
             parts.append(
                 "<p>Excluded (credential-shaped filenames, never read — AGENTS.md §4.10):</p><ul>"
                 + "".join(
-                    f"<li><code>{escape(str(p))}</code></li>" for p in filename_excluded
+                    f"<li><code>{escape(p.as_posix())}</code></li>"
+                    for p in filename_excluded
                 )
                 + "</ul>"
             )
@@ -209,7 +214,8 @@ def render(
             parts.append(
                 "<p>Excluded (content matched a secret pattern — see findings below):</p><ul>"
                 + "".join(
-                    f"<li><code>{escape(str(p))}</code></li>" for p in content_excluded
+                    f"<li><code>{escape(p.as_posix())}</code></li>"
+                    for p in content_excluded
                 )
                 + "</ul>"
             )
@@ -280,7 +286,7 @@ def render(
             except OSError:
                 size = "?"
             parts.append(
-                f"<details><summary><code>{escape(str(rel))}</code> ({size})</summary>"
+                f"<details><summary><code>{escape(rel.as_posix())}</code> ({size})</summary>"
                 f"<pre>{escape(text)}</pre></details>"
             )
 

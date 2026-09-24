@@ -76,7 +76,29 @@ def _normalize(rendered: str, root: Path) -> str:
     نام خودِ tempdir تصادفی) پس اینجا نیازی به نرمال‌سازی ندارد --
     ``_fixture_root`` را ببینید.
     """
-    out = rendered.replace(str(root), "<PROJECT_ROOT>")
+    raw = str(root)
+    out = rendered.replace(raw, "<PROJECT_ROOT>")
+    # BUG FIX: on Windows `raw` contains backslashes (e.g.
+    # "C:\Users\...\hybrid-project"), and json_renderer.py/sarif.py
+    # embed it inside a JSON string, where json.dumps escapes every
+    # backslash as `\\`. The plain replace above only ever matches the
+    # single-backslash form, so it silently did nothing to the json/
+    # sarif.json outputs on Windows -- the real (un-normalized) path
+    # leaked into the "normalized" text and could never match a
+    # snapshot captured on Linux. Also try the JSON-escaped form.
+    #
+    # اصلاح باگ: روی ویندوز `raw` بک‌اسلش دارد (مثلاً
+    # "C:\Users\...\hybrid-project")، و json_renderer.py/sarif.py آن
+    # را داخل یک رشته‌ی JSON جا می‌دهند، جایی که json.dumps هر بک‌اسلش
+    # را به‌صورت `\\` escape می‌کند. replace ساده‌ی بالا فقط با شکل
+    # تک-بک‌اسلش تطبیق پیدا می‌کند، پس روی خروجی json/sarif.json در
+    # ویندوز خاموشانه هیچ کاری نمی‌کرد -- مسیر واقعی (نرمال‌نشده) به
+    # متنِ «نرمال‌شده» نشت می‌کرد و هرگز نمی‌توانست با snapshotی که روی
+    # لینوکس گرفته شده مطابقت کند. شکل escape‌شده‌ی JSON را هم امتحان
+    # می‌کند.
+    escaped = raw.replace("\\", "\\\\")
+    if escaped != raw:
+        out = out.replace(escaped, "<PROJECT_ROOT>")
     out = out.replace(root.as_uri() + "/", "<PROJECT_ROOT_URI>/")
     return out
 
