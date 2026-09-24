@@ -95,7 +95,36 @@ def test_run_cmd_async_timeout_preserves_output(tmp_path: Path) -> None:
 
     assert returncode == 124
     assert "before-timeout" in output
-    assert duration >= 1
+    # BUG FIX: was `duration >= 1` -- flaky on Windows CI, observed
+    # failing at duration == 0.9953488999999536 (a ~4.6ms shortfall).
+    # Windows' event-loop timer resolution is coarser than Linux/macOS
+    # (historically ~15.6ms vs sub-millisecond), so an asyncio
+    # `timeout=1` can legitimately fire a few milliseconds before the
+    # wall clock hits exactly 1.0s -- that's the OS's timer, not a bug
+    # in `run_cmd_async`. A 10% tolerance still meaningfully checks
+    # "the timeout fired around the 1s mark, not immediately and not
+    # after several seconds" without demanding sub-10ms precision no
+    # Windows CI runner can reliably promise. Left the sync `run_cmd`
+    # version (`test_run_cmd_timeout_preserves_output`, above) and the
+    # POSIX-only process-group test (below) untouched -- neither was
+    # reported flaky, and changing them without evidence would be
+    # guessing, not fixing.
+    #
+    # اصلاح باگ: قبلاً `duration >= 1` بود -- روی CI ویندوز flaky بود،
+    # با duration == 0.9953488999999536 (کسری حدود ۴.۶ میلی‌ثانیه)
+    # fail می‌شد. دقت تایمرِ event-loop در ویندوز از لینوکس/مک
+    # درشت‌تر است (تاریخاً حدود ۱۵.۶ میلی‌ثانیه در برابر زیر یک
+    # میلی‌ثانیه)، پس یک `timeout=1` در asyncio می‌تواند کاملاً
+    # مشروع چند میلی‌ثانیه پیش از رسیدن ساعت دیواری به دقیقاً ۱.۰
+    # ثانیه شلیک کند -- این تایمر سیستم‌عامل است، نه باگی در
+    # `run_cmd_async`. تلورانس ۱۰٪ هنوز به‌طور معناداری «تایم‌اوت
+    # حوالی نشانه‌ی ۱ ثانیه شلیک کرد» را چک می‌کند، بدون طلبِ دقتِ
+    # زیرِ ۱۰ میلی‌ثانیه‌ای که هیچ runner ویندوزیِ CI نمی‌تواند
+    # تضمین کند. نسخه‌ی sync (`test_run_cmd_timeout_preserves_output`،
+    # بالا) و تست فقط-POSIX (پایین) دست‌نخورده ماندند -- هیچ‌کدام
+    # flaky گزارش نشده بودند، و تغییرشان بدون شاهد، حدس‌زدن است، نه
+    # اصلاح.
+    assert duration >= 0.9
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Process-group lifecycle requires POSIX")

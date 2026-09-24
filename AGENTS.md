@@ -2447,3 +2447,48 @@ instead of fighting the type checker. Both fixed, verified locally
 (`docs/COVERAGE.md` still byte-identical, `_parse_gnu_time_elapsed`
 re-tested against the `m:ss.cc` and `h:mm:ss.cc` sample strings from
 5.26, both still correct).
+
+
+### 5.28 — Real CI progress: 9 failures -> 3, one more fix shipped, one still needs more evidence (2026-09-23)
+
+Pushed 5.27 (ea3442e). Real GitHub Actions result: ubuntu (all 3
+Python versions) and macOS both fully green; Windows down from 9
+failures to 3 -- confirms all three 5.27 bugs were real and correctly
+fixed (the 6 golden-report failures and 3 coverage failures that
+disappeared). Remaining 3, investigated with the same evidence-first
+standard:
+
+**Fixed -- `test_run_cmd_async_timeout_preserves_output` (unrelated
+pre-existing flake, not caused by 5.21-5.27):** failed at
+`duration == 0.9953488999999536` against `assert duration >= 1` -- a
+~4.6ms shortfall. Windows' asyncio event-loop timer resolution is
+well-documented as coarser than Linux/macOS, so a `timeout=1` can
+legitimately fire a few ms before the wall clock hits exactly 1.0s;
+this is the OS's timer granularity, not a bug in `run_cmd_async`.
+Loosened to `>= 0.9` (a 10% tolerance -- still meaningfully checks
+"fired around the 1s mark", not sub-10ms precision no Windows runner
+can promise). Deliberately left the sync `run_cmd` version of the same
+test and the POSIX-only process-group test untouched -- neither was
+reported flaky in this run, and changing them without evidence would
+be guessing, violating the Evidence-First Rule as much as fabricating
+a fix would.
+
+**Not yet fixed -- `test_renderer_output_matches_golden_snapshot
+[sarif.json-hybrid]` and `[sarif.json-minimal]`, still failing after
+5.27's Bug 3 fix.** `sarif.py` has exactly one absolute-path-derived
+field (`originalUriBaseIds.PROJECTROOT.uri`, via
+`data.project_root.as_uri() + "/"` -- confirmed by rereading the whole
+file, nothing else in it touches `project_root` or any `Path` object;
+`finding.path`/`todo.path` are plain strings the fixtures set
+directly, OS-independent). `_normalize()`'s existing
+`root.as_uri() + "/"` replace should, in principle, match exactly
+since both the renderer and the test call `.as_uri()` on the *same*
+`Path` object -- deterministic, no reason to differ. The GitHub
+summary box's truncated diff (`...OT_URI>/'}}}]}` vs `...T_ROOT>/'}}}]}`)
+is not enough to tell whether this is a drive-letter-casing quirk in
+Windows `Path.as_uri()`, a `pytest` diff-truncation artifact showing
+two different truncation points that are actually identical
+underneath, or something not yet considered. Rather than guess and
+ship a fix for the wrong mechanism, asked the user for the full,
+untruncated pytest diff for just these two tests (the raw log, not the
+summary box) before touching `sarif.py`/`_normalize()` again.
