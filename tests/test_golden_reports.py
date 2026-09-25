@@ -33,6 +33,7 @@ in-process text output.
 
 from __future__ import annotations
 
+import difflib
 import json
 import os
 import re
@@ -156,6 +157,34 @@ def _golden_path(fixture_name: str, ext: str) -> Path:
     return GOLDEN_DIR / f"{fixture_name}.{ext}"
 
 
+def _json_diff_message(actual: object, expected: object) -> str:
+    """A real, complete unified diff for a failed JSON/SARIF
+    comparison, instead of relying on pytest's own dict-repr
+    truncation (which on a large nested dict shows only a short head
+    and tail of each side -- exactly what made three rounds of
+    Windows-only sarif.json CI failures hard to diagnose from the
+    GitHub Actions summary box alone: the actual differing field was
+    never visible, only a few characters near the end of a huge repr).
+    Pretty-printed with sorted keys so the diff lines up field by
+    field regardless of insertion order.
+
+    یک unified diffِ واقعی و کامل برای یک مقایسه‌ی JSON/SARIF ناموفق،
+    به‌جای تکیه بر truncationِ خودِ pytest روی repr دیکشنری (که روی
+    یک دیکشنریِ تودرتوی بزرگ فقط یک سر و ته کوتاه از هر طرف را نشان
+    می‌دهد -- دقیقاً همان چیزی که سه دور شکست CI مخصوص sarif.json در
+    ویندوز را از روی باکس خلاصه‌ی GitHub Actions سخت‌تشخیص کرد: فیلد
+    واقعاً متفاوت هرگز دیده نمی‌شد، فقط چند کاراکتر نزدیک انتهای یک
+    repr غول‌پیکر). با کلیدهای مرتب‌شده pretty-print شده تا diff
+    صرف‌نظر از ترتیب درج، فیلد به فیلد هم‌تراز شود.
+    """
+    actual_lines = json.dumps(actual, indent=2, sort_keys=True).splitlines()
+    expected_lines = json.dumps(expected, indent=2, sort_keys=True).splitlines()
+    diff = difflib.unified_diff(
+        expected_lines, actual_lines, fromfile="expected (golden)", tofile="actual"
+    )
+    return "\n".join(diff)
+
+
 @pytest.mark.parametrize("fixture_name", sorted(FIXTURES))
 @pytest.mark.parametrize("ext", sorted(RENDERERS))
 def test_renderer_output_matches_golden_snapshot(fixture_name: str, ext: str) -> None:
@@ -187,7 +216,11 @@ def test_renderer_output_matches_golden_snapshot(fixture_name: str, ext: str) ->
         expected = golden_path.read_text(encoding="utf-8")
 
         if is_json_like:
-            assert json.loads(normalized) == json.loads(expected)
+            actual_obj = json.loads(normalized)
+            expected_obj = json.loads(expected)
+            assert actual_obj == expected_obj, _json_diff_message(
+                actual_obj, expected_obj
+            )
         else:
             assert normalized == expected
 

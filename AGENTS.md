@@ -2532,3 +2532,42 @@ raw CI logs for a single-field JSON diff. If this run also fails,
 that itself becomes real evidence (this fix's assumptions -- one
 `file://` URI, ending in a unique known directory name -- would need
 revisiting), not a call to try to guess a fourth pinpoint fix.
+
+
+### 5.30 — SARIF fix didn't work; pivoting to actually diagnosing it (2026-09-25)
+
+5.29's regex-based, mechanism-agnostic fix shipped (commit `5a28dea`)
+and the real CI result came back **identical** to before -- same two
+tests, same byte-for-byte truncated diff text. That identical-ness
+across three different code changes (the JSON-escape fix in 5.27, the
+regex rewrite in 5.29) is itself evidence: if the actual normalized
+output were changing in response to these edits, the truncated repr
+GitHub shows would very likely shift at least slightly. It not moving
+at all across genuinely different fixes suggests the real divergence
+was never in the `project_root`/URI area this whole time -- three
+rounds spent fixing a plausible-looking but wrong target, because the
+only evidence available (GitHub's summary-box diff, `assert
+{'$schema': '...OT_URI>/'}}}]} == {'$schema': '...T_ROOT>/'}}}]}`) was
+never enough to actually tell.
+
+Rather than propose a fourth guess, this round changes nothing about
+render or normalize behavior at all -- it only makes the *next*
+failure (if there is one) show the real difference. Added
+`_json_diff_message()`: on a JSON/SARIF mismatch, pretty-prints both
+sides with `json.dumps(..., indent=2, sort_keys=True)` and runs
+`difflib.unified_diff` over them, passed as the assertion's message.
+This replaces reliance on pytest's own dict-repr truncation (a head-
+and-tail summary of one giant single-line repr, which is exactly what
+made three rounds of this un-diagnosable from the GitHub Actions
+summary box) with a real, complete, field-aligned diff that will show
+up directly in the failure output -- no more back-and-forth asking for
+raw logs. Verified locally: the helper produces a correct, readable
+diff against a deliberately mismatched pair; golden suite still 10/10
+on Linux (comparison logic itself is unchanged, only the message on
+failure).
+
+Delivered as a diagnostics-only change. Next step is unavoidable: push
+this, and if Windows still fails, the unified diff in that failure
+output finally shows what's actually different -- paste that (not the
+GitHub summary box) and the real fix can be evidence-based instead of
+a fourth theory.
