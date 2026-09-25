@@ -2625,3 +2625,68 @@ CI failure needs real diagnosis: pull the `pytest-log-*` artifact
 first, before touching any code.** It will have been available this
 whole time once this round's fix lands; nothing past this round should
 need another cycle of "the summary was too short, try again."
+
+
+### 5.32 — The real sarif bug, found from the actual log: replace-order, not Windows at all (2026-09-25)
+
+The `pytest-log-*` artifact from 5.31 wasn't even needed in the end --
+the user downloaded GitHub's own raw workflow log archive (always
+available, a different mechanism from the job-summary truncation) and
+found the real diff themselves:
+
+```
+-          "uri": "file://<PROJECT_ROOT>/"
++          "uri": "<PROJECT_ROOT_URI>/"
+```
+
+**This was never a Windows bug.** `_normalize()` (since 5.21) replaced
+the plain absolute path FIRST and the dedicated `file://` URI match
+SECOND. On Linux, `str(root)` ("/tmp/.../hybrid-project") is a literal
+substring of `root.as_uri()` ("file:///tmp/.../hybrid-project/") --
+both use forward slashes -- so the plain-path replace *accidentally*
+already consumed the path portion inside the URI on its own pass,
+leaving a half-normalized "file://<PROJECT_ROOT>/" behind; the
+dedicated URI step that ran second found nothing left to match and was
+silently a no-op. That accidental half-normalized string is exactly
+what got captured into the golden files in 5.21 and never revisited.
+On Windows, `str(root)` uses backslashes while `.as_uri()` always uses
+forward slashes, so the plain-path replace never touches the URI at
+all -- it survives fully intact down to the dedicated URI step, which
+*does* fire there and produces a fully-normalized
+"<PROJECT_ROOT_URI>/" with no "file://" left in front. Two platforms,
+two different amounts of normalization applied via the exact same
+code, purely because of which replace happened to run first and what
+it accidentally touched -- not a Windows quirk in `Path.as_uri()` at
+all, contrary to every theory in 5.27/5.29. Both of those were real,
+defensible fixes for real (if secondary) issues -- the JSON-escaping
+handling and the case-insensitive URI match are both still correct and
+needed -- they just weren't *this* bug, which is why identical failure
+text kept coming back no matter which one changed.
+
+Fixed by making the URI match unconditional and first, before the
+plain-path replace ever runs, so both platforms produce the same
+`<PROJECT_ROOT_URI>/` deterministically regardless of separator style.
+Verified two ways: (1) reran the golden suite locally on Linux with
+the reordered function -- for the first time, `sarif.json-hybrid`/
+`sarif.json-minimal` **failed on this sandbox too**, with the *exact*
+diff from the Windows CI log, proving the mechanism is real and
+platform-independent, not something that only manifests on a runner
+this sandbox can't reach. (2) A synthetic side-by-side simulation
+feeding both a Linux-shaped and a Windows-shaped `(raw, uri)` pair
+through the corrected function confirmed both converge to the
+identical `<PROJECT_ROOT_URI>/` output.
+
+Regenerated `tests/golden/hybrid.sarif.json` and
+`tests/golden/minimal.sarif.json` to match the new, correct, and now
+*actually* deterministic output -- diffed against the previous
+versions to confirm the single expected field changed and nothing
+else drifted. Golden suite back to 10/10 on Linux.
+
+**Retrospective note, for next time:** the `_json_diff_message()` work
+from 5.30 was correct and is what made this instantly diagnosable the
+moment real log content was available -- the four-round delay was
+entirely about *reaching* that content (the job-summary's own
+`cut -c1-220`, fixed in 5.31), not about the quality of the diagnostic
+itself. Once the real diff was visible, the actual bug -- a replace-
+order issue neither platform-specific nor exotic -- took minutes to
+find and fix, not another round of theorizing.

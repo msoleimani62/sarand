@@ -13,7 +13,7 @@
       "results": [],
       "originalUriBaseIds": {
         "PROJECTROOT": {
-          "uri": "file://<PROJECT_ROOT>/"
+          "uri": "<PROJECT_ROOT_URI>/"
         }
       }
     }

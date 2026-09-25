@@ -79,61 +79,71 @@ def _normalize(rendered: str, root: Path) -> str:
     ``_fixture_root`` را ببینید.
     """
     raw = str(root)
-    out = rendered.replace(raw, "<PROJECT_ROOT>")
-    # BUG FIX: on Windows `raw` contains backslashes (e.g.
-    # "C:\Users\...\hybrid-project"), and json_renderer.py/sarif.py
-    # embed it inside a JSON string, where json.dumps escapes every
-    # backslash as `\\`. The plain replace above only ever matches the
-    # single-backslash form, so it silently did nothing to the json/
-    # sarif.json outputs on Windows -- the real (un-normalized) path
-    # leaked into the "normalized" text and could never match a
-    # snapshot captured on Linux. Also try the JSON-escaped form.
+
+    # BUG FIX, real root cause (found via the full CI log, not guessed
+    # this time -- see AGENTS.md 5.32): this function used to replace
+    # the plain absolute path FIRST and the `file://` URI SECOND. On
+    # Linux `raw` ("/tmp/.../hybrid-project") is a literal substring of
+    # `root.as_uri()` ("file:///tmp/.../hybrid-project/") -- both use
+    # forward slashes -- so the plain-path replace *accidentally*
+    # already consumed the path portion inside the URI, leaving a
+    # half-normalized "file://<PROJECT_ROOT>/" behind; the dedicated
+    # URI-matching step that ran after found nothing left to match, so
+    # it was silently a no-op. That accidental leftover is exactly what
+    # got captured into the golden files back in section 5.21. On
+    # Windows, `raw` uses backslashes and `.as_uri()` always uses
+    # forward slashes, so the plain-path replace never touches the URI
+    # at all -- it survives fully intact down to the dedicated
+    # URI-matching step, which *does* fire there and produces a
+    # different, fully-normalized "<PROJECT_ROOT_URI>/" with no
+    # "file://" left in front of it. Two platforms, two different
+    # amounts of normalization applied to the exact same field, purely
+    # because of replace-order -- not a Windows bug at all. Fixed by
+    # doing the URI match FIRST, unconditionally, so both platforms
+    # produce the same "<PROJECT_ROOT_URI>/" every time; the golden
+    # sarif.json files were regenerated to match (see 5.32).
     #
-    # اصلاح باگ: روی ویندوز `raw` بک‌اسلش دارد (مثلاً
-    # "C:\Users\...\hybrid-project")، و json_renderer.py/sarif.py آن
-    # را داخل یک رشته‌ی JSON جا می‌دهند، جایی که json.dumps هر بک‌اسلش
-    # را به‌صورت `\\` escape می‌کند. replace ساده‌ی بالا فقط با شکل
-    # تک-بک‌اسلش تطبیق پیدا می‌کند، پس روی خروجی json/sarif.json در
-    # ویندوز خاموشانه هیچ کاری نمی‌کرد -- مسیر واقعی (نرمال‌نشده) به
-    # متنِ «نرمال‌شده» نشت می‌کرد و هرگز نمی‌توانست با snapshotی که روی
-    # لینوکس گرفته شده مطابقت کند. شکل escape‌شده‌ی JSON را هم امتحان
-    # می‌کند.
-    escaped = raw.replace("\\", "\\\\")
-    if escaped != raw:
-        out = out.replace(escaped, "<PROJECT_ROOT>")
-    # BUG FIX: `out.replace(root.as_uri() + "/", ...)` (an exact string
-    # match) kept failing on Windows CI even after the fix above --
-    # `sarif.py`'s `originalUriBaseIds.PROJECTROOT.uri` is the only
-    # absolute-path-derived field left unmatched. Root cause not fully
-    # pinned down (Windows `Path.as_uri()` drive-letter casing is the
-    # leading theory, but unconfirmed from the truncated CI summary),
-    # so this replaces the exact-match with a pattern match instead of
-    # guessing at the exact mechanism: any `file://...` URI ending in
-    # this fixture's own (unique, known) directory name, case-
-    # insensitive, regardless of how the drive letter/prefix is cased
-    # or formatted. Safe because sarif.py has exactly one such field
-    # and this fixture's directory name never collides with anything
-    # else in the rendered output.
-    #
-    # اصلاح باگ: `out.replace(root.as_uri() + "/", ...)` (یک تطبیق
-    # رشته‌ای دقیق) حتی بعد از اصلاح بالا هم روی CI ویندوز مدام
-    # fail می‌شد -- فیلد `originalUriBaseIds.PROJECTROOT.uri` در
-    # `sarif.py` تنها فیلد وابسته به مسیر مطلقِ باقی‌مانده‌ی
-    # تطبیق‌نیافته است. علت ریشه‌ای کاملاً مشخص نشده (شکِ اصلی روی
-    # حساسیت به بزرگی/کوچکیِ حرف درایو در `Path.as_uri()` ویندوز
-    # است، ولی از روی خلاصه‌ی بریده‌شده‌ی CI تأیید نشده)، پس به‌جای
-    # حدس‌زدنِ مکانیزم دقیق، تطبیقِ دقیقِ رشته‌ای با یک تطبیقِ الگو
-    # جایگزین شده: هر URI به‌شکل `file://...` که به نام دایرکتوریِ
-    # خودِ این فیکسچر (منحصربه‌فرد و شناخته‌شده) ختم شود، بدون
-    # حساسیت به بزرگی/کوچکیِ حروف، صرف‌نظر از اینکه حرف درایو/پیشوند
-    # چطور نوشته یا فرمت شده. امن است چون sarif.py دقیقاً یک چنین
-    # فیلدی دارد و نام دایرکتوریِ این فیکسچر با هیچ‌چیز دیگری در
-    # خروجیِ رندرشده تداخل ندارد.
+    # اصلاح باگ، علت ریشه‌ای واقعی (از روی لاگ کاملِ CI پیدا شد، این‌بار
+    # حدس نیست -- به AGENTS.md بخش ۵.۳۲ نگاه کنید): این تابع قبلاً اول
+    # مسیر مطلق ساده را جایگزین می‌کرد و بعد URI با پیشوند `file://` را.
+    # روی لینوکس، `raw` ("/tmp/.../hybrid-project") زیررشته‌ی عینیِ
+    # `root.as_uri()` ("file:///tmp/.../hybrid-project/") است -- هر دو
+    # از اسلش رو-به-جلو استفاده می‌کنند -- پس جایگزینیِ مسیرِ ساده
+    # *تصادفاً* بخش مسیرِ داخل URI را از قبل مصرف می‌کرد و یک
+    # "file://<PROJECT_ROOT>/" نیمه‌نرمال‌شده باقی می‌گذاشت؛ گامِ
+    # اختصاصیِ تطبیقِ URI که بعدش اجرا می‌شد چیزی برای تطبیق پیدا
+    # نمی‌کرد، پس خاموشانه بی‌اثر بود. همان باقیمانده‌ی تصادفی دقیقاً
+    # همان چیزی است که در بخش ۵.۲۱ در golden fileها ضبط شد. روی ویندوز،
+    # `raw` از بک‌اسلش استفاده می‌کند و `.as_uri()` همیشه از اسلش
+    # رو-به-جلو، پس جایگزینیِ مسیرِ ساده اصلاً به URI دست نمی‌زند -- تا
+    # گامِ اختصاصیِ تطبیقِ URI کاملاً دست‌نخورده باقی می‌ماند، که *آنجا*
+    # واقعاً شلیک می‌کند و یک "<PROJECT_ROOT_URI>/" کاملاً نرمال‌شده و
+    # بدون هیچ "file://" جلویش تولید می‌کند. دو سیستم‌عامل، دو مقدار
+    # متفاوت از نرمال‌سازی روی دقیقاً همان فیلد، فقط به‌خاطر ترتیبِ
+    # replace -- نه اصلاً باگی مخصوص ویندوز. با انجامِ تطبیقِ URI
+    # *اول*، بدون قید و شرط، اصلاح شد تا هر دو سیستم‌عامل همیشه همان
+    # "<PROJECT_ROOT_URI>/" را تولید کنند؛ فایل‌های golden sarif.json هم
+    # برای تطبیق بازتولید شدند (به ۵.۳۲ نگاه کنید).
     uri_pattern = re.compile(
         re.escape("file://") + r".*?" + re.escape(root.name) + r"/?",
         re.IGNORECASE,
     )
-    out = uri_pattern.sub("<PROJECT_ROOT_URI>/", out)
+    out = uri_pattern.sub("<PROJECT_ROOT_URI>/", rendered)
+
+    out = out.replace(raw, "<PROJECT_ROOT>")
+    # Windows also JSON-escapes any backslash left in `raw` (e.g.
+    # "C:\Users\...\hybrid-project" -> `\\` in a JSON string) for the
+    # plain (non-URI) `project_root` field in json_renderer.py -- try
+    # that form too. A no-op on Linux/macOS (no backslashes to begin
+    # with).
+    # ویندوز هر بک‌اسلشِ باقی‌مانده در `raw` را هم برای فیلدِ ساده‌ی
+    # (غیر-URI) `project_root` در json_renderer.py به‌صورت JSON
+    # escape می‌کند (مثلاً "C:\Users\...\hybrid-project" به `\\` در یک
+    # رشته‌ی JSON) -- این شکل را هم امتحان کن. روی لینوکس/مک بی‌اثر است
+    # (از اول بک‌اسلشی وجود ندارد).
+    escaped = raw.replace("\\", "\\\\")
+    if escaped != raw:
+        out = out.replace(escaped, "<PROJECT_ROOT>")
     return out
 
 
