@@ -113,9 +113,23 @@ jobs:
 
       - name: List failed tests in the job summary
         # Long logs are hard to copy from a phone; the Summary page of the run
-        # shows this short list at the top.
+        # shows this short list at the top. The `cut -c1-220` here is exactly
+        # what made three separate rounds of a Windows-only sarif.json
+        # mismatch undiagnosable from the phone: every assertion detail past
+        # column 220 -- the actual differing content, however much clearer
+        # the local assertion message was made -- was silently dropped
+        # before it ever reached this summary. Not a GitHub limitation; a
+        # limitation of this exact line. The full `pytest.log` artifact
+        # uploaded below is the fix for when this short list isn't enough.
         # کپی‌کردن لاگ‌های بلند از موبایل سخت است؛ صفحه‌ی Summary اجرا این
-        # فهرست کوتاه را در بالا نشان می‌دهد.
+        # فهرست کوتاه را در بالا نشان می‌دهد. همین `cut -c1-220` دقیقاً همان
+        # چیزی بود که سه دور جداگانه از ناهم‌خوانیِ sarif.json مخصوص ویندوز
+        # را از روی موبایل غیرقابل‌تشخیص کرد: هر جزئیاتِ assertion بعد از
+        # ستون ۲۲۰ -- محتوای واقعاً متفاوت، هرقدر هم پیام assertion محلی
+        # روشن‌تر شده باشد -- بی‌سروصدا پیش از رسیدن به این خلاصه حذف
+        # می‌شد. محدودیت گیت‌هاب نبود؛ محدودیت همین یک خط بود. artifact
+        # کامل `pytest.log` که پایین‌تر آپلود می‌شود، رفعِ همان زمانی است
+        # که این فهرست کوتاه کافی نباشد.
         if: failure()
         run: |
           {
@@ -124,4 +138,32 @@ jobs:
             grep -E "^(FAILED|ERROR) " pytest.log | cut -c1-220 || true
             grep -E "^=+ .*(failed|passed|error).* =+$" pytest.log || true
             echo '```'
+            echo ""
+            echo "Full untruncated log: see the \`pytest-log-${{ matrix.os }}-py${{ matrix.python-version }}\` artifact on this run's Summary page (Artifacts section, bottom of the page)."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload full test log
+        # The short summary above is deliberately truncated for phone
+        # reading; this artifact is the untruncated `pytest.log` for when
+        # that isn't enough -- download from this run's Summary page,
+        # Artifacts section (bottom of the page), no need to scroll a raw
+        # log on a phone screen at all.
+        # خلاصه‌ی کوتاه بالا عمداً برای خواندن از موبایل بریده شده است؛ این
+        # artifact همان `pytest.log` بدون‌برش است برای وقتی آن کافی نیست --
+        # از صفحه‌ی Summary همین اجرا، بخش Artifacts (پایین صفحه) دانلود
+        # کنید، بدون هیچ نیازی به اسکرول یک لاگ خام روی صفحه‌ی موبایل.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-log-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: pytest.log
+          retention-days: 14
+          # `failure()` can also fire from a step *before* pytest ever ran
+          # (e.g. a build/install failure) -- pytest.log would not exist
+          # yet then. `warn` avoids turning that into a second, confusing
+          # "artifact not found" failure on top of the real one.
+          # `failure()` می‌تواند از یک گام *پیش از* اجرای pytest هم شلیک
+          # کند (مثلاً شکست build/install) -- آنگاه pytest.log هنوز وجود
+          # ندارد. `warn` از تبدیل‌شدن آن به یک شکست دوم و گیج‌کننده‌ی
+          # «artifact پیدا نشد» روی شکستِ واقعی جلوگیری می‌کند.
+          if-no-files-found: warn

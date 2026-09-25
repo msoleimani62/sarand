@@ -2571,3 +2571,57 @@ this, and if Windows still fails, the unified diff in that failure
 output finally shows what's actually different -- paste that (not the
 GitHub summary box) and the real fix can be evidence-based instead of
 a fourth theory.
+
+
+### 5.31 — Found the real reason four rounds were undiagnosable: our own `cut -c1-220` (2026-09-25)
+
+User called out the pattern directly after 5.30's diagnostics-only
+round still showed the exact same truncated one-line message
+("AssertionError: --- expected (golden)", cut off immediately, not
+even one line of the new unified diff reaching them). That was the
+right call -- rereading `ci.yml` itself (not just the test code, which
+is where every prior round of this investigation looked) found the
+actual cause in one line: the "List failed tests in the job summary"
+step does `grep -E "^(FAILED|ERROR) " pytest.log | cut -c1-220`. Every
+`FAILED` line -- assertion message included -- gets hard-truncated to
+220 characters before it ever reaches the GitHub Actions summary page.
+This is *this project's own CI script*, not a GitHub UI limitation,
+not a pytest truncation, not anything about `_normalize()` or
+`_json_diff_message()`. No fix to the assertion message, however
+complete, could ever have shown up past column 220 -- 5.27 through
+5.30's diagnostic improvements were all real and correct, they just
+had no way to reach anyone through this one line. Confirmed via
+`git log -p` reasoning (not shown here, but this line's own comment
+explicitly says why it exists): added deliberately in an earlier round
+specifically because "long logs are hard to copy from a phone" --
+solving a real problem (this user works from a phone) by creating a
+new one (no way to ever see more than 220 chars of a failure without
+already knowing what to look for).
+
+Fixed by keeping the short, phone-readable summary exactly as it was
+(still genuinely useful for quick triage) and adding a real fix
+alongside it instead of widening the character limit (which just
+moves the same problem to a different fixed number): an
+`actions/upload-artifact@v4` step, `if: failure()`, uploading the
+complete, untruncated `pytest.log` as
+`pytest-log-{os}-py{version}`, 14-day retention, `if-no-files-found:
+warn` (so a build/install failure *before* pytest ever ran doesn't
+turn into a second, confusing "artifact not found" failure on top of
+the real one). The short summary now also prints one line pointing at
+exactly where to find it (Summary page, Artifacts section, bottom of
+the page) -- no more "check the raw log" instructions that assume the
+person knows GitHub's UI well enough to find it themselves.
+
+Verified: `.github/workflows/ci.yml` still parses as valid YAML after
+the edit (checked with `python3 -c "import yaml; yaml.safe_load(...)"`
+in this sandbox, since `actionlint` itself needs a Go toolchain this
+sandbox does not have). Could not verify `actionlint`-specific lint
+rules or that GitHub actually accepts this workflow shape without a
+real push -- ordinary limitation of this sandbox, same as every other
+CI-facing change in this whole saga.
+
+**Lesson for next time a Windows-only or otherwise hard-to-reproduce
+CI failure needs real diagnosis: pull the `pytest-log-*` artifact
+first, before touching any code.** It will have been available this
+whole time once this round's fix lands; nothing past this round should
+need another cycle of "the summary was too short, try again."
