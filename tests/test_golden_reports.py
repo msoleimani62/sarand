@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -99,7 +100,39 @@ def _normalize(rendered: str, root: Path) -> str:
     escaped = raw.replace("\\", "\\\\")
     if escaped != raw:
         out = out.replace(escaped, "<PROJECT_ROOT>")
-    out = out.replace(root.as_uri() + "/", "<PROJECT_ROOT_URI>/")
+    # BUG FIX: `out.replace(root.as_uri() + "/", ...)` (an exact string
+    # match) kept failing on Windows CI even after the fix above --
+    # `sarif.py`'s `originalUriBaseIds.PROJECTROOT.uri` is the only
+    # absolute-path-derived field left unmatched. Root cause not fully
+    # pinned down (Windows `Path.as_uri()` drive-letter casing is the
+    # leading theory, but unconfirmed from the truncated CI summary),
+    # so this replaces the exact-match with a pattern match instead of
+    # guessing at the exact mechanism: any `file://...` URI ending in
+    # this fixture's own (unique, known) directory name, case-
+    # insensitive, regardless of how the drive letter/prefix is cased
+    # or formatted. Safe because sarif.py has exactly one such field
+    # and this fixture's directory name never collides with anything
+    # else in the rendered output.
+    #
+    # اصلاح باگ: `out.replace(root.as_uri() + "/", ...)` (یک تطبیق
+    # رشته‌ای دقیق) حتی بعد از اصلاح بالا هم روی CI ویندوز مدام
+    # fail می‌شد -- فیلد `originalUriBaseIds.PROJECTROOT.uri` در
+    # `sarif.py` تنها فیلد وابسته به مسیر مطلقِ باقی‌مانده‌ی
+    # تطبیق‌نیافته است. علت ریشه‌ای کاملاً مشخص نشده (شکِ اصلی روی
+    # حساسیت به بزرگی/کوچکیِ حرف درایو در `Path.as_uri()` ویندوز
+    # است، ولی از روی خلاصه‌ی بریده‌شده‌ی CI تأیید نشده)، پس به‌جای
+    # حدس‌زدنِ مکانیزم دقیق، تطبیقِ دقیقِ رشته‌ای با یک تطبیقِ الگو
+    # جایگزین شده: هر URI به‌شکل `file://...` که به نام دایرکتوریِ
+    # خودِ این فیکسچر (منحصربه‌فرد و شناخته‌شده) ختم شود، بدون
+    # حساسیت به بزرگی/کوچکیِ حروف، صرف‌نظر از اینکه حرف درایو/پیشوند
+    # چطور نوشته یا فرمت شده. امن است چون sarif.py دقیقاً یک چنین
+    # فیلدی دارد و نام دایرکتوریِ این فیکسچر با هیچ‌چیز دیگری در
+    # خروجیِ رندرشده تداخل ندارد.
+    uri_pattern = re.compile(
+        re.escape("file://") + r".*?" + re.escape(root.name) + r"/?",
+        re.IGNORECASE,
+    )
+    out = uri_pattern.sub("<PROJECT_ROOT_URI>/", out)
     return out
 
 

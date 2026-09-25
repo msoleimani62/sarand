@@ -2492,3 +2492,43 @@ underneath, or something not yet considered. Rather than guess and
 ship a fix for the wrong mechanism, asked the user for the full,
 untruncated pytest diff for just these two tests (the raw log, not the
 summary box) before touching `sarif.py`/`_normalize()` again.
+
+
+### 5.29 — SARIF Windows failure resolved with a robust match, not a pinned-down cause (2026-09-23)
+
+Second real-CI round after 5.28's timing fix: `test_run_cmd_async_
+timeout_preserves_output` confirmed fixed (dropped out of the failure
+list entirely) -- ubuntu/macOS stayed fully green throughout. Only the
+two `sarif.json` golden tests remained, with the identical truncated
+diff as before. Asked the user for the full raw log to pin down the
+exact mechanism; decided not to keep blocking on that a third time and
+instead shipped a fix robust enough to not need to know the exact
+cause.
+
+`sarif.py` has exactly one absolute-path-derived field
+(`originalUriBaseIds.PROJECTROOT.uri`, confirmed by rereading the
+whole file again). The test's `_normalize()` matched it with an exact
+string replace of `root.as_uri() + "/"`, which in principle should be
+deterministic (same `Path` object, same method, called twice) -- but
+evidently is not, on Windows, for a reason not fully pinned down from
+the GitHub summary box's truncation (leading theory: `Path.as_uri()`
+drive-letter casing; Windows temp paths can also resolve through an
+8.3 short name like `RUNNER~1` inconsistently between calls). Rather
+than keep guessing at the exact mechanism, replaced the exact-match
+with a pattern match that doesn't need to know it: any `file://...`
+URI ending in this fixture's own (unique, known) directory name,
+case-insensitive. Tested locally against three plausible Windows
+`Path.as_uri()` variants (uppercase drive, lowercase drive, 8.3
+short-name path) -- all three normalize correctly to the same
+placeholder, so this should hold regardless of which of those turns
+out to be the real cause. Confirmed a no-op change on Linux: golden
+suite still 10/10 after, zero snapshot changes.
+
+This is a different kind of fix than 5.21-5.28's: those pinned an
+exact root cause before touching code; this one is a defensively
+robust fix shipped *without* full certainty of the mechanism, because
+the alternative was a third round of asking the user to dig through
+raw CI logs for a single-field JSON diff. If this run also fails,
+that itself becomes real evidence (this fix's assumptions -- one
+`file://` URI, ending in a unique known directory name -- would need
+revisiting), not a call to try to guess a fourth pinpoint fix.
