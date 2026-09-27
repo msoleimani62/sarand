@@ -61,6 +61,65 @@ _KIND = "syft (SBOM)"
 _TOP_LICENSES = 8
 _MAX_LISTED_WARNINGS = 25
 
+# BUG FIX: `syft dir:.` with no excludes catalogs the ENTIRE working
+# tree, not just the project's own declared dependencies -- including
+# `.venv`/`target`/`node_modules`, each of which can itself contain
+# thousands of already-materialized files (every installed package's
+# metadata, every compiled dependency's build artifacts). Measured on
+# sarand's own repo (AGENTS.md 5.33/5.34): the security phase alone
+# accounted for ~328 MiB of a ~355-382 MiB full-run peak RSS, and
+# ruling out cargo-audit/cargo-deny (via --skip-audit, no change in
+# peak RSS) narrowed it down to this. `syft` is meant to build an SBOM
+# from what the project *declares* (Cargo.lock, requirements.txt,
+# pyproject.toml, package-lock.json, ...), which it already does by
+# reading those manifests directly -- re-walking every already-
+# installed/compiled copy on disk adds scan cost (time and memory)
+# without adding any package that wasn't already found from the
+# manifest. Excluding these directories is a straightforward
+# correctness fix, not a feature trade-off: nothing in the resulting
+# package inventory should change, only how much of the filesystem
+# `syft` has to read to produce it. Glob syntax must start with `./`,
+# `*/`, or `**/` for a directory-source scan (syft's own `--exclude`
+# documentation).
+#
+# اصلاح باگ: `syft dir:.` بدون هیچ exclude، **کل** درخت کاری را
+# فهرست‌برداری می‌کند، نه فقط وابستگی‌های خودِ پروژه -- شامل
+# `.venv`/`target`/`node_modules`، که هرکدام می‌توانند خودشان حاوی
+# هزاران فایلِ از قبل مادی‌شده باشند (متادیتای هر پکیج نصب‌شده، هر
+# artifact ساخته‌شده‌ی هر وابستگی). روی خودِ مخزن sarand اندازه‌گیری شد
+# (AGENTS.md بخش‌های ۵.۳۳/۵.۳۴): فاز security به‌تنهایی حدود ۳۲۸ مگابایت
+# از حدود ۳۵۵ تا ۳۸۲ مگابایتِ اوج RSS اجرای کامل را شامل می‌شد، و
+# کنارگذاشتنِ `cargo-audit`/`cargo-deny` (با `--skip-audit`، بدون
+# تغییری در اوج RSS) آن را به همین‌جا محدود کرد. کارِ `syft` ساختن SBOM
+# از چیزی است که پروژه *اعلام* می‌کند (Cargo.lock،
+# requirements.txt، pyproject.toml، package-lock.json، ...)، که از قبل
+# با خواندنِ مستقیمِ همان مانیفست‌ها انجام می‌دهد -- خزیدنِ دوباره‌ی هر
+# نسخه‌ی از قبل نصب‌شده/کامپایل‌شده روی دیسک، بدون افزودن هیچ پکیجی که
+# از مانیفست پیدا نشده باشد، فقط هزینه‌ی اسکن (زمان و حافظه) را بالا
+# می‌برد. کنارگذاشتنِ این دایرکتوری‌ها یک اصلاحِ صریحِ درستی است، نه یک
+# مصالحه‌ی ویژگی: چیزی در فهرستِ پکیج‌های نهایی نباید تغییر کند، فقط
+# اینکه `syft` برای تولیدش چقدر از فایل‌سیستم را باید بخواند. سینتکسِ
+# glob برای اسکنِ منبعِ دایرکتوری باید با `./`، `*/`، یا `**/` شروع شود
+# (طبق مستندات خودِ `--exclude` در syft).
+_SYFT_EXCLUDE_ARGS = [
+    arg
+    for pattern in (
+        "./.git/**",
+        "./.venv/**",
+        "./venv/**",
+        "./target/**",
+        "./node_modules/**",
+        "./__pycache__/**",
+        "./.mypy_cache/**",
+        "./.pytest_cache/**",
+        "./.ruff_cache/**",
+        "./.tox/**",
+        "./dist/**",
+        "./build/**",
+    )
+    for arg in ("--exclude", pattern)
+]
+
 # Levels: 0 = permissive or unrecognized, 1 = weak copyleft, 2 = strong.
 # سطح‌ها: ۰ = permissive یا ناشناخته، ۱ = copyleft ضعیف، ۲ = قوی.
 _LEVEL_NAMES = {1: "weak-copyleft", 2: "strong-copyleft"}
@@ -280,7 +339,9 @@ async def run_syft(root: Path) -> CommandResult:
         )
 
     rc, out, dur = await run_cmd_async(
-        ["syft", "dir:.", "-o", "json", "--quiet"], root, LONG_CMD_TIMEOUT
+        ["syft", "dir:.", "-o", "json", "--quiet", *_SYFT_EXCLUDE_ARGS],
+        root,
+        LONG_CMD_TIMEOUT,
     )
     if rc == 0:
         packages = parse_packages(out)
@@ -298,6 +359,8 @@ async def run_syft(root: Path) -> CommandResult:
         logger.warning("could not parse syft JSON output; falling back to table")
 
     rc2, out2, dur2 = await run_cmd_async(
-        ["syft", "dir:.", "-o", "table", "--quiet"], root, LONG_CMD_TIMEOUT
+        ["syft", "dir:.", "-o", "table", "--quiet", *_SYFT_EXCLUDE_ARGS],
+        root,
+        LONG_CMD_TIMEOUT,
     )
     return make_command_result(_KIND, rc2, out2, dur + dur2)

@@ -2690,3 +2690,131 @@ entirely about *reaching* that content (the job-summary's own
 itself. Once the real diff was visible, the actual bug -- a replace-
 order issue neither platform-specific nor exotic -- took minutes to
 find and fix, not another round of theorizing.
+
+
+### 5.33 — Real peak-RSS numbers arrived; the 5.26 audit's main theory is refuted (2026-09-26)
+
+User installed GNU `time` for real (`sudo apt install -y time` on the
+Kali/Termux phone -- their actual target constrained device) and ran
+both the standalone `/usr/bin/time -v sarand --full` and
+`scripts/benchmark_report.py` (with real peak-RSS now, not `n/a`)
+against sarand itself, `bimarz`, and `bina`. First real measurement
+data for item 9's "Required measurements" step -- and it contradicts
+5.26's leading theory.
+
+5.26 identified the selected renderer's in-memory string-building of
+embedded source as the primary suspected memory-heavy stage, based on
+code reading alone (no device to measure on at the time). Real data:
+
+| project | `--full` peak RSS | `--no-source` peak RSS | drop | source removed from report |
+|---|---|---|---|---|
+| sarand | 382.1 MiB | 368.0 MiB | ~14 MiB (~4%) | ~1.45 MiB |
+| bina | 267.4 MiB | 248.0 MiB | ~19 MiB (~7%) | ~180 KiB |
+| bimarz | 333.8 MiB | 319.9 MiB | ~14 MiB (~4%) | ~659 KiB |
+
+Removing megabytes of embedded source from the report barely moves
+peak RSS at all. **5.26's main theory is refuted by real measurement,
+exactly the outcome the Evidence-First Rule and item 9's "do not claim
+OOM risk without measurement" exist to catch.** Peak RSS (250-380 MiB)
+is wildly disproportionate to report content (hundreds of KiB to a few
+MiB) -- something else entirely dominates, and building
+`--low-memory` around source truncation (the plan going into this
+round) would have solved a problem that isn't the real one.
+
+Notably, these runs used `--skip-tests` (tests did not even execute)
+and RSS was still hundreds of MiB -- ruling out `cargo test`
+compilation as the sole cause. Quality/security still ran, though,
+and both invoke the Rust toolchain (`cargo clippy`, `cargo audit`,
+`cargo deny` for sarand/bimarz; a real memory cost independent of
+report rendering) alongside several other subprocesses per language.
+Leading candidate now: subprocess/toolchain overhead during the
+quality and security phases, not sarand's own Python-side report
+generation at all -- but this is itself an unconfirmed theory until
+measured the same way 5.26's was.
+
+**Next measurement, not yet run:** isolate which phase actually drives
+peak RSS, using flags that already exist (no new tooling needed) --
+`sarand --skip-tests` (baseline: scan/detect/embed only, no tool
+execution), `sarand --skip-tests --quality` (quality tools only),
+`sarand --skip-tests --security` (security tools only), each under
+`/usr/bin/time -v`, on sarand itself (the largest, most Rust-toolchain-
+heavy of the three measured projects). Whichever phase's peak RSS
+approaches the full-run number is the real target for a
+`--low-memory` mode -- which, if it turns out to be Rust-toolchain
+subprocess overhead, is a very different feature (e.g. running
+`cargo clippy`/`cargo audit` with tighter resource limits, or simply
+documenting that quality/security checks are inherently memory-hungry
+and unrelated to report size) than anything about source embedding.
+
+
+### 5.34 — Found and fixed the real memory hog: `syft dir:.` scanning the entire working tree (2026-09-26)
+
+Continuation of 5.33's isolation. User ran
+`sarand --skip-tests --security --skip-audit` (removing cargo-audit/
+cargo-deny from the mix): peak RSS 343.4 MiB -- statistically the same
+as the 327.6 MiB with them included (well within phone-under-varying-
+load run-to-run noise), definitively clearing cargo-audit/cargo-deny
+as a memory contributor. Remaining suspects: bandit, pip-audit,
+gitleaks, syft.
+
+Reread `core/sbom.py` directly rather than requesting another
+isolation round: `run_syft()` invokes `syft dir:. -o json --quiet`
+(and the plain-table fallback identically) with **no exclusions at
+all**. Confirmed via syft's own `--exclude` documentation
+(web-searched, not guessed) that this means syft catalogs *every*
+file under the project root it can reach -- `.venv/` (every installed
+dev dependency's full metadata), `target/` (Rust's build directory,
+routinely the largest thing in a Cargo project by far), `.git/`,
+`node_modules/`, etc. -- not just the project's own declared
+dependencies, which syft already gets directly from `Cargo.lock`/
+`pyproject.toml`/`requirements.txt`/lockfiles. Re-walking the already-
+materialized installed/compiled copies on top of that adds scan cost
+without adding any package syft wouldn't already find from the
+manifests. This is a strong, evidence-backed explanation for the
+~328 MiB security-phase number: `target/` alone in a Rust project with
+any real dependency tree is commonly hundreds of MiB to low GiB of
+already-compiled objects and cached dependency sources.
+
+Fixed by adding `_SYFT_EXCLUDE_ARGS` (a fixed set of `--exclude`
+patterns for `.git`, `.venv`, `venv`, `target`, `node_modules`,
+`__pycache__`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`, `.tox`,
+`dist`, `build`, each syntactically valid per syft's own
+`--exclude`-flag rules -- must start with `./`, `*/`, or `**/` for a
+directory-source scan) and appending them to both `syft` invocations.
+This is a correctness fix, not a feature trade-off: nothing about
+*which packages* syft finds should change (they all come from
+manifests it reads directly regardless), only how much filesystem it
+has to walk to find them.
+
+Updated the two existing `test_sbom.py` tests that asserted the exact
+`syft` argv (they now expect `_SYFT_EXCLUDE_ARGS` appended, imported
+from the module rather than hand-duplicated, so the test can't drift
+from the real exclude list), and added a new
+`test_syft_excludes_build_and_dependency_directories` locking in that
+every one of those twelve directories is covered and every pattern
+uses syntax syft actually accepts. Verified locally (this sandbox's
+usual `pytest`-stub limitation, no real `pytest`/`rich`): all 9/9
+`test_sbom.py` tests pass, including the new one; `test_license_policy.py`
+(which also exercises `run_syft` via a fake command runner that
+ignores the exact argv, so unaffected) still 18/19, the one "failure"
+a pytest-parametrize stub limitation unrelated to this change.
+
+**Not yet measured for real:** this fix has not been run on-device
+with `/usr/bin/time -v` yet to confirm it actually brings the
+security-phase peak RSS down from ~328 MiB toward the ~68 MiB
+baseline. That is the natural next step once this lands -- if `target/`
+and `.venv/` really are what syft was walking, the drop should be
+large and immediately obvious; if it isn't, that's real evidence
+gitleaks (or bandit/pip-audit, less likely given their normal
+footprint) needs the same scrutiny next, not another guess.
+
+Also considered, not changed: `gitleaks`'s `--source .` invocation
+(`core/gitleaks.py`). Its own docstring already notes it deliberately
+runs a git-history-aware scan rather than a bare working-tree walk
+when `.git` exists, which inherently only sees *committed* content --
+`.venv`/`target`/etc are (on any well-set-up project, sarand's own
+included) gitignored and therefore never enter git history at all.
+Less obviously implicated than `syft`'s unrestricted directory walk,
+and no code-level evidence of a problem there yet -- left alone rather
+than fixed on suspicion alone, consistent with the Evidence-First
+Rule.

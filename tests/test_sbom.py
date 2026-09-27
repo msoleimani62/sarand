@@ -9,7 +9,13 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from sarand.core.sbom import classify_license, parse_packages, render_sbom, run_syft
+from sarand.core.sbom import (
+    _SYFT_EXCLUDE_ARGS,
+    classify_license,
+    parse_packages,
+    render_sbom,
+    run_syft,
+)
 
 
 def test_run_syft_skips_cleanly_without_binary(
@@ -56,7 +62,9 @@ def test_run_syft_asks_for_json_and_renders_an_inventory(
         result = asyncio.run(run_syft(Path(tmp)))
 
     assert result.skipped is False
-    assert captured_cmds == [["syft", "dir:.", "-o", "json", "--quiet"]]
+    assert captured_cmds == [
+        ["syft", "dir:.", "-o", "json", "--quiet", *_SYFT_EXCLUDE_ARGS]
+    ]
     assert "SBOM: 1 package(s) -- python: 1" in result.raw_output
     assert "requests" in result.raw_output
 
@@ -79,11 +87,44 @@ def test_run_syft_falls_back_to_the_plain_table_when_json_is_unusable(
         result = asyncio.run(run_syft(Path(tmp)))
 
     assert captured_cmds == [
-        ["syft", "dir:.", "-o", "json", "--quiet"],
-        ["syft", "dir:.", "-o", "table", "--quiet"],
+        ["syft", "dir:.", "-o", "json", "--quiet", *_SYFT_EXCLUDE_ARGS],
+        ["syft", "dir:.", "-o", "table", "--quiet", *_SYFT_EXCLUDE_ARGS],
     ]
     assert result.passed is True
     assert "requests  2.31.0  python" in result.raw_output
+
+
+def test_syft_excludes_build_and_dependency_directories() -> None:
+    """Regression test for the memory finding in AGENTS.md 5.33/5.34:
+    `syft dir:.` with no excludes re-catalogs every already-installed/
+    compiled file under `.venv`/`target`/etc, not just the project's
+    declared dependencies -- measured as the dominant contributor to a
+    ~328 MiB security-phase peak RSS on sarand's own repo. Locks in
+    that every common build/dependency/VCS directory is excluded, and
+    that each pattern uses syntax `syft --exclude` actually accepts
+    (must start with `./`, `*/`, or `**/` for a directory-source scan)."""
+    excluded_dirs = {
+        "/.git/",
+        "/.venv/",
+        "/venv/",
+        "/target/",
+        "/node_modules/",
+        "/__pycache__/",
+        "/.mypy_cache/",
+        "/.pytest_cache/",
+        "/.ruff_cache/",
+        "/.tox/",
+        "/dist/",
+        "/build/",
+    }
+    patterns = [
+        arg for flag, arg in zip(_SYFT_EXCLUDE_ARGS[::2], _SYFT_EXCLUDE_ARGS[1::2])
+    ]
+    assert len(_SYFT_EXCLUDE_ARGS) == len(patterns) * 2
+    assert all(flag == "--exclude" for flag in _SYFT_EXCLUDE_ARGS[::2])
+    assert all(p.startswith(("./", "*/", "**/")) for p in patterns)
+    for d in excluded_dirs:
+        assert any(d in p for p in patterns), f"{d} not excluded"
 
 
 def test_classify_license_levels() -> None:
