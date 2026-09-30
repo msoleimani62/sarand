@@ -3167,3 +3167,16 @@ same mechanism as 5.39, because the user's checkout has local fixes.
 BACKLOG_STATUS.md); database/service-role inference; relationships
 beyond Compose builds; Nx/Turborepo/Bazel graphs; changing
 `detect_project()`; `html.py`/`text.py`/`sarif.py` sections; README.
+
+### 5.41 — CI py3.10 mypy failure: `tomllib` import in components.py (2026-10-01)
+
+The item-11 round (`fbf8e24`) was green locally (Python 3.14: ruff,
+mypy, 853 tests) and on every CI job except ubuntu py3.10, where mypy
+reported `Cannot find implementation or library stub for module named
+"tomllib"` at `core/components.py`. Cause: the new module used
+`try: import tomllib / except ModuleNotFoundError: import tomli`, which
+mypy (targeting 3.10) cannot resolve, while `core/workspace.py` and
+`core/license_policy.py` already used the `sys.version_info >= (3, 11)`
+form. Fixed by switching to that form. Lesson: any new module that needs
+a TOML parser must copy the `sys.version_info` pattern -- a local run on
+a newer Python can never reveal this, only the py3.10 CI job can.
