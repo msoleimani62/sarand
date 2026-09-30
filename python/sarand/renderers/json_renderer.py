@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -75,6 +76,23 @@ def render(
             "kustomize_overlays": [
                 o.__dict__ for o in data.kubernetes.kustomize_overlays
             ],
+        }
+
+    # Same conditional-key contract as `workspace`/`kubernetes` above:
+    # absent entirely unless a Docker Compose file was detected.
+    # همان قرارداد کلیدِ شرطیِ `workspace`/`kubernetes` بالا: کاملاً
+    # غایب مگر اینکه فایل Docker Compose تشخیص داده شده باشد.
+    if data.compose is not None:
+        payload["compose"] = {"files": [asdict(f) for f in data.compose.files]}
+
+    # Same conditional-key contract as `workspace`/`kubernetes`/`compose`
+    # above: absent entirely unless a Makefile was detected.
+    # همان قرارداد کلیدِ شرطیِ بالا: کاملاً غایب مگر اینکه Makefile
+    # تشخیص داده شده باشد.
+    if data.makefile is not None:
+        payload["makefile"] = {
+            "files": [asdict(f) for f in data.makefile.files],
+            "total_files": data.makefile.total_files,
         }
 
     # BUG FIX: `include_source` was accepted in the signature (interface

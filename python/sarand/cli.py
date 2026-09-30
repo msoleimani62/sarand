@@ -30,12 +30,14 @@ from sarand.core.cache import (
     reconstruct_todos,
     save_cache,
 )
+from sarand.core.compose import detect_compose
 from sarand.core.estimate import estimate_source_bytes, size_advice
 from sarand.core.gitleaks import run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
 from sarand.core.kubernetes import detect_kubernetes
 from sarand.core.lockfiles import run_lockfile_check
+from sarand.core.makefile import detect_makefiles
 from sarand.core.sbom import run_syft
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
 from sarand.core.workspace import detect_workspace
@@ -289,6 +291,8 @@ async def run(config: SarandConfig) -> int:
     # core/workspace.py را ببینید.
     workspace = detect_workspace(root)
     kubernetes = detect_kubernetes(root)
+    compose = detect_compose(root)
+    makefile = detect_makefiles(root)
     if detection.is_recognized:
         status(f"Detected: {', '.join(detection.languages)} ({detection.build_system})")
     else:
@@ -551,6 +555,8 @@ async def run(config: SarandConfig) -> int:
         known_issues=known,
         workspace=workspace,
         kubernetes=kubernetes,
+        compose=compose,
+        makefile=makefile,
     )
 
     data.ai_summary = generate_ai_summary(data)

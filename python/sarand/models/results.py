@@ -258,6 +258,63 @@ class KubernetesInfo:
 
 
 @dataclass
+class ComposeService:
+    """One service declared under a compose file's top-level
+    `services` mapping. Populated by `core/compose.py`.
+    """
+
+    name: str
+    image: str = ""
+    builds: bool = False
+
+
+@dataclass
+class ComposeFile:
+    """One detected Docker Compose file and its declared services
+    (empty when the file is malformed or declares none).
+    """
+
+    path: str
+    services: list[ComposeService] = field(default_factory=list)
+
+
+@dataclass
+class ComposeInfo:
+    """Detected Docker Compose files in the project. Detection only --
+    see `core/compose.py`'s module docstring for what is deferred
+    (execution, `include:`/`extends:`, override merging).
+    """
+
+    files: list[ComposeFile] = field(default_factory=list)
+
+
+@dataclass
+class MakefileEntry:
+    """One detected Makefile and its explicit targets. Populated by
+    `core/makefile.py`. `targets` may be capped; `total_targets` is the
+    uncapped count so nothing is silently lost.
+    """
+
+    path: str
+    targets: list[str] = field(default_factory=list)
+    phony: list[str] = field(default_factory=list)
+    default_target: str = ""
+    total_targets: int = 0
+
+
+@dataclass
+class MakefileInfo:
+    """Detected Makefiles in the project. Detection only -- see
+    `core/makefile.py`'s module docstring for what is deferred
+    (execution, `include` resolution, `.mk` fragments).
+    `total_files` is the uncapped count of Makefiles found.
+    """
+
+    files: list[MakefileEntry] = field(default_factory=list)
+    total_files: int = 0
+
+
+@dataclass
 class ReportData:
     """Complete data package used to render any report format."""
 
@@ -283,4 +340,6 @@ class ReportData:
     suggested_reading_order: list[str] = field(default_factory=list)
     workspace: WorkspaceInfo | None = None
     kubernetes: KubernetesInfo | None = None
+    compose: ComposeInfo | None = None
+    makefile: MakefileInfo | None = None
     extra: dict[str, Any] = field(default_factory=dict)

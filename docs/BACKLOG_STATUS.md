@@ -21,7 +21,7 @@ Continue with the next "Not started" item in priority order below,
 unless the person says otherwise. Do not re-verify already-CONFIRMED
 items without a specific reason to doubt them.
 
-Last updated: 2026-09-28. Latest tag: v0.6.6. `main` is ahead of that
+Last updated: 2026-09-30. Latest tag: v0.6.6. `main` is ahead of that
 tag by the in-progress Kubernetes/Helm/Kustomize work (uncommitted as
 of this update).
 
@@ -124,9 +124,35 @@ marker-file check); any lint/validation execution (`helm lint`,
 is detected.
 
 ### 6 — Docker Compose
-**Status: Not started.**
+**Status: PARTIALLY RESOLVED -- detection only, delivered 2026-09-30,
+verified on-device.** `core/compose.py` finds
+`compose.y(a)ml`, `docker-compose.y(a)ml` and one-segment variants
+(`docker-compose.override.yml`, `compose.prod.yaml`) by filename
+under a bounded 5-level walk (same exclude list as items 5/9), reads
+each file's `services` (name, image, has-`build`). Malformed files
+are reported with no services, never dropped. `ReportData.compose` +
+markdown `## Docker Compose` + JSON `compose` key, only emitted when
+detected. 15 tests in `tests/test_compose.py`. Audit result: the only
+prior trace was `YamlAnalyzer._ENTRY_POINTS` (entry-point listing).
+Non-goals recorded, not done: execution (`docker compose config`,
+`hadolint`), `include:`/`extends:` resolution, override merging,
+Dockerfile detection.
 
-### 7 (backlog doc's own §10, "Makefile") -- **Status: Not started.**
+### 7 (backlog doc's own §10, "Makefile")
+**Status: PARTIALLY RESOLVED -- detection only, delivered 2026-09-30,
+verified on-device.** `core/makefile.py` finds
+`GNUmakefile`/`makefile`/`Makefile` (one per directory, make's own
+precedence) under a bounded 5-level walk (same exclude list as items
+5/6/9) and lists explicit targets, `.PHONY` names and the default
+target (`.DEFAULT_GOAL` else first target) by a line-based heuristic.
+Caps: 25 files, 100 targets/file, with true totals kept so nothing is
+silently lost. `make` is never run. `ReportData.makefile` + markdown
+`## Makefile` + JSON `makefile` key, only emitted when detected. Audit
+result: the only prior trace was `constants.py`'s exact-name `Makefile`
+project marker (build system "make"); no content was read.
+Non-goals recorded, not done: `make` execution, `include` resolution,
+`.mk` fragments, macro/conditional evaluation, per-target `## help`
+descriptions.
 
 ### 11 — Hybrid project model (backlog doc's own §11)
 **Status: Not started.**

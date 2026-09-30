@@ -3008,3 +3008,103 @@ that point, a fresh conversation reading `BACKLOG_STATUS.md` should be
 able to pick the next "Not started" item (item 6, Docker Compose, per
 the doc's own priority order) without reading this file's history at
 all, only consulting it if a specific past decision needs re-checking.
+
+### 5.38 — P1 item 6: Docker Compose, detection-only first scope (2026-09-30)
+
+Next "Not started" item in `docs/BACKLOG_STATUS.md` after item 5.
+Evidence-first audit: grepped `analyzers/` and `core/` for compose
+awareness. The only traces are `YamlAnalyzer._ENTRY_POINTS`
+(`docker-compose.yml`/`.yaml` surfaced as entry points) and the fact
+that `YamlAnalyzer` lints top-level YAML with `yamllint` and never
+reads content. So: `compose.yaml` (the current Compose Specification
+name), override files (`docker-compose.override.yml`), and anything
+below the project root are all invisible, and the report cannot say
+which services a project defines. CONFIRMED gap, representation only
+(no execution gap is claimed -- no compose tool is in the roster).
+
+Scope, same discipline as items 8 and 5: detection only. Compose files
+have a small fixed naming convention, so the name is the marker
+(`^(docker-)?compose(\.<segment>)?\.ya?ml$`, anchored both ends so
+`my-compose.yml`/`compose.yml.bak` never match) -- no content sniffing
+of arbitrary YAML. Per file: top-level `services` mapping read for
+name, `image`, and whether a `build` key exists, in file order. A
+malformed, undecodable, oversized (>1 MiB, not parsed) or oddly-shaped
+file is still reported with an empty services list rather than dropped
+or crashing.
+
+New `core/compose.py` (`detect_compose(root)`); `ComposeService`/
+`ComposeFile`/`ComposeInfo` in `models/results.py`; new
+`ReportData.compose` defaulted `None`; wired in `cli.py` next to
+`detect_kubernetes`. Walk is bounded to 5 levels, no symlink-following
+(files or dirs), and prunes the same build/dependency/VCS list as
+`core/kubernetes.py` and the syft fix. That list is deliberately
+copied locally rather than imported from `core/kubernetes.py`
+(self-contained-module convention); if a third module ever needs it,
+that is the moment to extract a shared constant, not before. New
+markdown `## Docker Compose` section and conditional JSON `"compose"`
+key, both emitted only when something is detected -- no effect on any
+existing golden snapshot (10/10 unchanged).
+
+15 new tests in `tests/test_compose.py`: none -> `None`; services with
+image/build read in file order; all six supported names found;
+lookalike names rejected; nested posix relative path; four excluded
+dirs never searched; depth bound; malformed YAML; non-dict/odd shapes
+(list root, `services` as list, null service, non-string image);
+undecodable bytes; 4 renderer tests (markdown/json, absent/present).
+
+Verified in the sandbox (no real `pytest`/`rich`/`ruff`/`mypy`; ran
+test functions directly with stubs): 63/63 across compose, kubernetes,
+workspace, golden, renderers. Full-suite comparison against the
+pristine input zip showed the identical set of sandbox-only failures
+before and after (stub `pytest.raises(match=)`, git/tool-dependent
+tests) -- nothing new introduced. Still needs a real on-device
+`ruff format --check`/`ruff check`/`mypy`/`pytest` run to close this
+round.
+
+**Non-goals, explicit:** any execution (`docker compose config`,
+`hadolint`, `dclint`); `include:`/`extends:` resolution; merging
+override files into one effective model; Dockerfile detection;
+`html.py`/`text.py`/`sarif.py` sections; README mention (same
+"premature for detection-only" call as items 8 and 5).
+
+### 5.39 — P1 item 7: Makefile, detection-only first scope (2026-09-30)
+
+Next "Not started" item after item 6 (verified on-device with small
+local fixes by the user). Evidence-first audit: the only prior trace
+is `constants.py`'s project-marker table mapping the exact filename
+`Makefile` to `("Generic", "unknown", "make")` (plus `ai_summary.py`
+ranking `makefile` as a high-priority file to read). No content was
+ever read: no targets, no default target, `GNUmakefile`/`makefile`
+unrecognised, Makefiles below the root invisible. CONFIRMED gap,
+representation only.
+
+Scope, same discipline as items 8/5/6: detection only. `make` is never
+run (not even `make -n`): a Makefile is arbitrary shell, so executing
+it during a scan is neither safe nor deterministic. Parsing is a
+deliberate line-based heuristic, not a Make implementation: backslash
+continuations joined; recipe lines, comments, conditionals, includes,
+`define..endef` bodies and variable assignments (`=`, `:=`, `::=`,
+`?=`, `+=`, `!=`) skipped; pattern rules (`%`), special `.`-targets
+and `$`-expanded names not listed; `.PHONY` collected; default =
+`.DEFAULT_GOAL` else first listed target. Per directory only the file
+GNU make itself would pick (`GNUmakefile` > `makefile` > `Makefile`).
+
+New `core/makefile.py` (`detect_makefiles`), `MakefileEntry`/
+`MakefileInfo` in `models/results.py`, `ReportData.makefile`, wiring
+in `cli.py`, markdown `## Makefile` and conditional JSON `"makefile"`
+key. Same 5-level bound and skip-dir list as items 5/6 (local copy,
+per the 5.38 convention). New this round: report-size guards (25
+files, 100 targets/file, 1 MiB parse limit) because C monorepos can
+carry hundreds of Makefiles and thousands of object-file targets --
+item 9's concern -- with `total_files`/`total_targets` kept and
+rendered as "(+N more)" so nothing is silently lost.
+
+Delivered as `apply_makefile_v1.py` (anchored edits + new files)
+rather than whole replacement files, because the user had made local
+fixes to the files it touches after item 6; the script aborts without
+writing anything if an anchor is missing and is idempotent.
+
+**Non-goals, explicit:** `make` execution; `include` resolution;
+`.mk` fragment files; macro/conditional evaluation; per-target
+`## help` descriptions; `html.py`/`text.py`/`sarif.py` sections;
+README mention.

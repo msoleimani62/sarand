@@ -147,6 +147,59 @@ def _render_kubernetes(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_compose(data: ReportData) -> list[str]:
+    """Nothing at all when no Docker Compose file was detected --
+    same "never change an ordinary project's report" contract as
+    `_render_workspace`.
+    """
+    compose = data.compose
+    if compose is None:
+        return []
+    lines = ["## Docker Compose", ""]
+    for cfile in compose.files:
+        lines.extend([f"### `{cfile.path}`", ""])
+        if not cfile.services:
+            lines.extend(["_No services found._", ""])
+            continue
+        lines.extend(["| Service | Image | Build |", "|---|---|---|"])
+        for svc in cfile.services:
+            image = svc.image.replace("|", "\\|") if svc.image else "-"
+            build = "yes" if svc.builds else "-"
+            lines.append(f"| {svc.name} | {image} | {build} |")
+        lines.append("")
+    return lines
+
+
+def _render_makefile(data: ReportData) -> list[str]:
+    """Nothing at all when no Makefile was detected -- same "never
+    change an ordinary project's report" contract as
+    `_render_workspace`.
+    """
+    info = data.makefile
+    if info is None:
+        return []
+    lines = ["## Makefile", ""]
+    for entry in info.files:
+        lines.extend([f"### `{entry.path}`", ""])
+        if not entry.targets:
+            lines.extend(["_No targets found._", ""])
+            continue
+        if entry.default_target:
+            lines.append(f"- **Default target:** `{entry.default_target}`")
+        shown = ", ".join(f"`{t}`" for t in entry.targets)
+        omitted = entry.total_targets - len(entry.targets)
+        more = f" (+{omitted} more)" if omitted > 0 else ""
+        lines.append(f"- **Targets ({entry.total_targets}):** {shown}{more}")
+        if entry.phony:
+            phony = ", ".join(f"`{t}`" for t in entry.phony)
+            lines.append(f"- **Phony:** {phony}")
+        lines.append("")
+    hidden = info.total_files - len(info.files)
+    if hidden > 0:
+        lines.extend([f"_{hidden} more Makefile(s) not shown._", ""])
+    return lines
+
+
 def render(
     data: ReportData, *, include_source: bool = True, full_output: bool = False
 ) -> str:
@@ -167,6 +220,8 @@ def render(
         *_render_detected_project(data),
         *_render_workspace(data),
         *_render_kubernetes(data),
+        *_render_compose(data),
+        *_render_makefile(data),
         "---",
         "",
         "## Environment",
