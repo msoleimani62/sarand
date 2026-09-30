@@ -3108,3 +3108,62 @@ writing anything if an anchor is missing and is idempotent.
 `.mk` fragment files; macro/conditional evaluation; per-target
 `## help` descriptions; `html.py`/`text.py`/`sarif.py` sections;
 README mention.
+
+### 5.40 — P1/P2 item 11: Hybrid project model, representation only (2026-10-01)
+
+Items 6 and 7 closed first: verified on-device (ruff/mypy/834 tests
+green), committed as af86c72, tagged v0.6.8 (v0.6.7 was already the
+Kubernetes round, af8c0c2).
+
+Evidence-first audit of item 11 against a hand-built hybrid fixture
+(`backend/` FastAPI, `frontend/` React, root compose building both,
+CI workflow, Makefile, Kustomize overlay, `docs/`). Findings:
+`detect_project()` reads root markers only and keeps a single primary
+language -- the fixture came out "Generic / unknown / make", with
+neither Python nor Node.js detected. Analyzer `matches(root)` is also
+root-only, so only GitHub Actions, YAML and Markdown ran: **no tests,
+quality or security for either real component.** Nothing expressed
+that compose services build `backend/`/`frontend/`. The execution gap
+is larger than the representation gap, but the backlog doc scopes this
+item to "representation and context, not a universal architecture
+detector", so it is recorded separately in BACKLOG_STATUS.md and NOT
+fixed here (needs a design decision on per-component analyzer runs and
+result attribution).
+
+Implemented the representation only: new `core/components.py`
+(`detect_components(root, kubernetes, compose, makefile)`), `Component`/
+`ComponentLink`/`ComponentsInfo` in `models/results.py`,
+`ReportData.components`, wiring in `cli.py` after the makefile step,
+markdown `## Project Components` (placed right after Detected Project)
+and conditional JSON `"components"` key. A *view* over evidence: adds
+no findings (DoD "no duplicate findings"), runs nothing, never touches
+`primary_language`/health/issues/existing sections. Roles only from
+concrete markers: application (`PROJECT_MARKERS`, 3 levels, weak
+markers `requirements.txt`/`setup.cfg` alone don't count below the
+root -- `docs/requirements.txt` is the classic false positive);
+infrastructure (existing Helm/Kustomize/Compose results + `*.tf` +
+`Dockerfile` dirs); ci (GitHub Actions/GitLab/Jenkins/CircleCI/Azure
+markers); documentation (non-empty root `docs/`); configuration
+(existing Makefile results). `kind` frontend/backend only from
+declared dependencies (package.json / pyproject / requirements.txt),
+never from directory names; conflicting hints -> empty. Skips
+`tests`/`fixtures`/`examples`/`vendor`-style dirs for precision.
+One relationship: Compose service `build:` context resolving to a
+detected application directory ("builds"); components.py re-reads the
+compose files itself (self-contained-module convention) so the compose
+model/JSON from 5.38 is unchanged.
+
+Emitted only for a hybrid project: >=2 application components with
+different (languages, kind) signatures (a Cargo/npm workspace of
+same-kind members is not hybrid), or an application plus
+Helm/Kustomize/Compose/Terraform. A plain project with Dockerfile, CI
+and docs gets nothing new. Caps 50 components / 100 links with true
+totals kept and rendered as "N more ... not shown".
+
+Delivered as `apply_components_v1.py` (anchored edits + new files), the
+same mechanism as 5.39, because the user's checkout has local fixes.
+
+**Non-goals, explicit:** per-component analyzer execution (see
+BACKLOG_STATUS.md); database/service-role inference; relationships
+beyond Compose builds; Nx/Turborepo/Bazel graphs; changing
+`detect_project()`; `html.py`/`text.py`/`sarif.py` sections; README.

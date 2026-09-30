@@ -200,6 +200,44 @@ def _render_makefile(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_components(data: ReportData) -> list[str]:
+    """Nothing at all unless the project was detected as hybrid -- same
+    "never change an ordinary project's report" contract as
+    `_render_workspace`.
+    """
+    info = data.components
+    if info is None:
+        return []
+    lines = [
+        "## Project Components",
+        "",
+        "| Path | Role | Kind | Languages | Evidence |",
+        "|---|---|---|---|---|",
+    ]
+    for c in info.components:
+        languages = ", ".join(c.languages) or "-"
+        evidence = ", ".join(f"`{e}`" for e in c.evidence) or "-"
+        lines.append(
+            f"| `{c.path}` | {c.role} | {c.kind or '-'} | {languages} | {evidence} |"
+        )
+    hidden = info.total_components - len(info.components)
+    if hidden > 0:
+        lines.append("")
+        lines.append(f"_{hidden} more component(s) not shown._")
+    lines.append("")
+    if info.links:
+        lines.extend(["### Relationships", ""])
+        lines.extend(
+            f"- `{link.source}` {link.relation} `{link.target}` ({link.evidence})"
+            for link in info.links
+        )
+        hidden_links = info.total_links - len(info.links)
+        if hidden_links > 0:
+            lines.append(f"- _{hidden_links} more relationship(s) not shown._")
+        lines.append("")
+    return lines
+
+
 def render(
     data: ReportData, *, include_source: bool = True, full_output: bool = False
 ) -> str:
@@ -218,6 +256,7 @@ def render(
         "---",
         "",
         *_render_detected_project(data),
+        *_render_components(data),
         *_render_workspace(data),
         *_render_kubernetes(data),
         *_render_compose(data),

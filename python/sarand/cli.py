@@ -30,6 +30,7 @@ from sarand.core.cache import (
     reconstruct_todos,
     save_cache,
 )
+from sarand.core.components import detect_components
 from sarand.core.compose import detect_compose
 from sarand.core.estimate import estimate_source_bytes, size_advice
 from sarand.core.gitleaks import run_gitleaks
@@ -293,6 +294,7 @@ async def run(config: SarandConfig) -> int:
     kubernetes = detect_kubernetes(root)
     compose = detect_compose(root)
     makefile = detect_makefiles(root)
+    components = detect_components(root, kubernetes, compose, makefile)
     if detection.is_recognized:
         status(f"Detected: {', '.join(detection.languages)} ({detection.build_system})")
     else:
@@ -557,6 +559,7 @@ async def run(config: SarandConfig) -> int:
         kubernetes=kubernetes,
         compose=compose,
         makefile=makefile,
+        components=components,
     )
 
     data.ai_summary = generate_ai_summary(data)

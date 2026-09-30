@@ -95,6 +95,18 @@ def render(
             "total_files": data.makefile.total_files,
         }
 
+    # Same conditional-key contract as the other optional sections:
+    # absent entirely unless the project was detected as hybrid.
+    # همان قرارداد کلیدِ شرطیِ بخش‌های اختیاریِ دیگر: کاملاً غایب مگر
+    # اینکه پروژه ترکیبی تشخیص داده شده باشد.
+    if data.components is not None:
+        payload["components"] = {
+            "components": [asdict(c) for c in data.components.components],
+            "links": [asdict(link) for link in data.components.links],
+            "total_components": data.components.total_components,
+            "total_links": data.components.total_links,
+        }
+
     # BUG FIX: `include_source` was accepted in the signature (interface
     # parity with every other renderer) but never actually read in this
     # function body -- so JSON output never contained a single byte of

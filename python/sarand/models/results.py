@@ -315,6 +315,47 @@ class MakefileInfo:
 
 
 @dataclass
+class Component:
+    """One component of a hybrid project. Populated by
+    `core/components.py`. `role` is application | infrastructure | ci |
+    documentation | configuration; `kind` is a finer label only when
+    concrete evidence supports it, else empty. `path` is relative,
+    posix-style, `.` for the root.
+    """
+
+    path: str
+    role: str
+    kind: str = ""
+    languages: list[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ComponentLink:
+    """A relationship between components. This round: `relation` is
+    always `builds` (a Compose file building an application
+    directory), so `target` is an application component's path.
+    """
+
+    source: str
+    target: str
+    relation: str
+    evidence: str = ""
+
+
+@dataclass
+class ComponentsInfo:
+    """Component view of a hybrid project; absent for ordinary
+    projects. Totals are uncapped counts so nothing is silently lost.
+    """
+
+    components: list[Component] = field(default_factory=list)
+    links: list[ComponentLink] = field(default_factory=list)
+    total_components: int = 0
+    total_links: int = 0
+
+
+@dataclass
 class ReportData:
     """Complete data package used to render any report format."""
 
@@ -342,4 +383,5 @@ class ReportData:
     kubernetes: KubernetesInfo | None = None
     compose: ComposeInfo | None = None
     makefile: MakefileInfo | None = None
+    components: ComponentsInfo | None = None
     extra: dict[str, Any] = field(default_factory=dict)

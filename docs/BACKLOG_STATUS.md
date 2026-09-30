@@ -21,7 +21,7 @@ Continue with the next "Not started" item in priority order below,
 unless the person says otherwise. Do not re-verify already-CONFIRMED
 items without a specific reason to doubt them.
 
-Last updated: 2026-09-30. Latest tag: v0.6.6. `main` is ahead of that
+Last updated: 2026-10-01. Latest tag: v0.6.6. `main` is ahead of that
 tag by the in-progress Kubernetes/Helm/Kustomize work (uncommitted as
 of this update).
 
@@ -155,7 +155,24 @@ Non-goals recorded, not done: `make` execution, `include` resolution,
 descriptions.
 
 ### 11 — Hybrid project model (backlog doc's own §11)
-**Status: Not started.**
+**Status: PARTIALLY RESOLVED -- representation only, delivered
+2026-10-01, NOT yet verified/committed on-device.** `core/components.py`
+builds a component view (application / infrastructure / ci /
+documentation / configuration) from concrete markers only, plus one
+relationship (Compose service `build:` context -> application
+directory). Emitted only for a *hybrid* project (>=2 application
+components with different (languages, kind) signatures, or an
+application plus Helm/Kustomize/Compose/Terraform); an ordinary
+project's report is unchanged. `kind` frontend/backend only from
+declared dependencies (npm / Python), never from directory names.
+Adds no findings, runs nothing. `ReportData.components` + markdown
+`## Project Components` + conditional JSON `components` key.
+Hybrid fixture built in `tests/test_components.py`.
+**Next action: apply, run `ruff`/`mypy`/`pytest`, commit+push.**
+Non-goals recorded, not done: database/service-role inference,
+relationships beyond Compose builds, Nx/Turborepo/Bazel graphs,
+changing `detect_project()`. **The bigger gap this audit found is
+listed separately below ("Root-only detection and analyzer matching").**
 
 ---
 
@@ -173,6 +190,22 @@ descriptions.
   Astro, OCaml, Clojure, Crystal, Nim, V, Solidity)
 
 ---
+
+## Root-only detection and analyzer matching (found 2026-10-01 while auditing item 11)
+**Status: CONFIRMED gap, NOT started, not a numbered backlog item --
+arguably larger than item 11 itself.** `detect_project()` inspects only
+root marker files and keeps one primary language; analyzers'
+`matches(root)` are root-only too. On a realistic hybrid fixture
+(`backend/pyproject.toml`, `frontend/package.json`, root
+`docker-compose.yml`, `Makefile`, CI, docs) the report says "Generic /
+unknown / make", Python and Node.js are not detected, and only GitHub
+Actions, YAML and Markdown analyzers run: **no tests, quality or
+security checks for either real component.** Same root cause as item
+8's npm/pnpm/Yarn execution gap. Fixing it means deciding how analyzers
+run per component directory (working dir, result attribution in the
+flat test/quality/security lists, no duplicate findings) -- a real
+design decision, deliberately not folded into item 11's
+representation-only scope. Needs an explicit go-ahead before starting.
 
 ## Also worth knowing (not backlog items, but real and unresolved)
 
