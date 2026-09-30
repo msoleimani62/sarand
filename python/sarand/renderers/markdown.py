@@ -123,6 +123,30 @@ def _render_workspace(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_kubernetes(data: ReportData) -> list[str]:
+    """Nothing at all when no Helm chart or Kustomize overlay was
+    detected -- same "never change an ordinary project's report"
+    contract as `_render_workspace`.
+    """
+    k8s = data.kubernetes
+    if k8s is None:
+        return []
+    lines = ["## Kubernetes", ""]
+    if k8s.helm_charts:
+        lines.extend(
+            ["### Helm charts", "", "| Chart | Version | Path |", "|---|---|---|"]
+        )
+        lines.extend(
+            f"| {c.name} | {c.version or '-'} | `{c.path}` |" for c in k8s.helm_charts
+        )
+        lines.append("")
+    if k8s.kustomize_overlays:
+        lines.extend(["### Kustomize overlays", ""])
+        lines.extend(f"- `{o.path}`" for o in k8s.kustomize_overlays)
+        lines.append("")
+    return lines
+
+
 def render(
     data: ReportData, *, include_source: bool = True, full_output: bool = False
 ) -> str:
@@ -142,6 +166,7 @@ def render(
         "",
         *_render_detected_project(data),
         *_render_workspace(data),
+        *_render_kubernetes(data),
         "---",
         "",
         "## Environment",

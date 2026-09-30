@@ -225,6 +225,39 @@ class WorkspaceInfo:
 
 
 @dataclass
+class HelmChart:
+    """One detected Helm chart -- a directory containing `Chart.yaml`.
+    Populated by `core/kubernetes.py`.
+    """
+
+    path: str
+    name: str
+    version: str = ""
+
+
+@dataclass
+class KustomizeOverlay:
+    """One detected Kustomize overlay -- a directory containing
+    `kustomization.yaml`/`.yml`. Populated by `core/kubernetes.py`.
+    """
+
+    path: str
+
+
+@dataclass
+class KubernetesInfo:
+    """Detected Helm charts and Kustomize overlays in the project.
+    Detection only -- see `core/kubernetes.py`'s module docstring for
+    what is and is not covered yet (raw Kubernetes manifests with no
+    fixed filename, and any lint/validation execution, are both
+    explicitly deferred to a later round).
+    """
+
+    helm_charts: list[HelmChart] = field(default_factory=list)
+    kustomize_overlays: list[KustomizeOverlay] = field(default_factory=list)
+
+
+@dataclass
 class ReportData:
     """Complete data package used to render any report format."""
 
@@ -249,4 +282,5 @@ class ReportData:
     ai_summary: str = ""
     suggested_reading_order: list[str] = field(default_factory=list)
     workspace: WorkspaceInfo | None = None
+    kubernetes: KubernetesInfo | None = None
     extra: dict[str, Any] = field(default_factory=dict)

@@ -9,6 +9,21 @@
 
 ---
 
+> [!NOTE]
+> **Working through the engineering backlog? Read this first.**
+>
+> `docs/BACKLOG.md` is the full backlog document (process + every
+> item, adopted 2026-09-22). `docs/BACKLOG_STATUS.md` is the
+> *current* status against it -- what's done, what's in progress,
+> what's next, kept up to date every round. Read `BACKLOG_STATUS.md`
+> before re-deriving priority or re-auditing an already-resolved item
+> from this file's history below. Both files are temporary and are
+> meant to be deleted once the whole backlog is exhausted (see
+> `BACKLOG_STATUS.md`'s own header) -- this file (`AGENTS.md`) keeps
+> the permanent historical record regardless.
+
+---
+
 ## 1. What sarand is
 
 sarand is a cross-platform CLI that scans any software project, detects its
@@ -2818,3 +2833,178 @@ Less obviously implicated than `syft`'s unrestricted directory walk,
 and no code-level evidence of a problem there yet -- left alone rather
 than fixed on suspicion alone, consistent with the Evidence-First
 Rule.
+
+
+### 5.35 — Item 9 closed: gitleaks cleared, syft's own baseline cost is the honest remainder (2026-09-27)
+
+Final isolation round, both tools restored to their real paths
+afterward and confirmed working (`syft version`, `which gitleaks`).
+
+Removing `gitleaks` alone (syft present, already fixed) changed
+**nothing**: 186.8 MiB with both present, 186.8 MiB with only
+`gitleaks` removed. Removing both together dropped to 78.3 MiB --
+essentially the 67.4 MiB baseline. The only way to reconcile "removing
+gitleaks alone does nothing" with "removing both drops it back to
+baseline" is that `/usr/bin/time -v`'s "Maximum resident set size" is
+a single peak across the whole run, not a sum -- external tools run
+one at a time (not concurrently), each releasing its memory before
+the next starts, so the reported number is whichever single tool's own
+peak was largest. `gitleaks`'s peak is smaller than `syft`'s, so
+removing `gitleaks` alone can never move the reported maximum; only
+removing `syft` (the actual peak-holder) does. This reverses 5.34's
+tentative "gitleaks might be the larger remaining contributor" --
+wrong guess, corrected by the next measurement rather than left
+standing.
+
+**Conclusion: `syft` itself, even after 5.34's exclude fix, still
+carries roughly 108-120 MiB of its own overhead** (186.8 MiB with it
+vs 78.3 MiB without) reading the project's actual manifests and
+building the SBOM -- likely inherent to the Go binary's own runtime
+and whatever vulnerability/license metadata it loads, not a further
+sarand-side misconfiguration. No code-level evidence points to another
+fixable cause here, and the Evidence-First Rule cuts against inventing
+one on suspicion after 5.34's real fix already delivered the large,
+confirmed win (43% reduction in the security phase, ~141 MiB).
+
+**Item 9 status: closed for this round, not via a new `--low-memory`
+flag.** The backlog doc's own suggested interface ideas (`--low-memory`
+flag, summary+separate-source-artifacts, intelligent truncation) were
+all designed around the *wrong* hypothesis -- 5.26's code-only audit
+guessed report-content/source-embedding as the driver, and 5.33's real
+measurement refuted that outright (removing 1.4+ MiB of embedded
+source moved peak RSS by only ~4-7%). The real fix that emerged from
+following the evidence wasn't an opt-in mode at all: it was a genuine
+bug (`syft dir:.` scanning `.venv`/`target` unrestricted) fixed once,
+at the source, benefiting every user automatically with no flag to
+remember and no report-completeness trade-off. That is this round's
+"low-memory strategy" -- fix real over-broad tool invocations as
+they're found, rather than build a parallel reduced-fidelity mode.
+Remaining ~186 MiB peak for `--security` on a project sarand's own
+size is now understood to be dominated by `syft`'s own inherent
+runtime cost, documented here as an accepted, external, currently-
+unfixable-without-losing-functionality cost rather than left as an
+open mystery.
+
+Not done, explicitly out of scope for now: profiling `--quality`
+(176.7 MiB baseline-relative cost, never decomposed by tool) or `tests`
+(the largest wall-clock phase in every run, never profiled for memory
+at all since these benchmarks all used `--skip-tests`). Revisit only
+if a future real report of memory pressure on a constrained device
+names one of these phases specifically -- not speculatively.
+
+
+### 5.36 — P1 item 5: Kubernetes/Helm/Kustomize, detection-only first scope (2026-09-27)
+
+Next P1 item per the backlog doc's own priority order, started right
+after item 9 closed. Evidence-first audit: grepped `analyzers/` and
+`core/` for any k8s/helm/kustomize awareness -- CONFIRMED gap, none
+exists. `YamlAnalyzer` is a plain format analyzer (lints top-level
+`.yaml`/`.yml` with `yamllint`, never inspects content), so it has no
+concept of a file being a Kubernetes manifest versus anything else.
+
+Scope, following item 8's own "Cargo-only first pass" discipline:
+detection only, for the two ecosystems with an unambiguous marker
+file -- a Helm chart (`Chart.yaml`) and a Kustomize overlay
+(`kustomization.yaml`/`.yml`). Raw Kubernetes manifests (a bare
+`Deployment`/`Service`/etc. YAML has no fixed filename -- finding them
+needs reading and parsing every `.yaml` in the project, not a marker-
+file check) and any execution (`helm lint`, `kubeconform`, `kustomize
+build`) are both explicitly deferred, matching item 8's own
+representation-before-execution split.
+
+New `core/kubernetes.py` (`detect_kubernetes(root)`), `HelmChart`/
+`KustomizeOverlay`/`KubernetesInfo` in `models/results.py` (the one
+canonical models module, same rule `WorkspaceInfo` already follows),
+new `ReportData.kubernetes` field defaulted `None`. Walks the tree
+itself (bounded to 5 levels deep, no symlink-following) pruning the
+exact same build/dependency/VCS directory list `core/sbom.py`'s syft
+fix uses (`.git`/`.venv`/`target`/`node_modules`/etc.) -- same
+philosophy, same list: those directories only ever hold third-party or
+generated content, walking them costs real time for zero signal.
+Malformed `Chart.yaml` falls back to the directory name rather than
+crashing or being dropped (same posture as `core/workspace.py`'s
+malformed-`Cargo.toml` handling). New markdown `## Kubernetes` section
+and conditional JSON `"kubernetes"` key, both only emitted when
+something is actually detected -- confirmed a no-op for every existing
+golden fixture (still 10/10, zero snapshot changes) the same way item
+8's workspace feature was.
+
+10 new tests in `tests/test_kubernetes.py`: empty project -> `None`,
+a chart found with name+version read from `Chart.yaml`, both
+`kustomization.yaml`/`.yml` extensions found, a root-level chart gets
+path `"."`, all four excluded directories confirmed never searched
+(decoys planted inside each, none found), malformed `Chart.yaml`
+falls back correctly, and 4 renderer tests (markdown/json,
+absent/present) mirroring item 8's own test shape.
+
+Verified locally the usual way (no real `pytest`/`rich` in this
+sandbox): ran the actual test functions directly, 10/10 passing;
+reran the golden-report harness after, still 10/10 untouched;
+`test_workspace.py`/`test_renderers.py`/`test_coverage.py` all still
+clean. Proactively hand-wrapped 3 lines over ~88 characters found via
+the usual `awk` scan before delivery (one in `core/kubernetes.py`'s
+directory-listing comprehension, one in its `KubernetesInfo(...)`
+return, one in `markdown.py`'s Helm-table-header `lines.extend`) --
+same lesson from 5.23 onward, applied without needing another
+ruff-format round to catch it. Still needs a real on-device
+`ruff`/`mypy`/`pytest` run to close this round.
+
+**Non-goals, explicit, for a later phase of this same backlog item:**
+raw Kubernetes manifest detection (content-based, no fixed filename --
+materially bigger scan, deserves its own scoped round); any
+lint/validation execution once detected (`helm lint`, `kubeconform`/
+`kubeval`, `kustomize build --dry-run`); Docker Compose and Makefile
+detection (items 6/10 in the doc's original numbering, next after this
+ecosystem is further along or explicitly reprioritized).
+
+
+### 5.37 — Two on-device fixes for item 5, plus portability restructuring for a fresh conversation (2026-09-28)
+
+**On-device fixes (item 5, Kubernetes/Helm/Kustomize):** `ruff format`
+wanted `tests/test_kubernetes.py`'s `payload["kubernetes"] == {...}`
+dict-literal assertion collapsed onto one line (a real fixed-content
+kwargs-list, not a comment/docstring -- fixed to match ruff's own
+diff, same class of miss as many earlier rounds). `mypy` flagged
+`core/kubernetes.py`'s `import yaml` as untyped
+(`import-untyped`) -- tracing this further than "just add
+`type: ignore`" found a real gap: **`PyYAML` was never declared as a
+direct dependency anywhere in `pyproject.toml`**; `import yaml` only
+worked on the dev machine because PyYAML happened to already be
+present as some *other* installed package's transitive dependency.
+A fresh `pip install sarand` with no such transitive dependency
+already on the target system would `ImportError` the first time a
+Kubernetes scan ran -- a real, user-facing bug this round's own new
+feature would otherwise have shipped with. Fixed properly: added
+`PyYAML>=6.0` to `[project] dependencies` (not just `dev` -- this
+module is part of the shipped package) and `types-PyYAML` to the
+`dev` extra for mypy. Verified locally: `tests/test_kubernetes.py`
+still 10/10 after the format fix; `pyproject.toml` still valid TOML
+after both dependency additions (`tomllib.load`).
+
+**Portability restructuring, at the person's request** (this
+conversation has grown very long and slow; they want to continue in a
+fresh one without re-deriving context): added `docs/BACKLOG.md`
+(the full original backlog document, verbatim -- process, every item,
+Definition of Done template, Investigation/Validation Protocol,
+unchanged since adoption) and `docs/BACKLOG_STATUS.md` (a new,
+actively-maintained status file: what's RESOLVED/PARTIALLY RESOLVED/
+not-started against every item, in the doc's own vocabulary, with
+just enough evidence cited to avoid re-deriving it -- e.g. item 8's
+full npm/pnpm/Yarn/Gradle/Maven/Bazel/Nx audit results restated
+concisely rather than requiring a re-read of section 5.36's original
+longer version). Both files are explicitly marked temporary in their
+own text -- meant to be deleted once every backlog item is resolved or
+explicitly marked out of scope, with `AGENTS.md`'s own dated round
+history (this section included) remaining as the permanent record
+either way. Added a short pointer note at the very top of this file
+(right after the binding-directive callout) so a fresh conversation
+starting from `AGENTS.md` sees the pointer to `BACKLOG_STATUS.md`
+before anything else, rather than needing to scroll the full round-by-
+round history to reconstruct current status.
+
+This section itself (5.37) is the last thing `BACKLOG_STATUS.md`
+should need updating for once item 5's pending commit lands -- from
+that point, a fresh conversation reading `BACKLOG_STATUS.md` should be
+able to pick the next "Not started" item (item 6, Docker Compose, per
+the doc's own priority order) without reading this file's history at
+all, only consulting it if a specific past decision needs re-checking.

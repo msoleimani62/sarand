@@ -34,6 +34,7 @@ from sarand.core.estimate import estimate_source_bytes, size_advice
 from sarand.core.gitleaks import run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
+from sarand.core.kubernetes import detect_kubernetes
 from sarand.core.lockfiles import run_lockfile_check
 from sarand.core.sbom import run_syft
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
@@ -287,6 +288,7 @@ async def run(config: SarandConfig) -> int:
     # مدل‌های workspace فعلاً تشخیص داده می‌شوند و کدام نه،
     # core/workspace.py را ببینید.
     workspace = detect_workspace(root)
+    kubernetes = detect_kubernetes(root)
     if detection.is_recognized:
         status(f"Detected: {', '.join(detection.languages)} ({detection.build_system})")
     else:
@@ -548,6 +550,7 @@ async def run(config: SarandConfig) -> int:
         secret_findings=secret_findings,
         known_issues=known,
         workspace=workspace,
+        kubernetes=kubernetes,
     )
 
     data.ai_summary = generate_ai_summary(data)

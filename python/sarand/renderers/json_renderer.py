@@ -65,6 +65,18 @@ def render(
             "exclude_patterns": data.workspace.exclude_patterns,
         }
 
+    # Same conditional-key contract as `workspace` above: absent
+    # entirely unless Helm charts or Kustomize overlays were detected.
+    # همان قرارداد کلیدِ شرطیِ `workspace` بالا: کاملاً غایب مگر اینکه
+    # چارت Helm یا overlay Kustomize تشخیص داده شده باشد.
+    if data.kubernetes is not None:
+        payload["kubernetes"] = {
+            "helm_charts": [c.__dict__ for c in data.kubernetes.helm_charts],
+            "kustomize_overlays": [
+                o.__dict__ for o in data.kubernetes.kustomize_overlays
+            ],
+        }
+
     # BUG FIX: `include_source` was accepted in the signature (interface
     # parity with every other renderer) but never actually read in this
     # function body -- so JSON output never contained a single byte of

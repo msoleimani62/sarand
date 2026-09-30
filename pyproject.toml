@@ -21,10 +21,30 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
     "Topic :: Software Development :: Testing",
 ]
+# BUG FIX: `core/kubernetes.py` (backlog item 5) parses `Chart.yaml`
+# directly with `import yaml`. It only worked on the dev machine that
+# first hit this because PyYAML happened to already be present as
+# some *other* package's transitive dependency (mypy's own
+# `import-untyped` warning for "yaml" is what surfaced this -- a
+# fresh `pip install sarand` with no such transitive dependency
+# already on the system would `ImportError` the moment a Kubernetes
+# scan runs). Declared explicitly so it is guaranteed present for
+# every install, not just this one dev environment.
+#
+# اصلاح باگ: `core/kubernetes.py` (آیتم ۵ backlog) مستقیماً
+# `Chart.yaml` را با `import yaml` پارس می‌کند. فقط روی دستگاه
+# توسعه‌ای که اول به این برخورد کار می‌کرد چون PyYAML از قبل به‌عنوان
+# وابستگیِ گذرای یک بسته‌ی *دیگر* حاضر بود (هشدار خودِ mypy با
+# `import-untyped` برای "yaml" چیزی بود که این را آشکار کرد -- یک
+# `pip install sarand` تازه بدون چنین وابستگیِ گذرایی از قبل روی
+# سیستم، همان لحظه‌ای که یک اسکنِ Kubernetes اجرا شود `ImportError`
+# می‌داد). صریحاً اعلام شد تا برای هر نصبی تضمین‌شده حاضر باشد، نه
+# فقط این یک محیط توسعه.
 dependencies = [
     "filelock==3.32.3",
     "rich>=13.0",
     "tomli>=2.0; python_version < \"3.11\"",
+    "PyYAML>=6.0",
 ]
 
 # Single source of truth for local dev / CI setup: `pip install -e ".[dev]"`.
@@ -49,6 +69,7 @@ dev = [
     "mypy>=1.10",
     "bandit>=1.9",
     "pip-audit>=2.10",
+    "types-PyYAML",
 ]
 
 [project.urls]
