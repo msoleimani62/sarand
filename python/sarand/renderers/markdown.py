@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sarand.constants import AI_NOTICE, LANG_MAP, MAX_ISSUE_ROWS
+from sarand.core.quick_context import build_quick_context
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
 from sarand.utils.fs import human_size
@@ -238,6 +239,50 @@ def _render_components(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_quick_context(data: ReportData) -> list[str]:
+    """L2 Quick Context block (core/quick_context.py): short, bounded,
+    deterministic, always first so a skimming reader sees what matters.
+    """
+    qc = build_quick_context(data)
+    languages = ", ".join(qc.languages) or "unknown"
+    lines = [
+        "## Quick Context",
+        "",
+        (
+            f"- **Project:** `{qc.project}` -- {qc.primary_language} "
+            f"({languages}); type {qc.project_type}; build {qc.build_system}"
+        ),
+    ]
+    if qc.components:
+        lines.append(f"- **Components:** {'; '.join(qc.components)}")
+    structure = ", ".join(s if s.startswith("(") else f"`{s}`" for s in qc.structure)
+    size = f"{qc.total_files} files, {qc.total_loc} LOC"
+    lines.append(f"- **Structure:** {structure + ' -- ' if structure else ''}{size}")
+    for label, checks in (
+        ("Tests", qc.tests),
+        ("Quality", qc.quality),
+        ("Security", qc.security),
+    ):
+        lines.append(f"- **{label}:** {', '.join(checks) if checks else 'none run'}")
+    if qc.health:
+        lines.append(f"- **Health:** {qc.health}")
+    for label, items, empty in (
+        ("Critical findings", qc.critical_findings, "none recorded"),
+        ("Risks", qc.risks, "none identified"),
+    ):
+        if items:
+            lines.append(f"- **{label}:**")
+            lines.extend(f"  - {item}" for item in items)
+        else:
+            lines.append(f"- **{label}:** {empty}")
+    if qc.reading_order:
+        lines.append(
+            "- **Read first:** " + ", ".join(f"`{p}`" for p in qc.reading_order)
+        )
+    lines.append("")
+    return lines
+
+
 def render(
     data: ReportData, *, include_source: bool = True, full_output: bool = False
 ) -> str:
@@ -255,6 +300,7 @@ def render(
         "",
         "---",
         "",
+        *_render_quick_context(data),
         *_render_detected_project(data),
         *_render_components(data),
         *_render_workspace(data),

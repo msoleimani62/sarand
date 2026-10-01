@@ -1,5 +1,23 @@
 {
   "project_root": "<PROJECT_ROOT>",
+  "quick_context": {
+    "project": "minimal-project",
+    "primary_language": "Unknown",
+    "languages": [],
+    "project_type": "unknown",
+    "build_system": "unknown",
+    "components": [],
+    "structure": [],
+    "total_files": 0,
+    "total_loc": 0,
+    "tests": [],
+    "quality": [],
+    "security": [],
+    "health": "",
+    "critical_findings": [],
+    "risks": [],
+    "reading_order": []
+  },
   "generated_at": "2026-01-01T12:00:00+00:00",
   "used_rust_core": false,
   "detection": {

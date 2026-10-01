@@ -1,5 +1,61 @@
 {
   "project_root": "<PROJECT_ROOT>",
+  "quick_context": {
+    "project": "hybrid-project",
+    "primary_language": "Python",
+    "languages": [
+      "Python",
+      "Rust",
+      "Go"
+    ],
+    "project_type": "workspace",
+    "build_system": "pip + cargo + go mod",
+    "components": [],
+    "structure": [
+      "src/",
+      "(1 top-level file(s))"
+    ],
+    "total_files": 196,
+    "total_loc": 12000,
+    "tests": [
+      "pytest: passed",
+      "cargo test: failed",
+      "go test: skipped"
+    ],
+    "quality": [
+      "ruff: passed",
+      "cargo clippy: failed"
+    ],
+    "security": [
+      "bandit: passed",
+      "gitleaks: failed"
+    ],
+    "health": "76.0/100.0 (grade C), confidence 90%",
+    "critical_findings": [
+      "1 potential secret was found in tracked source",
+      "Compilation or lint errors were detected"
+    ],
+    "risks": [
+      "3 check(s) failed: cargo test, cargo clippy, gitleaks",
+      "1 check(s) skipped, so the score does not reflect them: go test",
+      "tools reported 2 error(s) and 3 warning(s)",
+      "2 potential secret(s) found; affected files are excluded from the report",
+      "2 credential-shaped file(s) excluded from the report",
+      "working tree has uncommitted changes"
+    ],
+    "reading_order": [
+      "src/module_0.py",
+      "src/module_1.py",
+      "src/module_2.py",
+      "src/module_3.py",
+      "src/module_4.py",
+      "src/module_5.py",
+      "src/module_6.py",
+      "src/module_7.py",
+      "src/module_8.py",
+      "src/module_9.py"
+    ]
+  },
   "generated_at": "2026-01-01T12:00:00+00:00",
   "used_rust_core": true,
   "detection": {

@@ -8,6 +8,16 @@ This report is generated for AI analysis and contains project metadata, test res
 
 ---
 
+## Quick Context
+
+- **Project:** `minimal-project` -- Unknown (unknown); type unknown; build unknown
+- **Structure:** 0 files, 0 LOC
+- **Tests:** none run
+- **Quality:** none run
+- **Security:** none run
+- **Critical findings:** none recorded
+- **Risks:** none identified
+
 ## Detected Project
 
 No recognized project marker was found in this directory.

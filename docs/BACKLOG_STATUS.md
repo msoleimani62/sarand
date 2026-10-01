@@ -176,8 +176,28 @@ listed separately below ("Root-only detection and analyzer matching").**
 
 ---
 
-## P2 -- all Not started
-- 12 (doc §12) -- AI-oriented Quick Context / layered context
+## P2 (13 and 14 below are Not started)
+### 12 -- AI-oriented Quick Context / layered context
+**Status: PARTIALLY RESOLVED -- L2 layer delivered 2026-10-01, NOT yet
+verified/committed on-device.** `core/quick_context.py` builds a short,
+bounded, deterministic block from existing `ReportData` only; rendered
+as a `## Quick Context` section at the very top of the Markdown report
+and a `quick_context` key near the top of the JSON. Fields: project /
+languages / type / build system, components (hybrid only), top-level
+structure, test/quality/security tools with pass/fail/skip status,
+health (with confidence), critical findings (health critical failures
++ known issues), factual risks (failed/skipped checks, tool error and
+warning counts, secret-pattern COUNT never paths, excluded files, git
+dirty/behind), first 10 of the reading order. Budget: worst case ~6 KiB
+(~1.5K tokens), typical 1-2 KiB; pinned by a test. Audit findings that
+drove it: L1 "AI Summary" lacked test/security status and findings; the
+reading order's first 40 entries were alphabetical analyzer plugins
+(fixed: shallow paths first). Golden snapshots (md, json) updated.
+**Next action: apply, run `ruff`/`mypy`/`pytest`, commit+push.**
+Non-goals recorded, not done: frameworks (not in report data),
+inferential risk model, L3 (architecture/risks) and L4 (relevant source
+subset), HTML/text renderer sections, model-specific presets (no
+evidence of a need).
 - 13 (doc §13) -- Distribution and installation reliability (PyPI/
   pipx/AUR/Termux)
 - 14 (doc §14) -- Plugin system maturity

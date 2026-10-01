@@ -48,50 +48,71 @@ def generate_ai_summary(data: ReportData) -> str:
     return "\n".join(lines)
 
 
+_TEST_DIRS = frozenset({"tests", "test", "__tests__", "spec", "specs"})
+_FIRST_NAMES = frozenset(
+    {
+        "readme.md",
+        "readme.rst",
+        "readme",
+        "cargo.toml",
+        "pyproject.toml",
+        "setup.py",
+        "setup.cfg",
+        "package.json",
+        "go.mod",
+        "makefile",
+    }
+)
+_ENTRY_NAMES = frozenset(
+    {
+        "main.py",
+        "cli.py",
+        "lib.rs",
+        "main.rs",
+        "__main__.py",
+        "app.py",
+        "main.go",
+        "index.js",
+        "index.ts",
+    }
+)
+
+
 def suggest_reading_order(root: Path, included: list[Path]) -> list[str]:
-    """Suggest a sensible order for a human or AI to read the codebase."""
-    high: list[str] = []
-    mid: list[str] = []
-    low: list[str] = []
+    """Suggest a sensible order for a human or AI to read the codebase.
+
+    Entry points and manifests first, then core/model code, then docs,
+    then everything else; shallow paths first within each group and
+    test files never promoted (item 12 audit on a real report: the scan
+    order put 33 alphabetical plugins, then docs and a test file, ahead
+    of cli.py).
+    ترتیب مطالعه: نقاط ورود و مانیفست‌ها، سپس هسته/مدل، سپس مستندات و
+    بقیه؛ در هر گروه مسیر کم‌عمق‌تر اول و فایل تست هرگز ارتقا نمی‌یابد.
+    """
+    first: list[str] = []
+    core: list[str] = []
+    docs: list[str] = []
+    rest: list[str] = []
 
     for p in included:
-        s = str(p).lower()
+        s = str(p).replace("\\", "/").lower()
         name = p.name.lower()
-        if (
-            name in {"readme.md", "readme.rst", "readme"}
-            or s.startswith("docs/")
-            or name
-            in {
-                "cargo.toml",
-                "pyproject.toml",
-                "setup.py",
-                "setup.cfg",
-                "package.json",
-                "go.mod",
-                "makefile",
-            }
-        ):
-            high.append(str(p))
-        elif (
-            name
-            in {
-                "main.py",
-                "cli.py",
-                "lib.rs",
-                "main.rs",
-                "__main__.py",
-                "app.py",
-                "main.go",
-                "index.js",
-                "index.ts",
-            }
-            or "core" in s
-            or "analyzers" in s
-            or "scanners" in s
-            or "model" in s
-        ):
-            mid.append(str(p))
+        parts = s.split("/")
+        in_tests = any(seg in _TEST_DIRS for seg in parts[:-1]) or name.startswith(
+            "test_"
+        )
+        if in_tests:
+            rest.append(str(p))
+        elif name in _FIRST_NAMES:
+            first.append(str(p))
+        elif s.startswith("docs/"):
+            docs.append(str(p))
+        elif name in _ENTRY_NAMES or "core" in s or "model" in s:
+            core.append(str(p))
         else:
-            low.append(str(p))
+            rest.append(str(p))
 
-    return high + mid + sorted(low)
+    def by_depth(paths: list[str]) -> list[str]:
+        return sorted(paths, key=lambda path: (len(Path(path).parts), path))
+
+    return by_depth(first) + by_depth(core) + by_depth(docs) + by_depth(rest)

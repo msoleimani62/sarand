@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from sarand.core.quick_context import build_quick_context
 from sarand.models.results import ReportData
 from sarand.progress import status
 
@@ -28,6 +29,7 @@ def render(
 
     payload = {
         "project_root": str(data.project_root),
+        "quick_context": asdict(build_quick_context(data)),
         "generated_at": data.generated_at.isoformat(),
         "used_rust_core": data.used_rust_core,
         "detection": data.detection.__dict__,

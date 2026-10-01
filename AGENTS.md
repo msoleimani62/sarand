@@ -3226,3 +3226,46 @@ scenario with the real builtin analyzers on the hybrid fixture
 (Python runs in `backend`, Node.js in `frontend`, nothing that matched
 the root runs twice). Not covered: gitleaks/syft/lockfile (project-wide,
 unchanged).
+
+### 5.43 — P2 item 12: Quick Context, the L2 layer (2026-10-01)
+
+Per the backlog doc: context layers, not model presets; no redesign on
+subjective preference. Evidence-first audit on a REAL report (sarand
+scanning itself: 1.6 MB, ~410K tokens by chars/4) and the golden
+fixtures:
+
+- The existing "AI Summary" (L1) is orientation only. It has no
+  test/quality/security status, no critical findings, no risks, no
+  components. Those exist elsewhere in the report, after Environment,
+  Git and the TODO table, which is unbounded under `--full`.
+- The "Suggested reading order" was misleading: its first 40 entries
+  were 33 alphabetically ordered analyzer plugins -- each bucket kept
+  scan order and only the substrings "analyzers"/"scanners" (names from
+  sarand's own layout) promoted files, so `cli.py` and `core/` never
+  appeared. Fixed minimally in `suggest_reading_order`: shallow paths
+  first within each bucket (classification untouched).
+- Frameworks and an inferential risk model are not in the report data,
+  so they are NOT invented ("exact fields must be based on current
+  report data").
+
+New `core/quick_context.py`: `build_quick_context(data)` -> a
+`QuickContext` dataclass; a pure function of `ReportData` (no clock, no
+environment, stable ordering) that never mutates it and adds no
+finding. Rendered by `_render_quick_context` as `## Quick Context`
+before "Detected Project" in the Markdown report, and as
+`quick_context` (second key) in JSON. HTML/text unchanged on purpose.
+No model change and no cli.py change: renderers compute it.
+
+Size budget (documented, pinned by test): every list capped, every
+string clipped to 120 chars, dropped items counted as "(+N more)";
+worst case ~6 KiB (~1.5K tokens), typical 1-2 KiB (~250-500 tokens).
+Important findings preserved: failed checks, health critical failures,
+known issues, tool error/warning counts, skipped checks, secret-pattern
+COUNT (never paths or content), excluded-file count, git dirty/behind.
+
+Golden snapshots `*.md` and `*.json` for both fixtures were regenerated
+(`SARAND_UPDATE_GOLDEN=1`); the diff is exactly the new block (+ the
+JSON key). Shipped inside the delivery zip.
+
+**Non-goals, explicit:** frameworks; inferential risks; L3/L4;
+HTML/text sections; model-specific presets; README mention.

@@ -8,6 +8,26 @@ This report is generated for AI analysis and contains project metadata, test res
 
 ---
 
+## Quick Context
+
+- **Project:** `hybrid-project` -- Python (Python, Rust, Go); type workspace; build pip + cargo + go mod
+- **Structure:** `src/`, (1 top-level file(s)) -- 196 files, 12000 LOC
+- **Tests:** pytest: passed, cargo test: failed, go test: skipped
+- **Quality:** ruff: passed, cargo clippy: failed
+- **Security:** bandit: passed, gitleaks: failed
+- **Health:** 76.0/100.0 (grade C), confidence 90%
+- **Critical findings:**
+  - 1 potential secret was found in tracked source
+  - Compilation or lint errors were detected
+- **Risks:**
+  - 3 check(s) failed: cargo test, cargo clippy, gitleaks
+  - 1 check(s) skipped, so the score does not reflect them: go test
+  - tools reported 2 error(s) and 3 warning(s)
+  - 2 potential secret(s) found; affected files are excluded from the report
+  - 2 credential-shaped file(s) excluded from the report
+  - working tree has uncommitted changes
+- **Read first:** `src/module_0.py`, `src/module_1.py`, `src/module_2.py`, `src/module_3.py`, `src/module_4.py`, `src/module_5.py`, `src/module_6.py`, `src/module_7.py`, `src/module_8.py`, `src/module_9.py`
+
 ## Detected Project
 
 - **Primary language:** Python
