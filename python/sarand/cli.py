@@ -39,6 +39,12 @@ from sarand.core.issues import detect_known_issues
 from sarand.core.kubernetes import detect_kubernetes
 from sarand.core.lockfiles import run_lockfile_check
 from sarand.core.makefile import detect_makefiles
+from sarand.core.per_component import (
+    plan_component_runs,
+    run_component_quality,
+    run_component_security,
+    run_component_tests,
+)
 from sarand.core.sbom import run_syft
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
 from sarand.core.workspace import detect_workspace
@@ -431,6 +437,11 @@ async def run(config: SarandConfig) -> int:
     # تست و کیفیت به‌ازای هر زبان.
     all_analyzers = discover_analyzers()
     active = matching_analyzers(root, all_analyzers)
+    # Hybrid projects only: analyzers that do not match the root run inside
+    # the application components instead (core/per_component.py).
+    # فقط پروژه‌ی ترکیبی: آنالایزرهایی که ریشه را match نمی‌کنند داخل
+    # اجزای application اجرا می‌شوند (core/per_component.py).
+    component_plan = plan_component_runs(root, components, all_analyzers, active)
 
     # BUG FIX (user report: --full "gets stuck on Git information" for
     # ~9 minutes): git.py's own collection is fast -- what actually ran
@@ -468,6 +479,7 @@ async def run(config: SarandConfig) -> int:
         status(f"Running tests ({names})...")
         t0 = time.perf_counter()
         test_results = await run_tests_concurrently(root, active)
+        test_results += await run_component_tests(component_plan)
         status(f"Tests finished in {time.perf_counter() - t0:.1f}s")
 
     quality_results = []
@@ -476,6 +488,7 @@ async def run(config: SarandConfig) -> int:
         status(f"Running quality checks ({names})...")
         t0 = time.perf_counter()
         quality_results = await run_quality_concurrently(root, active)
+        quality_results += await run_component_quality(component_plan)
         status(f"Quality checks finished in {time.perf_counter() - t0:.1f}s")
 
     security_results = []
@@ -505,6 +518,7 @@ async def run(config: SarandConfig) -> int:
         status(f"Running security checks ({names})...")
         t0 = time.perf_counter()
         security_results = await run_security_concurrently(root, active)
+        security_results += await run_component_security(component_plan)
         status(f"Security checks finished in {time.perf_counter() - t0:.1f}s")
 
         # Project-wide (not per-language) security passes -- gitleaks

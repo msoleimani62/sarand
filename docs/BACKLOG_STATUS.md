@@ -192,7 +192,9 @@ listed separately below ("Root-only detection and analyzer matching").**
 ---
 
 ## Root-only detection and analyzer matching (found 2026-10-01 while auditing item 11)
-**Status: CONFIRMED gap, NOT started, not a numbered backlog item --
+**Status: PARTIALLY RESOLVED 2026-10-01 (per-component execution
+for hybrid projects, see AGENTS.md 5.42; NOT yet verified/committed
+on-device). Original finding, not a numbered backlog item --
 arguably larger than item 11 itself.** `detect_project()` inspects only
 root marker files and keeps one primary language; analyzers'
 `matches(root)` are root-only too. On a realistic hybrid fixture

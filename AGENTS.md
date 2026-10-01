@@ -3180,3 +3180,49 @@ mypy (targeting 3.10) cannot resolve, while `core/workspace.py` and
 form. Fixed by switching to that form. Lesson: any new module that needs
 a TOML parser must copy the `sys.version_info` pattern -- a local run on
 a newer Python can never reveal this, only the py3.10 CI job can.
+
+### 5.42 — Per-component analyzer execution for hybrid projects (2026-10-01)
+
+Closes the gap recorded in BACKLOG_STATUS.md ("Root-only detection and
+analyzer matching") that the item-11 audit uncovered: on a hybrid repo
+(`backend/pyproject.toml` + `frontend/package.json` + root compose)
+only the GitHub Actions/YAML/Markdown analyzers ran, so neither real
+component got tests, quality or security checks. Go-ahead given by the
+user ("A, then B") after the design question at the end of 5.40.
+
+New `core/per_component.py`; `cli.py` calls `plan_component_runs(...)`
+after `matching_analyzers` and appends `run_component_{tests,quality,
+security}` results to the existing three lists. The `LanguageAnalyzer`
+protocol is untouched (plugins unaffected): every analyzer already
+takes its working directory as `root`.
+
+Rules, each chosen to make duplicate findings impossible by
+construction: (1) only for hybrid projects (driven by 5.40's
+`ComponentsInfo`; ordinary projects behave exactly as before);
+(2) **root first, never both** -- an analyzer that matches the root is
+not re-run in a component, because root-level ruff/pytest/cargo already
+recurse into subdirectories and Cargo workspace members; (3) outermost
+component wins for nested components; (4) results are relabelled
+`"<component>: <kind>"` and each issue's `source` likewise
+(`CommandResult.kind` is display-only downstream -- only health's
+skipped-check names and the markdown/html headings read it, checked by
+grep); (5) at most 8 components, the rest become one skipped
+"components" result, never silently dropped; components run one after
+another (analyzers within one run concurrently, as at the root) to keep
+peak memory close to a normal run on 2 GB machines; (6)
+`SARAND_NO_COMPONENTS=1` disables it -- an env var, like
+`SARAND_SKIP_AUDIT`, so no new CLI option, README-sync test change or
+plugin-contract change.
+
+Known limitation, documented not hidden: a root analyzer that does not
+cascade (e.g. a root `npm test` in a repo whose root package.json has no
+workspaces) still hides components of that same analyzer -- rule 2 is
+the price of "no duplicates". Health score for a hybrid project now
+includes the component results (intended: it finally reflects real
+checks) so its score can change after this round.
+
+Tests: 13 in `tests/test_per_component.py`, including the exact audit
+scenario with the real builtin analyzers on the hybrid fixture
+(Python runs in `backend`, Node.js in `frontend`, nothing that matched
+the root runs twice). Not covered: gitleaks/syft/lockfile (project-wide,
+unchanged).
