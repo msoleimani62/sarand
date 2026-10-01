@@ -198,8 +198,40 @@ Non-goals recorded, not done: frameworks (not in report data),
 inferential risk model, L3 (architecture/risks) and L4 (relevant source
 subset), HTML/text renderer sections, model-specific presets (no
 evidence of a need).
-- 13 (doc §13) -- Distribution and installation reliability (PyPI/
-  pipx/AUR/Termux)
+### 13 -- Distribution and installation reliability
+**Status: PARTIALLY RESOLVED -- versioning and AUR draft fixed 2026-10-01,
+NOT yet verified/committed on-device.** Audit by channel (separating
+availability / reliability / optional deps / docs, per the backlog):
+- **PyPI:** not published (README says install from source). Publishing
+  is a decision, not a defect; it needs per-platform wheel builds and a
+  publish workflow. NOT started.
+- **pipx / source install:** works; `install.sh` has retry and rollback.
+  Needs a Rust toolchain by design. CI builds the wheel and runs the
+  suite against it. Added: a fresh-virtualenv smoke test
+  (`scripts/smoke_install.py`, CI step on all platforms) that installs
+  ONLY the wheel, checks `--version`, `--doctor` and a Helm scan (which
+  imports PyYAML).
+- **Versioning (CONFIRMED defect, fixed):** `pyproject.toml`/`Cargo.toml`
+  said 0.6.0 while tags reached v0.6.10, so every build reported 0.6.0;
+  CHANGELOG stopped at 0.6.0. Now `scripts/release.py` (bump / tag) keeps
+  pyproject, Cargo.toml, Cargo.lock and PKGBUILD in sync and
+  `tests/test_distribution.py` enforces it. First aligned release: 0.6.11.
+- **AUR (draft, unpublished -- not treated as critical):** PKGBUILD said
+  pkgver 0.1.1 and lacked `python-yaml` (a clean Arch install would
+  `ImportError` on a Kubernetes scan). Fixed and guarded by a test that
+  every runtime dependency has an Arch package in `depends`. Still to do
+  at publish time: `updpkgsums` after the tag exists.
+- **Termux:** NOT verified. README claims `pip install -e .` gives a
+  pure-Python fallback when the Rust extension will not build; the build
+  backend is maturin, so this very likely fails without cargo too.
+  Needs an on-device check before the README is corrected.
+- **Optional deps:** unchanged; `--doctor` already reports them and
+  checks are skipped, not failed.
+Non-goals recorded, not done: PyPI publishing, wheel matrix workflow,
+`filelock==3.32.3` exact pin review, Termux-specific documentation.
+**Next action: apply, run `ruff`/`mypy`/`pytest`, commit+push, wait for
+CI (the new smoke step runs there for the first time), then
+`python3 scripts/release.py tag`.**
 - 14 (doc §14) -- Plugin system maturity
 
 ## P3 -- all Not started

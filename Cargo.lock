@@ -300,7 +300,7 @@ dependencies = [
 
 [[package]]
 name = "sarand_core"
-version = "0.6.0"
+version = "0.6.11"
 dependencies = [
  "hex",
  "ignore",

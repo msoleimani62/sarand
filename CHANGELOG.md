@@ -4,6 +4,50 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.11] - 2026-10-01
+
+Releases 0.6.1 to 0.6.10 were tagged without changelog entries and without
+bumping the version in `pyproject.toml`, so every build reported 0.6.0. This
+entry lists the user-visible changes since 0.6.0 that are known;
+`git log v0.6.0..v0.6.10 --oneline` has the full detail.
+
+### Added
+
+- Kubernetes: Helm charts and Kustomize overlays are detected and listed in
+  the report (detection only; `helm` and `kubectl` are never run).
+- Docker Compose: `compose.yaml`, `docker-compose.yml` and their override
+  variants are found at any depth and their services listed.
+- Makefile: `Makefile`, `GNUmakefile` and `makefile` targets, `.PHONY` names
+  and the default target are listed. `make` is never run.
+- Hybrid projects get a "Project Components" section that separates
+  applications (with frontend or backend only when a declared dependency says
+  so), infrastructure, CI, documentation and configuration, and links Compose
+  services to the directories they build. JSON has a matching `components` key.
+- For hybrid projects, analyzers that do not match the project root now run
+  inside each application component, and their results are labelled
+  `<component>: <check>`. Set `SARAND_NO_COMPONENTS=1` to turn this off.
+- A "Quick Context" block at the top of the Markdown report (and a
+  `quick_context` JSON key): project, structure, test, quality and security
+  status, health, critical findings, risks and what to read first, in a bounded
+  size.
+- `scripts/release.py` keeps the version in sync across `pyproject.toml`,
+  `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`; `scripts/smoke_install.py`
+  installs the built wheel into a fresh virtual environment and uses it. CI
+  runs the smoke test on every platform.
+
+### Changed
+
+- The suggested reading order lists manifests first, then entry points and core
+  modules, then documentation; shallow paths come first and test files are no
+  longer promoted.
+- `PyYAML` is now a declared dependency (Helm chart parsing imports it).
+
+### Fixed
+
+- The SBOM scan with `syft` skips build and dependency directories.
+- The AUR `PKGBUILD` was missing `python-yaml` and still said version 0.1.1.
+- `sarand --version` reported 0.6.0 for every later release.
+
 ## [0.6.0] - 2026-09-21
 
 ### Added

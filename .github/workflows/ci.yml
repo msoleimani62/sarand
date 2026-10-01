@@ -98,6 +98,14 @@ jobs:
       - name: Install the built wheel
         run: python -m pip install dist/*.whl
 
+      - name: Fresh-install smoke test
+        # Installs ONLY the built wheel into a brand-new virtualenv and uses
+        # it, so a runtime dependency missing from pyproject.toml cannot hide
+        # behind the dev dependencies of this job.
+        # فقط wheel ساخته‌شده را در virtualenv کاملاً تازه نصب و استفاده می‌کند
+        # تا وابستگی اعلام‌نشده پشت وابستگی‌های dev این job پنهان نماند.
+        run: python scripts/smoke_install.py dist
+
       - name: Run the full Python test suite
         # Plain pytest runs the complete suite, including slow_external tests.
         # اجرای ساده pytest کل suite را شامل تست‌های slow_external اجرا می‌کند.

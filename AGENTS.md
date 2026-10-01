@@ -3269,3 +3269,48 @@ JSON key). Shipped inside the delivery zip.
 
 **Non-goals, explicit:** frameworks; inferential risks; L3/L4;
 HTML/text sections; model-specific presets; README mention.
+
+### 5.44 — P2 item 13: distribution and installation (2026-10-01)
+
+Backlog: investigate per channel, separate availability / reliability /
+optional dependencies / docs, and do not treat an unpublished AUR draft
+as critical. Evidence from the repo (PyPI state cannot be checked from
+the sandbox; the README says it is not published):
+
+- **Versioning was broken.** `pyproject.toml` and `Cargo.toml` said
+  0.6.0 while tags reached v0.6.10, so `sarand --version` reported 0.6.0
+  for every build and CHANGELOG stopped at 0.6.0. Tags were created by
+  hand on commits that never carried their own version.
+- **The AUR draft was stale and wrong:** `pkgver=0.1.1` and no
+  `python-yaml` in `depends`, i.e. the exact undeclared-PyYAML failure
+  `pyproject.toml`'s own comment describes, on a clean Arch install.
+- **The existing CI installs the wheel into an environment that already
+  has all dev dependencies,** so a missing runtime dependency cannot
+  fail there. That is why the PyYAML omission survived.
+- README's Termux fallback (`pip install -e .` "runs on the pure-Python
+  fallback") is doubtful: the build backend is maturin, which compiles
+  the Rust crate. UNVERIFIED -- needs a run without cargo on a device
+  before the README is touched.
+
+Changes: `scripts/release.py` (`bump X.Y.Z` edits pyproject, Cargo.toml,
+the `sarand_core` entry of Cargo.lock and `pkgver`, requires a
+CHANGELOG heading, a clean tree and an unused tag, then commits;
+`tag` creates the annotated tag; neither pushes -- tag only after CI is
+green, as in 5.41); `scripts/smoke_install.py` + a CI step after the
+wheel install (fresh venv, wheel only, `--version` equals pyproject,
+`--doctor` exits 0, Helm scan works); PKGBUILD gets `python-yaml`;
+CHANGELOG entry 0.6.11 (0.6.1-0.6.10 never had entries; it summarises
+the known user-visible changes and points at `git log`);
+`tests/test_distribution.py` pins version agreement across all five
+places and AUR dependency coverage (a new runtime dependency fails the
+test until it is mapped to an Arch package).
+
+The smoke step runs in CI for the first time with this commit and could
+not be executed in the sandbox (no network, no cargo/maturin); only its
+helpers and the CLI calls it makes (`--version`, a Helm scan) were run
+locally. Treat the first CI result as its real test.
+
+**Non-goals, explicit:** PyPI publishing and a wheel-matrix workflow;
+the exact `filelock==3.32.3` pin (harmless under pipx, a conflict risk
+for `pip --user`/distro packaging -- review separately); README Termux
+text; AUR publication.

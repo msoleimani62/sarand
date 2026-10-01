@@ -1,6 +1,6 @@
 # Maintainer: msoleimani62 <msoleimaniphone@gmail.com>
 pkgname=sarand
-pkgver=0.1.1
+pkgver=0.6.11
 pkgrel=1
 pkgdesc="Cross-platform CLI that scans any project, detects its architecture, runs its tests, and generates an AI-ready intelligence report"
 arch=('x86_64' 'aarch64')
@@ -10,6 +10,7 @@ depends=(
     'python'
     'python-filelock'
     'python-rich'
+    'python-yaml'
 )
 makedepends=(
     'rust'
