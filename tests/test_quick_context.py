@@ -11,7 +11,7 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from _golden_fixtures import FIXTURES
 from sarand.core.ai_summary import generate_ai_summary, suggest_reading_order
@@ -215,3 +215,21 @@ def test_reading_order_puts_entry_points_before_plugins_docs_and_tests() -> None
     assert order.index("docs/guide0.md") < order.index("tests/test_analyzers.py")
     assert order.index("tests/golden/README.md") > order.index("docs/guide3.md")
     assert order == suggest_reading_order(root, list(reversed(included)))
+
+
+def test_reading_order_is_posix_and_promotes_docs_for_windows_style_paths() -> None:
+    """Runs on every OS: Windows paths must come out with forward slashes
+    and `docs\\...` must be recognised as documentation (it was not)."""
+    included = [
+        PureWindowsPath("python\\sarand\\cli.py"),
+        PureWindowsPath("tests\\test_x.py"),
+        PureWindowsPath("docs\\guide.md"),
+        PureWindowsPath("README.md"),
+    ]
+    order = suggest_reading_order(Path("/p"), included)  # type: ignore[arg-type]
+    assert order == [
+        "README.md",
+        "python/sarand/cli.py",
+        "docs/guide.md",
+        "tests/test_x.py",
+    ]

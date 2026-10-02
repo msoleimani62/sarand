@@ -95,22 +95,23 @@ def suggest_reading_order(root: Path, included: list[Path]) -> list[str]:
     rest: list[str] = []
 
     for p in included:
-        s = str(p).replace("\\", "/").lower()
+        posix = p.as_posix()
+        s = posix.lower()
         name = p.name.lower()
         parts = s.split("/")
         in_tests = any(seg in _TEST_DIRS for seg in parts[:-1]) or name.startswith(
             "test_"
         )
         if in_tests:
-            rest.append(str(p))
+            rest.append(posix)
         elif name in _FIRST_NAMES:
-            first.append(str(p))
+            first.append(posix)
         elif s.startswith("docs/"):
-            docs.append(str(p))
+            docs.append(posix)
         elif name in _ENTRY_NAMES or "core" in s or "model" in s:
-            core.append(str(p))
+            core.append(posix)
         else:
-            rest.append(str(p))
+            rest.append(posix)
 
     def by_depth(paths: list[str]) -> list[str]:
         return sorted(paths, key=lambda path: (len(Path(path).parts), path))
