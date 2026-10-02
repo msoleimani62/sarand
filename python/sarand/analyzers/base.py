@@ -21,6 +21,12 @@ from typing import Protocol, runtime_checkable
 
 from sarand.models.results import CommandResult
 
+#: Version of the plugin contract. Bumped only when the contract changes in a
+#: way existing plugins cannot handle; adding optional members does not bump
+#: it. See docs/PLUGINS.md.
+#: نسخه‌ی قرارداد پلاگین؛ فقط با تغییر ناسازگار بالا می‌رود.
+PLUGIN_API_VERSION = 1
+
 
 @runtime_checkable
 class LanguageAnalyzer(Protocol):

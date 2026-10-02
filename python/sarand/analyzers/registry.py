@@ -49,6 +49,7 @@ from sarand.analyzers.node_analyzer import NodeAnalyzer
 from sarand.analyzers.objectivec_analyzer import ObjectiveCAnalyzer
 from sarand.analyzers.perl_analyzer import PerlAnalyzer
 from sarand.analyzers.php_analyzer import PhpAnalyzer
+from sarand.analyzers.plugin_adapter import PluginRejected, adapt_plugin
 from sarand.analyzers.powershell_analyzer import PowerShellAnalyzer
 from sarand.analyzers.protobuf_analyzer import ProtobufAnalyzer
 from sarand.analyzers.python_analyzer import PythonAnalyzer
@@ -185,17 +186,47 @@ def builtin_analyzers() -> list[LanguageAnalyzer]:
 
 
 def discover_analyzers() -> list[LanguageAnalyzer]:
-    """Return built-in analyzers plus any installed plugin analyzers."""
+    """Return built-in analyzers plus any installed plugin analyzers.
+
+    Plugins are loaded in a stable order (entry-point name, then value),
+    validated and wrapped by `plugin_adapter` so a broken plugin is
+    skipped with a warning instead of crashing sarand. A plugin whose
+    name equals an already registered analyzer (built-in or earlier
+    plugin, compared case-insensitively) is skipped: first wins, so the
+    same checks never run twice.
+    اول‌آمده برنده است: نام تکراری رد می‌شود تا یک بررسی دوبار اجرا نشود.
+    """
     analyzers = list(_BUILTIN)
-    eps = entry_points(group=_ENTRY_POINT_GROUP)
+    taken = {a.name.lower() for a in analyzers}
+    try:
+        eps = sorted(
+            entry_points(group=_ENTRY_POINT_GROUP), key=lambda e: (e.name, e.value)
+        )
+    except Exception as exc:  # noqa: BLE001 - broken metadata must not crash sarand
+        logger.warning("Could not read analyzer plugin entry points: %s", exc)
+        return analyzers
 
     for ep in eps:
         try:
             cls = ep.load()
-            analyzers.append(cls())
-            logger.info("Loaded plugin analyzer: %s (%s)", ep.name, ep.value)
+            plugin = adapt_plugin(cls(), ep.name)
+        except PluginRejected as exc:
+            logger.warning("Skipped analyzer plugin '%s': %s", ep.name, exc)
+            continue
         except Exception as exc:  # noqa: BLE001 - a broken plugin must not crash sarand
             logger.warning("Failed to load analyzer plugin '%s': %s", ep.name, exc)
+            continue
+        if plugin.name.lower() in taken:
+            logger.warning(
+                "Skipped analyzer plugin '%s': an analyzer named '%s' is already "
+                "registered",
+                ep.name,
+                plugin.name,
+            )
+            continue
+        taken.add(plugin.name.lower())
+        analyzers.append(plugin)
+        logger.info("Loaded plugin analyzer: %s (%s)", ep.name, ep.value)
 
     return analyzers
 

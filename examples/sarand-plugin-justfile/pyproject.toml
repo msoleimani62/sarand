@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sarand-justfile-plugin"
+version = "0.1.0"
+description = "Example sarand plugin: runs `just test` in projects that have a justfile."
+requires-python = ">=3.10"
+dependencies = ["sarand>=0.6.11"]
+
+[project.entry-points."sarand.analyzers"]
+justfile = "sarand_justfile_plugin:JustfileAnalyzer"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -232,7 +232,28 @@ Non-goals recorded, not done: PyPI publishing, wheel matrix workflow,
 **Next action: apply, run `ruff`/`mypy`/`pytest`, commit+push, wait for
 CI (the new smoke step runs there for the first time), then
 `python3 scripts/release.py tag`.**
-- 14 (doc §14) -- Plugin system maturity
+### 14 -- Plugin system maturity
+**Status: RESOLVED (first scope) 2026-10-01, NOT yet verified/committed
+on-device.** Audit of the existing `sarand.analyzers` entry-point
+mechanism: load-time isolation only (a plugin raising in `matches`,
+`run_*` crashed the whole run and dropped every other analyzer's
+results); README documented 4 methods while the registry calls a 5th
+(`run_security`) so README-era plugins crashed the security phase; no
+version story; a plugin named like a built-in ran every check twice;
+no tests, no example, no author docs. Delivered:
+`analyzers/plugin_adapter.py` (every plugin wrapped: exceptions and
+wrong return types become one skipped result naming plugin/phase/error;
+`run_security` optional; `api_version` gate), hardened
+`discover_analyzers` (stable order, name-clash skip, unreadable metadata
+tolerated), `PLUGIN_API_VERSION = 1`, `docs/PLUGINS.md` + `.fa.md`
+(contract, lifecycle, isolation, version policy, author workflow incl.
+`pipx inject`), `examples/sarand-plugin-justfile`, README EN/FA
+pointers, `tests/test_plugins.py` (real importlib-metadata discovery,
+isolation at every phase, example conformance). All six Definition-of-Done
+boxes covered. Built-in analyzers are NOT wrapped (unchanged).
+Non-goals recorded, not done: plugin timeouts/sandboxing, a
+`--doctor` plugin listing, a plugin marketplace (the backlog says not
+until the API is stable), isolating crashes inside built-in analyzers.
 
 ## P3 -- all Not started
 - 15 (doc §15) -- PDF and report portability

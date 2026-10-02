@@ -527,7 +527,7 @@ python3 -m sarand.device_report.command --full -o ~/device-report.md
 
 ### افزودن یک زبان با پلاگین
 
-پروتکل `LanguageAnalyzer` را در بسته‌ی خودتان پیاده کنید، یعنی متدهای `matches`، `entry_points`، `run_tests` و `run_quality` را، و آن را در `pyproject.toml` ثبت کنید:
+پروتکل `LanguageAnalyzer` را در بسته‌ی خودتان پیاده کنید، یعنی متدهای `matches`، `entry_points`، `run_tests` و `run_quality` و در صورت نیاز `run_security` را، و آن را در `pyproject.toml` ثبت کنید:
 
 <div dir="ltr">
 
@@ -538,7 +538,7 @@ zig = "sarand_zig_plugin:ZigAnalyzer"
 
 </div>
 
-sarand آن را پیدا می‌کند و کنار آنالایزرهای داخلی اجرا می‌کند.
+sarand آن را پیدا می‌کند و کنار آنالایزرهای داخلی اجرا می‌کند. پلاگینی که استثنا بدهد، نوع نادرست برگرداند یا بارگذاری نشود با دلیل گزارش‌شده رد می‌شود و هرگز اسکن را از کار نمی‌اندازد. قرارداد کامل، قواعد سازگاری نسخه و روند کار نویسنده در [docs/PLUGINS.fa.md](docs/PLUGINS.fa.md) است و یک نمونه‌ی کارا در [`examples/sarand-plugin-justfile`](examples/sarand-plugin-justfile).
 
 <a id="troubleshooting"></a>
 

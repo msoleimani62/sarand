@@ -442,14 +442,14 @@ python3 -m sarand.device_report.command --full -o ~/device-report.md
 
 ### Add a language with a plugin
 
-Implement the `LanguageAnalyzer` protocol (`matches`, `entry_points`, `run_tests`, `run_quality`) in your own package and register it in your `pyproject.toml`:
+Implement the `LanguageAnalyzer` protocol (`matches`, `entry_points`, `run_tests`, `run_quality`, and optionally `run_security`) in your own package and register it in your `pyproject.toml`:
 
 ```toml
 [project.entry-points."sarand.analyzers"]
 zig = "sarand_zig_plugin:ZigAnalyzer"
 ```
 
-sarand finds it and runs it alongside the built-in analyzers.
+sarand finds it and runs it alongside the built-in analyzers. A plugin that raises, returns the wrong type or cannot be loaded is skipped with a reported reason; it never crashes a scan. The full contract, version compatibility rules and author workflow are in [docs/PLUGINS.md](docs/PLUGINS.md), with a working example in [`examples/sarand-plugin-justfile`](examples/sarand-plugin-justfile).
 
 ## Troubleshooting
 

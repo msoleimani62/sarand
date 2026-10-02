@@ -3314,3 +3314,59 @@ locally. Treat the first CI result as its real test.
 the exact `filelock==3.32.3` pin (harmless under pipx, a conflict risk
 for `pip --user`/distro packaging -- review separately); README Termux
 text; AUR publication.
+
+### 5.45 — P2 item 14: plugin system maturity (2026-10-01)
+
+Backlog: investigate the existing `sarand.analyzers` entry-point
+mechanism before changing it; "not mature merely because entry points
+exist". Findings on the pre-change code:
+
+1. **Load-time isolation only.** `discover_analyzers` caught import and
+   instantiation errors, but `matches()` ran bare in `matching_analyzers`
+   and the `run_*_concurrently` helpers use `asyncio.gather` without
+   `return_exceptions`. One plugin raising anywhere crashed the run and
+   discarded all other analyzers' results.
+2. **Incomplete documented contract.** README listed 4 methods; the
+   registry calls `run_security` too -> `AttributeError` in the security
+   phase for any plugin written from the README.
+3. **No version compatibility** although the protocol had already grown
+   once.
+4. **Duplicate names:** the README's own example (a Zig plugin) clashes
+   with the built-in Zig analyzer and would run every check twice.
+5. No tests of discovery or failure isolation, no example, no docs.
+
+Fix keeps the author-facing protocol unchanged: new
+`analyzers/plugin_adapter.py` wraps every plugin instance
+(`PluginAnalyzer`): `matches`/`entry_points` swallow exceptions;
+`run_*` turn an exception, wrong type or invalid list item into a single
+SKIPPED `CommandResult` named `"<plugin> plugin: <phase>"` -- visible in
+the report, listed by health as a skipped check, never a failing test of
+the user's project (a returncode-only failure would have lowered health
+for a plugin bug). `run_security` is optional. `adapt_plugin` rejects
+(with a logged reason) a missing/blank `name`, a missing required method
+or an `api_version` newer than `PLUGIN_API_VERSION` (new constant in
+`analyzers/base.py`, = 1; adding optional members does not bump it).
+`discover_analyzers`: stable order by (entry-point name, value), first
+name wins (case-insensitive) against built-ins and earlier plugins,
+unreadable metadata tolerated. Built-ins are deliberately NOT wrapped.
+
+Public plugin surface (documented, everything else may change):
+`LanguageAnalyzer`, `PLUGIN_API_VERSION`, `CommandResult`, `Issue`,
+`make_command_result`, `run_cmd_async`. Docs: `docs/PLUGINS.md` and
+`docs/PLUGINS.fa.md` (contract table, lifecycle, isolation, version
+policy, author workflow incl. `pipx inject sarand ./plugin` -- a plugin
+in another environment is invisible -- and how to verify discovery);
+README EN/FA now list the 5 methods and link them. Example:
+`examples/sarand-plugin-justfile` (`just test`).
+
+Tests (`tests/test_plugins.py`): REAL discovery through a temporary
+dist-info + entry_points.txt on `sys.path` (not a mock), isolation at
+every phase and for sync/wrong-type/invalid-item returns, other
+analyzers keep their results through `run_*_concurrently`, optional
+`run_security`, version gate, duplicate names, stable order, and the
+example plugin against the documented contract.
+
+Known limits, documented: no timeout for non-subprocess awaits, no
+sandboxing, no `--doctor` plugin listing (verification uses a Python
+one-liner or `sarand --verbose`), crashes inside built-in analyzers are
+still unisolated (they are trusted code; revisit if one ever bites).
