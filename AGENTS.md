@@ -3370,3 +3370,51 @@ Known limits, documented: no timeout for non-subprocess awaits, no
 sandboxing, no `--doctor` plugin listing (verification uses a Python
 one-liner or `sarand --verbose`), crashes inside built-in analyzers are
 still unisolated (they are trusted code; revisit if one ever bites).
+
+### 5.46 — P3 item 15: PDF and report portability (2026-10-02)
+
+Backlog: investigate whether PDF output is robust across environments;
+"PDF should remain optional"; failures must be clear and the Markdown
+report must stay available. Audit of the pre-change pipeline
+(`renderers/pdf.py`, the PDF branch of `cli.run`):
+
+1. **A failed PDF discarded the scan.** `cli.run` printed the error,
+   returned 1 and wrote nothing; the report only existed in memory, so
+   minutes of tests and checks were lost. Violates the Markdown DoD.
+2. **Misleading failure text.** The fall-through always said "No PDF
+   engine found. Install one" even when an engine WAS found and failed
+   (the real stderr was dropped).
+3. **pipx-injected WeasyPrint was invisible.** Discovery was
+   `shutil.which` only; pipx keeps a venv's scripts off PATH, so
+   `pipx inject sarand weasyprint` (the natural fix for a pipx install)
+   could never work.
+4. **No PDF path was tested.** The one real-PDF test `return`ed silently
+   when no engine existed, i.e. passed vacuously on every CI platform.
+
+Changes: `renderers/pdf.py` rewritten around `_run_engine` (exit 0 AND a
+file starting `%PDF-`, timeout and `OSError` handled, partial file
+removed, "pango"/"cannot load library" stderr gets a system-library
+hint) and `_weasyprint_command` (PATH, then the script beside
+`sys.executable`, then `python -m weasyprint`); `render_to_file` returns
+either install guidance (nothing installed) or every failing engine's own
+reason; `available_engines()` for diagnostics. Engine order unchanged
+(wkhtmltopdf first). `cli.py`: new `_write_pdf_fallback` writes the same
+report as Markdown beside the intended PDF path and keeps going; the run
+still exits 1 because the requested artifact does not exist, so scripts
+notice (`pdf_failed` threads through to the final `return`). Existing
+tests hardened: the no-engine test also stubs `_weasyprint_command`
+(else a machine with WeasyPrint importable breaks it) and the vacuous
+`return` became `pytest.skip`.
+
+Tests (`tests/test_pdf_pipeline.py`): hermetic fake `weasyprint` package
+run through the real interpreter (`python -m weasyprint`) on every OS:
+success, crash (own error + Pango hint, not "no engine"), non-PDF output,
+exit-0-without-file, timeout, engine fallthrough and combined messages,
+discovery order, `available_engines`, and two `cli.main` runs (failure ->
+Markdown fallback + exit 1; success -> only the PDF + exit 0).
+
+Deliberately NOT done: a real PDF engine in CI (Debian/Ubuntu's
+wkhtmltopdf is built without the patched Qt and may need an X server --
+unverified, and a CI failure for environmental reasons is worse than the
+gap), `--doctor` still probes PATH only, Termux/Android verification
+(documented as unverified), a pure-Python backend.

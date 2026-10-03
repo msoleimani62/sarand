@@ -246,6 +246,26 @@ def write_sha256(path: Path) -> str:
     return digest
 
 
+def _write_pdf_fallback(
+    data: ReportData, output_path: Path, detail: str, config: SarandConfig
+) -> Path:
+    """The PDF could not be made: say why, and keep the scan.
+
+    Writes the same report as Markdown next to the intended PDF path so
+    the minutes the scan took are not lost. The caller still exits
+    non-zero, because the requested artifact does not exist.
+    PDF ساخته نشد: دلیل را بگو و نتیجه‌ی اسکن را نگه دار.
+    """
+    error(f"PDF rendering failed: {detail}")
+    fallback = output_path.with_suffix(".md")
+    content = _RENDERERS["markdown"].render(
+        data, include_source=config.include_source, full_output=config.full
+    )
+    fallback.write_text(content, encoding="utf-8")
+    warning(f"No PDF was produced. The full report was written as Markdown: {fallback}")
+    return fallback
+
+
 def remove_previous_report(output_path: Path) -> None:
     """If a report already exists at this exact output path, remove it
     first and say so explicitly.
@@ -584,6 +604,7 @@ async def run(config: SarandConfig) -> int:
 
     remove_previous_report(output_path)
 
+    pdf_failed = False
     if config.output_format == "pdf":
         # PDF is binary and rendered via an external tool (renderers/pdf.py)
         # rather than the string-returning Renderer protocol -- see that
@@ -600,8 +621,8 @@ async def run(config: SarandConfig) -> int:
             full_output=config.full,
         )
         if not outcome.ok:
-            error(f"PDF rendering failed: {outcome.detail}")
-            return 1
+            output_path = _write_pdf_fallback(data, output_path, outcome.detail, config)
+            pdf_failed = True
         digest = write_sha256(output_path)
     else:
         content = _RENDERERS[config.output_format].render(
@@ -639,7 +660,7 @@ async def run(config: SarandConfig) -> int:
             )
         print(f"Health  : {health_text}")
     print("=" * 60)
-    return 0
+    return 1 if pdf_failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:

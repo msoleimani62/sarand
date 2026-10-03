@@ -191,6 +191,8 @@ def test_pdf_renderer_reports_a_clear_fix_when_no_engine_installed(
     monkeypatch.setattr(shutil, "which", lambda name: None)
     from sarand.renderers import pdf
 
+    monkeypatch.setattr(pdf, "_weasyprint_command", lambda: None)
+
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         data = _fixture_data(root)
@@ -208,7 +210,7 @@ def test_pdf_renderer_produces_a_real_pdf_when_engine_available() -> None:
     """When an engine IS installed, confirm real bytes come out --
     not just that the subprocess call didn't crash."""
     if not (shutil.which("wkhtmltopdf") or shutil.which("weasyprint")):
-        return  # covered by the test above instead
+        pytest.skip("no PDF engine installed; see test_pdf_pipeline.py")
     from sarand.renderers import pdf
 
     with tempfile.TemporaryDirectory() as tmp:

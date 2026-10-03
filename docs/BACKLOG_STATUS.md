@@ -256,7 +256,30 @@ Non-goals recorded, not done: plugin timeouts/sandboxing, a
 until the API is stable), isolating crashes inside built-in analyzers.
 
 ## P3 -- all Not started
-- 15 (doc §15) -- PDF and report portability
+### 15 -- PDF and report portability
+**Status: PARTIALLY RESOLVED 2026-10-02, NOT yet verified/committed
+on-device.** Audit of the PDF pipeline (wkhtmltopdf / WeasyPrint via
+`renderers/pdf.py`): (1) a failed PDF returned exit 1 and wrote NOTHING,
+discarding the whole scan; (2) the fall-through message always said "No
+PDF engine found" even when an engine WAS found and crashed, hiding the
+real error; (3) WeasyPrint installed with `pipx inject sarand weasyprint`
+could never be found (pipx keeps scripts off PATH and discovery was
+PATH-only); (4) the only real-PDF test returned silently without an
+engine, so no PDF path was ever tested in CI. Delivered: engine discovery
+(PATH, script beside the interpreter, importable module), each failing
+engine's own reason (clipped, with a Pango hint), non-PDF output and
+timeouts handled, no partial file left; on failure the full report is
+written as Markdown next to the intended PDF path and the run exits 1;
+hermetic fake-engine tests (`tests/test_pdf_pipeline.py`) run the whole
+path on every OS; the silent `return` became a visible skip; README
+EN/FA state the real requirements and the failure behaviour.
+NOT verified (documented as such): Termux/Android for either engine,
+real-engine output quality, wkhtmltopdf packaging per distribution.
+Non-goals recorded, not done: a real engine in CI (Debian's wkhtmltopdf
+may need an X server -- unverified, would risk a red CI for
+environmental reasons), `--doctor` rows still PATH-based (a
+pipx-injected WeasyPrint shows "missing" there), a pure-Python PDF
+backend, `--format pdf` output-size limits.
 - 16 (doc §16) -- Cross-ecosystem vulnerability analysis (SBOM vs.
   vulnerability scanning, kept explicitly separate per the doc)
 - 17 (doc §17) -- Additional ecosystems (Deno, Bun, Vue, Svelte,
