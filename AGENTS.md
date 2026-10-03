@@ -3418,3 +3418,16 @@ wkhtmltopdf is built without the patched Qt and may need an X server --
 unverified, and a CI failure for environmental reasons is worse than the
 gap), `--doctor` still probes PATH only, Termux/Android verification
 (documented as unverified), a pure-Python backend.
+
+### 5.47 — `--doctor` and WeasyPrint discovery (2026-10-02)
+
+Follow-up recorded as a non-goal in 5.46: the doctor's WeasyPrint row
+probed `shutil.which` only, while `--format pdf` (5.46) also looks beside
+the Python interpreter and for the importable module. After
+`pipx inject sarand weasyprint` the doctor therefore said "not found"
+while PDF export worked. `_tool_check` now asks
+`renderers.pdf.available_engines()` for the `weasyprint` row, so there is
+one definition of "available". The row's fix text names `pipx inject` and
+the Pango system library. Other tools are unchanged. Caveat: a machine
+where WeasyPrint is importable will now report it present even when
+nothing is on PATH (correct, and what the renderer would use).

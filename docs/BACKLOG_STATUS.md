@@ -277,8 +277,7 @@ NOT verified (documented as such): Termux/Android for either engine,
 real-engine output quality, wkhtmltopdf packaging per distribution.
 Non-goals recorded, not done: a real engine in CI (Debian's wkhtmltopdf
 may need an X server -- unverified, would risk a red CI for
-environmental reasons), `--doctor` rows still PATH-based (a
-pipx-injected WeasyPrint shows "missing" there), a pure-Python PDF
+environmental reasons), a pure-Python PDF
 backend, `--format pdf` output-size limits.
 - 16 (doc §16) -- Cross-ecosystem vulnerability analysis (SBOM vs.
   vulnerability scanning, kept explicitly separate per the doc)

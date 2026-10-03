@@ -161,7 +161,11 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
     (
         "PDF export",
         "weasyprint",
-        "pip install weasyprint",
+        (
+            "pip install weasyprint (for a pipx install of sarand: "
+            "pipx inject sarand weasyprint); it also needs the Pango "
+            "system library"
+        ),
         "--format pdf (fallback engine)",
     ),
     ("Lua", "busted", "luarocks install busted", "running tests"),
@@ -531,11 +535,30 @@ def _installation_checks() -> list[DoctorCheck]:
 
 
 def _tool_check(category: str, binary: str, fix: str, used_for: str) -> DoctorCheck:
-    found = shutil.which(binary) is not None
+    if binary == "weasyprint":
+        # Same definition of "available" as `--format pdf` (PATH, the
+        # script beside this Python, or the importable module), so a
+        # `pipx inject sarand weasyprint` install is not reported missing.
+        # همان تعریف `--format pdf` از «در دسترس بودن».
+        from sarand.renderers.pdf import available_engines
+
+        found = "weasyprint" in available_engines()
+        on_path = shutil.which(binary) is not None
+        if on_path:
+            detail = "found in PATH"
+        elif found:
+            detail = "found in sarand's Python environment"
+        else:
+            detail = (
+                "not found (PATH, sarand's Python environment or importable module)"
+            )
+    else:
+        found = shutil.which(binary) is not None
+        detail = "found in PATH" if found else "not found in PATH"
     return DoctorCheck(
         name=binary,
         ok=found,
-        detail="found in PATH" if found else "not found in PATH",
+        detail=detail,
         fix="" if found else fix,
         category=category,
         used_for=used_for,
