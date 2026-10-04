@@ -230,11 +230,15 @@ cd sarand
 maturin develop --release
 ```
 
-If the Rust extension will not build on your platform (rare, but possible on some Termux/aarch64 toolchains), install without it and sarand runs on the pure-Python fallback:
+Building the package needs a Rust toolchain: the build backend is maturin, and `pip install -e .` fails without one (it tries to download Rust and gives up when it cannot). If the extension will not build on your platform (possible on some Termux/aarch64 toolchains), run sarand straight from the source tree instead. With no compiled core importable it uses the pure-Python scanner, and the report says `Scan engine: pure-Python fallback`:
 
 ```bash
-pip install -e .
+python3 -m venv .venv && . .venv/bin/activate
+pip install rich PyYAML filelock   # plus tomli on Python 3.10
+PYTHONPATH=python python -m sarand --help
 ```
+
+Point it at a project with `-p`, for example `PYTHONPATH=/path/to/sarand/python python -m sarand -p .`.
 
 <details>
 <summary><b>Platform notes: Windows, macOS, Android/Termux</b></summary>
@@ -476,7 +480,7 @@ Run `pipx ensurepath`, then open a new terminal. On Windows, also check that the
 
 <br>
 
-Install a Rust toolchain from [rustup.rs](https://rustup.rs) and try again, or use the pure-Python route: `pip install -e .`.
+Install a Rust toolchain from [rustup.rs](https://rustup.rs) and try again, or run sarand from the source tree on the pure-Python scanner, which needs no build (see the development install section).
 
 </details>
 

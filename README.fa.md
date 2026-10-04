@@ -285,12 +285,16 @@ maturin develop --release
 
 </div>
 
-اگر افزونه‌ی Rust روی سیستم شما ساخته نمی‌شود (کم پیش می‌آید، ولی روی بعضی زنجیره‌ابزارهای Termux و aarch64 ممکن است)، بدون آن نصب کنید. sarand روی اسکنر پایتون خالص اجرا می‌شود:
+ساختن بسته به زنجیره‌ابزار Rust نیاز دارد: ابزار ساخت maturin است و `pip install -e .` بدون آن شکست می‌خورد (سعی می‌کند Rust را دانلود کند و اگر نشد کنار می‌گذارد). اگر افزونه روی سیستم شما ساخته نمی‌شود (روی بعضی زنجیره‌ابزارهای Termux و aarch64 ممکن است)، sarand را مستقیم از درخت سورس اجرا کنید. وقتی هسته‌ی کامپایل‌شده در دسترس نباشد اسکنر پایتون خالص کار می‌کند و گزارش `Scan engine: pure-Python fallback` را نشان می‌دهد:
 
 <div dir="ltr">
 
 ```bash
-pip install -e .
+python3 -m venv .venv && . .venv/bin/activate
+pip install rich PyYAML filelock   # plus tomli on Python 3.10
+PYTHONPATH=python python -m sarand --help
+# scan a project:
+PYTHONPATH=/path/to/sarand/python python -m sarand -p .
 ```
 
 </div>
@@ -567,7 +571,7 @@ sarand آن را پیدا می‌کند و کنار آنالایزرهای دا�
 
 <br>
 
-یک زنجیره‌ابزار Rust از [rustup.rs](https://rustup.rs) نصب کنید و دوباره امتحان کنید، یا مسیر پایتون خالص را بروید: `pip install -e .`.
+یک زنجیره‌ابزار Rust از [rustup.rs](https://rustup.rs) نصب کنید و دوباره امتحان کنید، یا sarand را مستقیم از درخت سورس روی اسکنر پایتون خالص اجرا کنید که ساخت لازم ندارد (بخش نصب توسعه را ببینید).
 
 </details>
 
