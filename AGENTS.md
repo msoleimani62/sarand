@@ -10,17 +10,15 @@
 ---
 
 > [!NOTE]
-> **Working through the engineering backlog? Read this first.**
->
-> `docs/BACKLOG.md` is the full backlog document (process + every
-> item, adopted 2026-09-22). `docs/BACKLOG_STATUS.md` is the
-> *current* status against it -- what's done, what's in progress,
-> what's next, kept up to date every round. Read `BACKLOG_STATUS.md`
-> before re-deriving priority or re-auditing an already-resolved item
-> from this file's history below. Both files are temporary and are
-> meant to be deleted once the whole backlog is exhausted (see
-> `BACKLOG_STATUS.md`'s own header) -- this file (`AGENTS.md`) keeps
-> the permanent historical record regardless.
+> **Backlog first pass complete (2026-10-04).** Every item of the
+> engineering backlog (`docs/BACKLOG.md`, adopted 2026-09-22) has an
+> evidence-first audit and a first-scope delivery, or an out-of-scope reason.
+> `docs/BACKLOG_STATUS.md` holds the final state, the working rules and the
+> list of what remains -- read it before re-deriving priorities or
+> re-auditing something already resolved. `docs/BACKLOG.md` is kept until the
+> follow-ups listed there are done, because their Definition of Done lives in
+> it; then both files get deleted. This file keeps the permanent historical
+> record.
 
 ---
 
@@ -3431,3 +3429,18 @@ one definition of "available". The row's fix text names `pipx inject` and
 the Pango system library. Other tools are unchanged. Caveat: a machine
 where WeasyPrint is importable will now report it present even when
 nothing is on PATH (correct, and what the renderer would use).
+
+### 5.48 — Backlog first pass complete (2026-10-04)
+
+Every item of the 2026-09-22 backlog has an evidence-first audit and a
+first-scope delivery (5.37 to 5.47), or is recorded out of scope with its
+reason. `docs/BACKLOG_STATUS.md` had gone stale (it still said latest tag
+v0.6.6, called finished rounds "not yet committed" and P2/P3 "not
+started"), and its own header said to delete it once the backlog was done.
+It was rewritten, not deleted, because four follow-ups are real CONFIRMED
+gaps (npm/pnpm/Yarn workspaces, root analyzers that do not cascade into
+components, root-only `detect_project()`, and tagging without a green-CI
+check). `docs/BACKLOG.md` is kept on purpose for the same reason: the first
+three follow-ups continue items 8 and 11 and their Definition of Done lives
+only there. Delete both files once the follow-ups are done or dropped with a
+recorded reason. Source docstrings that cite `BACKLOG_STATUS.md` stay valid.
