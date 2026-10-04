@@ -4,6 +4,28 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.12] - 2026-10-02
+
+### Added
+
+- If a PDF cannot be produced, the full report is now written as Markdown next
+  to the intended PDF path and sarand exits non-zero, instead of discarding the
+  whole scan.
+
+### Changed
+
+- PDF failures report each engine's own error (with a hint about the Pango
+  system library) instead of always saying "No PDF engine found".
+- WeasyPrint is found on `PATH`, beside the Python that runs sarand, or as an
+  importable module, so `pipx inject sarand weasyprint` works.
+- `sarand --doctor` uses the same WeasyPrint lookup as `--format pdf`.
+
+### Fixed
+
+- The README claimed `pip install -e .` installs sarand without Rust. It does
+  not: the build backend needs a Rust toolchain. The README now says so and
+  documents running from the source tree, which uses the pure-Python scanner.
+
 ## [0.6.11] - 2026-10-01
 
 Releases 0.6.1 to 0.6.10 were tagged without changelog entries and without
@@ -34,6 +56,12 @@ entry lists the user-visible changes since 0.6.0 that are known;
   `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`; `scripts/smoke_install.py`
   installs the built wheel into a fresh virtual environment and uses it. CI
   runs the smoke test on every platform.
+- Plugin system maturity: every plugin is wrapped so one that raises or
+  returns the wrong type produces a skipped result instead of crashing the
+  scan; `run_security` is optional; plugins declare an `api_version`
+  (`PLUGIN_API_VERSION` is 1) and are skipped with a reason when they target a
+  newer one; a plugin named like an existing analyzer is skipped. See
+  `docs/PLUGINS.md` and the example in `examples/sarand-plugin-justfile`.
 
 ### Changed
 
@@ -47,6 +75,8 @@ entry lists the user-visible changes since 0.6.0 that are known;
 - The SBOM scan with `syft` skips build and dependency directories.
 - The AUR `PKGBUILD` was missing `python-yaml` and still said version 0.1.1.
 - `sarand --version` reported 0.6.0 for every later release.
+- The suggested reading order used backslash paths on Windows and never
+  recognised `docs\` there; it now uses forward slashes everywhere.
 
 ## [0.6.0] - 2026-09-21
 
