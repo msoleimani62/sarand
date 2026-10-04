@@ -64,9 +64,9 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 3. **`detect_project()` is still root-only.** On a hybrid repo the "Detected
    Project" section can still say `Generic`. The Project Components section
    and Quick Context show the real picture.
-4. **Release safety.** `scripts/release.py tag` should refuse unless the latest
-   CI run on `HEAD` is green (via `gh`). Tags v0.6.10 and v0.6.12 were created
-   before CI finished; v0.6.10 landed on a commit whose Windows job was red.
+4. **Release safety -- done 2026-10-04.** `scripts/release.py tag` now
+   refuses unless every CI run for `HEAD` finished with success (via `gh`);
+   `--skip-ci-check` overrides it. See AGENTS.md section 5.49.
 5. **Kubernetes next phase.** Raw manifests with no fixed filename, and any
    lint or validation run (`helm lint`, `kubeconform`, `kustomize build`).
 6. **Gradle / Maven multi-module** representation (they already test every

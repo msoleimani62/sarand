@@ -3444,3 +3444,32 @@ check). `docs/BACKLOG.md` is kept on purpose for the same reason: the first
 three follow-ups continue items 8 and 11 and their Definition of Done lives
 only there. Delete both files once the follow-ups are done or dropped with a
 recorded reason. Source docstrings that cite `BACKLOG_STATUS.md` stay valid.
+
+### 5.49 — Release safety: `release.py tag` checks CI (2026-10-04)
+
+Follow-up 4 of the backlog status. Three tags were created before CI had
+finished on their commit (v0.6.10, v0.6.12, and v0.6.11 within minutes);
+v0.6.10 sits on a commit whose Windows job was red. Telling the person to
+wait did not hold, so the script now enforces it. `scripts/release.py tag`
+asks the GitHub CLI for the recent runs (`gh run list --json
+databaseId,headSha,status,conclusion,name`) and refuses unless every
+workflow that ran for exactly `HEAD` has finished with `success`. Rules,
+all in the pure function `ci_verdict` (no network): only runs for this
+commit count; for a workflow that ran more than once the newest run decides
+(a green re-run after a red run is accepted, a red re-run after a green one
+is not); no run at all means "not pushed or CI not started" and blocks;
+queued, waiting and in-progress block; any conclusion other than `success`
+(failure, cancelled, timed_out, skipped, neutral) blocks. The gate fails
+closed: `gh` missing, offline, unauthenticated or returning garbage stops
+the tag with the reason and names the escape hatch. `--skip-ci-check`
+overrides it and prints a warning; `--dry-run` still runs the check.
+The version-file check, clean-tree check and changelog check are unchanged.
+
+Tests (`tests/test_release_ci_gate.py`, hermetic: `subprocess.run` is
+patched, `gh` is never executed): verdict rules incl. re-runs, other
+commits and multiple workflows; `fetch_runs` parsing and every failure
+mode; `require_green_ci` refusal text, fail-closed and skip; flag wiring.
+Also checked end to end in a throwaway git repo with a fake `gh` on PATH.
+
+Not covered: `gh run watch`-style waiting (the person re-runs the command),
+required status checks on the branch (a GitHub setting, not this script).
