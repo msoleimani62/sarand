@@ -1,6 +1,10 @@
 """Monorepo/workspace structure detection (backlog item 8, "Monorepo /
 Workspace architecture").
 
+Update 2026-10-04: npm, Yarn and pnpm workspaces are now detected by
+`core/node_workspace.py` (see its docstring and AGENTS.md section 5.50). The
+audit below is the original Cargo-round text and is kept as history.
+
 Evidence-first audit before any implementation (item 8.1's own required
 first step) -- current state of the eight workspace models the backlog
 document names, checked directly against this repository's source, not
@@ -73,6 +77,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from sarand.core.node_workspace import detect_node_workspace
 from sarand.models.results import WorkspaceInfo, WorkspaceMember
 
 if sys.version_info >= (3, 11):
@@ -87,7 +92,7 @@ def detect_workspace(root: Path) -> WorkspaceInfo | None:
     that is Cargo alone -- see the module docstring for the audit of
     what else is and isn't implemented yet.
     """
-    return _detect_cargo_workspace(root)
+    return _detect_cargo_workspace(root) or detect_node_workspace(root)
 
 
 def _detect_cargo_workspace(root: Path) -> WorkspaceInfo | None:

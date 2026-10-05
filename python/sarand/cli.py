@@ -461,7 +461,9 @@ async def run(config: SarandConfig) -> int:
     # the application components instead (core/per_component.py).
     # فقط پروژه‌ی ترکیبی: آنالایزرهایی که ریشه را match نمی‌کنند داخل
     # اجزای application اجرا می‌شوند (core/per_component.py).
-    component_plan = plan_component_runs(root, components, all_analyzers, active)
+    component_plan = plan_component_runs(
+        root, components, all_analyzers, active, workspace
+    )
 
     # BUG FIX (user report: --full "gets stuck on Git information" for
     # ~9 minutes): git.py's own collection is fast -- what actually ran

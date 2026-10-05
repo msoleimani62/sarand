@@ -455,6 +455,10 @@ zig = "sarand_zig_plugin:ZigAnalyzer"
 
 sarand finds it and runs it alongside the built-in analyzers. A plugin that raises, returns the wrong type or cannot be loaded is skipped with a reported reason; it never crashes a scan. The full contract, version compatibility rules and author workflow are in [docs/PLUGINS.md](docs/PLUGINS.md), with a working example in [`examples/sarand-plugin-justfile`](examples/sarand-plugin-justfile).
 
+### Monorepos and workspaces
+
+sarand detects Cargo workspaces and npm, Yarn and pnpm workspaces and lists their members. For Node workspaces it runs tests and lint inside each member (labelled `packages/api: npm test`) and skips whatever the root script already fans out, so nothing is reported twice. What is and is not supported, and how the health score treats members, is in [docs/WORKSPACES.md](docs/WORKSPACES.md).
+
 ## Troubleshooting
 
 <details>

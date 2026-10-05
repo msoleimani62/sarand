@@ -546,6 +546,10 @@ sarand آن را پیدا می‌کند و کنار آنالایزرهای دا�
 
 <a id="troubleshooting"></a>
 
+### مخزن‌های چندبسته‌ای و workspace
+
+sarand workspaceهای کارگو و workspaceهای npm، Yarn و pnpm را تشخیص می‌دهد و اعضایشان را فهرست می‌کند. برای workspaceهای Node تست و lint را داخل هر عضو اجرا می‌کند (با برچسب مثل `packages/api: npm test`) و هر چه اسکریپت ریشه خودش پخش کند رد می‌کند تا چیزی دوبار گزارش نشود. آنچه پشتیبانی می‌شود و نمی‌شود، و رفتار امتیاز سلامت با اعضا، در [docs/WORKSPACES.fa.md](docs/WORKSPACES.fa.md) است.
+
 ## عیب‌یابی
 
 <details>

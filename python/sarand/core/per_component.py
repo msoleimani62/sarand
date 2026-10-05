@@ -40,6 +40,30 @@ takes the directory to work in as its `root` argument):
    environment variable rather than a flag, like `SARAND_SKIP_AUDIT`,
    so the README option-sync test and plugin contract are untouched).
 
+**Workspace members (npm / Yarn / pnpm, follow-up 1 of the backlog status).**
+`core/node_workspace.py` detects these workspaces. `npm test` at the root
+only runs the root's script, so the members are tested and linted by running
+the Node.js analyzer inside each member directory (labelled
+`<member>: npm test`). This is the one deliberate exception to "root first,
+never both", and it is guarded against duplicates:
+
+- a root `test` / `lint` script that already fans out (`--workspaces`,
+  `pnpm -r`, `turbo`, `nx`, `lerna`, ...) drops that phase for the members;
+- a root ESLint configuration drops member linting (`eslint .` at the root
+  already recurses into the packages);
+- `npm audit` is never run per member (the root lockfile audit covers the
+  whole workspace);
+- when a member directory is also a hybrid component, the two plans are
+  merged into one target, so the analyzer runs once;
+- at most 20 members run (the rest become one skipped result with the true
+  count), one after another.
+
+اجرای اعضای workspace (npm / Yarn / pnpm): `npm test` ریشه فقط اسکریپت
+خودِ ریشه را اجرا می‌کند، پس آنالایزر Node.js داخل پوشه‌ی هر عضو اجرا می‌شود.
+برای جلوگیری از تکرار: اسکریپت ریشه‌ای که خودش cascade می‌کند، کانفیگ ESLint
+ریشه، و `npm audit` (که فقط یک بار در ریشه اجرا می‌شود) در نظر گرفته شده؛
+تا ۲۰ عضو.
+
 **Deliberately not covered:** the project-wide gitleaks/syft/lockfile
 passes (they already walk the whole tree or only look at the root --
 the lockfile check stays root-only), non-hybrid projects whose only
@@ -80,18 +104,28 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from sarand.analyzers.base import LanguageAnalyzer
+from sarand.analyzers.node_analyzer import NodeAnalyzer, _has_eslint_config
 from sarand.analyzers.registry import (
     run_quality_concurrently,
     run_security_concurrently,
     run_tests_concurrently,
 )
-from sarand.models.results import CommandResult, ComponentsInfo, Issue
+from sarand.core.node_workspace import root_script_cascades
+from sarand.models.results import (
+    CommandResult,
+    ComponentsInfo,
+    Issue,
+    WorkspaceInfo,
+)
 from sarand.progress import status
 from sarand.utils.command import make_command_result
 
 logger = logging.getLogger("sarand.per_component")
 
 _MAX_TARGETS = 8
+_MAX_MEMBER_TARGETS = 20
+_ALL_PHASES = frozenset({"tests", "quality", "security"})
+_NODE_WORKSPACE_KINDS = frozenset({"npm", "yarn", "pnpm"})
 _DISABLE_ENV = "SARAND_NO_COMPONENTS"
 
 
@@ -102,14 +136,17 @@ class ComponentTarget:
     path: str
     directory: Path
     analyzers: tuple[LanguageAnalyzer, ...]
+    phases: frozenset[str] = _ALL_PHASES
 
 
 @dataclass(frozen=True)
 class ComponentPlan:
-    """Which components to analyse; `omitted` counts those over the cap."""
+    """Which components to analyse. `omitted` counts hybrid components and
+    `omitted_members` workspace members left out by the caps."""
 
     targets: tuple[ComponentTarget, ...] = ()
     omitted: int = 0
+    omitted_members: int = 0
 
 
 def _is_inside(path: str, ancestor: str) -> bool:
@@ -126,19 +163,15 @@ def _safe_matches(analyzer: LanguageAnalyzer, directory: Path) -> bool:
         return False
 
 
-def plan_component_runs(
+def _component_targets(
     root: Path,
     components: ComponentsInfo | None,
     all_analyzers: list[LanguageAnalyzer],
     active: list[LanguageAnalyzer],
-) -> ComponentPlan:
-    """Decide what to run inside which component (see module docstring
-    for the rules). Returns an empty plan for a non-hybrid project or
-    when `SARAND_NO_COMPONENTS` is set.
-    """
-    if components is None or os.environ.get(_DISABLE_ENV):
-        return ComponentPlan()
-
+) -> list[ComponentTarget]:
+    """Hybrid-project components: analyzers that do not match the root."""
+    if components is None:
+        return []
     paths = sorted(
         {
             c.path
@@ -164,10 +197,78 @@ def plan_component_runs(
             claimed.setdefault(id(analyzer), []).append(path)
         if chosen:
             targets.append(ComponentTarget(path, directory, tuple(chosen)))
+    return targets
 
+
+def _workspace_targets(
+    root: Path,
+    workspace: WorkspaceInfo | None,
+    all_analyzers: list[LanguageAnalyzer],
+) -> list[ComponentTarget]:
+    """npm / Yarn / pnpm workspace members: the Node.js analyzer's tests and
+    lint inside each member, minus whatever the root already fans out."""
+    if workspace is None or workspace.kind not in _NODE_WORKSPACE_KINDS:
+        return []
+    node = next((a for a in all_analyzers if isinstance(a, NodeAnalyzer)), None)
+    if node is None:
+        return []
+    phases: set[str] = set()
+    if not root_script_cascades(root, "test"):
+        phases.add("tests")
+    if not root_script_cascades(root, "lint") and not _has_eslint_config(root):
+        phases.add("quality")
+    if not phases:
+        return []
+    return [
+        ComponentTarget(m.path, root / m.path, (node,), frozenset(phases))
+        for m in workspace.members
+        if m.path != "." and _safe_matches(node, root / m.path)
+    ]
+
+
+def _merge(
+    members: list[ComponentTarget], components: list[ComponentTarget]
+) -> list[ComponentTarget]:
+    """One target per directory: a member that is also a hybrid component
+    keeps a single run per analyzer."""
+    merged: dict[str, ComponentTarget] = {}
+    for target in [*members, *components]:
+        existing = merged.get(target.path)
+        if existing is None:
+            merged[target.path] = target
+            continue
+        seen = {id(a) for a in existing.analyzers}
+        extra = tuple(a for a in target.analyzers if id(a) not in seen)
+        merged[target.path] = ComponentTarget(
+            target.path,
+            target.directory,
+            (*existing.analyzers, *extra),
+            existing.phases | target.phases,
+        )
+    return list(merged.values())
+
+
+def plan_component_runs(
+    root: Path,
+    components: ComponentsInfo | None,
+    all_analyzers: list[LanguageAnalyzer],
+    active: list[LanguageAnalyzer],
+    workspace: WorkspaceInfo | None = None,
+) -> ComponentPlan:
+    """Decide what to run inside which directory (see the module docstring
+    for the rules). Returns an empty plan for a project that is neither
+    hybrid nor a Node workspace, or when `SARAND_NO_COMPONENTS` is set.
+    """
+    if os.environ.get(_DISABLE_ENV):
+        return ComponentPlan()
+
+    members = _workspace_targets(root, workspace, all_analyzers)
+    hybrid = _component_targets(root, components, all_analyzers, active)
+    merged = _merge(members[:_MAX_MEMBER_TARGETS], hybrid[:_MAX_TARGETS])
     return ComponentPlan(
-        targets=tuple(targets[:_MAX_TARGETS]),
-        omitted=max(0, len(targets) - _MAX_TARGETS),
+        targets=tuple(merged),
+        omitted=max(0, len(hybrid) - _MAX_TARGETS),
+        omitted_members=max(0, len(members) - _MAX_MEMBER_TARGETS),
     )
 
 
@@ -183,51 +284,75 @@ def _relabel(result: CommandResult, label: str) -> CommandResult:
     )
 
 
-def _omitted_note(plan: ComponentPlan) -> list[CommandResult]:
-    if not plan.omitted:
-        return []
-    return [
-        make_command_result(
-            "components",
-            0,
-            "",
-            0.0,
-            skipped=True,
-            skip_reason=(
-                f"{plan.omitted} more component(s) not analysed (limit {_MAX_TARGETS})"
-            ),
+def _omitted_notes(plan: ComponentPlan) -> list[CommandResult]:
+    notes: list[CommandResult] = []
+    if plan.omitted:
+        notes.append(
+            make_command_result(
+                "components",
+                0,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason=(
+                    f"{plan.omitted} more component(s) not analysed "
+                    f"(limit {_MAX_TARGETS})"
+                ),
+            )
         )
-    ]
+    if plan.omitted_members:
+        notes.append(
+            make_command_result(
+                "workspace members",
+                0,
+                "",
+                0.0,
+                skipped=True,
+                skip_reason=(
+                    f"{plan.omitted_members} more workspace member(s) not "
+                    f"analysed (limit {_MAX_MEMBER_TARGETS})"
+                ),
+            )
+        )
+    return notes
 
 
 async def run_component_tests(plan: ComponentPlan) -> list[CommandResult]:
-    """Test suites of every planned component, labelled by component."""
+    """Test suites of every planned directory, labelled by directory."""
     results: list[CommandResult] = []
     for target in plan.targets:
+        if "tests" not in target.phases:
+            continue
         names = ", ".join(a.name for a in target.analyzers)
-        status(f"Running tests in component {target.path} ({names})...")
+        status(f"Running tests in {target.path} ({names})...")
         ran = await run_tests_concurrently(target.directory, target.analyzers)
         results.extend(_relabel(r, target.path) for r in ran)
-    return results + _omitted_note(plan)
+    return results + _omitted_notes(plan)
 
 
 async def run_component_quality(plan: ComponentPlan) -> list[CommandResult]:
-    """Quality checks of every planned component, labelled by component."""
+    """Quality checks of every planned directory, labelled by directory."""
     results: list[CommandResult] = []
     for target in plan.targets:
+        if "quality" not in target.phases:
+            continue
         names = ", ".join(a.name for a in target.analyzers)
-        status(f"Running quality checks in component {target.path} ({names})...")
+        status(f"Running quality checks in {target.path} ({names})...")
         ran = await run_quality_concurrently(target.directory, target.analyzers)
         results.extend(_relabel(r, target.path) for r in ran)
     return results
 
 
 async def run_component_security(plan: ComponentPlan) -> list[CommandResult]:
-    """Security checks of every planned component, labelled by component."""
+    """Security checks of every planned directory, labelled by directory.
+    Workspace members never have the `security` phase (the root lockfile
+    audit covers them)."""
     results: list[CommandResult] = []
     for target in plan.targets:
+        if "security" not in target.phases:
+            continue
         names = ", ".join(a.name for a in target.analyzers)
-        status(f"Running security checks in component {target.path} ({names})...")
+        status(f"Running security checks in {target.path} ({names})...")
         ran = await run_security_concurrently(target.directory, target.analyzers)
         results.extend(_relabel(r, target.path) for r in ran)
     return results

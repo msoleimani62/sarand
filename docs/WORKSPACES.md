@@ -1,0 +1,64 @@
+# Monorepos and workspaces
+
+sarand understands two kinds of multi-package repositories.
+
+| Model | How it is detected | What sarand does |
+|---|---|---|
+| **Cargo workspace** | `[workspace]` in the root `Cargo.toml` | Lists the members. `cargo test --all` already covers every crate. |
+| **npm / Yarn / pnpm workspace** | `"workspaces"` in the root `package.json` (array, or Yarn's `{"packages": [...]}`), or `pnpm-workspace.yaml` | Lists the members and runs tests and lint **inside each member**. |
+
+The report gets a **Workspace** section (kind and members) and, in JSON, a
+`workspace` key. Results from a member are labelled with its path, for
+example `packages/api: npm test`, so they are never confused with the root's.
+
+## How Node workspaces are run
+
+`npm test` at the root only runs the **root's** `test` script; it does not
+reach the packages. So sarand runs the Node.js analyzer in every member
+directory (`npm test` when the member has a `test` script, `npm run lint` and
+`eslint` when it is configured). Members run one after another, at most **20**
+of them; if there are more, one skipped result tells you how many were left
+out.
+
+To avoid reporting anything twice, sarand skips a phase for the members when
+the root already covers it:
+
+- **Tests:** the root `test` script fans out (`--workspaces`, `-ws`,
+  `pnpm -r` or `--filter`, `yarn workspaces`, `turbo`, `nx`, `lerna`, `wireit`).
+- **Lint:** the root `lint` script fans out the same way, **or** the root has
+  an ESLint configuration (`eslint .` at the root already recurses into the
+  packages).
+- **Security:** never run per member. `npm audit` at the root already reads the
+  one workspace lockfile.
+
+A member that is also an application of a hybrid project (for example a React
+app and an Express API in one workspace) is merged into a single run per
+analyzer. Set `SARAND_NO_COMPONENTS=1` to turn off member runs and
+per-component runs together.
+
+## How the health score treats workspaces
+
+There is **one repository-level score**; there is no per-package score yet.
+Member results go into the same lists as the root's results and each check is
+counted once. A failing member test suite lowers the shared test ratio and
+adds "One or more test suites failed" to the critical list, exactly as a
+failing root suite would.
+
+## What is not supported
+
+- **Gradle multi-project and Maven multi-module** are not detected as
+  workspaces. Their root build (`./gradlew test`, `mvn test`) already covers
+  every module, so only the report's structure view is missing.
+- **Bazel, Nx and Turborepo** as workspace models. Bazel has no analyzer at
+  all. Nx and Turborepo sit on top of an npm/Yarn/pnpm workspace: that
+  workspace is detected, and a root script that calls them is recognised as
+  fanning out, but their task graphs are not read.
+- **A repository with both a Cargo workspace and a Node workspace.** Cargo is
+  detected first and only one workspace is recorded, so the Node members are
+  not run.
+- **Package-manager-specific commands.** Members are still tested with
+  `npm test`, even in a pnpm or Yarn repository; the scripts run, but a repo
+  that forbids `npm` through corepack needs its own tooling.
+- **Relationships between member packages** (which package depends on which).
+
+Persian: [WORKSPACES.fa.md](WORKSPACES.fa.md)

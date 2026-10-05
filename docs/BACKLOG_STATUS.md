@@ -37,7 +37,7 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 |---|---|---|
 | 6.1 Golden reports | Snapshot tests for representative reports | resolved |
 | 7.1 Capability matrix | `docs/COVERAGE.md`, generated from the analyzers | resolved |
-| 8 Monorepo / workspace | Cargo workspaces only (detection) | v0.6.4 |
+| 8 Monorepo / workspace | Cargo workspaces (v0.6.4); npm, Yarn and pnpm workspaces with member test and lint runs (unreleased) | v0.6.4 |
 | 9 Report size, low memory | Fixed at the source: `syft` excludes (peak RSS 328 to 187 MiB) | v0.6.6 |
 | 5 Kubernetes | Helm charts and Kustomize overlays (detection) | v0.6.7 |
 | 6 Docker Compose | Compose files and services (detection) | v0.6.8 |
@@ -52,10 +52,13 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 
 ### Real follow-ups (CONFIRMED gaps, not out of scope)
 
-1. **npm / pnpm / Yarn workspaces** (item 8's next phase). Gap in both
-   representation and execution: a root `npm test` does not cascade into
-   workspace packages. Per-component execution (item 11) only runs for
-   *hybrid* projects, so a pure-Node monorepo is not helped.
+1. **npm / pnpm / Yarn workspaces -- first scope done 2026-10-04**
+   (AGENTS.md 5.50, `docs/WORKSPACES.md`). Members are detected and their
+   tests and lint run inside each member, with duplicate prevention.
+   Still open: package-manager-specific commands (members are tested with
+   `npm test` even in pnpm/Yarn repos and the `build system` label still
+   says `npm`), a repo with both a Cargo and a Node workspace, Nx/Turborepo
+   task graphs, per-package scores.
 2. **A root analyzer that does not cascade hides its components.** Per-component
    execution never re-runs an analyzer that matches the root (that is what
    prevents duplicate findings), so e.g. a root `package.json` without

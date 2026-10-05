@@ -3473,3 +3473,63 @@ Also checked end to end in a throwaway git repo with a fake `gh` on PATH.
 
 Not covered: `gh run watch`-style waiting (the person re-runs the command),
 required status checks on the branch (a GitHub setting, not this script).
+
+### 5.50 — Follow-up 1: npm / Yarn / pnpm workspaces (2026-10-04)
+
+Item 8's next phase, from the Definition of Done in the retired-but-kept
+backlog: workspace detection for the next ecosystems, root/workspace
+relationship represented, duplicate execution prevented, root vs workspace
+findings distinguishable, health aggregation defined, fixtures, regression
+tests, unsupported models documented.
+
+**Audit** (a fixture per model against v0.6.12): npm and Yarn workspaces
+(`"workspaces"` array or `{"packages": [...]}`) and pnpm workspaces
+(`pnpm-workspace.yaml`) all gave `detect_workspace() == None`, plain Node.js,
+`npm test` at the root only -- and `npm test` at the root runs the root's own
+script, it does not reach the packages. So no member got tests or lint
+(CONFIRMED execution gap). A pnpm workspace with no root `package.json`
+matched no analyzer but YAML: nothing ran at all. Per-component execution
+(5.42) did not help: it only runs for hybrid projects (a monorepo of same-kind
+packages is not one) and never re-runs an analyzer that matches the root.
+
+**Change.** New `core/node_workspace.py`: `detect_node_workspace` resolves
+members from the declared globs (`*`, `**`, `?`, `!negation`) with its own
+bounded walk (6 levels, never `node_modules`/VCS/build dirs, no symlinks) and
+returns the existing `WorkspaceInfo` with kind `npm`, `yarn` or `pnpm`;
+`workspace.py` calls it after the Cargo detector, so the Markdown and JSON
+workspace sections work unchanged. `root_script_cascades` recognises a root
+`test`/`lint` script that already fans out (`--workspaces`, `-ws`,
+`pnpm -r/--filter`, `yarn workspaces`, `turbo`, `nx`, `lerna`, `wireit`;
+`pnpm -w` = root only is deliberately not one). `core/per_component.py`
+takes the workspace as a fifth argument (default None, old callers
+unchanged), `ComponentTarget` gained `phases`, `ComponentPlan` gained
+`omitted_members`. Members run the Node.js analyzer's tests and lint inside
+their own directory, labelled `<member>: <check>`.
+
+**Duplicate prevention**, all pinned by tests: a fanning-out root test script
+drops the members' test phase; a fanning-out root lint script or any root
+ESLint config drops their lint phase (root `eslint .` already recurses);
+nothing is planned when both are dropped; the security phase is never given
+to a member (`npm audit` at the root reads the single workspace lockfile);
+a member that is also a hybrid component is merged into one target so each
+analyzer runs once; at most 20 members run (true count of the rest reported
+as a skipped `workspace members` result); `SARAND_NO_COMPONENTS=1` disables
+members too.
+
+**Health aggregation rule** (was undefined): member results join the same
+flat result lists as the root's, each check counted once, one repository
+score, no per-package score. A failing member suite lowers the shared test
+ratio and adds the usual critical entry (test:
+`test_health_counts_each_check_once_in_one_repository_score`).
+
+Verified beyond unit tests: the real CLI on an npm workspace fixture printed
+`npm test`, `packages/a: npm test` and `packages/b: npm test`, all passing,
+plus the Workspace section. `docs/WORKSPACES.md` / `.fa.md` document the model,
+the rules and the unsupported cases; README EN/FA link to them.
+
+**Not covered, recorded:** a repo with both a Cargo and a Node workspace
+(Cargo wins, single `WorkspaceInfo`); package-manager-specific commands
+(members are still tested with `npm test`, also in pnpm/Yarn repos, and
+`build system` still says `npm` for them); Lerna/Rush/Bolt without one of the
+three declarations; Nx/Turborepo task graphs; per-package scores; Gradle and
+Maven modules.
