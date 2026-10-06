@@ -4,6 +4,33 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.13] - 2026-10-05
+
+### Added
+
+- npm, Yarn and pnpm workspaces are detected (`workspaces` in `package.json`,
+  or `pnpm-workspace.yaml`, including `**` and `!` patterns). The report lists
+  the members, and tests and lint now run **inside each member**, labelled
+  `packages/api: npm test`, because `npm test` at the root does not reach the
+  packages. A pnpm workspace without a root `package.json` is covered too.
+- Nothing is reported twice: a root `test` or `lint` script that already fans
+  out (`--workspaces`, `pnpm -r`, `turbo`, `nx`, `lerna`, ...) skips that phase
+  for the members, a root ESLint configuration skips member linting, `npm
+  audit` is never run per member, and a member that is also a hybrid-project
+  component runs each analyzer once. At most 20 members run; the rest are
+  counted in one skipped result.
+- `docs/WORKSPACES.md` (and a Persian version) explain the model, the
+  duplicate-prevention rules, how the health score treats members (one score
+  for the repository, each check counted once) and what is not supported.
+
+### Changed
+
+- `SARAND_NO_COMPONENTS=1` also turns off the workspace member runs.
+- Maintainers: `scripts/release.py tag` now refuses to tag a commit unless
+  every GitHub Actions run for it finished successfully (it asks the `gh`
+  CLI), and fails closed when CI cannot be checked. `--skip-ci-check`
+  overrides it.
+
 ## [0.6.12] - 2026-10-02
 
 ### Added
