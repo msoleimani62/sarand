@@ -64,9 +64,11 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    prevents duplicate findings), so e.g. a root `package.json` without
    workspaces plus a `frontend/` Node package leaves `frontend/` unchecked.
    Same root cause as 1.
-3. **`detect_project()` is still root-only.** On a hybrid repo the "Detected
-   Project" section can still say `Generic`. The Project Components section
-   and Quick Context show the real picture.
+3. **`detect_project()` is root-only -- description fixed 2026-10-05**
+   (AGENTS.md 5.51). For hybrid repositories `refine_detection` now lists the
+   components' languages, drops the `Generic` placeholder and no longer says
+   `Generic / unknown`. `detect_project()` itself stays root-only on purpose
+   (it decides which analyzers match the root).
 4. **Release safety -- done 2026-10-04.** `scripts/release.py tag` now
    refuses unless every CI run for `HEAD` finished with success (via `gh`);
    `--skip-ci-check` overrides it. See AGENTS.md section 5.49.

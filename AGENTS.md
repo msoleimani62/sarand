@@ -3533,3 +3533,39 @@ the rules and the unsupported cases; README EN/FA link to them.
 `build system` still says `npm` for them); Lerna/Rush/Bolt without one of the
 three declarations; Nx/Turborepo task graphs; per-package scores; Gradle and
 Maven modules.
+
+### 5.51 — Follow-up 3: "Detected Project" on hybrid repositories (2026-10-05)
+
+`detect_project()` is root-only (it also decides which analyzers match the
+root, so it stays that way). Audit on the hybrid fixture (`backend/` FastAPI,
+`frontend/` React, root compose and Makefile), run against v0.6.13: with only
+a `Makefile` at the root the section said primary language `Generic`, type
+`unknown`, languages `['Generic']` -- neither Python nor Node.js -- while
+`Project Components` and Quick Context, two sections later, listed both. With
+a root `pyproject.toml` added it said `Python` but listed
+`['Python', 'Generic']`: the frontend's Node.js was missing from "All detected
+languages". CONFIRMED, description only (what runs was fixed in 5.42 and 5.50).
+
+New `core/detection_refine.py::refine_detection(detection, components)`,
+called in `cli.py` right after the component view is built, so the status
+line, every renderer and Quick Context all see the corrected value. It
+corrects the description only, for hybrid projects only (others get the very
+same object back): component languages are appended without duplicates and
+the placeholder `Generic` is dropped; a real root language stays primary (the
+root's own marker is the strongest evidence); with none (`Generic`/`Unknown`)
+no component is arbitrarily promoted -- the label lists them (`Python +
+Node.js`, max 3 then `+N more`) and the type says what each part is (`hybrid:
+backend (Python), frontend (Node.js)`, max 4 parts); the build system is
+untouched (`make` stays `make`); component markers are appended as
+`path/marker` (`backend/pyproject.toml`) so each language claim is traceable
+(max 20). Input objects are never mutated.
+
+Tests (`tests/test_detection_refine.py`): the audited case, root-language case,
+non-hybrid identity, infrastructure-only components, no mutation, label and
+marker caps, root component without prefix, and a real `cli.main` run whose
+report is checked end to end. Golden snapshots are unaffected (they build
+`ReportData` by hand).
+
+**Not covered:** picking a "main" component, component entry points, and any
+change to which analyzers match; `build system` still says `npm` for pnpm and
+Yarn repos.
