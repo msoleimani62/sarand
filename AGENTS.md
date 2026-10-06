@@ -3569,3 +3569,47 @@ report is checked end to end. Golden snapshots are unaffected (they build
 **Not covered:** picking a "main" component, component entry points, and any
 change to which analyzers match; `build system` still says `npm` for pnpm and
 Yarn repos.
+
+### 5.52 — Follow-up 2: nested packages when the root matches the same analyzer (2026-10-06)
+
+The planner's rule "an analyzer that matches the root is never re-run in a
+component" (5.42) is what prevents duplicate findings, but it assumes the
+root run covers the subdirectories. It does for Python (pytest and ruff
+recurse). It does not for three tools whose root run stops at its own package
+boundary: `npm test` (Node.js), `go test ./...` (a nested `go.mod` is a
+separate module) and `cargo test --all` (workspace members only).
+
+**Audit** (four hybrid fixtures, each with a root compose file so the project
+counts as hybrid, run against v0.6.13): Node root with a React `web/` and an
+Express `api/`; Go root with a nested module; Rust root with a nested crate
+that is not a workspace member; and a Python control. The plan was EMPTY for
+all four -- the nested Node, Go and Rust packages were never tested, linted or
+audited, while the Python control was (correctly) covered by the root.
+
+**Change** (`core/per_component.py` only; no model or CLI change):
+`_NON_RECURSIVE = (NodeAnalyzer, GoAnalyzer, RustAnalyzer)`. These analyzers
+are now also planned in nested component directories even when they match the
+root, unless the root already covers the directory (`_covered_paths`): a Node
+workspace member (that path is planned separately with its own restricted
+phases), a Cargo workspace member, or anything at all when the root has a
+`go.work`. For Node the phases come from `_node_phases`: root `test` fan-out
+drops `tests`, a root `lint` fan-out or root ESLint config drops `quality`
+(same rules as 5.50); `security` stays because a separate package has its own
+lockfile. Targets are keyed by (directory, phases), so a directory can hold
+two targets (the Node one with its restricted phases plus the ordinary one),
+and each analyzer still runs at most once per phase; the member and component
+caps now count distinct directories, not targets. Python is unchanged.
+
+**Also fixed (found while writing the tests):** with a pnpm workspace and no
+root `package.json` the Node analyzer did not match the root, so the hybrid
+plan added it with all phases and the merge unioned `security` into the
+member target -- `npm audit` per member, which 5.50 says never happens.
+Node is now skipped in the component pass at member paths.
+
+Tests: `tests/test_nested_packages.py` (11) and one updated test in
+`tests/test_node_workspace.py` (it now collects targets per directory and
+asserts the member phases). **Not covered:** a project that is not hybrid
+(`detect_components` returns None, so a Node root with a standalone nested
+package of the same kind is still not run); Go modules listed in a `go.work`
+(treated as covered); Maven/Gradle nested builds (the root build is assumed to
+cover its modules).

@@ -59,11 +59,10 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    `npm test` even in pnpm/Yarn repos and the `build system` label still
    says `npm`), a repo with both a Cargo and a Node workspace, Nx/Turborepo
    task graphs, per-package scores.
-2. **A root analyzer that does not cascade hides its components.** Per-component
-   execution never re-runs an analyzer that matches the root (that is what
-   prevents duplicate findings), so e.g. a root `package.json` without
-   workspaces plus a `frontend/` Node package leaves `frontend/` unchecked.
-   Same root cause as 1.
+2. **A root analyzer that does not cascade hides its components -- fixed
+   2026-10-06** (AGENTS.md 5.52) for Node.js, Go and Rust in hybrid
+   projects. Still open: a project that is not hybrid (one package kind and
+   no compose, Kubernetes or Terraform) gets no nested runs.
 3. **`detect_project()` is root-only -- description fixed 2026-10-05**
    (AGENTS.md 5.51). For hybrid repositories `refine_detection` now lists the
    components' languages, drops the `Generic` placeholder and no longer says

@@ -40,6 +40,29 @@ takes the directory to work in as its `root` argument):
    environment variable rather than a flag, like `SARAND_SKIP_AUDIT`,
    so the README option-sync test and plugin contract are untouched).
 
+**Nested packages whose analyzer also matches the root (follow-up 2).** The
+"root first, never both" rule assumes the root run covers the subdirectories.
+That holds for Python (pytest and ruff recurse) but not for three tools whose
+root run stops at its own package boundary: `npm test` (Node.js), `go test
+./...` (a nested `go.mod` is a separate module) and `cargo test --all` (only
+workspace members). In a hybrid project such a nested package was never
+checked: on four fixtures (Node root with React `web/` and Express `api/`; Go
+root with a nested module; Rust root with a nested non-member crate; plus a
+Python control) the plan was empty for all three. Now those three analyzers
+are also planned inside nested component directories, unless the root already
+covers the directory: a Node workspace member (planned separately), a Cargo
+workspace member, or anything under a root with `go.work`. For Node the root
+`test` / `lint` fan-out and a root ESLint configuration still drop that phase
+(same rules as for workspace members); `security` stays, since a separate
+package has its own lockfile. A directory can therefore hold two targets with
+different phases; each analyzer still runs at most once per phase.
+
+بسته‌های تو در تو که آنالایزرشان ریشه را هم match می‌کند (شکاف ۲): برای
+Node.js (`npm test`)، Go (`./...` از مرز ماژول رد نمی‌شود) و Rust (فقط اعضای
+workspace) اجرای ریشه به زیرپوشه نمی‌رسد؛ پس در پروژه‌ی ترکیبی این سه آنالایزر
+داخل پوشه‌ی اجزای تو در تو هم اجرا می‌شوند، مگر ریشه خودش آن پوشه را پوشش
+بدهد (عضو workspace، یا `go.work`). Python مثل قبل پوشش‌داده‌شده حساب می‌شود.
+
 **Workspace members (npm / Yarn / pnpm, follow-up 1 of the backlog status).**
 `core/node_workspace.py` detects these workspaces. `npm test` at the root
 only runs the root's script, so the members are tested and linted by running
@@ -104,12 +127,14 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from sarand.analyzers.base import LanguageAnalyzer
+from sarand.analyzers.go_analyzer import GoAnalyzer
 from sarand.analyzers.node_analyzer import NodeAnalyzer, _has_eslint_config
 from sarand.analyzers.registry import (
     run_quality_concurrently,
     run_security_concurrently,
     run_tests_concurrently,
 )
+from sarand.analyzers.rust_analyzer import RustAnalyzer
 from sarand.core.node_workspace import root_script_cascades
 from sarand.models.results import (
     CommandResult,
@@ -163,13 +188,44 @@ def _safe_matches(analyzer: LanguageAnalyzer, directory: Path) -> bool:
         return False
 
 
+_NON_RECURSIVE = (NodeAnalyzer, GoAnalyzer, RustAnalyzer)
+
+
+def _covered_paths(
+    analyzer: LanguageAnalyzer, root: Path, workspace: WorkspaceInfo | None
+) -> set[str] | None:
+    """Directories the root run of `analyzer` already covers. `None` means
+    "everything below the root" (Go with `go.work`)."""
+    members = {m.path for m in workspace.members} if workspace else set()
+    kind = workspace.kind if workspace else ""
+    if isinstance(analyzer, NodeAnalyzer):
+        return members if kind in _NODE_WORKSPACE_KINDS else set()
+    if isinstance(analyzer, RustAnalyzer):
+        return members if kind == "cargo" else set()
+    if isinstance(analyzer, GoAnalyzer):
+        return None if (root / "go.work").exists() else set()
+    return set()
+
+
+def _node_phases(root: Path) -> frozenset[str]:
+    """Phases of a nested Node package that the root does not already run."""
+    phases = {"security"}
+    if not root_script_cascades(root, "test"):
+        phases.add("tests")
+    if not root_script_cascades(root, "lint") and not _has_eslint_config(root):
+        phases.add("quality")
+    return frozenset(phases)
+
+
 def _component_targets(
     root: Path,
     components: ComponentsInfo | None,
     all_analyzers: list[LanguageAnalyzer],
     active: list[LanguageAnalyzer],
+    workspace: WorkspaceInfo | None = None,
 ) -> list[ComponentTarget]:
-    """Hybrid-project components: analyzers that do not match the root."""
+    """Hybrid-project components: analyzers that do not match the root, plus
+    the three whose root run does not reach nested packages."""
     if components is None:
         return []
     paths = sorted(
@@ -180,23 +236,44 @@ def _component_targets(
         }
     )
     root_ids = {id(a) for a in active}
+    node_members = (
+        {m.path for m in workspace.members}
+        if workspace is not None and workspace.kind in _NODE_WORKSPACE_KINDS
+        else set()
+    )
     claimed: dict[int, list[str]] = {}
     targets: list[ComponentTarget] = []
 
     for path in paths:
         directory = root / path
-        chosen: list[LanguageAnalyzer] = []
+        plain: list[LanguageAnalyzer] = []
+        nested_node: list[LanguageAnalyzer] = []
         for analyzer in all_analyzers:
-            if id(analyzer) in root_ids:
-                continue
+            on_root = id(analyzer) in root_ids
+            if isinstance(analyzer, NodeAnalyzer) and path in node_members:
+                continue  # planned as a workspace member, with its own phases
+            if on_root:
+                if not isinstance(analyzer, _NON_RECURSIVE):
+                    continue
+                covered = _covered_paths(analyzer, root, workspace)
+                if covered is None or path in covered:
+                    continue
             if any(_is_inside(path, c) for c in claimed.get(id(analyzer), [])):
                 continue
-            if _safe_matches(analyzer, directory):
-                chosen.append(analyzer)
-        for analyzer in chosen:
+            if not _safe_matches(analyzer, directory):
+                continue
+            if on_root and isinstance(analyzer, NodeAnalyzer):
+                nested_node.append(analyzer)
+            else:
+                plain.append(analyzer)
+        for analyzer in (*plain, *nested_node):
             claimed.setdefault(id(analyzer), []).append(path)
-        if chosen:
-            targets.append(ComponentTarget(path, directory, tuple(chosen)))
+        if plain:
+            targets.append(ComponentTarget(path, directory, tuple(plain)))
+        if nested_node:
+            targets.append(
+                ComponentTarget(path, directory, tuple(nested_node), _node_phases(root))
+            )
     return targets
 
 
@@ -229,23 +306,37 @@ def _workspace_targets(
 def _merge(
     members: list[ComponentTarget], components: list[ComponentTarget]
 ) -> list[ComponentTarget]:
-    """One target per directory: a member that is also a hybrid component
-    keeps a single run per analyzer."""
-    merged: dict[str, ComponentTarget] = {}
+    """One target per (directory, phases): a member that is also a hybrid
+    component keeps a single run per analyzer and phase."""
+    merged: dict[tuple[str, frozenset[str]], ComponentTarget] = {}
     for target in [*members, *components]:
-        existing = merged.get(target.path)
+        key = (target.path, target.phases)
+        existing = merged.get(key)
         if existing is None:
-            merged[target.path] = target
+            merged[key] = target
             continue
         seen = {id(a) for a in existing.analyzers}
         extra = tuple(a for a in target.analyzers if id(a) not in seen)
-        merged[target.path] = ComponentTarget(
+        merged[key] = ComponentTarget(
             target.path,
             target.directory,
             (*existing.analyzers, *extra),
-            existing.phases | target.phases,
+            target.phases,
         )
     return list(merged.values())
+
+
+def _cap_paths(
+    targets: list[ComponentTarget], limit: int
+) -> tuple[list[ComponentTarget], int]:
+    """Keep the targets of the first `limit` distinct directories and count
+    the directories left out."""
+    order: list[str] = []
+    for target in targets:
+        if target.path not in order:
+            order.append(target.path)
+    kept = set(order[:limit])
+    return [t for t in targets if t.path in kept], max(0, len(order) - limit)
 
 
 def plan_component_runs(
@@ -263,12 +354,13 @@ def plan_component_runs(
         return ComponentPlan()
 
     members = _workspace_targets(root, workspace, all_analyzers)
-    hybrid = _component_targets(root, components, all_analyzers, active)
-    merged = _merge(members[:_MAX_MEMBER_TARGETS], hybrid[:_MAX_TARGETS])
+    hybrid = _component_targets(root, components, all_analyzers, active, workspace)
+    kept_members, omitted_members = _cap_paths(members, _MAX_MEMBER_TARGETS)
+    kept_hybrid, omitted = _cap_paths(hybrid, _MAX_TARGETS)
     return ComponentPlan(
-        targets=tuple(merged),
-        omitted=max(0, len(hybrid) - _MAX_TARGETS),
-        omitted_members=max(0, len(members) - _MAX_MEMBER_TARGETS),
+        targets=tuple(_merge(kept_members, kept_hybrid)),
+        omitted=omitted,
+        omitted_members=omitted_members,
     )
 
 

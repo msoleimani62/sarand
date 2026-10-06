@@ -61,4 +61,18 @@ failing root suite would.
   that forbids `npm` through corepack needs its own tooling.
 - **Relationships between member packages** (which package depends on which).
 
+## Nested packages in hybrid projects
+
+In a hybrid project (for example a Node root with a React `web/` and an Express
+`api/` behind a compose file), a nested package of Node.js, Go or Rust is also
+analysed even though the same analyzer matches the root, because the root run
+does not reach it: `npm test` stops at the package boundary, `go test ./...`
+skips nested modules, and `cargo test --all` covers only workspace members. It
+is **not** analysed again when the root already covers it: a Node or Cargo
+workspace member, or anything in a repository with a `go.work`. Root test and
+lint scripts that fan out, or a root ESLint configuration, drop those phases
+exactly as for workspace members. Python needs no such rule, because the root
+`pytest` and `ruff` recurse. A project that is not hybrid (one package kind, no
+compose, Kubernetes or Terraform) does not get nested runs.
+
 Persian: [WORKSPACES.fa.md](WORKSPACES.fa.md)

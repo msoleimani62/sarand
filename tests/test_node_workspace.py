@@ -368,10 +368,16 @@ def test_a_member_that_is_also_a_hybrid_component_runs_each_analyzer_once() -> N
         plan = plan_component_runs(
             root, components, analyzers, active, detect_workspace(root)
         )
-        by_path = {t.path: [a.name for a in t.analyzers] for t in plan.targets}
-        assert set(by_path) == {"apps/api", "apps/web"}
-        for names in by_path.values():
-            assert names.count("Node.js") == 1
+        names: dict[str, list[str]] = {}
+        node_phases: dict[str, set[str]] = {}
+        for target in plan.targets:
+            names.setdefault(target.path, []).extend(a.name for a in target.analyzers)
+            if any(a.name == "Node.js" for a in target.analyzers):
+                node_phases.setdefault(target.path, set()).update(target.phases)
+        assert set(names) == {"apps/api", "apps/web"}
+        for path, found in names.items():
+            assert found.count("Node.js") == 1
+            assert node_phases[path] == {"tests", "quality"}
 
 
 def _fake_result(kind: str, code: int = 0) -> CommandResult:
