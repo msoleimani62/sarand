@@ -4,6 +4,32 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.14] - 2026-10-06
+
+### Changed
+
+- The "Detected Project" section describes a hybrid repository by its
+  components. With only a `Makefile` at the root it used to say `Generic`
+  and `unknown`, and with a root `pyproject.toml` it listed `Python, Generic`
+  and missed the frontend's Node.js. It now lists every component language,
+  drops the `Generic` placeholder, keeps a real root language as the primary
+  one, and otherwise says for example `Python + Node.js` and `hybrid: backend
+  (Python), frontend (Node.js)`. Component markers appear as
+  `backend/pyproject.toml`.
+- In a hybrid project, nested Node.js, Go and Rust packages are now analysed
+  even when the same analyzer matches the root, because the root run does not
+  reach them (`npm test` stops at the package boundary, `go test ./...` skips
+  nested modules, `cargo test --all` covers only workspace members). They are
+  not analysed twice: workspace members and anything under a `go.work` count
+  as covered, and a root script that already fans out or a root ESLint
+  configuration drops that phase. Python is unchanged because the root
+  `pytest` and `ruff` recurse.
+
+### Fixed
+
+- In a pnpm workspace without a root `package.json` that is also a hybrid
+  project, workspace members no longer get `npm audit` run per member.
+
 ## [0.6.13] - 2026-10-05
 
 ### Added
