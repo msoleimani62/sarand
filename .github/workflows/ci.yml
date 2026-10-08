@@ -40,10 +40,10 @@ jobs:
             python-version: "3.14"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -53,7 +53,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -161,7 +161,7 @@ jobs:
         # از صفحه‌ی Summary همین اجرا، بخش Artifacts (پایین صفحه) دانلود
         # کنید، بدون هیچ نیازی به اسکرول یک لاگ خام روی صفحه‌ی موبایل.
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pytest-log-${{ matrix.os }}-py${{ matrix.python-version }}
           path: pytest.log

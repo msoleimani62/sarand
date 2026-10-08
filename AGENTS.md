@@ -1492,10 +1492,9 @@ and a real `syft` run with a policy present.
 7. Pin the ruff rule set in the repo (`pyproject.toml` has no
    `[tool.ruff]`; three lint rounds were spent on rules the assistant could
    not see).
-8. CI housekeeping: GitHub Actions on Node 20 are deprecated
-   (`actions/checkout@v4`, `setup-python@v5`, `cache@v4`); `ubuntu-24.04`
-   is pinned and the `ubuntu-latest` migration to 26 should be tested on
-   purpose.
+8. CI housekeeping: the Node 20 actions were moved to Node 24 majors on
+   2026-10-08 (section 5.57). `ubuntu-24.04` is pinned and the
+   `ubuntu-latest` migration to 26 should be tested on purpose.
 9. Cross-platform known gaps (§5.13): Windows installer (`install.sh` is
    POSIX-only), OSC 52 via `/dev/tty` on Windows, `device_report` path
    rules; a real macOS/Windows report should be eyeballed once.
@@ -3830,3 +3829,38 @@ JSON analyzer, which did not match the root).
 **Not covered:** per-package health scores; analyzers that only match a
 directory deeper than three levels; a repository with both a Cargo and a Node
 workspace (open gap of 5.50).
+
+### 5.57 — CI actions moved to their Node 24 majors (2026-10-08)
+
+Backlog item 8 had recorded that the first-party actions in
+`.github/workflows/ci.yml` ran on the deprecated Node 20. Every CI run since
+then carried the annotation "Node.js 20 is deprecated ... actions/cache@v4,
+actions/checkout@v4, actions/setup-python@v5 ... forced to run on Node.js 24":
+GitHub already overrides the runtime, so the jobs passed, but the override is
+a transition aid, not a contract (the runner is documented to drop Node 20
+altogether), and `upload-artifact@v4` would have followed.
+
+**Evidence for the versions** (release notes read on 2026-10-08, not from
+memory): `actions/cache@v5` runs on Node 24 (it also needs runner >= 2.327.1
+and invalidates existing cache keys once); `actions/upload-artifact@v6` is the
+release that makes Node 24 the default (v7 only adds an ESM bundle and the
+`archive` option); `actions/setup-python@v6` and `actions/checkout@v6` are the
+Node 24 majors (v7 of both exists; the smallest Node 24 major was chosen so the
+change stays a pure runtime bump). `dtolnay/rust-toolchain@stable` is a
+composite action and needs no change. GitHub-hosted runners satisfy the
+runner version; self-hosted ones would need to be updated first.
+
+**Change.** Four version numbers in `ci.yml`: checkout v4 to v6, setup-python
+v5 to v6, cache v4 to v5, upload-artifact v4 to v6. Nothing else in the
+workflow or in the code changed.
+
+**Expected, not a regression.** The first run after the change has a cold
+cargo cache (new key space), so it is slower once. The annotations about Node
+20 should be gone; if one remains, read which action it names.
+
+**Not verifiable locally.** There is no way to run the workflow here: the
+check is the next CI run, and `scripts/release.py tag` refuses to tag unless
+it is green. Older 5.x text that names `actions/checkout@v4` or
+`upload-artifact@v4` (5.4x, the pytest log artifact) describes the workflow as
+it was and is left as history; `core/coverage.py` mentions
+`actions/checkout@v4` only as an example of a working directory.
