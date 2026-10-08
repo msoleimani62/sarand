@@ -385,3 +385,14 @@ class ReportData:
     makefile: MakefileInfo | None = None
     components: ComponentsInfo | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    # Workspaces after the first one (a repository with both a Cargo and a
+    # Node workspace). `workspace` stays the first so every existing reader
+    # keeps working; empty for every ordinary project.
+    # workspaceهای بعد از اولی؛ `workspace` همان اولی می‌ماند.
+    extra_workspaces: list[WorkspaceInfo] = field(default_factory=list)
+
+    @property
+    def all_workspaces(self) -> list[WorkspaceInfo]:
+        """`workspace` followed by `extra_workspaces`; empty when none."""
+        first = [self.workspace] if self.workspace is not None else []
+        return [*first, *self.extra_workspaces]

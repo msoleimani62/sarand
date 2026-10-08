@@ -86,13 +86,27 @@ else:  # Python 3.10: same parser, packaged separately
     import tomli as tomllib
 
 
-def detect_workspace(root: Path) -> WorkspaceInfo | None:
-    """Try every workspace model this module currently knows how to
-    detect, in order, and return the first match (or `None`). Today
-    that is Cargo alone -- see the module docstring for the audit of
-    what else is and isn't implemented yet.
+def detect_workspaces(root: Path) -> list[WorkspaceInfo]:
+    """Every workspace declared at `root`, Cargo first, then npm / Yarn /
+    pnpm. A repository can legitimately have both (a Rust workspace with a
+    JavaScript front end); recording only the first one hid the other's
+    members from the report and made the planner treat them as stray nested
+    packages (AGENTS.md section 5.58). The list is empty for an ordinary
+    project, and every detector is cheap and self-limiting.
+
+    همه‌ی workspaceهای اعلام‌شده در ریشه، اول Cargo و بعد npm / Yarn / pnpm.
     """
-    return _detect_cargo_workspace(root) or detect_node_workspace(root)
+    found = (_detect_cargo_workspace(root), detect_node_workspace(root))
+    return [workspace for workspace in found if workspace is not None]
+
+
+def detect_workspace(root: Path) -> WorkspaceInfo | None:
+    """The first workspace of `detect_workspaces(root)` (Cargo before Node),
+    or `None`. Kept for callers that only need one; the report and the
+    planner use `detect_workspaces`.
+    """
+    workspaces = detect_workspaces(root)
+    return workspaces[0] if workspaces else None
 
 
 def _detect_cargo_workspace(root: Path) -> WorkspaceInfo | None:

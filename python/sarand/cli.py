@@ -49,7 +49,7 @@ from sarand.core.per_component import (
 )
 from sarand.core.sbom import run_syft
 from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
-from sarand.core.workspace import detect_workspace
+from sarand.core.workspace import detect_workspaces
 from sarand.discovery.project_detector import detect_project
 from sarand.models.results import ReportData
 from sarand.progress import error, status, success, warning
@@ -318,7 +318,8 @@ async def run(config: SarandConfig) -> int:
     # (غیر-workspace) بلافاصله None برمی‌گرداند. برای اینکه کدام
     # مدل‌های workspace فعلاً تشخیص داده می‌شوند و کدام نه،
     # core/workspace.py را ببینید.
-    workspace = detect_workspace(root)
+    workspaces = detect_workspaces(root)
+    workspace = workspaces[0] if workspaces else None
     kubernetes = detect_kubernetes(root)
     compose = detect_compose(root)
     makefile = detect_makefiles(root)
@@ -468,7 +469,7 @@ async def run(config: SarandConfig) -> int:
     # فقط پروژه‌ی ترکیبی: آنالایزرهایی که ریشه را match نمی‌کنند داخل
     # اجزای application اجرا می‌شوند (core/per_component.py).
     component_plan = plan_component_runs(
-        root, components, all_analyzers, active, workspace
+        root, components, all_analyzers, active, workspaces
     )
 
     # BUG FIX (user report: --full "gets stuck on Git information" for
@@ -598,6 +599,7 @@ async def run(config: SarandConfig) -> int:
         secret_findings=secret_findings,
         known_issues=known,
         workspace=workspace,
+        extra_workspaces=workspaces[1:],
         kubernetes=kubernetes,
         compose=compose,
         makefile=makefile,

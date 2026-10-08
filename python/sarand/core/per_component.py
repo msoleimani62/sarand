@@ -87,6 +87,18 @@ workspace) اجرای ریشه به زیرپوشه نمی‌رسد؛ پس در �
 داخل پوشه‌ی اجزای تو در تو هم اجرا می‌شوند، مگر ریشه خودش آن پوشه را پوشش
 بدهد (عضو workspace، یا `go.work`). Python مثل قبل پوشش‌داده‌شده حساب می‌شود.
 
+**Several workspaces (5.58).** A repository can have a Cargo workspace and a
+Node workspace at once. `plan_component_runs` accepts one `WorkspaceInfo` or a
+list of them and takes the members of each kind from the matching workspace:
+Cargo members are covered by `cargo test --all`, Node members are run as
+workspace members (tests and lint, never `security`). Before this, only the
+first workspace was known, so the Node members of such a repository were
+planned as stray nested packages and got a per-member `npm audit`.
+
+چند workspace (۵.۵۸): مخزن می‌تواند هم workspace Cargo و هم Node داشته باشد؛
+برنامه‌ریز یک `WorkspaceInfo` یا فهرستی از آن‌ها می‌پذیرد و اعضای هر نوع را از
+workspace خودش می‌خواند.
+
 **Workspace members (npm / Yarn / pnpm, follow-up 1 of the backlog status).**
 `core/node_workspace.py` detects these workspaces. `npm test` at the root
 only runs the root's script, so the members are tested and linted by running
@@ -146,6 +158,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -175,6 +188,7 @@ _MAX_TARGETS = 8
 _MAX_MEMBER_TARGETS = 20
 _ALL_PHASES = frozenset({"tests", "quality", "security"})
 _NODE_WORKSPACE_KINDS = frozenset({"npm", "yarn", "pnpm"})
+_CARGO_WORKSPACE_KINDS = frozenset({"cargo"})
 _DISABLE_ENV = "SARAND_NO_COMPONENTS"
 
 
@@ -215,17 +229,34 @@ def _safe_matches(analyzer: LanguageAnalyzer, directory: Path) -> bool:
 _NON_RECURSIVE = (NodeAnalyzer, GoAnalyzer, RustAnalyzer)
 
 
+# One workspace, several, or none: callers that know only one keep working.
+# یک workspace، چند تا، یا هیچ: فراخوانی‌های قدیمی تک‌workspace هم کار می‌کنند.
+Workspaces = WorkspaceInfo | Sequence[WorkspaceInfo] | None
+
+
+def _workspaces(workspace: Workspaces) -> list[WorkspaceInfo]:
+    if workspace is None:
+        return []
+    if isinstance(workspace, WorkspaceInfo):
+        return [workspace]
+    return list(workspace)
+
+
+def _member_paths(workspaces: list[WorkspaceInfo], kinds: frozenset[str]) -> set[str]:
+    """Member directories of every workspace whose kind is in `kinds`."""
+    return {m.path for ws in workspaces if ws.kind in kinds for m in ws.members}
+
+
 def _covered_paths(
-    analyzer: LanguageAnalyzer, root: Path, workspace: WorkspaceInfo | None
+    analyzer: LanguageAnalyzer, root: Path, workspace: Workspaces
 ) -> set[str] | None:
     """Directories the root run of `analyzer` already covers. `None` means
     "everything below the root" (Go with `go.work`)."""
-    members = {m.path for m in workspace.members} if workspace else set()
-    kind = workspace.kind if workspace else ""
+    workspaces = _workspaces(workspace)
     if isinstance(analyzer, NodeAnalyzer):
-        return members if kind in _NODE_WORKSPACE_KINDS else set()
+        return _member_paths(workspaces, _NODE_WORKSPACE_KINDS)
     if isinstance(analyzer, RustAnalyzer):
-        return members if kind == "cargo" else set()
+        return _member_paths(workspaces, _CARGO_WORKSPACE_KINDS)
     if isinstance(analyzer, GoAnalyzer):
         return None if (root / "go.work").exists() else set()
     return set()
@@ -246,7 +277,7 @@ def _component_targets(
     components: ComponentsInfo | None,
     all_analyzers: list[LanguageAnalyzer],
     active: list[LanguageAnalyzer],
-    workspace: WorkspaceInfo | None = None,
+    workspace: Workspaces = None,
 ) -> list[ComponentTarget]:
     """Components of a hybrid project, or the nested packages of a project
     that is not hybrid: analyzers that do not match the root, plus the
@@ -261,11 +292,8 @@ def _component_targets(
         }
     )
     root_ids = {id(a) for a in active}
-    node_members = (
-        {m.path for m in workspace.members}
-        if workspace is not None and workspace.kind in _NODE_WORKSPACE_KINDS
-        else set()
-    )
+    workspaces = _workspaces(workspace)
+    node_members = _member_paths(workspaces, _NODE_WORKSPACE_KINDS)
     claimed: dict[int, list[str]] = {}
     targets: list[ComponentTarget] = []
 
@@ -280,7 +308,7 @@ def _component_targets(
             if on_root:
                 if not isinstance(analyzer, _NON_RECURSIVE):
                     continue
-                covered = _covered_paths(analyzer, root, workspace)
+                covered = _covered_paths(analyzer, root, workspaces)
                 if covered is None or path in covered:
                     continue
             if any(_is_inside(path, c) for c in claimed.get(id(analyzer), [])):
@@ -304,12 +332,15 @@ def _component_targets(
 
 def _workspace_targets(
     root: Path,
-    workspace: WorkspaceInfo | None,
+    workspace: Workspaces,
     all_analyzers: list[LanguageAnalyzer],
 ) -> list[ComponentTarget]:
     """npm / Yarn / pnpm workspace members: the Node.js analyzer's tests and
     lint inside each member, minus whatever the root already fans out."""
-    if workspace is None or workspace.kind not in _NODE_WORKSPACE_KINDS:
+    node_workspace = next(
+        (w for w in _workspaces(workspace) if w.kind in _NODE_WORKSPACE_KINDS), None
+    )
+    if node_workspace is None:
         return []
     node = next((a for a in all_analyzers if isinstance(a, NodeAnalyzer)), None)
     if node is None:
@@ -323,7 +354,7 @@ def _workspace_targets(
         return []
     return [
         ComponentTarget(m.path, root / m.path, (node,), frozenset(phases))
-        for m in workspace.members
+        for m in node_workspace.members
         if m.path != "." and _safe_matches(node, root / m.path)
     ]
 
@@ -369,7 +400,7 @@ def plan_component_runs(
     components: ComponentsInfo | None,
     all_analyzers: list[LanguageAnalyzer],
     active: list[LanguageAnalyzer],
-    workspace: WorkspaceInfo | None = None,
+    workspace: Workspaces = None,
 ) -> ComponentPlan:
     """Decide what to run inside which directory (see the module docstring
     for the rules). Returns an empty plan for a project with no nested

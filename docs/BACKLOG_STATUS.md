@@ -59,9 +59,10 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    system` label is now pnpm/yarn/bun where it applies and a missing
    lockfile no longer turns `npm audit` into a false FAILED check. Test and
    lint commands deliberately still use `npm` (they work in pnpm/Yarn repos;
-   switching would skip checks where those tools are absent). Still open: a
-   repo with both a Cargo and a Node workspace, Nx/Turborepo task graphs,
-   per-package scores.
+   switching would skip checks where those tools are absent). A repo with
+   both a Cargo and a Node workspace is modelled since 2026-10-08
+   (AGENTS.md 5.58). Still open: Nx/Turborepo task graphs, per-package
+   scores.
 2. **A root analyzer that does not cascade hides its components -- fixed
    2026-10-06** (AGENTS.md 5.52) for Node.js, Go and Rust in hybrid
    projects, and since 2026-10-08 (AGENTS.md 5.55, 5.56) in non-hybrid

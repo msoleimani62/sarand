@@ -104,23 +104,30 @@ def _render_workspace(data: ReportData) -> list[str]:
     non-workspace project's report looks like, unlike
     `_render_detected_project` which always shows something.
     """
-    ws = data.workspace
-    if ws is None:
-        return []
-    lines = [
-        "## Workspace",
-        "",
-        f"- **Kind:** {ws.kind}",
-        f"- **Members:** {len(ws.members)}",
-    ]
-    if ws.exclude_patterns:
-        excluded = ", ".join(f"`{p}`" for p in ws.exclude_patterns)
-        lines.append(f"- **Excluded:** {excluded}")
-    lines.append("")
-    if ws.members:
-        lines.extend(["| Member | Path |", "|---|---|"])
-        lines.extend(f"| {m.name} | `{m.path}` |" for m in ws.members)
+    workspaces = data.all_workspaces
+    lines: list[str] = []
+    for ws in workspaces:
+        # One workspace keeps the plain heading; with several, each one is
+        # named by its kind so the sections stay distinguishable.
+        # با چند workspace، هر بخش با نوعش نام‌گذاری می‌شود.
+        suffix = "" if len(workspaces) == 1 else f" ({ws.kind})"
+        heading = f"## Workspace{suffix}"
+        lines.extend(
+            [
+                heading,
+                "",
+                f"- **Kind:** {ws.kind}",
+                f"- **Members:** {len(ws.members)}",
+            ]
+        )
+        if ws.exclude_patterns:
+            excluded = ", ".join(f"`{p}`" for p in ws.exclude_patterns)
+            lines.append(f"- **Excluded:** {excluded}")
         lines.append("")
+        if ws.members:
+            lines.extend(["| Member | Path |", "|---|---|"])
+            lines.extend(f"| {m.name} | `{m.path}` |" for m in ws.members)
+            lines.append("")
     return lines
 
 

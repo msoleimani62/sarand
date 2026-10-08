@@ -3864,3 +3864,67 @@ it is green. Older 5.x text that names `actions/checkout@v4` or
 `upload-artifact@v4` (5.4x, the pytest log artifact) describes the workflow as
 it was and is left as history; `core/coverage.py` mentions
 `actions/checkout@v4` only as an example of a working directory.
+
+### 5.58 — Every workspace of a repository is modelled (2026-10-08)
+
+Backlog status item 1 listed one confirmed gap that 5.56 then measured: a
+repository with both a Cargo and a Node workspace recorded only Cargo, because
+`detect_workspace` returned the first match (`cargo`, then `npm`). Everything
+that consumed a workspace saw one.
+
+**Audit** (v0.6.16, a Cargo workspace `crates/*` with a root package, an npm
+workspace `packages/*` with members `a` and `b`, and a standalone
+`tools/cli`): `detect_workspace` reported `cargo` with members `.` and
+`crates/x`; the planner therefore did not know `packages/a` and `packages/b`
+were Node members, planned them as nested Node packages with the phases
+`quality`, `security` and `tests` (a per-member `npm audit`, which 5.50 forbids)
+and never ran them as members. The report listed only the Cargo workspace.
+CONFIRMED. A repository like this is always hybrid (Rust and Node), which is
+why it never went through the non-hybrid path.
+
+**Design.** The fix is in the model, not in the planner alone:
+
+- `core/workspace.py`: `detect_workspaces(root) -> list[WorkspaceInfo]`
+  (Cargo first, then Node; empty for an ordinary project).
+  `detect_workspace(root)` stays and returns the first one, so no existing
+  caller or test changes.
+- `models/results.py`: `ReportData.extra_workspaces` (every workspace after
+  the first, default empty) and the property `all_workspaces`. `workspace`
+  stays the first one, so every existing reader keeps working. The new field
+  is last, so positional construction is unaffected.
+- `core/per_component.py`: `plan_component_runs` takes a `WorkspaceInfo`, a
+  list of them or `None` (type `Workspaces`; one tiny normaliser). Member paths
+  are collected per kind, so Cargo members are covered by `cargo test --all`
+  and Node members are planned as members (phases `tests` and `quality` only,
+  never `security`), whichever workspace was found first.
+- `renderers/markdown.py`: one `## Workspace` section as before for a single
+  workspace; with several, `## Workspace (cargo)` and `## Workspace (npm)`.
+- `renderers/json_renderer.py`: `workspace` is unchanged (the first); a
+  `workspaces` list (all of them, same shape) appears only when there is more
+  than one, so ordinary reports and the golden snapshots are byte-identical.
+- `cli.py`: calls `detect_workspaces`, passes the list to the planner and
+  stores `workspaces[1:]` as `extra_workspaces`.
+- Docs: `docs/WORKSPACES.md` and `.fa.md` (the "not supported" bullet is gone,
+  the report and run rules mention both workspaces). The same pass fixed a
+  sentence left stale by 5.55 and 5.56: both files still said a project that is
+  not hybrid gets no nested runs.
+
+**After** (same fixture): `packages/a` and `packages/b` are planned once each
+with the phases `quality` and `tests`; `tools/cli` keeps `quality`, `security`
+and `tests` (a standalone package has its own lockfile); `crates/x` is not
+planned for Rust. The report and the JSON carry both workspaces.
+
+**Deliberately not changed.** No third workspace kind was added (Gradle,
+Maven, Bazel, Nx and Turborepo stay as recorded in `docs/WORKSPACES.md`).
+`detect_workspace` is not removed. The root-script and ESLint rules for
+members are the 5.50 ones, applied to whichever Node workspace exists.
+
+Tests: `tests/test_multi_workspace.py` (12) -- both detected and ordered, one
+or none, `detect_workspace` equals the first, a list and a single workspace
+plan identically, the audited phases before/after on the real analyzers,
+order independence, cascading root scripts, the Node-only and Cargo-only
+cases unchanged, and the markdown and JSON shapes for one and for several
+workspaces. **Not covered:** two Node workspaces in one root (npm and pnpm
+declarations are already resolved to one by `node_workspace.py`); workspaces
+below the root (nested Cargo workspaces are a nested-package question, see
+5.55 and 5.56).

@@ -9,8 +9,16 @@ from pathlib import Path
 from typing import Any
 
 from sarand.core.quick_context import build_quick_context
-from sarand.models.results import ReportData
+from sarand.models.results import ReportData, WorkspaceInfo
 from sarand.progress import status
+
+
+def _workspace_payload(workspace: WorkspaceInfo) -> dict[str, Any]:
+    return {
+        "kind": workspace.kind,
+        "members": [m.__dict__ for m in workspace.members],
+        "exclude_patterns": workspace.exclude_patterns,
+    }
 
 
 def render(
@@ -62,11 +70,13 @@ def render(
     # بگیرد (و، نه اتفاقی، snapshotهای golden موجود -- آیتم ۶.۱ -- را
     # با این افزوده‌ی نامرتبط دست‌نخورده نگه می‌دارد).
     if data.workspace is not None:
-        payload["workspace"] = {
-            "kind": data.workspace.kind,
-            "members": [m.__dict__ for m in data.workspace.members],
-            "exclude_patterns": data.workspace.exclude_patterns,
-        }
+        payload["workspace"] = _workspace_payload(data.workspace)
+    # Only a repository with more than one workspace gets this key (the
+    # first entry equals `workspace`), so ordinary reports and the golden
+    # snapshots stay byte-identical.
+    # فقط مخزنی با بیش از یک workspace این کلید را می‌گیرد.
+    if data.extra_workspaces:
+        payload["workspaces"] = [_workspace_payload(w) for w in data.all_workspaces]
 
     # Same conditional-key contract as `workspace` above: absent
     # entirely unless Helm charts or Kustomize overlays were detected.

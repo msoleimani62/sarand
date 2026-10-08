@@ -8,7 +8,10 @@ sarand understands two kinds of multi-package repositories.
 | **npm / Yarn / pnpm workspace** | `"workspaces"` in the root `package.json` (array, or Yarn's `{"packages": [...]}`), or `pnpm-workspace.yaml` | Lists the members and runs tests and lint **inside each member**. |
 
 The report gets a **Workspace** section (kind and members) and, in JSON, a
-`workspace` key. Results from a member are labelled with its path, for
+`workspace` key. A repository with **both** a Cargo and a Node workspace gets
+one section per workspace (`## Workspace (cargo)`, `## Workspace (npm)`) and,
+in JSON, a `workspaces` list next to the unchanged `workspace` key (the first
+entry). Results from a member are labelled with its path, for
 example `packages/api: npm test`, so they are never confused with the root's.
 
 ## How Node workspaces are run
@@ -18,7 +21,9 @@ reach the packages. So sarand runs the Node.js analyzer in every member
 directory (`npm test` when the member has a `test` script, `npm run lint` and
 `eslint` when it is configured). Members run one after another, at most **20**
 of them; if there are more, one skipped result tells you how many were left
-out.
+out. This holds when the repository also has a Cargo workspace: the Node
+members are run as members (tests and lint, never `npm audit`) and the Cargo
+members are covered by `cargo test --all`.
 
 To avoid reporting anything twice, sarand skips a phase for the members when
 the root already covers it:
@@ -53,9 +58,6 @@ failing root suite would.
   all. Nx and Turborepo sit on top of an npm/Yarn/pnpm workspace: that
   workspace is detected, and a root script that calls them is recognised as
   fanning out, but their task graphs are not read.
-- **A repository with both a Cargo workspace and a Node workspace.** Cargo is
-  detected first and only one workspace is recorded, so the Node members are
-  not run.
 - **Package-manager-specific commands.** Members are still tested with
   `npm test`, even in a pnpm or Yarn repository; the scripts run, but a repo
   that forbids `npm` through corepack needs its own tooling.
@@ -73,6 +75,8 @@ workspace member, or anything in a repository with a `go.work`. Root test and
 lint scripts that fan out, or a root ESLint configuration, drop those phases
 exactly as for workspace members. Python needs no such rule, because the root
 `pytest` and `ruff` recurse. A project that is not hybrid (one package kind, no
-compose, Kubernetes or Terraform) does not get nested runs.
+compose, Kubernetes or Terraform) is planned by the same rule: an analyzer
+that does not match the root runs inside each nested package, one that does is
+not repeated (except the three above).
 
 Persian: [WORKSPACES.fa.md](WORKSPACES.fa.md)
