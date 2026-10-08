@@ -3613,3 +3613,52 @@ asserts the member phases). **Not covered:** a project that is not hybrid
 package of the same kind is still not run); Go modules listed in a `go.work`
 (treated as covered); Maven/Gradle nested builds (the root build is assumed to
 cover its modules).
+
+### 5.53 — Package-manager awareness for Node projects (2026-10-07)
+
+Follow-up from the workspace round (5.50), which had recorded "`build system`
+still says `npm` for pnpm/Yarn repos". Audited with a pnpm, a Yarn and a
+lockfile-less Node fixture against v0.6.14, through `NodeAnalyzer` and
+`detect_project`:
+
+1. `build system` was `npm` for all three (every `package.json` maps to
+   `npm` in the marker table): wrong in Detected Project, Quick Context, text
+   and HTML.
+2. **A false security failure.** With `--security`, `npm audit` ran
+   unconditionally and exited 1 with `ENOLOCK` ("requires an existing
+   lockfile") for all three. It was recorded as a FAILED check, not skipped,
+   so it lowered the health score and appeared in Quick Context's Risks, with
+   nothing wrong in the project. `npm audit` only reads `package-lock.json` /
+   `npm-shrinkwrap.json`.
+
+New `core/node_pm.py`: `node_package_manager(root)` (`packageManager` field
+first, then `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`/`bun.lockb`,
+`package-lock.json`/`npm-shrinkwrap.json`, then a root `pnpm-workspace.yaml`,
+else `npm`); `refine_build_system(detection, root)` corrects only the label,
+and only when it says `npm` or (pnpm workspace file present) nothing was
+detected -- other build systems and every other field are untouched, and the
+same object comes back when nothing changes; `audit_skip_reason(root)` is
+`None` when a lockfile `npm audit` understands exists, else a sentence naming
+the real reason and the right command (`pnpm audit`, `yarn npm audit` /
+`yarn audit`, `npm install`). `NodeAnalyzer.run_security` returns a SKIPPED
+`npm audit` result with that reason instead of running (npm-missing is still
+reported first); `cli.py` calls `refine_build_system` right after
+`refine_detection`. Skipped, not failed, is the honest classification: health
+already lists skipped checks and lowers confidence for them.
+
+**Deliberately not changed -- test and lint commands.** Root and members are
+still run with `npm test` / `npm run lint`. That works in pnpm and Yarn
+repositories (scripts only call binaries in `node_modules/.bin`), while
+switching to `pnpm`/`yarn` would turn into a skipped check on every machine
+without them. `pnpm audit` / `yarn audit` are not run either (flags differ per
+Yarn major; needs the tool and the network).
+
+Tests: `tests/test_node_pm.py` (15) -- detection from every lockfile and from
+`packageManager` (which wins, and falls back when unknown or malformed), the
+label refinement and its non-effects, the pnpm-only root, every skip message,
+the analyzer skipping vs still auditing with a `package-lock.json`, npm-missing
+precedence, and a real `cli.main` report showing `Build system: pnpm`.
+
+Not covered: Deno, Bun-specific test runners, `.yarnrc` Plug'n'Play
+specifics, a monorepo whose members use a different package manager than the
+root.

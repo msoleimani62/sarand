@@ -167,6 +167,19 @@ class NodeAnalyzer:
         # a legitimate FAIL result, not a crash, so we still wrap it normally.
         # npm audit وقتی آسیب‌پذیری پیدا کند با کد غیرصفر خارج می‌شود -- این
         # یک نتیجه‌ی FAIL معتبر است، نه یک کرش، پس طبق روال عادی wrap می‌شود.
+        # `npm audit` only reads package-lock.json / npm-shrinkwrap.json; without
+        # one it exits ENOLOCK, which is not a finding about the project.
+        # بدون lockfile، `npm audit` با ENOLOCK خارج می‌شود که یافته‌ای درباره‌ی
+        # پروژه نیست؛ پس skipped با دلیل واقعی.
+        from sarand.core.node_pm import audit_skip_reason
+
+        reason = audit_skip_reason(root)
+        if reason is not None:
+            return [
+                make_command_result(
+                    "npm audit", 0, "", 0.0, skipped=True, skip_reason=reason
+                )
+            ]
         rc, out, dur = await run_cmd_async(
             ["npm", "audit", "--audit-level=moderate"], root, LONG_CMD_TIMEOUT
         )

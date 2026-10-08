@@ -55,10 +55,13 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 1. **npm / pnpm / Yarn workspaces -- first scope done 2026-10-04**
    (AGENTS.md 5.50, `docs/WORKSPACES.md`). Members are detected and their
    tests and lint run inside each member, with duplicate prevention.
-   Still open: package-manager-specific commands (members are tested with
-   `npm test` even in pnpm/Yarn repos and the `build system` label still
-   says `npm`), a repo with both a Cargo and a Node workspace, Nx/Turborepo
-   task graphs, per-package scores.
+   Package-manager awareness (2026-10-07, AGENTS.md 5.53): the `build
+   system` label is now pnpm/yarn/bun where it applies and a missing
+   lockfile no longer turns `npm audit` into a false FAILED check. Test and
+   lint commands deliberately still use `npm` (they work in pnpm/Yarn repos;
+   switching would skip checks where those tools are absent). Still open: a
+   repo with both a Cargo and a Node workspace, Nx/Turborepo task graphs,
+   per-package scores.
 2. **A root analyzer that does not cascade hides its components -- fixed
    2026-10-06** (AGENTS.md 5.52) for Node.js, Go and Rust in hybrid
    projects. Still open: a project that is not hybrid (one package kind and

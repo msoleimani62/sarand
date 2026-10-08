@@ -40,6 +40,7 @@ from sarand.core.issues import detect_known_issues
 from sarand.core.kubernetes import detect_kubernetes
 from sarand.core.lockfiles import run_lockfile_check
 from sarand.core.makefile import detect_makefiles
+from sarand.core.node_pm import refine_build_system
 from sarand.core.per_component import (
     plan_component_runs,
     run_component_quality,
@@ -325,6 +326,7 @@ async def run(config: SarandConfig) -> int:
     # Hybrid projects: describe the whole project, not just its root.
     # پروژه‌ی ترکیبی: کل پروژه را توصیف کن، نه فقط ریشه را.
     detection = refine_detection(detection, components)
+    detection = refine_build_system(detection, root)
     if detection.is_recognized:
         status(f"Detected: {', '.join(detection.languages)} ({detection.build_system})")
     else:
