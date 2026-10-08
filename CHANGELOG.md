@@ -4,6 +4,34 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.16] - 2026-10-08
+
+### Fixed
+
+- Projects that are not hybrid (one package kind and no compose, Kubernetes or
+  Terraform) never had their nested packages tested, linted or audited: a
+  standalone `tools/cli/package.json`, a nested Go module or Rust crate, or the
+  services of a repository whose root has no project file at all (a `Makefile`
+  plus `services/a` and `services/b`, or two Maven modules) produced no runs.
+  They are now planned exactly like the components of a hybrid project: an
+  analyzer that does not match the root runs inside each nested package, one
+  that does is not repeated (except the non-recursive Node.js, Go and Rust
+  analyzers, with the existing workspace, Cargo-member and `go.work` coverage
+  rules). Runs are labelled `<dir>: <check>`, capped at 8 directories with an
+  omitted note, and `SARAND_NO_COMPONENTS=1` turns them off. `examples/`,
+  `tests/`, `fixtures/` and `vendor/` are never scanned.
+
+### Changed
+
+- In a workspace-only Node.js root (`pnpm-workspace.yaml` without a root
+  `package.json`) the members now also get the JSON analyzer, which did not
+  match the root.
+
+### Documentation
+
+- `AGENTS.md` sections 5.55 and 5.56 record the audit, the change, the accepted
+  trade-off and what is not covered.
+
 ## [0.6.15] - 2026-10-08
 
 ### Fixed
