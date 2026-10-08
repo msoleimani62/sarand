@@ -3726,3 +3726,60 @@ CI, and tests there run through a stub runner. A few tests fail in that
 sandbox only (`test_analyzers` pinned requirements, `test_new_ecosystems`
 skips, some license/lockfile tests); they also failed on the untouched
 archive and pass in real CI.
+
+### 5.55 — Follow-up 2, second half: nested packages in non-hybrid projects (2026-10-08)
+
+5.52 closed the gap for hybrid projects and recorded the rest: *a project that
+is not hybrid gets no nested runs*, because `detect_components` returns `None`
+and `plan_component_runs` had nothing to plan from.
+
+**Audit** (five fixtures, run against v0.6.15 through `detect_components` and
+`plan_component_runs`): Node root + standalone `tools/cli`; Node root + two
+nested packages; Go root + nested module; Rust root + nested non-member crate;
+a root with only a `Makefile`. `detect_components` was `None` and the plan was
+EMPTY in all five -- the nested packages were never tested, linted or audited.
+CONFIRMED. (A sixth fixture meant as a hybrid control was invalid: it passed
+no compose information, so it was not hybrid either; the existing hybrid tests
+in `tests/test_nested_packages.py` remain the control.)
+
+**Change** (`core/components.py`, `core/per_component.py`; no model, CLI or
+report change): new `nested_application_components(root)` returns the
+application components below the root with the same discovery rules as the
+component view (depth 3, `_SKIP_DIRS` pruned, so `examples/`, `tests/`,
+`fixtures/`, `vendor/` never count). When `plan_component_runs` gets
+`components=None` it builds a throw-away `ComponentsInfo` from them and calls
+`_component_targets(..., nested_only=True)`, which keeps ONLY the three
+non-recursive analyzers (Node.js, Go, Rust) and applies the existing coverage
+rules (workspace members, Cargo members, `go.work`, the Node phase rules,
+outermost directory wins, cap 8 directories with an omitted note,
+`SARAND_NO_COMPONENTS=1`).
+
+**Deliberately not changed.** The report gets no Project Components section
+for these projects (it is still emitted only for hybrid ones). No other
+analyzer runs in a nested directory: running every analyzer that does not
+match the root, as hybrid projects do, would add Dockerfile / JSON / YAML
+runs to ordinary projects. Python stays covered by the root `pytest`/`ruff`.
+
+Two existing tests pinned the old behaviour and were updated:
+`test_not_hybrid_means_no_nested_runs` (`tests/test_nested_packages.py`, an
+empty plan; it now asserts that the nested package is planned) and
+`test_non_node_or_missing_workspaces_plan_nothing`
+(`tests/test_node_workspace.py`; it injected workspace info that does not
+match the packages, which are now planned as standalone packages -- it asserts
+that none of them gets member runs, because members never get `security`).
+
+**Observation, not changed.** A repository with both a Cargo and a Node
+workspace is always hybrid (the Rust and Node signatures differ), so it goes
+through the 5.52 path, where `detect_workspace` reports only Cargo: its Node
+members are planned as nested packages with the `security` phase, i.e. a
+per-member `npm audit` (5.50 says that never happens; without a lockfile of its
+own it is a SKIPPED result since 5.53). This is the already-listed gap "a repo
+with both workspaces records only Cargo"; fixing it means modelling both.
+
+Tests: `tests/test_nested_non_hybrid.py` (11) -- the audited Node, Go and Rust
+cases, `go.work` and Cargo-member coverage, a Node workspace member planned
+once, a root without a marker, fan-out and ESLint phase rules, skipped
+directories, Python unchanged, a plain project with an empty plan, the cap and
+the escape hatch. **Not covered:** a root without a marker whose nested
+packages are Python, Java or any other analyzer (not planned outside hybrid
+projects); a repository with both a Cargo and a Node workspace.

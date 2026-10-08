@@ -64,8 +64,10 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    per-package scores.
 2. **A root analyzer that does not cascade hides its components -- fixed
    2026-10-06** (AGENTS.md 5.52) for Node.js, Go and Rust in hybrid
-   projects. Still open: a project that is not hybrid (one package kind and
-   no compose, Kubernetes or Terraform) gets no nested runs.
+   projects, and since 2026-10-08 (AGENTS.md 5.55) in non-hybrid projects
+   too, for these three analyzers. Still open: a root without a marker
+   whose nested packages are Python, Java, etc. (only Node.js, Go and Rust
+   are planned outside hybrid projects).
 3. **`detect_project()` is root-only -- description fixed 2026-10-05**
    (AGENTS.md 5.51). For hybrid repositories `refine_detection` now lists the
    components' languages, drops the `Generic` placeholder and no longer says

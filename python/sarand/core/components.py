@@ -490,6 +490,19 @@ def _is_hybrid(apps: list[Component], infra: list[Component]) -> bool:
     return bool(apps) and any(i.kind in _HYBRID_INFRA_KINDS for i in infra)
 
 
+def nested_application_components(root: Path) -> list[Component]:
+    """Application components below the root (never the root itself).
+
+    Used by `core/per_component.py` to plan nested runs for a project that is
+    NOT hybrid, where `detect_components` returns `None`. Same discovery rules
+    as the component view (bounded depth, `_SKIP_DIRS` pruned, weak markers
+    ignored), so `examples/`, `tests/`, `fixtures/` and `vendor/` never count.
+    کامپوننت‌های application زیر ریشه؛ برای برنامه‌ریزی اجرای تو در تو در
+    پروژه‌ی غیرهیبرید (جایی که detect_components مقدار None می‌دهد).
+    """
+    return [c for c in _application_components(root, _scan(root)) if c.path != "."]
+
+
 def detect_components(
     root: Path,
     kubernetes: KubernetesInfo | None = None,

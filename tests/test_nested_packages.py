@@ -194,12 +194,14 @@ def test_a_pnpm_only_hybrid_never_gives_members_the_security_phase() -> None:
                     assert "security" not in target.phases
 
 
-def test_not_hybrid_means_no_nested_runs() -> None:
+def test_not_hybrid_now_plans_nested_non_recursive_packages() -> None:
+    """Pinned the gap before 5.55 (`== ()`); see
+    tests/test_nested_non_hybrid.py for the full set."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         write(root / "package.json", _pkg("root"))
         write(root / "sub" / "package.json", _pkg("sub"))
-        assert _plan(root).targets == ()
+        assert {t.path for t in _plan(root).targets} == {"sub"}
 
 
 def test_each_analyzer_runs_once_per_phase_and_directory() -> None:

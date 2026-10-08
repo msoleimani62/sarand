@@ -318,8 +318,12 @@ def test_non_node_or_missing_workspaces_plan_nothing() -> None:
         cargo = WorkspaceInfo(
             kind="cargo", members=[WorkspaceMember("packages/a", "a")]
         )
-        assert _plan(root, cargo).targets == ()
-        assert _plan(root, None).targets == ()
+        # Workspace info that does not describe these packages: they are no
+        # members, so none may get member runs (members never get `security`);
+        # since 5.55 they are planned as standalone nested packages instead.
+        for workspace in (cargo, None):
+            for target in _plan(root, workspace).targets:
+                assert "security" in target.phases
         analyzers = [a for a in builtin_analyzers() if not isinstance(a, NodeAnalyzer)]
         plan = plan_component_runs(root, None, analyzers, [], detect_workspace(root))
         assert plan.targets == ()
