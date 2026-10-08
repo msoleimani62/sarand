@@ -13,7 +13,7 @@ those items lives only in that document. When follow-ups 1 to 4 are done (or
 dropped with a reason recorded here), delete `docs/BACKLOG.md` and this file;
 git history keeps both.
 
-Latest release: **v0.6.12**. Every released version carries its own number
+Latest release: **v0.6.15**. Every released version carries its own number
 in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 (`scripts/release.py` and `tests/test_distribution.py` enforce it).
 
@@ -37,7 +37,7 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 |---|---|---|
 | 6.1 Golden reports | Snapshot tests for representative reports | resolved |
 | 7.1 Capability matrix | `docs/COVERAGE.md`, generated from the analyzers | resolved |
-| 8 Monorepo / workspace | Cargo workspaces (v0.6.4); npm, Yarn and pnpm workspaces with member test and lint runs (unreleased) | v0.6.4 |
+| 8 Monorepo / workspace | Cargo workspaces (v0.6.4); npm, Yarn and pnpm workspaces with member test and lint runs (v0.6.13) | v0.6.4 |
 | 9 Report size, low memory | Fixed at the source: `syft` excludes (peak RSS 328 to 187 MiB) | v0.6.6 |
 | 5 Kubernetes | Helm charts and Kustomize overlays (detection) | v0.6.7 |
 | 6 Docker Compose | Compose files and services (detection) | v0.6.8 |

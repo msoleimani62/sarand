@@ -19,6 +19,10 @@
 > follow-ups listed there are done, because their Definition of Done lives in
 > it; then both files get deleted. This file keeps the permanent historical
 > record.
+>
+> **Starting a new session?** Read section 5.54 (handoff: state, working
+> loop, release procedure, lint and CI lessons) and `docs/BACKLOG_STATUS.md`,
+> then only the sections they point to.
 
 ---
 
@@ -3662,3 +3666,63 @@ precedence, and a real `cli.main` report showing `Build system: pnpm`.
 Not covered: Deno, Bun-specific test runners, `.yarnrc` Plug'n'Play
 specifics, a monorepo whose members use a different package manager than the
 root.
+
+### 5.54 — Session handoff (2026-10-08)
+
+For whoever (person or assistant) opens this repository in a new session.
+Nothing here is new behaviour; it collects what the 5.37 to 5.53 rounds
+taught about *how* work on sarand is done.
+
+**Where things stand.** Latest release v0.6.15 (tag on the release commit;
+the tag command refuses unless CI is green). It contains the package-manager
+round (5.53, `core/node_pm.py`). Nothing is unreleased at the time of writing.
+`docs/BACKLOG_STATUS.md` is the authoritative list of what remains and of
+what is deliberately out of scope; do not re-audit what it marks done.
+`docs/BACKLOG.md` is kept only until the follow-ups in the status file are
+finished (its Definition of Done for the monorepo and hybrid items lives
+there); then delete both. Versions live in `pyproject.toml`, `Cargo.toml`,
+`Cargo.lock` (`sarand_core`) and `pkgs/aur/PKGBUILD`; `scripts/release.py`
+and `tests/test_distribution.py` keep them equal.
+
+**Working loop.**
+1. Read the real code and, for a bug or gap, reproduce it on a small fixture
+   or a real report before changing anything (evidence first). Record what
+   was CONFIRMED and what was only suspected; never fix a guess.
+2. Smallest scope that closes the gap: detection or representation before
+   execution. Write the non-goals into the AGENTS.md section of the round.
+3. Deliver one change as: code, tests, an AGENTS.md section, a status-file
+   update. When the files touched are shared and may carry local fixes, ship
+   an idempotent apply script that edits by anchored replacement and aborts
+   without writing anything if an anchor is missing, rather than whole files.
+4. Run `ruff check --fix . && ruff format . && ruff format --check . &&
+   ruff check . && mypy python && pytest -q` before committing.
+5. A claim in the documentation is a claim to verify on a real machine (two
+   README statements were wrong until tested).
+
+**Release procedure.** Write the CHANGELOG entry and bump the four version
+places (a small release script using `scripts/release.py`'s `bump_texts`, or
+`python3 scripts/release.py bump X.Y.Z` once the entry exists), commit
+`release: vX.Y.Z`, push, then `python3 scripts/release.py tag && git push
+origin vX.Y.Z`. The tag command asks the GitHub CLI and refuses unless every
+CI run for `HEAD` succeeded (it fails closed; `--skip-ci-check` overrides).
+Never tag a red or unfinished commit: v0.6.10 was tagged on a commit whose
+Windows job was red.
+
+**Lint and CI lessons that cost a round each.**
+- ruff here flags `TRY004` (do not raise a non-`TypeError` right after
+  `if not isinstance(...)`; restructure), `EXE001` (a script with a shebang
+  must be executable), `FURB167` (`re.MULTILINE`, not `re.M`), `RUF015`.
+  `ruff format` rewraps long lines; run it before `ruff format --check`.
+- The py3.10 CI job runs mypy against 3.10: import `tomllib` with
+  `if sys.version_info >= (3, 11): ... else: import tomli as tomllib`.
+- Report paths are POSIX everywhere (`Path.as_posix()`); the Windows job
+  catches backslashes that Linux and macOS never show.
+- Anything a local newer Python hides will show up in CI; read the real log.
+
+**Known limits of this working environment** (assistant-side, not product
+limits): the assistant's sandbox has no ruff, mypy, pytest, rich, network or
+cargo, so lint and type errors surface only on the maintainer's machine or in
+CI, and tests there run through a stub runner. A few tests fail in that
+sandbox only (`test_analyzers` pinned requirements, `test_new_ecosystems`
+skips, some license/lockfile tests); they also failed on the untouched
+archive and pass in real CI.

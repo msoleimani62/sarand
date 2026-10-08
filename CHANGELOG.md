@@ -4,6 +4,27 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.15] - 2026-10-08
+
+### Fixed
+
+- Node.js projects: the `build system` shown in Detected Project, Quick
+  Context, text and HTML said `npm` even in pnpm, Yarn and Bun repositories.
+  It is now read from the `packageManager` field, then from the lockfile
+  (`pnpm-lock.yaml`, `yarn.lock`, `bun.lock`/`bun.lockb`, `package-lock.json`),
+  then from a root `pnpm-workspace.yaml`.
+- With `--security`, `npm audit` no longer shows up as a FAILED check (and no
+  longer lowers the health score or appears under Risks) in a project that has
+  no `package-lock.json`. `npm audit` only reads that file, so it exited with
+  `ENOLOCK` although nothing was wrong. The check is now SKIPPED, with the real
+  reason and the right command (`pnpm audit`, `yarn npm audit`, `npm install`).
+
+### Documentation
+
+- `AGENTS.md` section 5.54 is a session handoff: current state, working loop,
+  release procedure and the lint and CI lessons, so a new working session can
+  start from the repository itself.
+
 ## [0.6.14] - 2026-10-06
 
 ### Changed
