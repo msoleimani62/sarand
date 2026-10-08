@@ -326,7 +326,10 @@ def test_non_node_or_missing_workspaces_plan_nothing() -> None:
                 assert "security" in target.phases
         analyzers = [a for a in builtin_analyzers() if not isinstance(a, NodeAnalyzer)]
         plan = plan_component_runs(root, None, analyzers, [], detect_workspace(root))
-        assert plan.targets == ()
+        # No Node.js analyzer, no member runs (other analyzers may plan since 5.56).
+        assert all(
+            not isinstance(a, NodeAnalyzer) for t in plan.targets for a in t.analyzers
+        )
 
 
 def test_the_environment_switch_disables_member_runs_too() -> None:
@@ -453,9 +456,14 @@ def test_the_audited_gap_is_closed_on_real_analyzers_for_every_model() -> None:
                 matching_analyzers(root, analyzers),
                 detect_workspace(root),
             )
-            assert [t.path for t in plan.targets] == ["packages/a", "packages/b"], model
-            for target in plan.targets:
-                assert [a.name for a in target.analyzers] == ["Node.js"], model
+            assert {t.path for t in plan.targets} == {"packages/a", "packages/b"}, model
+            for path in ("packages/a", "packages/b"):
+                names = [
+                    a.name for t in plan.targets if t.path == path for a in t.analyzers
+                ]
+                # Node.js exactly once; an analyzer that did not match the root
+                # (JSON in a root without package.json) may join since 5.56.
+                assert names.count("Node.js") == 1, model
 
 
 def _report(root: Path, workspace: WorkspaceInfo | None) -> ReportData:

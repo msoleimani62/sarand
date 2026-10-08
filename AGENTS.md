@@ -3783,3 +3783,48 @@ directories, Python unchanged, a plain project with an empty plan, the cap and
 the escape hatch. **Not covered:** a root without a marker whose nested
 packages are Python, Java or any other analyzer (not planned outside hybrid
 projects); a repository with both a Cargo and a Node workspace.
+
+### 5.56 — Non-hybrid projects follow the hybrid rule (2026-10-08)
+
+5.55 kept the first scope small: in a project that is not hybrid only the three
+non-recursive analyzers (Node.js, Go, Rust) were planned inside nested
+packages. It recorded one gap: a root that matches no analyzer whose nested
+packages are Python, Java, etc.
+
+**Audit** (v0.6.15 + 5.55, `plan_component_runs`): a root with only a
+`Makefile` plus `services/a` and `services/b` (Python); the same with two
+Maven modules; a root with only a README plus Python packages `a` and `b`
+(a Dockerfile in `a`); and a Python root with a nested Python package as the
+control. `detect_components` was `None` and the root matched no analyzer in the
+first three, so the plan was EMPTY -- no tests, quality or security for any
+service (CONFIRMED). The control was correct: the root `pytest` and `ruff`
+recurse. In the first three, Python (and TOML), Java/Kotlin (and XML), and
+Python / Dockerfile / TOML matched the nested directories but not the root.
+
+**Change** (`core/per_component.py` only): the `nested_only` restriction of
+5.55 is removed. A project that is not hybrid is planned exactly like a hybrid
+one: an analyzer that does not match the root runs inside each nested package
+(outermost directory wins, cap 8, labelled `<dir>: <check>`), one that does is
+never repeated, except the three non-recursive analyzers with their coverage
+rules (workspace members, Cargo members, `go.work`, the Node phase rules).
+
+**Trade-off, accepted.** An ordinary project with a nested package (a
+`website/` with a `package.json`, say) now also gets the analyzers that match
+only that directory (a Dockerfile analyzer when it has a Dockerfile). That is
+what a hybrid project already did; the alternative was a list of "language"
+analyzers that nothing in the code defines. Bounded by the 8-directory cap,
+`SARAND_NO_COMPONENTS=1` turns it off, and `examples/`, `tests/`, `fixtures/`,
+`vendor/` never count.
+
+Tests: `tests/test_nested_non_hybrid.py` is now 15 tests (the four new ones
+are the audited Python and Maven cases, an analyzer matching only one nested
+package, and "a root-matching analyzer is never repeated"; one assertion of the
+5.55 test for a root without a marker was relaxed from `== ["Node.js"]` to
+`in`; two assertions in `tests/test_node_workspace.py` that required a
+Node-only plan were relaxed to "Node.js exactly once per member" and "no Node.js
+analyzer in the plan", because a pnpm-only workspace's members now also get the
+JSON analyzer, which did not match the root).
+
+**Not covered:** per-package health scores; analyzers that only match a
+directory deeper than three levels; a repository with both a Cargo and a Node
+workspace (open gap of 5.50).

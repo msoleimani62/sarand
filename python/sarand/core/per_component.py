@@ -64,18 +64,22 @@ checked (confirmed on five fixtures: Node root + `tools/cli`, Node root +
 two nested packages, Go root + nested module, Rust root + nested crate,
 and a root with only a `Makefile` + two Node packages). The planner now
 asks `nested_application_components` for the packages below the root and
-plans ONLY the three non-recursive analyzers in them, with the same
-coverage rules as above (workspace members, Cargo members, `go.work`).
-Nothing else changes for these projects: no component view in the report,
-no other analyzer runs in a nested directory (a Dockerfile or JSON
-analyzer, say), and Python stays covered by the root run. `examples/`,
-`tests/`, `fixtures/`, `vendor/` and `node_modules` are never scanned.
+plans them exactly like the components of a hybrid project (5.56): an
+analyzer that does not match the root runs inside each nested package, one
+that does is not repeated, except the three non-recursive ones with the
+coverage rules above (workspace members, Cargo members, `go.work`). A root
+that matches no analyzer (a `Makefile` plus `services/a` and `services/b`)
+therefore gets Python or Maven runs in each service. Nothing else changes:
+no component view in the report, and Python stays covered by the root run
+when the root has its own Python project. `examples/`, `tests/`,
+`fixtures/`, `vendor/` and `node_modules` are never scanned.
 
 پروژه‌ی غیرهیبرید: `detect_components` برایش `None` می‌دهد و برنامه خالی
-بود؛ حالا فقط همان سه آنالایزرِ غیربازگشتی (Node.js، Go، Rust) در بسته‌های
-تو در تو برنامه‌ریزی می‌شوند، با همان قاعده‌ی پوشش‌داده‌شده‌ها. بخش
-اجزا در گزارش اضافه نمی‌شود و آنالایزر دیگری داخل پوشه‌ی تو در تو اجرا
-نمی‌شود.
+بود؛ حالا آنالایزرها در بسته‌های
+تو در تو برنامه‌ریزی می‌شوند، با همان قاعده‌ی پوشش‌داده‌شده‌ها. (۵.۵۶:
+همین قاعده‌ی پروژه‌ی هیبرید برای همه‌ی آنالایزرها اعمال می‌شود؛ آنالایزری که
+ریشه را match نمی‌کند داخل بسته‌ی تو در تو اجرا می‌شود.) بخش اجزا در
+گزارش اضافه نمی‌شود.
 
 بسته‌های تو در تو که آنالایزرشان ریشه را هم match می‌کند (شکاف ۲): برای
 Node.js (`npm test`)، Go (`./...` از مرز ماژول رد نمی‌شود) و Rust (فقط اعضای
@@ -109,9 +113,7 @@ never both", and it is guarded against duplicates:
 
 **Deliberately not covered:** the project-wide gitleaks/syft/lockfile
 passes (they already walk the whole tree or only look at the root --
-the lockfile check stays root-only), non-hybrid projects whose only
-code lives below the root unless it is Node.js, Go or Rust (see
-"Non-hybrid projects" above), and a root analyzer that does not cascade
+the lockfile check stays root-only), and a root analyzer that does not cascade
 into components.
 
 اجرای آنالایزرها داخل هر جزءِ پروژه‌ی ترکیبی (ادامه‌ی آیتم ۱۱؛ همان
@@ -245,12 +247,10 @@ def _component_targets(
     all_analyzers: list[LanguageAnalyzer],
     active: list[LanguageAnalyzer],
     workspace: WorkspaceInfo | None = None,
-    nested_only: bool = False,
 ) -> list[ComponentTarget]:
-    """Hybrid-project components: analyzers that do not match the root, plus
-    the three whose root run does not reach nested packages. With
-    `nested_only` (a project that is not hybrid) only those three are
-    planned."""
+    """Components of a hybrid project, or the nested packages of a project
+    that is not hybrid: analyzers that do not match the root, plus the
+    three whose root run does not reach nested packages."""
     if components is None:
         return []
     paths = sorted(
@@ -275,8 +275,6 @@ def _component_targets(
         nested_node: list[LanguageAnalyzer] = []
         for analyzer in all_analyzers:
             on_root = id(analyzer) in root_ids
-            if nested_only and not isinstance(analyzer, _NON_RECURSIVE):
-                continue  # non-hybrid: only the non-recursive analyzers
             if isinstance(analyzer, NodeAnalyzer) and path in node_members:
                 continue  # planned as a workspace member, with its own phases
             if on_root:
@@ -375,25 +373,21 @@ def plan_component_runs(
 ) -> ComponentPlan:
     """Decide what to run inside which directory (see the module docstring
     for the rules). Returns an empty plan for a project with no nested
-    Node.js / Go / Rust package that is neither hybrid nor a Node
-    workspace, or when `SARAND_NO_COMPONENTS` is set.
+    package that needs a run (neither hybrid nor a Node workspace), or
+    when `SARAND_NO_COMPONENTS` is set.
     """
     if os.environ.get(_DISABLE_ENV):
         return ComponentPlan()
 
-    # Not hybrid: plan nested non-recursive packages from the directories
-    # themselves. / غیرهیبرید: از خود پوشه‌ها برنامه‌ریزی می‌شود.
-    nested_only = False
+    # Not hybrid: plan the nested packages like hybrid components.
+    # غیرهیبرید: بسته‌های تو در تو مثل اجزای هیبرید برنامه‌ریزی می‌شوند.
     if components is None:
         nested = nested_application_components(root)
         if nested:
             components = ComponentsInfo(components=nested, total_components=len(nested))
-            nested_only = True
 
     members = _workspace_targets(root, workspace, all_analyzers)
-    hybrid = _component_targets(
-        root, components, all_analyzers, active, workspace, nested_only
-    )
+    hybrid = _component_targets(root, components, all_analyzers, active, workspace)
     kept_members, omitted_members = _cap_paths(members, _MAX_MEMBER_TARGETS)
     kept_hybrid, omitted = _cap_paths(hybrid, _MAX_TARGETS)
     return ComponentPlan(

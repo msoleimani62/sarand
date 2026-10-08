@@ -1,12 +1,15 @@
 """Regression tests for the nested-package gap of non-hybrid projects (AGENTS.md
-section 5.55, the "Non-hybrid projects" paragraph of `core/per_component.py`).
+sections 5.55 and 5.56, the "Non-hybrid projects" paragraph of
+`core/per_component.py`).
 
 A project that is not hybrid (one package kind, no compose / Kubernetes /
 Terraform) used to get no nested runs: `detect_components` returned None, so
-the planner had nothing to plan. Node.js, Go and Rust packages below the root
-were never tested, linted or audited.
+the planner had nothing to plan. Packages below the root were never tested,
+linted or audited. Since 5.56 such a project follows the same rule as a hybrid
+one: an analyzer that does not match the root runs inside nested packages, and
+one that does is never repeated (except the three non-recursive ones).
 
-تست‌های شکاف بسته‌های تو در تو در پروژه‌های غیرهیبرید (بخش ۵.۵۵ AGENTS.md).
+تست‌های شکاف بسته‌های تو در تو در پروژه‌های غیرهیبرید (بخش‌های ۵.۵۵ و ۵.۵۶).
 """
 
 from __future__ import annotations
@@ -115,9 +118,10 @@ def test_a_root_without_a_marker_still_runs_every_nested_node_package() -> None:
         assert detect_components(root, None, None, None) is None
         plan = _plan(root)
         assert _paths(plan) == {"web", "admin"}
-        # Only the three non-recursive analyzers: no JSON / YAML extras.
-        assert _names(plan, "web") == ["Node.js"]
-        assert _names(plan, "admin") == ["Node.js"]
+        # The root matches no analyzer, so everything that matches a nested
+        # package runs there (the same rule as in a hybrid project).
+        assert "Node.js" in _names(plan, "web")
+        assert "Node.js" in _names(plan, "admin")
 
 
 def test_root_fan_out_and_eslint_rules_apply_to_nested_packages_too() -> None:
@@ -179,3 +183,55 @@ def test_the_escape_hatch_disables_nested_runs() -> None:
         write(root / "tools" / "cli" / "package.json", _pkg("cli"))
         with mock.patch.dict(os.environ, {"SARAND_NO_COMPONENTS": "1"}):
             assert _plan(root).targets == ()
+
+
+def test_a_root_without_a_marker_runs_python_services_in_each() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Makefile", "all:\n\techo hi\n")
+        write(root / "services" / "a" / "pyproject.toml", '[project]\nname = "a"\n')
+        write(root / "services" / "b" / "pyproject.toml", '[project]\nname = "b"\n')
+        # The audited gap: not hybrid, the root matches no analyzer.
+        assert detect_components(root, None, None, None) is None
+        assert matching_analyzers(root, builtin_analyzers()) == []
+        plan = _plan(root)
+        assert _paths(plan) == {"services/a", "services/b"}
+        assert "Python" in _names(plan, "services/a")
+        assert "Python" in _names(plan, "services/b")
+
+
+def test_a_root_without_a_marker_runs_maven_modules_in_each() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "Makefile", "all:\n\techo hi\n")
+        write(root / "svc" / "a" / "pom.xml", "<project/>")
+        write(root / "svc" / "b" / "pom.xml", "<project/>")
+        plan = _plan(root)
+        assert _paths(plan) == {"svc/a", "svc/b"}
+        assert "Java/Kotlin" in _names(plan, "svc/a")
+
+
+def test_an_analyzer_matching_only_one_nested_package_runs_only_there() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "README.md", "# demo\n")
+        write(root / "a" / "pyproject.toml", '[project]\nname = "a"\n')
+        write(root / "a" / "Dockerfile", "FROM scratch\n")
+        write(root / "b" / "pyproject.toml", '[project]\nname = "b"\n')
+        plan = _plan(root)
+        assert "Dockerfile" in _names(plan, "a")
+        assert "Dockerfile" not in _names(plan, "b")
+
+
+def test_an_analyzer_that_matches_the_root_is_never_repeated_in_a_package() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        write(root / "package.json", _pkg("root"))
+        write(root / "tools" / "cli" / "package.json", _pkg("cli"))
+        write(root / "tools" / "cli" / "Dockerfile", "FROM scratch\n")
+        plan = _plan(root)
+        names = _names(plan, "tools/cli")
+        # JSON matches the root (package.json) and recurses: not repeated.
+        assert "JSON" not in names
+        # Node.js is one of the three that do not recurse: planned once.
+        assert names.count("Node.js") == 1
