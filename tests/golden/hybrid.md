@@ -476,7 +476,6 @@ Size: 28.0 B
 ```python
 def main():
     print("hi")
-
 ```
 
 ### FILE: `src/lib.rs`
@@ -487,7 +486,6 @@ Size: 48.0 B
 pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
-
 ```
 
 ### FILE: `README.md`
@@ -496,5 +494,4 @@ Size: 14.0 B
 
 ```markdown
 # Hybrid demo
-
 ```

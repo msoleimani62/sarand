@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from sarand.core.package_summary import summarize_packages
 from sarand.core.quick_context import build_quick_context
 from sarand.models.results import ReportData, WorkspaceInfo
 from sarand.progress import status
@@ -77,6 +78,16 @@ def render(
     # فقط مخزنی با بیش از یک workspace این کلید را می‌گیرد.
     if data.extra_workspaces:
         payload["workspaces"] = [_workspace_payload(w) for w in data.all_workspaces]
+    # Only a project whose packages ran checks of their own gets this key.
+    # فقط پروژه‌ای که بسته‌هایش چک‌های خودشان را اجرا کرده این کلید را می‌گیرد.
+    package_results = summarize_packages(
+        data.package_paths,
+        data.test_results,
+        data.quality_results,
+        data.security_results,
+    )
+    if package_results:
+        payload["package_results"] = [asdict(s) for s in package_results]
 
     # Same conditional-key contract as `workspace` above: absent
     # entirely unless Helm charts or Kustomize overlays were detected.

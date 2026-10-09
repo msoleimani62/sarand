@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from sarand.constants import AI_NOTICE, LANG_MAP, MAX_ISSUE_ROWS
+from sarand.core.package_summary import (
+    ROOT_PACKAGE,
+    PhaseCount,
+    summarize_packages,
+)
 from sarand.core.quick_context import build_quick_context
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
@@ -94,6 +99,37 @@ def _render_detected_project(data: ReportData) -> list[str]:
             f"- **Entry points:** {', '.join(f'`{e}`' for e in d.entry_points)}"
         )
     lines.extend(f"- **{label}:** {text}" for label, text in d.details.items())
+    lines.append("")
+    return lines
+
+
+def _phase_cell(count: PhaseCount) -> str:
+    if count.ran:
+        text = f"{count.passed}/{count.ran}"
+        return f"{text} failed" if count.failed else text
+    return "skipped" if count.skipped else "-"
+
+
+def _render_package_results(data: ReportData) -> list[str]:
+    """One row per package that ran checks; empty for an ordinary project."""
+    summaries = summarize_packages(
+        data.package_paths,
+        data.test_results,
+        data.quality_results,
+        data.security_results,
+    )
+    if not summaries:
+        return []
+    lines = [
+        "## Package results",
+        "",
+        "| Package | Tests | Quality | Security |",
+        "|---|---|---|---|",
+    ]
+    for s in summaries:
+        name = "`.` (root)" if s.package == ROOT_PACKAGE else f"`{s.package}`"
+        cells = " | ".join(_phase_cell(c) for c in (s.tests, s.quality, s.security))
+        lines.append(f"| {name} | {cells} |")
     lines.append("")
     return lines
 
@@ -468,6 +504,7 @@ def render(
             parts.append(f"| ... | ... | ... | ({len(data.todos) - 100} more) |")
         parts.append("")
 
+    parts.extend(_render_package_results(data))
     parts.extend(["## Test results", ""])
     if not data.test_results:
         parts.append("No tests executed.")
@@ -606,7 +643,7 @@ def render(
                     f"Size: {human_size(size)}",
                     "",
                     f"```{lang}",
-                    text,
+                    text.removesuffix("\n"),
                     "```",
                 ]
             )

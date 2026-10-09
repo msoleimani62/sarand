@@ -61,8 +61,9 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    lint commands deliberately still use `npm` (they work in pnpm/Yarn repos;
    switching would skip checks where those tools are absent). A repo with
    both a Cargo and a Node workspace is modelled since 2026-10-08
-   (AGENTS.md 5.58). Still open: Nx/Turborepo task graphs, per-package
-   scores.
+   (AGENTS.md 5.58). Per-package results are in the report since
+   2026-10-09 (AGENTS.md 5.59, as a table, not a per-package score). Still
+   open: Nx/Turborepo task graphs.
 2. **A root analyzer that does not cascade hides its components -- fixed
    2026-10-06** (AGENTS.md 5.52) for Node.js, Go and Rust in hybrid
    projects, and since 2026-10-08 (AGENTS.md 5.55, 5.56) in non-hybrid
@@ -79,10 +80,9 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    lint or validation run (`helm lint`, `kubeconform`, `kustomize build`).
 6. **Gradle / Maven multi-module** representation (they already test every
    module natively; only the report is blind to the structure).
-7. **Small items:** `markdown.py` leaves a blank line before a file's closing
-   code fence when embedding source (cosmetic); the exact pin
-   `filelock==3.32.3` in `pyproject.toml` is harmless under pipx but a conflict
-   risk for `pip --user` and distro packaging, so review it.
+7. **Small items -- closed 2026-10-09** (AGENTS.md 5.59): the blank line
+   before a file's closing code fence is gone, and `filelock` is a range
+   (`>=3.14,<4`) instead of an exact pin.
 
 ### Decisions and optional work
 

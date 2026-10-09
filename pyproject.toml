@@ -41,7 +41,10 @@ classifiers = [
 # می‌داد). صریحاً اعلام شد تا برای هر نصبی تضمین‌شده حاضر باشد، نه
 # فقط این یک محیط توسعه.
 dependencies = [
-    "filelock==3.32.3",
+    # Only FileLock(path).acquire(blocking=False), Timeout and release() are
+    # used (rc/state.py). 3.14 made `blocking` a documented first-class option;
+    # 4.x is not verified yet, hence the upper bound (AGENTS.md 5.59).
+    "filelock>=3.14,<4",
     "rich>=13.0",
     "tomli>=2.0; python_version < \"3.11\"",
     "PyYAML>=6.0",

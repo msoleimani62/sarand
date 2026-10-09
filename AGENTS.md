@@ -3929,3 +3929,56 @@ workspaces. **Not covered:** two Node workspaces in one root (npm and pnpm
 declarations are already resolved to one by `node_workspace.py`); workspaces
 below the root (nested Cargo workspaces are a nested-package question, see
 5.55 and 5.56).
+
+### 5.59 — Per-package results, the fence blank line, the filelock range (2026-10-09)
+
+Backlog items 1 ("per-package scores") and 7 ("small items") closed together.
+
+**Per-package results.** *Audit:* with component runs the report already lists
+every check labelled `<package>: <kind>`, but there is no view of *which
+package passed what*: with eight packages the reader scans the check lists, and
+the one health score hides which package pulled it down. The label exists only
+inside `CommandResult.kind` (a structured field would add a key to every
+result in the JSON through `r.__dict__` and change the golden snapshots).
+*Decision:* a per-package **0-100 score** was NOT built. The repository formula
+holds parts that belong to no package (git hygiene 10, TODO hygiene 15, tooling
+15 of 100); a package score would be a second formula with its own invented
+weights. A package gets what it actually ran: passed, failed and skipped
+results per phase.
+
+*Change:* `core/package_summary.py` (pure: `summarize_packages(paths, tests,
+quality, security) -> list[PackageSummary]`, longest package label first, no
+label = root, root row first, empty when no package ran anything).
+`ReportData.package_paths` (last field, default empty; the CLI fills it from
+the plan's targets). Markdown: `## Package results` with one row per package
+and cells like `2/3`, `0/1 failed`, `skipped`, `-`, placed before
+`## Test results`. JSON: a `package_results` list, only when there is at least
+one package, so ordinary reports and the golden snapshots do not change. The
+repository score is untouched.
+
+**Closing fence.** `markdown.py` joined a file's content (which already ends in
+a newline) with the fence line, leaving a blank line before the closing
+```` ``` ````. It now drops one trailing newline of the content
+(`removesuffix`), so a file that ends without a newline or with several keeps its
+real shape. Only `tests/golden/hybrid.md` recorded the blank line (three
+places); it was regenerated through the golden harness and the diff is exactly
+those three lines (5.21: the snapshot records what the renderer emits). The
+HTML, JSON, SARIF and text snapshots were unchanged.
+
+**filelock.** *Review:* the pin `filelock==3.32.3` was recorded in 5.44 as a
+conflict risk for `pip --user` and distro packaging. The code uses only
+`FileLock(path)`, `acquire(blocking=False)`, `Timeout` and `release()` in
+`rc/state.py`. *Facts checked on 2026-10-09 (release notes, not memory):* the
+3.32 line is current and a 4.x line exists (4.0.8); `blocking` became a
+documented first-class option (constructor and property) in 3.14.0. *Change:*
+`filelock>=3.14,<4`: every distro and every other package can satisfy it,
+while the major that CI exercises stays the one in use. 4.x is NOT verified;
+widening to `<5` is a separate, tested step (CI resolves to the newest allowed
+version, so the first CI run after this is the proof for 3.32.x).
+
+**Not covered.** The HTML and text renderers do not show the table (they do not
+show the Workspace or Project Components sections either; recorded, not fixed
+here). A per-package *score*, durations per package, and listing which check
+failed inside the table (the detailed sections below it already name it).
+
+Tests: `tests/test_package_results.py` (9).

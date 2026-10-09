@@ -390,6 +390,11 @@ class ReportData:
     # keeps working; empty for every ordinary project.
     # workspaceهای بعد از اولی؛ `workspace` همان اولی می‌ماند.
     extra_workspaces: list[WorkspaceInfo] = field(default_factory=list)
+    # Directories that ran checks of their own (hybrid components, workspace
+    # members, nested packages); empty for an ordinary project. The report
+    # groups results by these labels (core/package_summary.py).
+    # پوشه‌هایی که چک‌های خودشان را اجرا کرده‌اند؛ برای پروژه‌ی معمولی خالی.
+    package_paths: list[str] = field(default_factory=list)
 
     @property
     def all_workspaces(self) -> list[WorkspaceInfo]:

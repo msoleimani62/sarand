@@ -600,6 +600,7 @@ async def run(config: SarandConfig) -> int:
         known_issues=known,
         workspace=workspace,
         extra_workspaces=workspaces[1:],
+        package_paths=list(dict.fromkeys(t.path for t in component_plan.targets)),
         kubernetes=kubernetes,
         compose=compose,
         makefile=makefile,

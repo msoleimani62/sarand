@@ -43,7 +43,12 @@ per-component runs together.
 
 ## How the health score treats workspaces
 
-There is **one repository-level score**; there is no per-package score yet.
+There is **one repository-level score**. The report also gets a **Package
+results** table (and a `package_results` list in JSON) whenever checks ran
+inside packages: one row per package with the tests, quality and security
+results it passed (`2/3`, `0/1 failed`, `skipped`, `-`), the root first.
+There is deliberately no per-package 0-100 score, because the formula also
+holds repository-level parts (git hygiene, TODOs, tooling).
 Member results go into the same lists as the root's results and each check is
 counted once. A failing member test suite lowers the shared test ratio and
 adds "One or more test suites failed" to the critical list, exactly as a
