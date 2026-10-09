@@ -1,6 +1,6 @@
 # Maintainer: msoleimani62 <msoleimaniphone@gmail.com>
 pkgname=sarand
-pkgver=0.6.16
+pkgver=0.6.17
 pkgrel=1
 pkgdesc="Cross-platform CLI that scans any project, detects its architecture, runs its tests, and generates an AI-ready intelligence report"
 arch=('x86_64' 'aarch64')

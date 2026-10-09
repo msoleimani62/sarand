@@ -4,6 +4,34 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.17] - 2026-10-08
+
+### Fixed
+
+- A repository with both a Cargo and a Node.js workspace recorded only the
+  Cargo one. The Node members were therefore planned as stray nested packages
+  and got a per-member `npm audit` (which no workspace member should get),
+  and the report listed a single workspace. Every workspace is now detected
+  (Cargo, then npm / Yarn / pnpm): Node members run as members (tests and
+  lint, never `npm audit`) and Cargo members are covered by `cargo test --all`.
+
+### Changed
+
+- The Markdown report names each workspace when there are several
+  (`## Workspace (cargo)`, `## Workspace (npm)`); with one it is unchanged.
+  The JSON report keeps `workspace` (the first) and adds a `workspaces` list
+  only when there is more than one, so ordinary reports are byte-identical.
+- CI: `actions/checkout`, `actions/setup-python`, `actions/cache` and
+  `actions/upload-artifact` moved to their Node.js 24 majors (the Node 20
+  runtime is deprecated). The first run after the change has a cold cache.
+
+### Documentation
+
+- `docs/WORKSPACES.md` and `docs/WORKSPACES.fa.md` describe repositories with
+  both workspaces and no longer claim that a project that is not hybrid gets no
+  nested runs. `AGENTS.md` sections 5.57 and 5.58 record the CI change and the
+  workspace model.
+
 ## [0.6.16] - 2026-10-08
 
 ### Fixed
