@@ -95,6 +95,17 @@ jobs:
         # ساخت artifact واقعی قابل توزیع قبل از تست کردن package نصب‌شده.
         run: maturin build --release --out dist
 
+      - name: Check the package metadata (PyPI readiness)
+        # `twine check --strict` renders the README the way PyPI does and
+        # rejects malformed metadata. The sdist is built too: it is what a
+        # source install uses, and a release uploads it next to the wheels.
+        # twine بنا بر rendering PyPI، README و metadata را می‌سنجد؛ sdist هم
+        # ساخته می‌شود چون نصب از سورس و انتشار از آن استفاده می‌کنند.
+        run: |
+          python -m pip install twine
+          maturin sdist --out dist-sdist
+          twine check --strict dist/* dist-sdist/*
+
       - name: Install the built wheel
         run: python -m pip install dist/*.whl
 

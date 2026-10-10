@@ -1,7 +1,7 @@
-<h1 align="center"><img src="assets/banner.svg" alt="sarand" width="100%"></h1>
+<h1 align="center"><img src="https://raw.githubusercontent.com/msoleimani62/sarand/main/assets/banner.svg" alt="sarand" width="100%"></h1>
 
 <p align="center">
-  <b>English</b> · <a href="README.fa.md">فارسی</a>
+  <b>English</b> · <a href="https://github.com/msoleimani62/sarand/blob/main/README.fa.md">فارسی</a>
 </p>
 
 <p align="center">
@@ -10,7 +10,7 @@
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white">
   <img alt="Rust core" src="https://img.shields.io/badge/core-Rust%20%2B%20PyO3-dea584?logo=rust&logoColor=white">
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Termux-a78bfa">
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
+  <a href="https://github.com/msoleimani62/sarand/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@ sarand scans a project, works out what it is, runs its tests, linters and securi
     <td width="50%" valign="top"><b>Written for AI</b><br>Includes an AI summary and a suggested reading order, so a model knows where to look first.</td>
   </tr>
   <tr>
-    <td valign="top"><b>41 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, Haskell, Elixir, Erlang, Scala, shell, SQL, Nix, assembly (with its dialect) and more, plus Dockerfile, Kubernetes (Helm and Kustomize), GitHub Actions, Terraform, Protobuf, YAML, JSON, TOML, XML and Markdown. See the <a href="docs/COVERAGE.md">coverage matrix</a>.</td>
+    <td valign="top"><b>41 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, Haskell, Elixir, Erlang, Scala, shell, SQL, Nix, assembly (with its dialect) and more, plus Dockerfile, Kubernetes (Helm and Kustomize), GitHub Actions, Terraform, Protobuf, YAML, JSON, TOML, XML and Markdown. See the <a href="https://github.com/msoleimani62/sarand/blob/main/docs/COVERAGE.md">coverage matrix</a>.</td>
     <td valign="top"><b>Safe by default</b><br>Files that contain secrets, and credential-shaped files, are left out of the report. With <code>--security</code> the git history is scanned too.</td>
   </tr>
   <tr>
@@ -396,7 +396,7 @@ sarand --full -d ~/reports
 python3 -m sarand.rc.command --source ~/reports/sarand-my-project-report.md
 ```
 
-Run the second command again with no options for the next chunk. State is kept in `.sarand-rc/`. See [docs/RC-AI-RECEIVER.md](docs/RC-AI-RECEIVER.md) for the protocol as the receiving AI sees it.
+Run the second command again with no options for the next chunk. State is kept in `.sarand-rc/`. See [docs/RC-AI-RECEIVER.md](https://github.com/msoleimani62/sarand/blob/main/docs/RC-AI-RECEIVER.md) for the protocol as the receiving AI sees it.
 
 | Option | Effect |
 |---|---|
@@ -454,11 +454,11 @@ Implement the `LanguageAnalyzer` protocol (`matches`, `entry_points`, `run_tests
 zig = "sarand_zig_plugin:ZigAnalyzer"
 ```
 
-sarand finds it and runs it alongside the built-in analyzers. A plugin that raises, returns the wrong type or cannot be loaded is skipped with a reported reason; it never crashes a scan. The full contract, version compatibility rules and author workflow are in [docs/PLUGINS.md](docs/PLUGINS.md), with a working example in [`examples/sarand-plugin-justfile`](examples/sarand-plugin-justfile).
+sarand finds it and runs it alongside the built-in analyzers. A plugin that raises, returns the wrong type or cannot be loaded is skipped with a reported reason; it never crashes a scan. The full contract, version compatibility rules and author workflow are in [docs/PLUGINS.md](https://github.com/msoleimani62/sarand/blob/main/docs/PLUGINS.md), with a working example in [`examples/sarand-plugin-justfile`](https://github.com/msoleimani62/sarand/tree/main/examples/sarand-plugin-justfile).
 
 ### Monorepos and workspaces
 
-sarand detects Cargo workspaces and npm, Yarn and pnpm workspaces and lists their members. For Node workspaces it runs tests and lint inside each member (labelled `packages/api: npm test`) and skips whatever the root script already fans out, so nothing is reported twice. What is and is not supported, and how the health score treats members, is in [docs/WORKSPACES.md](docs/WORKSPACES.md).
+sarand detects Cargo workspaces and npm, Yarn and pnpm workspaces and lists their members. For Node workspaces it runs tests and lint inside each member (labelled `packages/api: npm test`) and skips whatever the root script already fans out, so nothing is reported twice. What is and is not supported, and how the health score treats members, is in [docs/WORKSPACES.md](https://github.com/msoleimani62/sarand/blob/main/docs/WORKSPACES.md).
 
 ## Troubleshooting
 
@@ -541,7 +541,7 @@ sarand keeps a few things outside the package. Delete them if you want a clean r
 
 ## Contributing
 
-[AGENTS.md](AGENTS.md) is the source of truth for architecture, conventions and the roadmap. Before opening a pull request, run:
+[AGENTS.md](https://github.com/msoleimani62/sarand/blob/main/AGENTS.md) is the source of truth for architecture, conventions and the roadmap. Before opening a pull request, run:
 
 ```bash
 ruff format .
@@ -554,4 +554,4 @@ Continuous integration runs the same checks on Linux, macOS and Windows.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [MIT License](https://github.com/msoleimani62/sarand/blob/main/LICENSE).

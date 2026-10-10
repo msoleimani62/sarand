@@ -4101,3 +4101,49 @@ settings-only root matching Java/Kotlin and its subprojects not planned alone;
 the markers. **Not covered:** a real `mvn` / `gradle` run (nothing is executed
 by this change); a Maven module path with a property placeholder
 (`${module.dir}`), which names no directory and is dropped.
+\n
+### 5.62 — PyPI readiness that does not depend on the name (2026-10-10)
+
+Backlog status item 8, first part. The user chose PyPI first (AUR waits for a
+laptop: `updpkgsums` runs on Arch).
+
+**Audit.** (1) The distribution name `sarand` is already taken on PyPI by an
+unrelated bioinformatics tool (beiko-lab/sarand 1.1.1, which also installs a
+`sarand` command), so publishing under it is impossible and `pip install
+sarand` would install the wrong program. A different distribution name is
+required; the import package `sarand` and the command can stay (a conflict only
+exists if both are installed in one environment). The name is the user's
+decision and is not changed here. (2) `README.md` is the package's long
+description (`readme = "README.md"`) and had 10 relative references (the
+banner image, `LICENSE` twice, four `docs/` files, `AGENTS.md`, the plugin
+example directory and the language switch), which PyPI cannot resolve.
+(3) The PyO3 module is built without `abi3`, so a release would need one wheel
+per Python version (3.10 to 3.14) on every platform; the Rust source uses only
+`PyDict`, `pyfunction` and `pymodule`, so `abi3-py310` looks viable, but it
+changes the Rust build and is left for the step that can be proved by CI
+together with the release workflow. (4) No release workflow exists.
+
+**Change.** Only what is independent of the name and provable by the next CI
+run:
+
+- `README.md` links are absolute: files and directories as
+  `https://github.com/msoleimani62/sarand/blob/main/<path>` (`tree/main` for a
+  directory), the banner as the `raw.githubusercontent.com` URL. They work on
+  GitHub too. `README.fa.md` is not a package description and is left
+  relative.
+- CI: a step after "Build the release wheel" installs `twine`, builds the sdist
+  (`maturin sdist --out dist-sdist`, so the source distribution is exercised on
+  every run) and runs `twine check --strict` on the wheel and the sdist.
+- `tests/test_pypi_readiness.py` (3): no relative reference in `README.md`;
+  every link into this repository names a path that exists; CI keeps the
+  `twine check --strict` and `maturin sdist` step.
+
+**Trade-offs.** The links point at `main`, not at the tagged version, so a
+PyPI page shows the latest docs; a version-pinned rewrite would need a build
+step that edits the README and is not worth it yet. Whether PyPI renders the
+SVG banner (served by `raw.githubusercontent.com`) is unverified; if it does
+not, the page loses an image, nothing else.
+
+**Not done (needs the name or a decision).** The name in `pyproject.toml`,
+`abi3-py310`, the release workflow, the README install section for PyPI, the
+trusted publishers on pypi.org and test.pypi.org (a manual step for the user).
