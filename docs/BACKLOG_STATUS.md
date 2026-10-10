@@ -76,8 +76,11 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 4. **Release safety -- done 2026-10-04.** `scripts/release.py tag` now
    refuses unless every CI run for `HEAD` finished with success (via `gh`);
    `--skip-ci-check` overrides it. See AGENTS.md section 5.49.
-5. **Kubernetes next phase.** Raw manifests with no fixed filename, and any
-   lint or validation run (`helm lint`, `kubeconform`, `kustomize build`).
+5. **Kubernetes next phase -- done 2026-10-09** (AGENTS.md 5.60): raw
+   manifests are found by content, and `helm lint` / `kustomize build` run
+   on charts and overlays. Still open: `kubeconform` validation (its schemas
+   come from the network and it was not verified against a real binary) and
+   `helm template`.
 6. **Gradle / Maven multi-module** representation (they already test every
    module natively; only the report is blind to the structure).
 7. **Small items -- closed 2026-10-09** (AGENTS.md 5.59): the blank line
@@ -102,9 +105,9 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 12. **PDF:** a real engine in CI (Debian's `wkhtmltopdf` may need an X server,
     unverified); Termux and Android PDF export is unverified, use
     `--format html` and print from a browser.
-13. **Docker Compose, Makefile and Kubernetes execution** (`docker compose
-    config`, `hadolint`, running targets). Detection only today; `make` is
-    never run on purpose.
+13. **Docker Compose and Makefile execution** (`docker compose config`,
+    `hadolint`, running targets). Detection only today; `make` is never run
+    on purpose. (Kubernetes charts and overlays are linted since 5.60.)
 14. **Memory profiling of `--quality` and the test phase** (item 9 follow-up);
     only if a real report names one of them.
 

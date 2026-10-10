@@ -245,16 +245,27 @@ class KustomizeOverlay:
 
 
 @dataclass
+class KubernetesManifest:
+    """One raw Kubernetes manifest file: a YAML file whose documents carry
+    `apiVersion` and `kind`. `resources` are `Kind/name` (or `Kind`).
+    Populated by `core/kubernetes.py`.
+    """
+
+    path: str
+    resources: list[str] = field(default_factory=list)
+
+
+@dataclass
 class KubernetesInfo:
-    """Detected Helm charts and Kustomize overlays in the project.
-    Detection only -- see `core/kubernetes.py`'s module docstring for
-    what is and is not covered yet (raw Kubernetes manifests with no
-    fixed filename, and any lint/validation execution, are both
-    explicitly deferred to a later round).
+    """Detected Helm charts, Kustomize overlays and raw manifests. What is
+    run on them is `analyzers/kubernetes_analyzer.py`'s business; the
+    totals are uncapped counts so nothing is silently lost.
     """
 
     helm_charts: list[HelmChart] = field(default_factory=list)
     kustomize_overlays: list[KustomizeOverlay] = field(default_factory=list)
+    manifests: list[KubernetesManifest] = field(default_factory=list)
+    total_manifest_files: int = 0
 
 
 @dataclass

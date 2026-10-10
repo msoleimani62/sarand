@@ -42,7 +42,7 @@ sarand پروژه‌ی شما را بررسی می‌کند، تشخیص می‌
     <td width="50%" valign="top"><b>ساخته‌شده برای هوش مصنوعی</b><br>گزارش یک خلاصه‌ی نوشته‌شده و ترتیب پیشنهادی مطالعه هم دارد تا مدل بداند از کجا شروع کند.</td>
   </tr>
   <tr>
-    <td valign="top"><b>۴۰ آنالایزر برای زبان‌ها و قالب‌ها</b><br>شامل Python، Rust، Go، Node.js، TypeScript، Java، Kotlin، Swift، PHP، Ruby، Lua، Dart، Zig، Haskell، Elixir، Erlang، Scala، shell، SQL، Nix و اسمبلی با تشخیص گویش. در کنار آن‌ها C و C++ و C# و قالب‌های Dockerfile، GitHub Actions، Terraform، Protobuf، YAML، JSON، TOML، XML و Markdown را هم می‌شناسد. <a href="docs/COVERAGE.md">ماتریس پوشش</a> را ببینید.</td>
+    <td valign="top"><b>۴۱ آنالایزر برای زبان‌ها و قالب‌ها</b><br>شامل Python، Rust، Go، Node.js، TypeScript، Java، Kotlin، Swift، PHP، Ruby، Lua، Dart، Zig، Haskell، Elixir، Erlang، Scala، shell، SQL، Nix و اسمبلی با تشخیص گویش. در کنار آن‌ها C و C++ و C# و قالب‌های Dockerfile، Kubernetes (Helm و Kustomize)، GitHub Actions، Terraform، Protobuf، YAML، JSON، TOML، XML و Markdown را هم می‌شناسد. <a href="docs/COVERAGE.md">ماتریس پوشش</a> را ببینید.</td>
     <td valign="top"><b>امن به‌طور پیش‌فرض</b><br>فایل‌هایی که راز (secret) دارند و فایل‌های شبیه اعتبارنامه هرگز وارد گزارش نمی‌شوند. با گزینه‌ی <code>--security</code> تاریخچه‌ی git هم بررسی می‌شود.</td>
   </tr>
   <tr>
@@ -197,6 +197,7 @@ sarand از ابزارهای استاندارد هر اکوسیستم کمک م�
 | Erlang | تست، کیفیت: `rebar3` با EUnit و xref |
 | Scala | تست: `sbt` · کیفیت: scalafmt از طریق `sbt`، وقتی پروژه از آن استفاده کند |
 | Dockerfile | کیفیت: `hadolint` |
+| Kubernetes | کیفیت: `helm lint` برای هر چارت و `kustomize build` برای هر overlay (هرگز چیزی اعمال نمی‌کند؛ baseِ راه‌دور و وابستگیِ build‌نشده skipped می‌شوند) |
 | GitHub Actions | کیفیت: `actionlint` |
 | Terraform | کیفیت: `terraform fmt` و `tflint`؛ هرگز init، plan یا apply اجرا نمی‌شود |
 | Protobuf | کیفیت: `buf lint` |

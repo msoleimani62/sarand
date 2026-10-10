@@ -188,6 +188,17 @@ def _render_kubernetes(data: ReportData) -> list[str]:
         lines.extend(["### Kustomize overlays", ""])
         lines.extend(f"- `{o.path}`" for o in k8s.kustomize_overlays)
         lines.append("")
+    if k8s.manifests:
+        lines.extend(["### Raw manifests", "", "| File | Resources |", "|---|---|"])
+        for manifest in k8s.manifests:
+            shown = ", ".join(manifest.resources[:6]).replace("|", "\\|")
+            hidden = len(manifest.resources) - 6
+            more = f" (+{hidden} more)" if hidden > 0 else ""
+            lines.append(f"| `{manifest.path}` | {shown}{more} |")
+        lines.append("")
+        unlisted = k8s.total_manifest_files - len(k8s.manifests)
+        if unlisted > 0:
+            lines.extend([f"_{unlisted} more manifest file(s) not listed._", ""])
     return lines
 
 

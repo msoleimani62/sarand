@@ -38,7 +38,7 @@ sarand scans a project, works out what it is, runs its tests, linters and securi
     <td width="50%" valign="top"><b>Written for AI</b><br>Includes an AI summary and a suggested reading order, so a model knows where to look first.</td>
   </tr>
   <tr>
-    <td valign="top"><b>40 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, Haskell, Elixir, Erlang, Scala, shell, SQL, Nix, assembly (with its dialect) and more, plus Dockerfile, GitHub Actions, Terraform, Protobuf, YAML, JSON, TOML, XML and Markdown. See the <a href="docs/COVERAGE.md">coverage matrix</a>.</td>
+    <td valign="top"><b>41 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, Haskell, Elixir, Erlang, Scala, shell, SQL, Nix, assembly (with its dialect) and more, plus Dockerfile, Kubernetes (Helm and Kustomize), GitHub Actions, Terraform, Protobuf, YAML, JSON, TOML, XML and Markdown. See the <a href="docs/COVERAGE.md">coverage matrix</a>.</td>
     <td valign="top"><b>Safe by default</b><br>Files that contain secrets, and credential-shaped files, are left out of the report. With <code>--security</code> the git history is scanned too.</td>
   </tr>
   <tr>
@@ -170,6 +170,7 @@ sarand drives the standard tools of each ecosystem. Nothing here is required: a 
 | Erlang | tests, quality: `rebar3` (EUnit, xref) |
 | Scala | tests: `sbt` · quality: scalafmt through `sbt`, when the project uses it |
 | Dockerfile | quality: `hadolint` |
+| Kubernetes | quality: `helm lint` per chart, `kustomize build` per overlay (never applies anything; remote bases and unbuilt dependencies are skipped) |
 | GitHub Actions | quality: `actionlint` |
 | Terraform | quality: `terraform fmt`, `tflint` (never init, plan or apply) |
 | Protobuf | quality: `buf lint` |

@@ -42,6 +42,7 @@ from sarand.analyzers.java_analyzer import JavaAnalyzer
 from sarand.analyzers.json_analyzer import JsonAnalyzer
 from sarand.analyzers.julia_analyzer import JuliaAnalyzer
 from sarand.analyzers.kotlin_analyzer import KotlinAnalyzer
+from sarand.analyzers.kubernetes_analyzer import KubernetesAnalyzer
 from sarand.analyzers.lua_analyzer import LuaAnalyzer
 from sarand.analyzers.markdown_analyzer import MarkdownAnalyzer
 from sarand.analyzers.nix_analyzer import NixAnalyzer
@@ -97,6 +98,7 @@ _BUILTIN: list[LanguageAnalyzer] = [
     ErlangAnalyzer(),
     ScalaAnalyzer(),
     DockerfileAnalyzer(),
+    KubernetesAnalyzer(),
     GitHubActionsAnalyzer(),
     TerraformAnalyzer(),
     ProtobufAnalyzer(),

@@ -94,12 +94,22 @@ def render(
     # همان قرارداد کلیدِ شرطیِ `workspace` بالا: کاملاً غایب مگر اینکه
     # چارت Helm یا overlay Kustomize تشخیص داده شده باشد.
     if data.kubernetes is not None:
-        payload["kubernetes"] = {
+        kubernetes_payload: dict[str, Any] = {
             "helm_charts": [c.__dict__ for c in data.kubernetes.helm_charts],
             "kustomize_overlays": [
                 o.__dict__ for o in data.kubernetes.kustomize_overlays
             ],
         }
+        # Raw manifests only when found, so the key set of a report that has
+        # none is exactly what it was before. / فقط وقتی پیدا شده باشند.
+        if data.kubernetes.manifests:
+            kubernetes_payload["manifests"] = [
+                m.__dict__ for m in data.kubernetes.manifests
+            ]
+            kubernetes_payload["total_manifest_files"] = (
+                data.kubernetes.total_manifest_files
+            )
+        payload["kubernetes"] = kubernetes_payload
 
     # Same conditional-key contract as `workspace`/`kubernetes` above:
     # absent entirely unless a Docker Compose file was detected.

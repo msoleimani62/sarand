@@ -364,6 +364,18 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "--quality (Dockerfile lint)",
     ),
     (
+        "Kubernetes",
+        "helm",
+        "https://helm.sh/docs/intro/install/ (or `brew install helm`)",
+        "--quality (helm lint on each chart)",
+    ),
+    (
+        "Kubernetes",
+        "kustomize",
+        "https://kubectl.docs.kubernetes.io/installation/kustomize/",
+        "--quality (kustomize build on each overlay)",
+    ),
+    (
         "GitHub Actions",
         "actionlint",
         "https://github.com/rhysd/actionlint (or `brew install actionlint`)",
@@ -480,6 +492,7 @@ _CATEGORY_ORDER = (
     "Erlang",
     "Scala",
     "Dockerfile",
+    "Kubernetes",
     "GitHub Actions",
     "Terraform",
     "Protobuf",

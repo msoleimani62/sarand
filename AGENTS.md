@@ -3982,3 +3982,67 @@ here). A per-package *score*, durations per package, and listing which check
 failed inside the table (the detailed sections below it already name it).
 
 Tests: `tests/test_package_results.py` (9).
+
+### 5.60 — Kubernetes, second round: raw manifests and a Kubernetes analyzer (2026-10-09)
+
+Backlog status item 5 ("Kubernetes next phase"). Round one (v0.6.7) detected
+Helm charts and Kustomize overlays and nothing else.
+
+**Audit** (fixtures through `detect_kubernetes` and the registry): a repository
+with only `deploy/app.yaml` (a Deployment and a Service) gave `None` -- no
+Kubernetes section, the manifests invisible; charts and overlays were reported
+but no tool ever ran on them (no analyzer, no `--doctor` row). CONFIRMED.
+
+**What was built**
+
+- *Raw manifests* (`core/kubernetes.py`): a `.yaml`/`.yml` file whose documents
+  carry `apiVersion` and `kind` (`Kind/name` per resource). Never read: files
+  named `kustomization.*`, `Chart.*`, `values.*`, anything inside a chart (its
+  templates are not YAML; `crds/` belong to the chart), symlinks, files over
+  512 KiB; a `kustomize.config.k8s.io` document is not a resource. Bounded by
+  500 files and 8 MiB read, 100 files listed, 50 resources per file; the true
+  count is kept in `total_manifest_files` and the report says how many are not
+  listed. `KubernetesInfo.manifests` and `.total_manifest_files` are new
+  fields; the JSON `kubernetes` object gets `manifests` only when there are
+  any. Raw manifests alone do not make a project hybrid (they are not
+  components) and a project with only manifests now gets a Kubernetes section.
+- *Kubernetes analyzer* (`analyzers/kubernetes_analyzer.py`, the 41st): matches
+  when a chart or an overlay exists (detected with `manifests=False`, so
+  `matches` stays cheap). `--quality` runs `helm lint <chart>` per chart and
+  `kustomize build <overlay> -o <temp file>` per overlay, at most 8 of each
+  kind with one skipped note for the rest. It runs no tests and no security
+  check, and applies nothing to a cluster.
+
+**Why the rendered output goes to a file.** `kustomize build` prints the
+rendered manifests, which can contain `Secret` data; the result type keeps raw
+output, so printing it would put secrets in a report. `-o` writes it to a
+temporary file that is deleted with its directory; only errors reach the report.
+
+**Skipped, with the reason, instead of failing.** A chart whose `Chart.yaml`
+lists dependencies missing from `charts/` (`helm dependency build` first); an
+overlay with a remote base (URL, `git@`, `host.tld/org/repo//path`) or a
+`helmCharts` generator; a missing `helm` or `kustomize`. A false FAILED here
+would repeat the `npm audit` ENOLOCK mistake of 5.53.
+
+**Deliberately not built.** `kubeconform`: its default schema source is the
+network, a download failure is indistinguishable from an invalid resource by
+exit code, and no real binary was available to verify its output. `helm
+template`, `kubectl kustomize` as a fallback, and anything that talks to a
+cluster. Hybrid components are unchanged.
+
+**Registration.** `KubernetesAnalyzer` in the registry, two `--doctor` rows
+(`helm`, `kustomize`), the `DOCTOR_CATEGORIES` entry, the READMEs (41
+analyzers) and `docs/COVERAGE.md` regenerated from the code.
+
+**Verification limit.** The sandbox has no helm or kustomize: the tests replace
+the tool runner and check sarand's wiring (what runs, what is skipped and why,
+that the rendered file is gone). The behaviour relied on from the tools is
+their documented one (a non-zero exit on error; `-o` writes to the file); the
+first proof against real binaries is a run of `sarand --quality` on a project
+with a chart on a machine that has them.
+
+Tests: `tests/test_kubernetes_phase2.py` (19). **Not covered:** a
+manifest outside the 500-file scan window; Helm `values` files that are
+rendered with a different `--values`; `kustomize` components with remote URLs
+inside nested files (only the overlay's own `resources`, `bases` and
+`components` entries are checked).
