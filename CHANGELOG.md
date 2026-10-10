@@ -4,6 +4,50 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.18] - 2026-10-10
+
+### Added
+
+- A **Package results** table (Markdown) and a `package_results` list (JSON)
+  whenever checks ran inside packages (hybrid components, workspace members,
+  nested packages): one row per package with the tests, quality and security
+  results it passed, failed or skipped, the root first. There is deliberately
+  no per-package 0-100 score: the repository score also holds parts that belong
+  to no package. Ordinary reports are unchanged.
+- **Kubernetes**: raw manifests (YAML files whose documents carry `apiVersion`
+  and `kind`) are found by content and listed under the Kubernetes section,
+  bounded by file count, bytes read and file size. A new Kubernetes analyzer
+  (the 41st) runs `helm lint` on each chart and `kustomize build` on each
+  overlay with `--quality`; the rendered output goes to a temporary file that
+  is deleted, so a rendered `Secret` never reaches a report. A chart whose
+  dependencies are not vendored, an overlay with a remote base or a
+  `helmCharts` generator, and a missing tool are SKIPPED with the reason, never
+  failed. `kubeconform` is not run (its schemas come from the network).
+- **Maven multi-module and Gradle multi-project** structure appears as a
+  Workspace section (`maven` / `gradle`; `<modules>` of the root pom, the
+  `include` calls of `settings.gradle[.kts]`). Nothing is executed differently:
+  the root build already tests every module.
+
+### Fixed
+
+- A Gradle multi-project whose root holds only `settings.gradle[.kts]` (the
+  build scripts live in the subprojects) matched no analyzer, so each
+  subproject was checked alone without the root wrapper. The root is now a
+  Gradle project: `./gradlew test` runs once there and the subprojects are not
+  planned again.
+- The Markdown report no longer leaves a blank line before the closing code
+  fence of an embedded source file.
+
+### Changed
+
+- The `filelock` dependency is the range `>=3.14,<4` instead of the exact pin
+  `3.32.3`, so it can be installed next to packages that need another version.
+
+### Documentation
+
+- `AGENTS.md` sections 5.59 to 5.61 and `docs/WORKSPACES.md` /
+  `docs/WORKSPACES.fa.md`; the READMEs count 41 analyzers and list Kubernetes.
+
 ## [0.6.17] - 2026-10-08
 
 ### Fixed

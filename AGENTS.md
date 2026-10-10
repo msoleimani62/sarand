@@ -3672,12 +3672,13 @@ For whoever (person or assistant) opens this repository in a new session.
 Nothing here is new behaviour; it collects what the 5.37 to 5.53 rounds
 taught about *how* work on sarand is done.
 
-**Where things stand.** Latest release v0.6.17 (tag on the release commit;
+**Where things stand.** Latest release v0.6.18 (tag on the release commit;
 the tag command refuses unless CI is green). It contains the package-manager
 round (5.53, `core/node_pm.py`), the nested-package rounds for projects that
-are not hybrid (5.55, 5.56), the Node 24 CI actions (5.57) and the model of
-every workspace of a repository (5.58). Nothing is unreleased at the time of
-writing.
+are not hybrid (5.55, 5.56), the Node 24 CI actions (5.57), the model of
+every workspace of a repository (5.58), the per-package results table (5.59),
+the Kubernetes analyzer and raw manifests (5.60) and the Maven / Gradle
+structure (5.61). Nothing is unreleased at the time of writing.
 `docs/BACKLOG_STATUS.md` is the authoritative list of what remains and of
 what is deliberately out of scope; do not re-audit what it marks done.
 `docs/BACKLOG.md` is kept only until the follow-ups in the status file are

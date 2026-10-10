@@ -13,7 +13,7 @@ those items lives only in that document. When follow-ups 1 to 4 are done (or
 dropped with a reason recorded here), delete `docs/BACKLOG.md` and this file;
 git history keeps both.
 
-Latest release: **v0.6.17**. Every released version carries its own number
+Latest release: **v0.6.18**. Every released version carries its own number
 in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 (`scripts/release.py` and `tests/test_distribution.py` enforce it).
 
