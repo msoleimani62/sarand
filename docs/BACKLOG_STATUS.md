@@ -81,8 +81,10 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    on charts and overlays. Still open: `kubeconform` validation (its schemas
    come from the network and it was not verified against a real binary) and
    `helm template`.
-6. **Gradle / Maven multi-module** representation (they already test every
-   module natively; only the report is blind to the structure).
+6. **Gradle / Maven multi-module -- done 2026-10-10** (AGENTS.md 5.61): the
+   structure is a `maven` / `gradle` workspace in the report (no execution
+   change: the root build already tests every module), and a Gradle root
+   that holds only `settings.gradle[.kts]` is now a Gradle project.
 7. **Small items -- closed 2026-10-09** (AGENTS.md 5.59): the blank line
    before a file's closing code fence is gone, and `filelock` is a range
    (`>=3.14,<4`) instead of an exact pin.

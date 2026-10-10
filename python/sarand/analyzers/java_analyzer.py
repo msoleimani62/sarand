@@ -20,6 +20,17 @@ logger = get_logger("analyzer.java")
 
 _ENTRY_POINTS = ("src/main/java", "src/main/kotlin")
 
+# A Gradle multi-project root may hold only the settings file (the build
+# scripts live in the subprojects); `./gradlew test` there still runs every
+# project, so the root counts as a Gradle project (AGENTS.md 5.61).
+# ریشه‌ی Gradle چندپروژه‌ای ممکن است فقط فایل settings داشته باشد.
+_GRADLE_ROOT_FILES = (
+    "build.gradle.kts",
+    "build.gradle",
+    "settings.gradle.kts",
+    "settings.gradle",
+)
+
 
 class JavaAnalyzer:
     name = "Java/Kotlin"
@@ -27,7 +38,7 @@ class JavaAnalyzer:
     def _build_tool(self, root: Path) -> str | None:
         if (root / "pom.xml").exists():
             return "maven"
-        if (root / "build.gradle.kts").exists() or (root / "build.gradle").exists():
+        if any((root / name).exists() for name in _GRADLE_ROOT_FILES):
             return "gradle"
         return None
 

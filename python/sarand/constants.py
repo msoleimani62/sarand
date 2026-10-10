@@ -191,6 +191,8 @@ PROJECT_MARKERS: dict[str, tuple[str, str, str]] = {
     "pom.xml": ("Java", "application", "maven"),
     "build.gradle": ("Java/Kotlin", "application", "gradle"),
     "build.gradle.kts": ("Java/Kotlin", "application", "gradle"),
+    "settings.gradle": ("Java/Kotlin", "application", "gradle"),
+    "settings.gradle.kts": ("Java/Kotlin", "application", "gradle"),
     "Makefile": ("Generic", "unknown", "make"),
     "init.lua": ("Lua", "module/library", "none"),
     "Gemfile": ("Ruby", "application/gem", "bundler"),

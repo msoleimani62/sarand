@@ -1,11 +1,13 @@
 # Monorepos and workspaces
 
-sarand understands two kinds of multi-package repositories.
+sarand understands four kinds of multi-package repositories.
 
 | Model | How it is detected | What sarand does |
 |---|---|---|
 | **Cargo workspace** | `[workspace]` in the root `Cargo.toml` | Lists the members. `cargo test --all` already covers every crate. |
 | **npm / Yarn / pnpm workspace** | `"workspaces"` in the root `package.json` (array, or Yarn's `{"packages": [...]}`), or `pnpm-workspace.yaml` | Lists the members and runs tests and lint **inside each member**. |
+| **Maven multi-module** | `<modules>` of the root `pom.xml`, followed into nested aggregators (3 levels) | Lists the modules. `mvn test` already covers every module. |
+| **Gradle multi-project** | the `include` calls of `settings.gradle[.kts]` | Lists the projects. `./gradlew test` already covers every project. |
 
 The report gets a **Workspace** section (kind and members) and, in JSON, a
 `workspace` key. A repository with **both** a Cargo and a Node workspace gets
@@ -56,9 +58,11 @@ failing root suite would.
 
 ## What is not supported
 
-- **Gradle multi-project and Maven multi-module** are not detected as
-  workspaces. Their root build (`./gradlew test`, `mvn test`) already covers
-  every module, so only the report's structure view is missing.
+- **Maven modules that exist only in a `<profile>`**, `includeBuild` /
+  `includeFlat` and a custom `projectDir` in Gradle, and includes built by a
+  loop: the structure is read statically, so these are not seen. A Maven
+  module or Gradle project whose directory does not exist is left out, not
+  guessed.
 - **Bazel, Nx and Turborepo** as workspace models. Bazel has no analyzer at
   all. Nx and Turborepo sit on top of an npm/Yarn/pnpm workspace: that
   workspace is detected, and a root script that calls them is recognised as

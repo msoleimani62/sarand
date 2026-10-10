@@ -4046,3 +4046,57 @@ manifest outside the 500-file scan window; Helm `values` files that are
 rendered with a different `--values`; `kustomize` components with remote URLs
 inside nested files (only the overlay's own `resources`, `bases` and
 `components` entries are checked).
+\n
+### 5.61 — Maven multi-module and Gradle multi-project (2026-10-10)
+
+Backlog status item 6. Both tools already test every module natively from the
+root, so the recorded gap was representation only.
+
+**Audit** (fixtures through `detect_workspaces`, `matching_analyzers` and
+`plan_component_runs`, v0.6.17 + 5.60): a Maven reactor (parent `pom.xml` with
+`core` and `web`) and a Gradle multi-project with a root build file gave no
+workspace and an empty plan -- the root `mvn test` / `./gradlew test` covers
+them (CONFIRMED, representation only). **A second, execution-level defect
+surfaced:** a Gradle multi-project whose root holds only `settings.gradle.kts`
+(a very common layout: the build scripts live in the subprojects) matched NO
+analyzer at the root, so since 5.56 each subproject (`app`, `lib`) was planned
+alone with the Java/Kotlin analyzer in its own directory, where there is no
+`./gradlew` (the wrapper is at the root): a system `gradle` or a skipped
+result, never the root build. Before 5.56 nothing ran at all. CONFIRMED.
+
+**Change.**
+
+- `core/jvm_workspace.py` (new, nothing is run): `detect_maven_workspace`
+  reads the `<modules>` of the root pom (a module is a directory or a pom path;
+  nested aggregators to 3 levels; names from `artifactId`; modules outside the
+  root, missing ones and profile-only ones are not listed; a pom with a
+  DOCTYPE/ENTITY is never parsed) and `detect_gradle_workspace` reads the
+  `include` calls of `settings.gradle[.kts]` (`:a:b` is `a/b` and `a` is listed
+  first as the parent project; `includeBuild` / `includeFlat`, comments and a
+  custom `projectDir` are not followed; a project whose default directory does
+  not exist is left out). At most 200 members each.
+- `core/workspace.py`: `detect_workspaces` now returns Cargo, npm / Yarn / pnpm,
+  Maven, Gradle in that order, so the report, the JSON `workspaces` list and
+  `ReportData.extra_workspaces` carry them with no renderer change. The planner
+  only reads the Cargo and Node kinds, so the new kinds are inert there.
+- `analyzers/java_analyzer.py`: `settings.gradle[.kts]` at the root counts as a
+  Gradle project, so `./gradlew test` runs once at the root and the subprojects
+  are skipped by the planner (the root already ran them).
+  `constants.PROJECT_MARKERS` gets the two settings files (build tool
+  `gradle`), so Detected Project says Java/Kotlin for such a root.
+
+**Deliberately not changed.** No execution change for Maven or Gradle (the root
+build is the right unit); Android multi-module projects keep their own analyzer
+(`is_android_project` is untouched, so a settings-only Android root is a
+separate question); no per-module result table beyond the generic one;
+Maven `<profile>` modules and Gradle dynamic includes stay invisible.
+
+Tests: `tests/test_jvm_workspace.py` (15) -- Maven reactor with artifact ids,
+nested aggregators and pom paths, missing/escaping modules, no modules / profile
+modules / bad XML, DOCTYPE never parsed; Gradle Kotlin and Groovy DSL,
+multi-line includes, nested paths with parents, `includeBuild` / comments / URLs
+/ missing directories, none, the member cap; the workspace order; the
+settings-only root matching Java/Kotlin and its subprojects not planned alone;
+the markers. **Not covered:** a real `mvn` / `gradle` run (nothing is executed
+by this change); a Maven module path with a property placeholder
+(`${module.dir}`), which names no directory and is dropped.

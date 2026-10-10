@@ -77,6 +77,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from sarand.core.jvm_workspace import detect_gradle_workspace, detect_maven_workspace
 from sarand.core.node_workspace import detect_node_workspace
 from sarand.models.results import WorkspaceInfo, WorkspaceMember
 
@@ -87,16 +88,23 @@ else:  # Python 3.10: same parser, packaged separately
 
 
 def detect_workspaces(root: Path) -> list[WorkspaceInfo]:
-    """Every workspace declared at `root`, Cargo first, then npm / Yarn /
-    pnpm. A repository can legitimately have both (a Rust workspace with a
-    JavaScript front end); recording only the first one hid the other's
+    """Every workspace declared at `root`: Cargo, npm / Yarn / pnpm, Maven
+    modules, Gradle projects, in that order (the last two are structure only,
+    see `core/jvm_workspace.py`). A repository can legitimately have several
+    (a Rust workspace with a JavaScript front end); recording only the first
+    one hid the other's
     members from the report and made the planner treat them as stray nested
     packages (AGENTS.md section 5.58). The list is empty for an ordinary
     project, and every detector is cheap and self-limiting.
 
     همه‌ی workspaceهای اعلام‌شده در ریشه، اول Cargo و بعد npm / Yarn / pnpm.
     """
-    found = (_detect_cargo_workspace(root), detect_node_workspace(root))
+    found = (
+        _detect_cargo_workspace(root),
+        detect_node_workspace(root),
+        detect_maven_workspace(root),
+        detect_gradle_workspace(root),
+    )
     return [workspace for workspace in found if workspace is not None]
 
 
