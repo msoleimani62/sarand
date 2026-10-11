@@ -73,7 +73,7 @@ def test_the_source_tree_version_is_read_from_pyproject() -> None:
         write(
             root / "pyproject.toml",
             '[build-system]\nrequires = ["maturin"]\n\n[project]\n'
-            'name = "sarand"\nversion = "0.5.1"\n\n[tool.other]\nversion = "9"\n',
+            'name = "sarand-cli"\nversion = "0.5.1"\n\n[tool.other]\nversion = "9"\n',
         )
         package_dir = root / "python" / "sarand"
         package_dir.mkdir(parents=True)

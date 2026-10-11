@@ -92,7 +92,7 @@ skipped با نام پلاگین، فاز و خطا جایگزین می‌کند
    نصب کرده‌اید:
 
    ```bash
-   pipx inject sarand ./my-plugin
+   pipx inject sarand-cli ./my-plugin
    ```
 
    در virtualenv ساده در همان محیط `pip install ./my-plugin`. پلاگینی که در محیط

@@ -22,7 +22,11 @@ from importlib import metadata
 # نسخه دیگر نیازی به دست‌زدن به جای دیگری نیست. بلاک except فقط برای
 # حالتی است که پروژه هنوز نصب/editable نشده (مثلاً اجرای مستقیم از یک
 # git clone پیش از `pip install -e .`) و متادیتایی موجود نیست.
+# The distribution is `sarand-cli` (the name `sarand` on PyPI is another
+# project's). An old editable install recorded under `sarand` reads as
+# unknown until it is refreshed, which `sarand --doctor` points out.
+# توزیع `sarand-cli` است؛ نصب editable قدیمی تا تازه‌سازی «نامعلوم» دیده می‌شود.
 try:
-    __version__ = metadata.version("sarand")
+    __version__ = metadata.version("sarand-cli")
 except metadata.PackageNotFoundError:
     __version__ = "0.0.0+unknown"

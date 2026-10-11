@@ -34,8 +34,8 @@ if [ "$1" = "install" ]; then
         echo "simulated build failure" >&2
         exit 1
     fi
-    mkdir -p "$PIPX_HOME/venvs/sarand"
-    echo new > "$PIPX_HOME/venvs/sarand/marker"
+    mkdir -p "$PIPX_HOME/venvs/sarand-cli"
+    echo new > "$PIPX_HOME/venvs/sarand-cli/marker"
     if [ -n "${PIPX_BIN_DIR:-}" ]; then
         mkdir -p "$PIPX_BIN_DIR"
         printf '#!/bin/sh\necho "sarand 9.9.9"\n' > "$PIPX_BIN_DIR/sarand"
@@ -54,7 +54,7 @@ def _run(root: Path, *, fails: int, previous: bool, attempts: int = 3):
         directory.mkdir()
     (bin_dir / "pipx").write_bytes(_FAKE_PIPX.encode("utf-8"))
     (bin_dir / "pipx").chmod(0o755)
-    venv = pipx_home / "venvs" / "sarand"
+    venv = pipx_home / "venvs" / "sarand-cli"
     if previous:
         venv.mkdir(parents=True)
         (venv / "marker").write_bytes(b"old")
@@ -134,7 +134,7 @@ def test_the_old_installation_is_never_removed_before_the_build_starts() -> None
 def _run_snippet(root: Path, snippet: str, *, previous: bool = True):
     """Source install.sh (functions only, nothing installed) and run `snippet`."""
     pipx_home = root / "pipx"
-    venv = pipx_home / "venvs" / "sarand"
+    venv = pipx_home / "venvs" / "sarand-cli"
     if previous:
         venv.mkdir(parents=True)
         (venv / "marker").write_bytes(b"old")
@@ -255,3 +255,106 @@ def test_a_shadowing_copy_on_path_is_named_with_its_version() -> None:
     assert "another 'sarand' comes first on PATH" in result.stdout
     assert "sarand 0.1.5" in result.stdout
     assert "stalebin" in result.stdout
+
+
+# ------------------------------------------------ the old pipx name (5.63) --
+
+
+def _run_with_legacy(root: Path, *, fails: int, previous_new: bool = False):
+    """Run the installer with an install under the OLD pipx name present.
+    Returns (result, new marker, legacy marker, both backups left)."""
+    home, pipx_home, bin_dir = root / "home", root / "pipx", root / "bin"
+    for directory in (home, pipx_home, bin_dir):
+        directory.mkdir()
+    (bin_dir / "pipx").write_bytes(_FAKE_PIPX.encode("utf-8"))
+    (bin_dir / "pipx").chmod(0o755)
+    legacy = pipx_home / "venvs" / "sarand"
+    legacy.mkdir(parents=True)
+    (legacy / "marker").write_bytes(b"legacy")
+    new = pipx_home / "venvs" / "sarand-cli"
+    if previous_new:
+        new.mkdir(parents=True)
+        (new / "marker").write_bytes(b"old")
+    env = {
+        **os.environ,
+        "HOME": str(home),
+        "PIPX_HOME": str(pipx_home),
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "FAKE_STATE": str(root / "attempts"),
+        "FAKE_FAILS": str(fails),
+        "SARAND_INSTALL_ATTEMPTS": "2",
+        "SARAND_INSTALL_RETRY_DELAY": "0",
+    }
+    result = subprocess.run(
+        ["bash", str(_SCRIPT)],
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=60,
+        check=False,
+    )
+
+    def marker(path: Path) -> str | None:
+        file = path / "marker"
+        return file.read_bytes().decode("utf-8").strip() if file.is_file() else None
+
+    backups = (pipx_home / ".sarand-previous-venv").exists() or (
+        pipx_home / ".sarand-legacy-venv"
+    ).exists()
+    return result, marker(new), marker(legacy), backups
+
+
+def test_an_install_under_the_old_name_is_replaced_after_a_good_build() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        result, new, legacy, backups = _run_with_legacy(Path(tmp), fails=0)
+
+    assert result.returncode == 0, result.stderr
+    assert new == "new"
+    assert legacy is None  # gone: replaced by sarand-cli
+    assert backups is False
+    assert "replaced by sarand-cli" in result.stdout
+
+
+def test_a_failed_build_puts_the_install_under_the_old_name_back() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        result, new, legacy, backups = _run_with_legacy(Path(tmp), fails=99)
+
+    assert result.returncode != 0
+    assert legacy == "legacy"  # exactly what was there before
+    assert new is None
+    assert backups is False
+    assert "old name (sarand) was restored" in result.stderr
+
+
+def test_both_names_installed_are_handled_and_restored_on_failure() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        result, new, legacy, backups = _run_with_legacy(
+            Path(tmp), fails=99, previous_new=True
+        )
+
+    assert result.returncode != 0
+    assert (new, legacy, backups) == ("old", "legacy", False)
+
+
+def test_an_interrupt_with_the_old_name_set_aside_restores_it() -> None:
+    snippet = (
+        'mkdir -p "$LEGACY_VENV_DIR"; echo legacy > "$LEGACY_VENV_DIR/marker"; '
+        'mv "$LEGACY_VENV_DIR" "$LEGACY_BACKUP_DIR"; LEGACY_STATE=aside; interrupted'
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        result, _, _, _ = _run_snippet(Path(tmp), snippet, previous=False)
+        restored = (Path(tmp) / "pipx" / "venvs" / "sarand" / "marker").is_file()
+
+    assert result.returncode == 130
+    assert restored is True
+
+
+def test_the_install_is_forced_so_the_old_command_link_is_replaced() -> None:
+    commands = [
+        line
+        for line in _SCRIPT.read_text(encoding="utf-8").splitlines()
+        if not line.lstrip().startswith("#")
+    ]
+    assert any('pipx install --force "$SCRIPT_DIR"' in line for line in commands)

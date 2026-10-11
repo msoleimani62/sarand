@@ -102,7 +102,7 @@ def test_no_engine_installed_says_so_with_install_guidance() -> None:
             outcome = pdf.render_to_file(_data(root), root / "r.pdf")
         assert not outcome.ok
         assert "No PDF engine found" in outcome.detail
-        assert "pipx inject sarand weasyprint" in outcome.detail
+        assert "pipx inject sarand-cli weasyprint" in outcome.detail
         assert "--format html" in outcome.detail
         assert not (root / "r.pdf").exists()
 

@@ -17,7 +17,7 @@ Engines, tried in this order (unchanged):
 2. WeasyPrint, found three ways: the `weasyprint` command on PATH, the
    `weasyprint` script inside the Python environment sarand runs from,
    or the importable module (`python -m weasyprint`). The last two matter
-   for `pipx inject sarand weasyprint`: pipx keeps its scripts inside the
+   for `pipx inject sarand-cli weasyprint`: pipx keeps its scripts inside the
    environment, off PATH, so a PATH-only lookup could never see them.
    WeasyPrint itself needs the Pango system library (a pip install does
    not provide it).
@@ -34,7 +34,7 @@ there; see the README.
 
 موتورهای PDF: wkhtmltopdf (پروژه‌ی بالادستی ۲۰۲۳ بایگانی شد) و WeasyPrint
 (از PATH، از اسکریپت داخل همان محیط پایتون، یا از ماژول؛ دو حالت آخر
-برای `pipx inject sarand weasyprint` لازم است چون pipx اسکریپت‌ها را خارج
+برای `pipx inject sarand-cli weasyprint` لازم است چون pipx اسکریپت‌ها را خارج
 از PATH نگه می‌دارد). WeasyPrint کتابخانه‌ی سیستمی Pango می‌خواهد.
 
 گزارش خطا: پیام قبلی همیشه «موتوری پیدا نشد» می‌گفت حتی وقتی موتور پیدا
@@ -67,7 +67,7 @@ _MAX_DETAIL_CHARS = 300
 _INSTALL_HINT = (
     "Install one: `wkhtmltopdf` (e.g. `apt install wkhtmltopdf`; some distributions "
     "no longer package it) or WeasyPrint (`pip install weasyprint`, or "
-    "`pipx inject sarand weasyprint` for a pipx install; it also needs the Pango "
+    "`pipx inject sarand-cli weasyprint` for a pipx install; it also needs the Pango "
     "system library). `--format html` gives the same content without either."
 )
 _NATIVE_LIBRARY_HINT = (

@@ -28,6 +28,10 @@
 
 ---
 
+> **Not to be confused with** [Sarand](https://github.com/beiko-lab/sarand), a
+> bioinformatics tool for antimicrobial-resistance gene neighbourhoods. This is an
+> unrelated developer tool.
+
 sarand scans a project, works out what it is, runs its tests, linters and security checks, and writes **one file** with everything an AI coding assistant needs: the project tree, the full source, the results, a health score and a written summary. Run it *before* you hand a codebase to an assistant, so the assistant starts with facts instead of guesses.
 
 ## Why sarand
@@ -177,7 +181,7 @@ sarand drives the standard tools of each ecosystem. Nothing here is required: a 
 
 **Assembly** needs no external tool. sarand recognises `.asm`, `.s`/`.S`, `.nasm`, `.yasm`, `.masm`, `.fasm`, `.a51`, `.a65`, `.a86` and `.z80` files in the project root and in the first-level `src/`, `asm/`, `boot/`, `kernel/` and `firmware/` folders, and names the *dialect* of each file in the "Detected project" section: x86 (NASM, GNU as with AT&T or Intel syntax, MASM/TASM, FASM; 16, 32 or 64-bit), ARM (A32/T32), AArch64, RISC-V, MIPS, PowerPC, 6502, Z80, AVR, Motorola 68000 and 8051. It is a transparent heuristic, not a parser: a file it cannot place is reported as `Unidentified` instead of a guess, and nothing is ever assembled or run.
 
-Project-wide checks that run with `--security`: `gitleaks` (secrets, including git history) and `syft` (software bill of materials with a license summary). PDF output needs an HTML-to-PDF engine: `wkhtmltopdf` (upstream archived it in 2023, so some distributions no longer ship it) or WeasyPrint (`pip install weasyprint`, or `pipx inject sarand weasyprint` for a pipx install; it also needs the Pango system library). If no engine works, sarand says why, writes the same report as Markdown next to the intended PDF path and exits non-zero. On Termux and Android neither engine has been verified; use `--format html` and print from a browser there.
+Project-wide checks that run with `--security`: `gitleaks` (secrets, including git history) and `syft` (software bill of materials with a license summary). PDF output needs an HTML-to-PDF engine: `wkhtmltopdf` (upstream archived it in 2023, so some distributions no longer ship it) or WeasyPrint (`pip install weasyprint`, or `pipx inject sarand-cli weasyprint` for a pipx install; it also needs the Pango system library). If no engine works, sarand says why, writes the same report as Markdown next to the intended PDF path and exits non-zero. On Termux and Android neither engine has been verified; use `--format html` and print from a browser there.
 
 </details>
 
@@ -521,7 +525,7 @@ That is intended. Files that contain a detected secret are never written into th
 Installed with pipx:
 
 ```bash
-pipx uninstall sarand
+pipx uninstall sarand-cli
 ```
 
 Installed as a development install:

@@ -102,7 +102,7 @@ not bump it. Policy:
    of sarand:
 
    ```bash
-   pipx inject sarand ./my-plugin
+   pipx inject sarand-cli ./my-plugin
    ```
 
    With a plain virtual environment, `pip install ./my-plugin` in the same

@@ -71,13 +71,13 @@ def _source_pyproject(package_dir: Path) -> Path | None:
         text = candidate.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
-    return candidate if 'name = "sarand"' in text else None
+    return candidate if 'name = "sarand-cli"' in text else None
 
 
 def installation_info() -> InstallationInfo:
     package_dir = Path(__file__).resolve().parent.parent
     try:
-        distribution = metadata.distribution("sarand")
+        distribution = metadata.distribution("sarand-cli")
         version = distribution.version
         editable = _direct_url_says_editable(distribution)
     except metadata.PackageNotFoundError:

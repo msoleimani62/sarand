@@ -49,5 +49,5 @@ def test_other_tools_are_still_probed_on_path_only() -> None:
 def test_the_real_weasyprint_row_names_pipx_inject_and_pango() -> None:
     row = next(r for r in doctor._TOOL_CHECKS if r[1] == "weasyprint")
     assert "pip install weasyprint" in row[2]
-    assert "pipx inject sarand weasyprint" in row[2]
+    assert "pipx inject sarand-cli weasyprint" in row[2]
     assert "Pango" in row[2]

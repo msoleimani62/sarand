@@ -34,8 +34,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPX_HOME_DIR="${PIPX_HOME:-$HOME/.local/share/pipx}"
-PIPX_VENV_DIR="$PIPX_HOME_DIR/venvs/sarand"
+# The pipx environment is named after the distribution: `sarand-cli` (the name
+# `sarand` on PyPI is another project's). A copy installed under the old name
+# (`venvs/sarand`) is set aside like any previous install and removed only
+# after the new build succeeds; a failed build puts it back.
+# محیط pipx به نام توزیع است: `sarand-cli`. نصب قدیمی با نام `sarand` هم مثل
+# هر نصب قبلی کنار گذاشته می‌شود، فقط بعد از build موفق پاک می‌شود و اگر build
+# شکست بخورد برمی‌گردد.
+PIPX_VENV_DIR="$PIPX_HOME_DIR/venvs/sarand-cli"
+LEGACY_VENV_DIR="$PIPX_HOME_DIR/venvs/sarand"
 BACKUP_DIR="$PIPX_HOME_DIR/.sarand-previous-venv"
+LEGACY_BACKUP_DIR="$PIPX_HOME_DIR/.sarand-legacy-venv"
 ATTEMPTS="${SARAND_INSTALL_ATTEMPTS:-3}"
 RETRY_DELAY="${SARAND_INSTALL_RETRY_DELAY:-5}"
 # What this script has done to the pipx venv so far -- what an interrupt or a
@@ -49,6 +58,9 @@ RETRY_DELAY="${SARAND_INSTALL_RETRY_DELAY:-5}"
 #   aside  نصب قبلی به $BACKUP_DIR منتقل شده
 #   fresh  نصب قبلی نبوده؛ ممکن است build یک venv ناقص به‌جا گذاشته باشد
 STATE=idle
+# Same idea for an install under the old pipx name: idle or aside.
+# همین ایده برای نصب با نام قدیمی pipx: idle یا aside.
+LEGACY_STATE=idle
 
 # Slow mobile networks are the usual cause of a failed build; give both
 # pip and uv (pipx can use either) a generous timeout.
@@ -73,6 +85,12 @@ restore_previous() {
         ;;
     esac
     STATE=idle
+    if [ "$LEGACY_STATE" = aside ]; then
+        rm -rf "$LEGACY_VENV_DIR"
+        mv "$LEGACY_BACKUP_DIR" "$LEGACY_VENV_DIR"
+        echo "==> The installation under the old name (sarand) was restored."
+    fi
+    LEGACY_STATE=idle
 }
 
 # Ctrl-C (or a terminated shell) in the middle of a slow build must not
@@ -95,6 +113,17 @@ main() {
         echo "==> pipx not found."
         echo "    Install it first: pip install pipx --break-system-packages && pipx ensurepath"
         exit 1
+    fi
+
+    # An install made under the old pipx name (`sarand`) is set aside first:
+    # both would expose the same `sarand` command.
+    # نصب با نام قدیمی pipx اول کنار گذاشته می‌شود: هر دو یک دستور `sarand` می‌دهند.
+    if [ -e "$LEGACY_VENV_DIR" ]; then
+        echo "==> An installation under the old name (sarand) was found -- setting it"
+        echo "    aside; it is removed only after the new one is built."
+        rm -rf "$LEGACY_BACKUP_DIR"
+        mv "$LEGACY_VENV_DIR" "$LEGACY_BACKUP_DIR"
+        LEGACY_STATE=aside
     fi
 
     # Set the previous installation aside. Moving the directory works even
@@ -121,7 +150,7 @@ main() {
 
     echo "==> Building and installing the current version..."
     attempt=1
-    until pipx install "$SCRIPT_DIR"; do
+    until pipx install --force "$SCRIPT_DIR"; do
         # pipx cleans up after itself, but make sure no half-built venv stays.
         rm -rf "$PIPX_VENV_DIR"
         if [ "$attempt" -ge "$ATTEMPTS" ]; then
@@ -139,6 +168,11 @@ main() {
     trap - INT TERM
     rm -rf "$BACKUP_DIR"
     STATE=idle
+    if [ "$LEGACY_STATE" = aside ]; then
+        rm -rf "$LEGACY_BACKUP_DIR"
+        LEGACY_STATE=idle
+        echo "==> The old installation (sarand) was replaced by sarand-cli."
+    fi
     echo "==> Done."
     verify_installed
 }

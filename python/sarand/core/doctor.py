@@ -163,7 +163,7 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "weasyprint",
         (
             "pip install weasyprint (for a pipx install of sarand: "
-            "pipx inject sarand weasyprint); it also needs the Pango "
+            "pipx inject sarand-cli weasyprint); it also needs the Pango "
             "system library"
         ),
         "--format pdf (fallback engine)",
@@ -539,7 +539,7 @@ def _installation_checks() -> list[DoctorCheck]:
                 fix=(
                     "Which one runs depends on PATH order (`which -a sarand`). "
                     "Keep the one you want: `deactivate` a development "
-                    "virtualenv, or `pipx uninstall sarand`."
+                    "virtualenv, or `pipx uninstall sarand-cli` (`sarand` for an install made before the rename)."
                 ),
                 category="Core",
             )
@@ -551,7 +551,7 @@ def _tool_check(category: str, binary: str, fix: str, used_for: str) -> DoctorCh
     if binary == "weasyprint":
         # Same definition of "available" as `--format pdf` (PATH, the
         # script beside this Python, or the importable module), so a
-        # `pipx inject sarand weasyprint` install is not reported missing.
+        # `pipx inject sarand-cli weasyprint` install is not reported missing.
         # همان تعریف `--format pdf` از «در دسترس بودن».
         from sarand.renderers.pdf import available_engines
 

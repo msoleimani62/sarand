@@ -4147,3 +4147,70 @@ not, the page loses an image, nothing else.
 **Not done (needs the name or a decision).** The name in `pyproject.toml`,
 `abi3-py310`, the release workflow, the README install section for PyPI, the
 trusted publishers on pypi.org and test.pypi.org (a manual step for the user).
+
+### 5.63 — The distribution is `sarand-cli` (2026-10-10)
+
+Backlog status item 8. The PyPI name `sarand` belongs to an unrelated
+bioinformatics tool (beiko-lab/sarand, from the Beiko Lab at Dalhousie
+University, with a peer-reviewed paper and its own `sarand` command), so the
+project cannot be published under it and `pip install sarand` would install the
+wrong program. `sarand-cli` returned 404 on PyPI on 2026-10-10 (the user
+checked); a name is only claimed by the first upload, so a pending publisher
+does not reserve it.
+
+**What the name is, and is not.** It is the *distribution* name, the one in
+`pyproject.toml`: what PyPI lists, what `pip show` and `pipx list` call the
+package, and what `pipx inject` / `pipx uninstall` take. It is not the command
+(`sarand`), the import package (`sarand`, `sarand._core`), the repository, the
+product name in reports and docs, or the AUR package (`pkgname=sarand`, a
+separate namespace). A publish-time `sed` of the name was rejected: what CI
+tests would differ from what is shipped, and a source install and a PyPI install
+would carry two different names for the same program.
+
+**Audit of what depends on the name.** `python/sarand/__init__.py` and
+`utils/installation.py` read the version / distribution by name;
+`_source_pyproject` recognises a checkout by `name = "sarand"`; `install.sh`
+keeps its safety logic around the pipx environment `venvs/sarand`; the hints in
+`core/doctor.py` and `renderers/pdf.py`, both READMEs and `docs/PLUGINS*.md`
+say `pipx inject sarand ...` / `pipx uninstall sarand`; four test modules pin
+those strings. No other code uses the name (the AUR build and `release.py`
+do not).
+
+**Change.**
+
+- `pyproject.toml`: `name = "sarand-cli"` (with a comment), Python 3.10 to 3.14
+  classifiers and a `[project.urls]` table (Homepage, Source, Changelog,
+  Issues) for the PyPI sidebar.
+- The two runtime lookups use `sarand-cli`. There is deliberately no fallback to
+  `sarand`: that name may be the other project's, and reporting its version
+  would be wrong. An old editable install recorded under `sarand` therefore
+  reads as `0.0.0+unknown` until it is refreshed, and the existing stale-install
+  note says so.
+- `install.sh`: the pipx environment is `venvs/sarand-cli`. An install under the
+  old name (`venvs/sarand`) is moved to `.sarand-legacy-venv` before the build
+  (both would expose the same `sarand` command), deleted only after a good
+  build, and put back by the same restore path on a failed build or an
+  interrupt (`LEGACY_STATE`). `pipx install` gets `--force` so the old command
+  link is replaced. The rule "never `pipx uninstall`" still holds (a test
+  pins it).
+- Hints and docs name `sarand-cli`; both READMEs carry a short "not to be
+  confused with" note linking the other project. The PyPI install line is NOT in
+  the READMEs yet: it is added by the release that actually publishes.
+
+**Migration for an existing machine** (the user's phone and laptop): run
+`./install.sh`; the old pipx environment is replaced automatically. A
+development virtualenv with an editable install under the old name needs one
+refresh: `pip uninstall sarand` in it, then `maturin develop --release` (until
+then `sarand --version` there prints `0.0.0+unknown`).
+
+**Not verified here.** The sandbox has no `pipx`: the installer logic is tested
+with the fake pipx of `tests/test_install_script.py` (a good build, a failed
+build, both names present, an interrupt), not with the real tool; the real
+behaviour of `pipx install --force` over a dangling command link is the thing
+to watch on the first real run.
+
+Tests: `tests/test_distribution_name.py` (5) -- the name in `pyproject.toml`,
+the command / import name kept, the runtime lookups, no stale
+`pipx inject|uninstall sarand` anywhere, the README note; and five new tests in
+`tests/test_install_script.py` for the old name (replaced after a good build,
+restored after a failed one, both names present, an interrupt, `--force`).
