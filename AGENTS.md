@@ -4235,3 +4235,58 @@ reasons the local chain could not show:
   `core/workspace.py` and `core/license_policy.py`); the test now follows it and
   runs on every Python. Standing rules: the local type check is `mypy .` (as
   CI), and a module newer than Python 3.10 is imported only through that idiom.
+
+### 5.64 — A release workflow with PyPI trusted publishing (2026-10-10)
+
+Backlog status item 8, the building part. 5.62 prepared the README and CI,
+5.63 renamed the distribution to `sarand-cli`; this adds the pipeline.
+
+**Design.** `.github/workflows/release.yml` (the file name is part of the PyPI
+trusted-publisher form):
+
+- *Triggers:* a pushed tag `v*`, or a manual run. A tag builds everything and
+  publishes to PyPI; a manual run only builds, and uploads to TestPyPI when its
+  box is ticked (the dry run). PyPI is never published from a branch or a manual
+  run.
+- *Jobs:* `check` (the tag must equal the version in `pyproject.toml`);
+  `wheels` (a matrix: Linux x86_64 and aarch64 in the manylinux container, macOS
+  arm64 and x86_64 -- the latter cross-compiled on the arm runner -- and Windows
+  x64, through `PyO3/maturin-action@v1`); `sdist`; `smoke` (installs the Linux,
+  macOS and Windows wheels on Python 3.10, and the Linux one also on 3.14, runs
+  `sarand --version`, imports `sarand._core` so a wheel without the compiled
+  core cannot pass, and on a tag checks that the wheel's version names the tag);
+  `publish-testpypi` and `publish-pypi`, each needing `wheels`, `sdist` and
+  `smoke`.
+- *Safety:* trusted publishing (OIDC) through `pypa/gh-action-pypi-publish@
+  release/v1`, so no token or password exists anywhere; the default permission
+  is `contents: read` and only the two publish jobs get `id-token: write`; each
+  publish job has its own environment (`pypi`, `testpypi`), and `pypi` is meant
+  to carry a required reviewer, so a real upload waits for a human. The action
+  attaches PEP 740 attestations by default. Artifacts move between jobs with
+  `upload-artifact@v6` and `download-artifact@v8` (the Node 24 majors; versions
+  checked from the official release pages on 2026-10-10).
+- *abi3:* `pyproject.toml` enables `pyo3/abi3-py310`, so there is one wheel per
+  platform for every Python from 3.10 on (matching `requires-python`) instead
+  of five per platform, and cross-compiling needs no target interpreter. The
+  Rust source uses only `PyDict`, `pyfunction`, `pymodule`, `Bound` and
+  `Python::detach`, all abi3-safe. The `Cargo.toml` feature list is left
+  alone, so `cargo test` and clippy still build the full API; only the maturin
+  build is limited to abi3, which is exactly what CI's "Build the release
+  wheel" step and the release workflow exercise.
+- *Docs:* `docs/PUBLISHING.md` and `.fa.md`: the one-time setup with the exact
+  fields of the two PyPI forms and the two GitHub environments, the TestPyPI
+  dry run, a real release, and a troubleshooting table taken from PyPI's own
+  documentation (a pending publisher does not reserve the name; the form
+  cannot name a reusable workflow; the environment name must match).
+
+**Not verified here.** Nothing can run a workflow in the sandbox. What is
+checked is that the file parses and that its safety properties hold
+(`tests/test_release_workflow.py`, 11 tests). The first real proof is the
+TestPyPI dry run described in the guide; the macOS x86_64 cross build, the
+aarch64 manylinux build and the abi3 compile of the Rust core are the three
+things most likely to need a fix there.
+
+**Not done (needs the user or a decision).** The accounts, the two pending
+publishers, the two GitHub environments and the first upload (all in the guide);
+the `pipx install sarand-cli` line in the READMEs (added by the release that
+publishes); a GitHub Release with the files attached.

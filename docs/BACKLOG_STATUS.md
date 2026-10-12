@@ -91,17 +91,16 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 
 ### Decisions and optional work
 
-8. **PyPI publishing -- in progress** (AGENTS.md 5.62). Not published;
-   install is from source with pipx and a Rust toolchain (verified: neither
-   `pip` nor `pipx` installs without Rust). **The name `sarand` is taken on
-   PyPI** (an unrelated bioinformatics tool), so a different distribution
-   name is needed; the import package and the command can stay. Done: the
-   README uses absolute links and CI runs `twine check --strict` on the
-   wheel and the sdist. Still to do once the name is chosen: the name in
-   `pyproject.toml`, `pyo3/abi3-py310` (one wheel per platform instead of
-   one per Python version), a release workflow with trusted publishing
-   (TestPyPI first) and wheels for Linux (x86_64, aarch64), macOS and
-   Windows. Worth doing only if people should install without Rust.
+8. **PyPI publishing -- built, waiting for the one-time setup** (AGENTS.md
+   5.62 to 5.64). Not published yet; install is still from source. The name
+   `sarand` is taken on PyPI (an unrelated bioinformatics tool), so the
+   distribution is `sarand-cli` (command and import name unchanged). Done:
+   absolute README links, `twine check --strict` in CI, abi3 wheels, the
+   release workflow with trusted publishing (`.github/workflows/release.yml`)
+   and the step-by-step guide `docs/PUBLISHING.md`. Needs the user: the
+   accounts and pending publishers on pypi.org and test.pypi.org, two
+   GitHub environments, a TestPyPI dry run, then a real tag. After the
+   first publish the READMEs get the `pipx install sarand-cli` line.
 9. **AUR:** the `PKGBUILD` is correct but unpublished; run `updpkgsums` once a
    release tag exists.
 10. **Quick Context:** frameworks and an inferred risk model (not in the report

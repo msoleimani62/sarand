@@ -1,0 +1,164 @@
+name: Release
+
+# Builds the wheels and the source distribution and publishes them to PyPI with
+# trusted publishing: no API token is stored anywhere (docs/PUBLISHING.md).
+#   - A pushed tag `vX.Y.Z` builds everything and publishes to PyPI, after the
+#     approval the `pypi` environment asks for.
+#   - Run manually (Actions -> Release -> Run workflow) it only builds; tick
+#     the box to also upload to TestPyPI, the dry run for a real release.
+# ساخت wheel و sdist و انتشار با trusted publishing؛ هیچ توکنی ذخیره نمی‌شود.
+#   - push تگ `vX.Y.Z` همه‌چیز را می‌سازد و بعد از تأیید environment به نام `pypi` در PyPI منتشر می‌کند.
+#   - اجرای دستی فقط می‌سازد؛ با تیک گزینه به TestPyPI هم می‌فرستد (تمرین انتشار).
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_to_testpypi:
+        description: "Also upload to TestPyPI (a dry run; PyPI only publishes from a tag)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check the version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: The tag must name the package version
+        # A tag that disagrees with pyproject.toml must never reach PyPI.
+        # تگی که با pyproject.toml نمی‌خواند هرگز نباید به PyPI برسد.
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "The tag $GITHUB_REF_NAME does not match the package version v$version" >&2
+            exit 1
+          fi
+
+  wheels:
+    name: Wheel (${{ matrix.name }})
+    needs: check
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, runner: ubuntu-24.04, target: x86_64, manylinux: auto }
+          - { name: linux-aarch64, runner: ubuntu-24.04, target: aarch64, manylinux: auto }
+          - { name: macos-arm64, runner: macos-latest, target: aarch64-apple-darwin }
+          - { name: macos-x86_64, runner: macos-latest, target: x86_64-apple-darwin }
+          - { name: windows-x64, runner: windows-latest, target: x64 }
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build the wheel
+        # One abi3 wheel per platform covers every Python from 3.10 on
+        # (pyproject.toml enables pyo3/abi3-py310), so it also cross-compiles.
+        # یک wheel با abi3 برای هر پلتفرم، همه‌ی پایتون‌های ۳.۱۰ به بالا را پوشش می‌دهد.
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux || 'auto' }}
+          args: --release --out dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist-wheels-${{ matrix.name }}
+          path: dist
+
+  sdist:
+    name: Source distribution
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build the sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist-sdist
+          path: dist
+
+  smoke:
+    name: Smoke test (${{ matrix.runner }}, Python ${{ matrix.python }})
+    needs: wheels
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, python: "3.10", artifact: dist-wheels-linux-x86_64 }
+          - { runner: ubuntu-24.04, python: "3.14", artifact: dist-wheels-linux-x86_64 }
+          - { runner: macos-latest, python: "3.10", artifact: dist-wheels-macos-arm64 }
+          - { runner: windows-latest, python: "3.10", artifact: dist-wheels-windows-x64 }
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist
+      - name: Install the wheel
+        run: python -m pip install dist/*.whl
+      - name: The command runs and the compiled core is inside the wheel
+        run: |
+          sarand --version
+          python -c "import sarand._core as core; print('Rust core:', core.__file__)"
+      - name: The wheel names the tagged version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python -c "import os, sarand; ref = os.environ['GITHUB_REF_NAME']; assert ref == 'v' + sarand.__version__, (ref, sarand.__version__)"
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_to_testpypi
+    needs: [wheels, sdist, smoke]
+    runs-on: ubuntu-24.04
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/sarand-cli/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Upload with trusted publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          skip-existing: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, sdist, smoke]
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/sarand-cli/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Upload with trusted publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

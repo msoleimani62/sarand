@@ -99,7 +99,10 @@ sarand = "sarand.cli:main"
 # ساختار استاندارد maturin برای پروژه ترکیبی Rust/Python.
 python-source = "python"
 module-name = "sarand._core"
-features = ["pyo3/extension-module"]
+# abi3: one wheel per platform for every Python from 3.10 on (matches
+# requires-python); the Rust source uses only abi3-safe PyO3 APIs.
+# abi3: یک wheel برای هر پلتفرم، برای همه‌ی پایتون‌های ۳.۱۰ به بالا.
+features = ["pyo3/extension-module", "pyo3/abi3-py310"]
 
 [tool.ruff]
 # tests/golden/ holds byte-exact recorded renderer OUTPUT (see
