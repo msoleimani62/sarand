@@ -118,9 +118,9 @@ def test_smoke_helpers_find_the_wheel_and_build_a_detectable_helm_project() -> N
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         (base / "dist").mkdir()
-        (base / "dist" / "sarand-0.6.0-cp312-linux.whl").write_text("")
-        (base / "dist" / "sarand-0.6.11-cp312-linux.whl").write_text("")
-        assert smoke.find_wheel(base / "dist").name.startswith("sarand-0.6.11")
+        (base / "dist" / "sarand_cli-0.6.0-cp312-linux.whl").write_text("")
+        (base / "dist" / "sarand_cli-0.6.11-cp312-linux.whl").write_text("")
+        assert smoke.find_wheel(base / "dist").name.startswith("sarand_cli-0.6.11")
         project = base / "project"
         project.mkdir()
         smoke.make_helm_project(project)

@@ -4214,3 +4214,24 @@ the command / import name kept, the runtime lookups, no stale
 `pipx inject|uninstall sarand` anywhere, the README note; and five new tests in
 `tests/test_install_script.py` for the old name (replaced after a good build,
 restored after a failed one, both names present, an interrupt, `--force`).
+
+
+**5.63 follow-up -- what the first CI run of the rename found (2026-10-11).**
+The rename commit passed every local check and failed CI twice, for two
+reasons the local chain could not show:
+
+- `scripts/smoke_install.py` (the fresh-install smoke test) globbed
+  `sarand-*.whl`; the `sarand-cli` wheel is `sarand_cli-*.whl` (PEP 427 writes
+  the hyphen of the name as an underscore). The unit test of `find_wheel` used
+  made-up file names, so nothing local ever built a real wheel. My search for
+  what depends on the name had grepped the metadata lookups and missed this
+  glob; the lesson is to grep a renamed identifier everywhere, including
+  `scripts/` and `.github/`, in every spelling (`sarand-`, `sarand_`).
+- `tests/test_pyproject_valid.py` imported `tomllib` (3.11+). CI runs
+  `mypy .` -- the tests and scripts too, not only `python/` as the local chain
+  did -- on Python 3.10, where the module does not exist. The project already
+  had the idiom for this (`if sys.version_info >= (3, 11): import tomllib /
+  else: import tomli as tomllib`, used in `core/components.py`,
+  `core/workspace.py` and `core/license_policy.py`); the test now follows it and
+  runs on every Python. Standing rules: the local type check is `mypy .` (as
+  CI), and a module newer than Python 3.10 is imported only through that idiom.

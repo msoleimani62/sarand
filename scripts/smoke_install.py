@@ -41,9 +41,12 @@ def project_version() -> str:
 
 
 def find_wheel(wheel_dir: Path) -> Path:
-    wheels = sorted(wheel_dir.glob("sarand-*.whl"))
+    # The distribution is `sarand-cli`; a wheel file name writes the hyphen of
+    # the name as an underscore (PEP 427).
+    # نام wheel خط‌تیره‌ی نام توزیع را با زیرخط می‌نویسد.
+    wheels = sorted(wheel_dir.glob("sarand_cli-*.whl"))
     if not wheels:
-        raise SystemExit(f"no sarand wheel in {wheel_dir}")
+        raise SystemExit(f"no sarand-cli wheel in {wheel_dir}")
     return wheels[-1]
 
 
