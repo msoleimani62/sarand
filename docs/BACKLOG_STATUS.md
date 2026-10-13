@@ -13,7 +13,7 @@ those items lives only in that document. When follow-ups 1 to 4 are done (or
 dropped with a reason recorded here), delete `docs/BACKLOG.md` and this file;
 git history keeps both.
 
-Latest release: **v0.6.18**. Every released version carries its own number
+Latest release: **v0.6.19**. Every released version carries its own number
 in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 (`scripts/release.py` and `tests/test_distribution.py` enforce it).
 
@@ -91,16 +91,14 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 
 ### Decisions and optional work
 
-8. **PyPI publishing -- built, waiting for the one-time setup** (AGENTS.md
-   5.62 to 5.64). Not published yet; install is still from source. The name
-   `sarand` is taken on PyPI (an unrelated bioinformatics tool), so the
-   distribution is `sarand-cli` (command and import name unchanged). Done:
-   absolute README links, `twine check --strict` in CI, abi3 wheels, the
-   release workflow with trusted publishing (`.github/workflows/release.yml`)
-   and the step-by-step guide `docs/PUBLISHING.md`. Needs the user: the
-   accounts and pending publishers on pypi.org and test.pypi.org, two
-   GitHub environments, a TestPyPI dry run, then a real tag. After the
-   first publish the READMEs get the `pipx install sarand-cli` line.
+8. **PyPI publishing -- done with v0.6.19** (AGENTS.md 5.62 to 5.65):
+   `pipx install sarand-cli` (the name `sarand` is another project's; the
+   command and the import name are unchanged), abi3 wheels for Linux
+   x86_64 / aarch64, macOS arm64 / x86_64 and Windows x64, published by
+   `.github/workflows/release.yml` with trusted publishing (guide:
+   `docs/PUBLISHING.md`). Open: a GitHub Release with the files attached;
+   `musllinux` wheels (Alpine) and free-threaded Python builds have none and
+   build from the sdist.
 9. **AUR:** the `PKGBUILD` is correct but unpublished; run `updpkgsums` once a
    release tag exists.
 10. **Quick Context:** frameworks and an inferred risk model (not in the report

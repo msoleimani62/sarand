@@ -59,17 +59,18 @@ sarand پروژه‌ی شما را بررسی می‌کند، تشخیص می‌
 
 ## شروع سریع
 
-یک‌بار نصبش کنید. به Python 3.10 یا جدیدتر، زنجیره‌ابزار Rust و [pipx](https://pipx.pypa.io) نیاز دارد:
+یک‌بار با [pipx](https://pipx.pypa.io) نصبش کنید (Python 3.10 یا جدیدتر؛ به Rust نیازی نیست، wheelها از پیش ساخته شده‌اند):
 
 <div dir="ltr">
 
 ```bash
-git clone https://github.com/msoleimani62/sarand.git
-pipx install ./sarand
+pipx install sarand-cli
 sarand --version
 ```
 
 </div>
+
+روش‌های دیگر (از سورس، Arch، توسعه) در بخش [نصب](#install) آمده است.
 
 بعد داخل هر پروژه‌ای اجرایش کنید:
 
@@ -231,11 +232,24 @@ sarand از ابزارهای استاندارد هر اکوسیستم کمک م�
 | چه چیزی | برای چه کاری |
 |---|---|
 | Python 3.10 یا جدیدتر | اجرای sarand |
-| زنجیره‌ابزار Rust ([rustup.rs](https://rustup.rs)) | ساخت هسته‌ی سریع |
+| زنجیره‌ابزار Rust ([rustup.rs](https://rustup.rs)) | فقط برای ساخت از سورس؛ wheelهای PyPI به آن نیاز ندارند |
 | [pipx](https://pipx.pypa.io) | نصب‌کننده‌ی پیشنهادی |
 | ابزارهای هر زبان | اختیاری؛ با `sarand --doctor` ببینید |
 
-### روش پیشنهادی: pipx
+### از PyPI (بدون نیاز به Rust)
+
+<div dir="ltr">
+
+```bash
+pipx install sarand-cli
+sarand --version
+```
+
+</div>
+
+اسم بسته در PyPI برابر `sarand-cli` است (اسم `sarand` آنجا مال یک پروژه‌ی بی‌ربط است) و دستوری که نصب می‌شود `sarand` است. wheelهای از پیش ساخته‌شده Linux (با glibc) روی x86_64 و aarch64، macOS روی Intel و Apple silicon و Windows روی x64 را برای همه‌ی نسخه‌های پایتون از ۳.۱۰ به بالا پوشش می‌دهند. روی سیستم‌های دیگر از سورس ساخته می‌شود، مثل پایین. برای به‌روزرسانی: `pipx upgrade sarand-cli`.
+
+### از سورس با pipx
 
 pipx، sarand را در یک محیط ایزوله می‌سازد و دستور `sarand` را روی `PATH` قرار می‌دهد.
 

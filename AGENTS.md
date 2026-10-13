@@ -3672,13 +3672,14 @@ For whoever (person or assistant) opens this repository in a new session.
 Nothing here is new behaviour; it collects what the 5.37 to 5.53 rounds
 taught about *how* work on sarand is done.
 
-**Where things stand.** Latest release v0.6.18 (tag on the release commit;
+**Where things stand.** Latest release v0.6.19 (tag on the release commit;
 the tag command refuses unless CI is green). It contains the package-manager
 round (5.53, `core/node_pm.py`), the nested-package rounds for projects that
 are not hybrid (5.55, 5.56), the Node 24 CI actions (5.57), the model of
 every workspace of a repository (5.58), the per-package results table (5.59),
-the Kubernetes analyzer and raw manifests (5.60) and the Maven / Gradle
-structure (5.61). Nothing is unreleased at the time of writing.
+the Kubernetes analyzer and raw manifests (5.60), the Maven / Gradle
+structure (5.61) and the PyPI publication as `sarand-cli` (5.62 to 5.65).
+Nothing is unreleased at the time of writing.
 `docs/BACKLOG_STATUS.md` is the authoritative list of what remains and of
 what is deliberately out of scope; do not re-audit what it marks done.
 `docs/BACKLOG.md` is kept only until the follow-ups in the status file are
@@ -4300,3 +4301,27 @@ which does not expand the glob for a native command (`ci.yml` forces bash on
 every OS for this reason; `release.yml` did not). `release.yml` now sets
 `defaults.run.shell: bash` and a test pins it. Nothing was uploaded: the
 publish jobs need the smoke job.
+
+### 5.65 — The first PyPI release, v0.6.19 (2026-10-12)
+
+The result of 5.62 to 5.64: the project is published as `sarand-cli`.
+
+**What was verified before this release.** CI is green on every job with the
+abi3 wheel (the Rust core compiles with `pyo3/abi3-py310`; the fresh-install
+smoke test installs `sarand_cli-*.whl` and runs `sarand --version` and
+`--doctor`), `twine check --strict` passes on the wheel and the sdist (also run
+by hand on the phone), and a TestPyPI dry run through `release.yml` built the
+five wheels and the sdist, installed three of them and uploaded to
+test.pypi.org (docs/PUBLISHING.md, "A dry run on TestPyPI").
+
+**The release.** Version 0.6.19 (the tag v0.6.18 predates `release.yml` and the
+rename, so the first published version is the next one). The READMEs show
+`pipx install sarand-cli` first and keep the source install as the second way.
+A tag `v0.6.19` runs `release.yml`; `publish-pypi` waits for the approval of
+the `pypi` environment.
+
+**Known limits.** Wheels exist for glibc Linux (manylinux), macOS and Windows
+only: Alpine (musllinux), Termux on Android and free-threaded Python builds
+install from the sdist and need a Rust toolchain. The README links point at
+`main`. No GitHub Release is created. PyPI does not allow replacing a file: a
+mistake is fixed by the next version (a bad one can be yanked).

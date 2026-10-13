@@ -4,6 +4,37 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [0.6.19] - 2026-10-12
+
+### Added
+
+- **sarand is on PyPI** as `sarand-cli`: `pipx install sarand-cli` installs the
+  `sarand` command with no Rust toolchain. Prebuilt wheels cover Linux (glibc)
+  on x86_64 and aarch64, macOS on Intel and Apple silicon, and Windows on x64,
+  each one wheel for every Python from 3.10 on (the Rust core is built with
+  `pyo3/abi3-py310`), plus a source distribution.
+- A release workflow (`.github/workflows/release.yml`) that builds the wheels
+  and the sdist, installs them on three systems as a smoke test and publishes
+  with PyPI trusted publishing: no token is stored anywhere, only a tag
+  `vX.Y.Z` publishes to PyPI (after a manual approval), and a manual run can do
+  a dry run on TestPyPI. `docs/PUBLISHING.md` (and `.fa.md`) is the step-by-step
+  guide.
+
+### Changed
+
+- The distribution is named `sarand-cli`, because the name `sarand` on PyPI
+  belongs to an unrelated bioinformatics tool. The command, the import package
+  and the repository stay `sarand`. `./install.sh` replaces an installation
+  made under the old pipx name (it is set aside first and put back if the
+  build fails); the pipx hints in `--doctor`, the PDF messages and the docs say
+  `pipx inject sarand-cli ...`. A development virtualenv with an old editable
+  install needs `pip uninstall sarand` once, then a reinstall.
+
+### Documentation
+
+- Both READMEs show the PyPI install first and say they are not to be confused
+  with the bioinformatics tool Sarand; `AGENTS.md` sections 5.62 to 5.65.
+
 ## [0.6.18] - 2026-10-10
 
 ### Added

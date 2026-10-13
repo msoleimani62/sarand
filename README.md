@@ -53,13 +53,14 @@ sarand scans a project, works out what it is, runs its tests, linters and securi
 
 ## Quick start
 
-Install it once (needs Python 3.10+, a Rust toolchain and [pipx](https://pipx.pypa.io)):
+Install it once with [pipx](https://pipx.pypa.io) (Python 3.10+; no Rust needed, the wheels are prebuilt):
 
 ```bash
-git clone https://github.com/msoleimani62/sarand.git
-pipx install ./sarand
+pipx install sarand-cli
 sarand --version
 ```
+
+Other ways (from source, Arch, development) are under [Install](#install).
 
 Then run it inside any project:
 
@@ -192,11 +193,20 @@ Project-wide checks that run with `--security`: `gitleaks` (secrets, including g
 | Needed | For |
 |---|---|
 | Python 3.10 or newer | Running sarand |
-| A Rust toolchain ([rustup.rs](https://rustup.rs)) | Building the fast core |
+| A Rust toolchain ([rustup.rs](https://rustup.rs)) | Only to build from source; the PyPI wheels need none |
 | [pipx](https://pipx.pypa.io) | Recommended installer |
 | Per-language tools | Optional, see `sarand --doctor` |
 
-### Recommended: pipx
+### From PyPI (no Rust needed)
+
+```bash
+pipx install sarand-cli
+sarand --version
+```
+
+The package is called `sarand-cli` on PyPI (the name `sarand` there belongs to an unrelated project); the command it installs is `sarand`. Prebuilt wheels cover Linux (glibc) on x86_64 and aarch64, macOS on Intel and Apple silicon, and Windows on x64, for every Python from 3.10 on. Other systems build from source, as below. To upgrade: `pipx upgrade sarand-cli`.
+
+### From source with pipx
 
 pipx builds sarand in its own isolated environment and puts the `sarand` command on your `PATH`.
 
