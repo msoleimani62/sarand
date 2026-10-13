@@ -120,3 +120,9 @@ def test_pyproject_builds_one_abi3_wheel_per_platform() -> None:
     pyproject = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '"pyo3/abi3-py310"' in pyproject
     assert 'requires-python = ">=3.10"' in pyproject
+
+
+def test_every_step_runs_in_bash_so_the_wheel_glob_works_on_windows() -> None:
+    # The first real run failed on windows-latest: PowerShell does not expand
+    # `dist/*.whl`. ci.yml forces bash for the same reason.
+    assert _workflow()["defaults"]["run"]["shell"] == "bash"

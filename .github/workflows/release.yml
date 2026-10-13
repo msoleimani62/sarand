@@ -23,6 +23,13 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    # bash on every OS, as in ci.yml: PowerShell (the Windows default) does not
+    # expand `dist/*.whl` for a native command, and pip then fails.
+    # bash روی همه‌ی سیستم‌ها؛ PowerShell الگوی `dist/*.whl` را باز نمی‌کند.
+    shell: bash
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false

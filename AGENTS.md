@@ -4290,3 +4290,13 @@ things most likely to need a fix there.
 publishers, the two GitHub environments and the first upload (all in the guide);
 the `pipx install sarand-cli` line in the READMEs (added by the release that
 publishes); a GitHub Release with the files attached.
+
+
+**5.64 follow-up -- the first real run of `release.yml` (2026-10-12).** The
+dry run built all five wheels (so the aarch64 manylinux build, the macOS x86_64
+cross build and the abi3 compile of the Rust core all work on CI) and failed
+only in the Windows smoke test: `pip install dist/*.whl` ran in PowerShell,
+which does not expand the glob for a native command (`ci.yml` forces bash on
+every OS for this reason; `release.yml` did not). `release.yml` now sets
+`defaults.run.shell: bash` and a test pins it. Nothing was uploaded: the
+publish jobs need the smoke job.
