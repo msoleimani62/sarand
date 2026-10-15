@@ -4325,3 +4325,36 @@ only: Alpine (musllinux), Termux on Android and free-threaded Python builds
 install from the sdist and need a Rust toolchain. The README links point at
 `main`. No GitHub Release is created. PyPI does not allow replacing a file: a
 mistake is fixed by the next version (a bad one can be yanked).
+
+### 5.66 — The Persian README rewrite (2026-10-13)
+
+The user rewrote `README.fa.md` (741 lines against 684): a more formal and more
+careful text, PyPI install first, an explicit statement that CI covers desktop
+systems only and that Termux is designed for but not tested by CI, the
+distinction between "a tool is missing" and "a check passed", the report and
+health-score sections, the output-directory priority, the RC tools and an
+uninstall table.
+
+**Review.** Every checkable claim was compared with the code: the options of
+`cli.py` (all documented, none invented; `tests/test_readme_sync.py` agrees),
+the `--full` rule (it lifts the file-size, depth and entry limits and an
+explicit `--max-file-size` still wins), the defaults, the output-directory order
+(`--output-dir`, `SARAND_OUTPUT_DIR`, the saved setting, `~/Downloads`), the
+health-score weights and the A to D thresholds, and the RC options. All were
+right. One guard test failed: the ecosystem table named three rows in Persian
+("C و C++", "Dart و Flutter", "Java، Kotlin و Android") while
+`test_every_ecosystem_sarand_can_drive_is_listed_in_both_readmes` needs the
+doctor's category names (`C/C++`, `Dart / Flutter`, `Java / Kotlin / Android`).
+
+**Corrections made while adopting it.** The three row names; the Zig, Ruby and
+C# rows now list what `--doctor` lists (quality and security, not only tests);
+the install paragraph says that `install.sh` replaces an install made under
+the old pipx name (0.6.19); the workspace paragraph names Maven and Gradle, the
+several-workspaces report and the Package results table (5.58 to 5.61); the
+uninstall and the stale-version notes cover an editable install made under the
+old distribution name `sarand`; the contributing check is `mypy .` as in CI
+(5.63 follow-up), not `mypy python`.
+
+**Left as the author wrote it.** The sample output and the tip box of the old
+text are gone; that is an editorial choice (a sample output helps a first-time
+reader), not an error.
