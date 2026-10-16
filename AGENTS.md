@@ -4459,3 +4459,9 @@ no new false positive.
 (here: which extensions are embedded). Ruff's modern-idiom rules (FLY002,
 ISC) are why the new fixtures are joined through a small `_cat(*parts)`
 helper instead of `"a" + "b"` or `"".join([...])`.
+
+**Follow-up (first CI run).** Three tests in `tests/test_cli_secrets.py`
+failed on `windows-latest` only: `SecretFinding.path` is `str(rel)`, so it
+carries a backslash there and the test compared it with a POSIX string. The
+feature was right (`matches_fixture_path` already normalises); the test
+helper now normalises too. Any test that reads a finding path must do so.

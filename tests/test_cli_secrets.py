@@ -109,7 +109,11 @@ def _make_project(tmp_path: Path, sarand_toml: str | None) -> None:
 
 
 def _fixture_flags(data: Any) -> dict[str, bool]:
-    return {f.path: f.is_test_fixture for f in data.secret_findings}
+    # SecretFinding.path keeps the platform separator (str(rel)), so compare
+    # POSIX-style: the same test must pass on windows-latest.
+    # SecretFinding.path جداکننده‌ی پلتفرم را نگه می‌دارد؛ برای Windows
+    # مقایسه به‌سبک POSIX انجام می‌شود.
+    return {f.path.replace("\\", "/"): f.is_test_fixture for f in data.secret_findings}
 
 
 def test_without_an_allowlist_no_finding_is_a_fixture(
