@@ -10,10 +10,11 @@ credential out of the report's own source dump, regardless of whether
 gitleaks is installed. gitleaks is a much deeper, purpose-built
 detector (hundreds of provider-specific rules, git-history scanning
 including already-deleted-but-still-in-history secrets) that
-secrets.py's five hand-rolled patterns were never meant to replace --
-it only runs when explicitly requested (--security) and only adds a
-finding to the report, it never gates what gets embedded the way
-secrets.py's exclude_flagged_files does.
+secrets.py's hand-rolled rules were never meant to replace -- it only
+runs when explicitly requested (--security). Its findings do not change
+how the report is scored, but a file it names is moved out of the source
+dump just like a secrets.py finding (cli.py, via gitleaks_flagged_paths
+and secrets.exclude_paths; AGENTS.md 5.67).
 
 gitleaks: یک پاس اسکن secret گسترده‌تر و مخصوص روی کل پروژه (شامل
 تاریخچه‌ی گیت، وقتی وجود دارد)، مکمل --- نه جایگزین --- اسکنر regex
@@ -25,17 +26,18 @@ gitleaks: یک پاس اسکن secret گسترده‌تر و مخصوص روی �
 خودِ source dump گزارش دور نگه می‌دارد، صرف‌نظر از اینکه gitleaks نصب
 باشد یا نه. gitleaks یک دیتکتور بسیار عمیق‌تر و مخصوص همین کار است
 (صدها قانون مخصوص provider، اسکن تاریخچه‌ی گیت شامل secretهایی که حذف
-شده‌اند ولی هنوز در تاریخچه هستند) که پنج الگوی دستی‌نوشته‌ی
-secrets.py هرگز قرار نبوده جایگزینش شوند -- فقط وقتی صراحتاً درخواست
-شود (--security) اجرا می‌شود و فقط یک finding به گزارش اضافه می‌کند،
-هرگز مثل exclude_flagged_files در secrets.py تعیین نمی‌کند چه چیزی
-embed می‌شود.
+شده‌اند ولی هنوز در تاریخچه هستند) که قانون‌های دستی‌نوشته‌ی secrets.py هرگز قرار نبوده جایگزینش
+شوند -- فقط وقتی صراحتاً درخواست شود (--security) اجرا می‌شود. یافته‌هایش
+روش امتیازدهی گزارش را عوض نمی‌کند، ولی فایلی که نام ببرد مثل یافته‌ی
+secrets.py از source dump بیرون می‌رود (cli.py، با gitleaks_flagged_paths و
+secrets.exclude_paths؛ AGENTS.md 5.67).
 """
 
 from __future__ import annotations
 
+import re
 import shutil
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from sarand.constants import LONG_CMD_TIMEOUT
 from sarand.models.results import CommandResult
@@ -113,3 +115,35 @@ async def run_gitleaks(root: Path) -> CommandResult:
 
     rc, out, dur = await run_cmd_async(cmd, root, LONG_CMD_TIMEOUT)
     return make_command_result("gitleaks", rc, out, dur)
+
+
+# `File:` is the line gitleaks' verbose output prints for a finding's path.
+# Parsing the text we already capture (instead of asking for a second JSON
+# report) keeps run_gitleaks' signature, needs no temp file and degrades to
+# "nothing extra excluded" if gitleaks ever changes its format.
+# `File:` خطی است که خروجی verbose برای مسیر هر یافته چاپ می‌کند. پارس کردن
+# همین متنی که از قبل داریم، امضای run_gitleaks را نگه می‌دارد، فایل موقت
+# نمی‌خواهد و اگر قالب عوض شود فقط «چیز اضافه‌ای حذف نمی‌شود».
+_FILE_LINE_RE = re.compile(r"^[ \t]*File:[ \t]+(?P<path>\S[^\r\n]*)\r?$", re.MULTILINE)
+
+
+def gitleaks_flagged_paths(output: str) -> set[Path]:
+    """Project-relative files that gitleaks' (redacted, verbose) output names.
+
+    Only plain relative paths are returned: absolute paths and anything that
+    climbs out of the project (`..`) are ignored, because the result is used
+    to decide which of *our own* files to keep out of a report.
+
+    فایل‌هایی (نسبی به پروژه) که خروجی verbose و redactشده‌ی gitleaks نام
+    می‌برد. فقط مسیر نسبی ساده برمی‌گردد؛ مسیر مطلق و هر چیزی که از پروژه
+    بیرون بزند نادیده گرفته می‌شود.
+    """
+    flagged: set[Path] = set()
+    for match in _FILE_LINE_RE.finditer(output):
+        raw = match.group("path").strip().replace("\\", "/")
+        raw = raw.removeprefix("./")
+        posix = PurePosixPath(raw)
+        if posix.is_absolute() or ".." in posix.parts or not posix.parts:
+            continue
+        flagged.add(Path(*posix.parts))
+    return flagged

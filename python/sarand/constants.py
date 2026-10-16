@@ -261,4 +261,40 @@ SECRET_FILENAME_PATTERNS: tuple[str, ...] = (
     r"\.jks$",
     r"\.keystore$",
     r"^google-services\.json$",
+    # Added in 0.6.20 (AGENTS.md 5.67). Measured: secrets.{yaml,json,toml},
+    # *-adminsdk-*.json, kubeconfig.yaml, *.tfvars.json and wp-config.php were
+    # embedded in reports because their extension is essential and no pattern
+    # matched; the rest never reach the report but are listed for the day the
+    # essential-extension set grows.
+    # اضافه‌شده در 0.6.20 (AGENTS.md 5.67). اندازه‌گیری: فایل‌های
+    # secrets.{yaml,json,toml}، *-adminsdk-*.json، kubeconfig.yaml،
+    # *.tfvars.json و wp-config.php در گزارش embed می‌شدند.
+    r"^\.pypirc$",
+    r"^\.git-credentials$",
+    r"^credentials$",
+    r"^\.dockercfg$",
+    r"\.tfstate(\.backup)?$",
+    r"\.tfvars(\.json)?$",
+    r"^\.htpasswd$",
+    r"^kube[-_]?config(\.ya?ml)?$",
+    r"^secrets?\.(ya?ml|json|toml)$",
+    r"\.p8$",
+    r"\.ppk$",
+    r"^id_(ecdsa|ed25519)_sk$",
+    r"-adminsdk-.*\.json$",
+    r"\.kdbx$",
+    r"\.ovpn$",
+    r"^wp-config\.php$",
+)
+
+# Path-suffix patterns for credential files whose bare name is too generic to
+# match on its own (`config`, `config.json`, `credentials` inside a dotdir).
+# Matched against the POSIX-style project-relative path.
+# الگوهای پسوند مسیر برای فایل‌های اعتبارنامه‌ای که نام خالی‌شان بیش‌ازحد
+# عمومی است؛ روی مسیر نسبی به‌سبک POSIX اعمال می‌شود.
+SECRET_PATH_PATTERNS: tuple[str, ...] = (
+    r"(^|/)\.docker/config\.json$",
+    r"(^|/)\.aws/credentials$",
+    r"(^|/)\.kube/config$",
+    r"(^|/)\.gnupg/",
 )

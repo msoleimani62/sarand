@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from sarand.constants import ESSENTIAL_EXTENSIONS, MAX_FILE_SIZE
-from sarand.core.secrets import looks_like_secret_filename
+from sarand.core.secrets import looks_like_secret_path
 from sarand.progress import status
 from sarand.rust_bridge import FileRecord, scan_project
 from sarand.utils.logging import get_logger
@@ -43,7 +43,7 @@ def collect_essential_files(
             continue
         rel = Path(rec["rel_path"])
 
-        if looks_like_secret_filename(rel.name):
+        if looks_like_secret_path(rel.as_posix()):
             excluded_secrets.append(rel)
             continue
 

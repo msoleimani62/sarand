@@ -303,6 +303,18 @@ safety rule, not an optional check):
    regression test in `tests/test_secrets.py` before being called done —
    see §4.8.)
 
+3. **Explicit fixture allowlist** (since 5.67) — whether a finding counts
+   against the health score is decided by `[secrets] fixture_paths` in the
+   project's `.sarand.toml` (`core/secrets_config.py`), never by guessing
+   from the path. The default is empty. Allow-listed files are still never
+   embedded and their findings are still listed.
+
+Since 5.67 the content scan has 16 rules (provider tokens, private-key
+blocks incl. PGP and encrypted, JWT, credentials in URLs, assignments to
+password-like names), every one linear-time on adversarial input, and with
+`--security` a file that `gitleaks` names is moved out of the source dump too
+(`gitleaks_flagged_paths`, `secrets.exclude_paths`).
+
 Security and data safety outrank every other concern in this project (§7).
 
 ### 4.11 Startup dependency checks should never fail silently
@@ -4358,3 +4370,92 @@ old distribution name `sarand`; the contributing check is `mypy .` as in CI
 **Left as the author wrote it.** The sample output and the tip box of the old
 text are gone; that is an editorial choice (a sample output helps a first-time
 reader), not an error.
+
+
+### 5.67 — Audit remediation R1: secrets (2026-10-15)
+
+First round of `docs/AUDIT_FIX_PROMPT.md` (findings A1, A2, A2b, A3). Each
+finding was re-checked against the code before anything changed.
+
+**CONFIRMED, with a correction to the audit.**
+
+- **A1 filenames — confirmed, but the audit overstated it.** It said the
+  listed files are "embedded in the report". Measured on a fixture tree with
+  `collect_essential_files`: only the files whose extension is in
+  `ESSENTIAL_EXTENSIONS` were embedded — `secrets.yaml`, `secrets.json`,
+  `secrets.toml`, `firebase-adminsdk-*.json`, `kubeconfig.yaml`,
+  `*.tfvars.json`, `wp-config.php`, `.docker/config.json`. The rest
+  (`.aws/credentials`, `.pypirc`, `.git-credentials`, `*.tfstate`, `*.tfvars`,
+  `.htpasswd`, `kubeconfig`, `*.ppk`, `*.p8`, `id_ecdsa_sk`) never reach the
+  report because the extension check runs first, but they are silently
+  skipped and not listed as "excluded".
+- **A2 content patterns — confirmed.** Only AWS `AKIA`, `ghp_`-style, Slack,
+  RSA/EC/OPENSSH/DSA key headers and an `api_key=` assignment were detected;
+  `github_pat_`, `sk-ant-`, `sk-proj-`, `AIza`, `sk_live_`, `pypi-`, `npm_`,
+  `ASIA`, JWT, URL passwords, `password = '...'`, PGP and encrypted key
+  blocks were missed (run, not read).
+- **A2b gitleaks — confirmed.** gitleaks runs after the embedding decision,
+  only with `--security`, and its result never changed what was embedded.
+- **A3 fixture guess — confirmed.** `startswith("tests/")` marked any
+  finding under `tests/` as a fixture.
+
+**BUILT.**
+
+1. `SECRET_FILENAME_PATTERNS` gained 16 patterns and there is a new
+   `SECRET_PATH_PATTERNS` (`.docker/config.json`, `.aws/credentials`,
+   `.kube/config`, `.gnupg/`). `looks_like_secret_path` applies both and is
+   what `essential_files` now calls.
+2. `core/secrets.py` has 16 content rules (data, in `_RULES`), each with
+   lowercase "needles" and an optional validator (placeholder filter,
+   Shannon entropy, a digit-or-uppercase check for assignments). One unified
+   needle regex rejects almost every ordinary line first: scanning this
+   repo's 262 files takes 0.116 s against 0.102 s before (best of 5). One
+   credential on one line is one finding (the password rule is a catch-all
+   that yields to any more specific rule). The cache fingerprint now hashes
+   every rule's regex text plus `RULES_VERSION`, so a rule change invalidates
+   caches (before, only names were hashed).
+3. Every regex is linear: no nested quantifiers, and each "run then literal"
+   shape has a lookbehind so a match can only start at the start of a run.
+   `eyJ` * 30000 and similar 100k-character lines are pinned by a test.
+4. gitleaks: `gitleaks_flagged_paths` parses the `File:` lines of the redacted
+   verbose output already captured; `cli.py` calls `exclude_paths` after the
+   security phase. Only files actually slated for embedding move; paths that
+   exist only in git history are ignored; absolute and `..` paths are ignored.
+5. `[secrets] fixture_paths` in `.sarand.toml` (`core/secrets_config.py`):
+   unknown key, bad type, invalid TOML and a glob that matches everything are
+   errors; `cli.py` turns an error into a warning and counts every finding
+   (the safe direction). `mark_fixture_findings` recomputes the flag for every
+   finding, cached ones included, so a stale cached flag cannot survive.
+   `scan_for_secrets` no longer sets `is_test_fixture`. sarand's own
+   `.sarand.toml` lists `tests/test_secrets.py`, the file `.gitleaks.toml`
+   already allow-lists.
+
+**Deviations from the prompt (deliberate).**
+
+- No per-line length cap: truncating a line is a silent false negative in a
+  minified bundle, and the patterns are linear, so the cap buys nothing.
+- gitleaks is parsed from its text output rather than from a second JSON
+  report: no temp file, no signature change, and a format change only means
+  "nothing extra is excluded". The report names the exclusion in a warning
+  and in the existing excluded-files section, not with a per-engine label.
+
+**Non-goals (recorded).** Listing credential-shaped files that have a
+non-essential extension as "excluded" (a visible behaviour change in every
+report); scanning git history ourselves; a user-extensible rule list;
+changing health weights. Known limit: `password = "correcthorsebattery"`
+(all lowercase, no digit) is not reported by the assignment rule on purpose;
+the entropy and character-class gate trades that miss for far fewer false
+positives.
+
+**Verification.** 41 tests added (1081 to 1122 in the whole suite, run with a
+stand-in `pytest` and `rich` in a sandbox that has neither). The same 5
+tests fail before and after (they need `filelock`/pip internals missing in
+that sandbox). `ruff`, `mypy` and `cargo` were NOT run; the
+delivery's check chain runs them on the device. The repo itself yields the
+same 5 findings as before, all in the allow-listed `tests/test_secrets.py`:
+no new false positive.
+
+**Lessons.** A claim about impact needs the measurement that decides it
+(here: which extensions are embedded). Ruff's modern-idiom rules (FLY002,
+ISC) are why the new fixtures are joined through a small `_cat(*parts)`
+helper instead of `"a" + "b"` or `"".join([...])`.

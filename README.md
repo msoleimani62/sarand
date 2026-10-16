@@ -334,6 +334,17 @@ Running sarand again on the same project replaces its previous report at that pa
 
 Independently of this flag, sarand never copies a file that contains a detected secret into the report, and reports how many files it left out.
 
+### Secret handling
+
+Files whose *name* looks like a credential (`.env*`, `*.pem`, `secrets.yaml`, `kubeconfig`, `.docker/config.json`, `*.tfvars`, ...) are left out before their content is read, and so is any file in which the built-in scan finds a credential-shaped value. With `--security`, a file that `gitleaks` flags is left out too. If your project keeps deliberately fake credentials in its own tests, list those files so they stop lowering the health score:
+
+```toml
+[secrets]
+fixture_paths = ["tests/test_secrets.py"]
+```
+
+Entries are `fnmatch` globs on the project-relative path (case-sensitive; `*` also matches `/`). The default is an empty list, so every finding counts. A listed file is still never copied into the report and its findings are still listed. A glob that would match every file is rejected, and so is any mistake in the table: sarand warns and counts every finding instead.
+
 ### License policy
 
 By default sarand only *advises* about copyleft licenses, because whether one matters depends on your project. If you know your rules, write them in a `.sarand.toml` at the project root and `--security` enforces them against the SBOM:

@@ -4,6 +4,31 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [Unreleased]
+
+### Security
+
+- The credential-file denylist is wider (`secrets.yaml/json/toml`,
+  `*-adminsdk-*.json`, `kubeconfig`, `*.tfvars`, `*.tfstate`, `.pypirc`,
+  `.git-credentials`, `.htpasswd`, `*.p8`, `*.ppk`, `wp-config.php`, ...) and
+  also matches paths such as `.docker/config.json` and `.aws/credentials`.
+  Before, `secrets.yaml`, `secrets.json`, `secrets.toml`,
+  `firebase-adminsdk-*.json`, `kubeconfig.yaml`, `*.tfvars.json`,
+  `wp-config.php` and `.docker/config.json` were copied into reports.
+- The built-in secret scan recognises 16 kinds of credential instead of 5
+  (GitHub fine-grained, Anthropic, OpenAI, Google, Stripe, PyPI, npm, AWS
+  temporary keys, JWT, credentials in URLs, PGP and encrypted private keys,
+  password-like assignments), with placeholder and entropy checks.
+- With `--security`, a file that `gitleaks` flags is also left out of the
+  source dump.
+
+### Changed
+
+- Whether a secret finding is a test fixture is no longer guessed from a
+  `tests/` path: list the files in `.sarand.toml` (`[secrets]
+  fixture_paths = [...]`). The default is empty, so findings under `tests/`
+  now count toward the health score unless listed.
+
 ## [0.6.19] - 2026-10-12
 
 ### Added

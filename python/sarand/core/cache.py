@@ -35,8 +35,12 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from sarand.constants import SECRET_FILENAME_PATTERNS, TODO_PATTERNS
-from sarand.core.secrets import content_pattern_names
+from sarand.constants import (
+    SECRET_FILENAME_PATTERNS,
+    SECRET_PATH_PATTERNS,
+    TODO_PATTERNS,
+)
+from sarand.core.secrets import content_rule_signatures
 from sarand.models.results import SecretFinding, TodoItem
 from sarand.rust_bridge import FileRecord
 from sarand.utils.fs import slugify_project_name
@@ -64,7 +68,8 @@ def _rules_fingerprint() -> str:
     parts = (
         sorted(TODO_PATTERNS)
         + sorted(SECRET_FILENAME_PATTERNS)
-        + sorted(content_pattern_names())
+        + sorted(SECRET_PATH_PATTERNS)
+        + content_rule_signatures()
     )
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 

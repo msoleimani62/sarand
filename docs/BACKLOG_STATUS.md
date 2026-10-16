@@ -116,6 +116,17 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 14. **Memory profiling of `--quality` and the test phase** (item 9 follow-up);
     only if a real report names one of them.
 
+### Audit remediation (started 2026-10-15)
+
+The audit of v0.6.19 and its eight rounds are written in
+`docs/AUDIT_FIX_PROMPT.md`. Round R1 (secrets: wider filename and content
+rules, gitleaks-driven exclusion, explicit fixture allowlist) is delivered
+(AGENTS.md 5.67). Still open: R2 truthful issue extraction and inconclusive
+tools, R3 scan-engine parity (Rust walker ancestor-path bug, Python fallback
+dropping `.github/`), R4 trust model documentation, R5 CI and release
+hygiene, R6 `--jobs` and bounded command output, R7 Rust walker errors,
+R8 repository hygiene.
+
 ### Out of scope, with reasons
 
 - **Bazel:** no Bazel analyzer exists in the roster; it would need a

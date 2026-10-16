@@ -34,7 +34,7 @@ from sarand.core.components import detect_components
 from sarand.core.compose import detect_compose
 from sarand.core.detection_refine import refine_detection
 from sarand.core.estimate import estimate_source_bytes, size_advice
-from sarand.core.gitleaks import run_gitleaks
+from sarand.core.gitleaks import gitleaks_flagged_paths, run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
 from sarand.core.kubernetes import detect_kubernetes
@@ -48,7 +48,13 @@ from sarand.core.per_component import (
     run_component_tests,
 )
 from sarand.core.sbom import run_syft
-from sarand.core.secrets import exclude_flagged_files, scan_for_secrets
+from sarand.core.secrets import (
+    exclude_flagged_files,
+    exclude_paths,
+    mark_fixture_findings,
+    scan_for_secrets,
+)
+from sarand.core.secrets_config import SecretsConfigError, load_fixture_paths
 from sarand.core.workspace import detect_workspaces
 from sarand.discovery.project_detector import detect_project
 from sarand.models.results import ReportData
@@ -432,6 +438,20 @@ async def run(config: SarandConfig) -> int:
     if cache_hits:
         secret_findings = secret_findings + reconstruct_secrets(cache_hits)
 
+    # Which findings are deliberate test fixtures is the project's decision
+    # (`[secrets] fixture_paths` in .sarand.toml), never a guess from the
+    # path (AGENTS.md 5.67). The flag is recomputed here for every finding,
+    # cached ones included, so an edited allowlist always wins.
+    # اینکه کدام یافته‌ها fixture عمدی‌اند تصمیم خود پروژه است
+    # (`[secrets] fixture_paths` در .sarand.toml) نه حدس از مسیر. پرچم برای
+    # همه‌ی یافته‌ها، از کش هم، دوباره محاسبه می‌شود.
+    try:
+        fixture_paths = load_fixture_paths(root)
+    except SecretsConfigError as exc:
+        warning(f"{exc} -- every secret finding will count toward the health score.")
+        fixture_paths = ()
+    secret_findings = mark_fixture_findings(secret_findings, fixture_paths)
+
     # A file with a content-level finding must not have its full source
     # embedded either -- move it from "included" to "excluded" (§4.10).
     # فایلی که یافته‌ی سطح-محتوا دارد نباید سورس کاملش هم embed شود (§4.10).
@@ -577,6 +597,25 @@ async def run(config: SarandConfig) -> int:
             syft_result,
             lockfile_result,
         ]
+
+        # gitleaks is the deeper detector (§4.10): a file it flagged must not
+        # have its source embedded either. Only files actually slated for
+        # embedding are touched; findings that exist only in git history are
+        # ignored. Without --security gitleaks does not run, so this block
+        # does not either.
+        # gitleaks دیتکتور عمیق‌تر است (§4.10): فایلی که پرچم بزند نباید
+        # سورسش embed شود. فقط فایل‌هایی که قرار است embed شوند لمس می‌شوند.
+        flagged_by_gitleaks = gitleaks_flagged_paths(gitleaks_result.raw_output)
+        if flagged_by_gitleaks:
+            before = len(excluded_secrets)
+            included, excluded_secrets = exclude_paths(
+                included, excluded_secrets, flagged_by_gitleaks
+            )
+            moved = len(excluded_secrets) - before
+            if moved:
+                warning(
+                    f"{moved} file(s) flagged by gitleaks excluded from the report."
+                )
 
     known = detect_known_issues(test_results + quality_results + security_results)
 

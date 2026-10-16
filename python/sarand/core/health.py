@@ -183,6 +183,11 @@ def compute_health_score(data: ReportData) -> HealthScore:
         # اسکنر اکنون خودش is_test_fixture را تنظیم می‌کند
         # (core/secrets.py)؛ به‌جای حدس زدن دوباره از متن برچسب، همان را
         # می‌خوانیم.
+        # Since 0.6.20 the flag comes from the project's explicit
+        # `[secrets] fixture_paths` list (core/secrets.mark_fixture_findings),
+        # not from a path guess.
+        # از 0.6.20 این پرچم از فهرست صریح `[secrets] fixture_paths` پروژه
+        # می‌آید (core/secrets.mark_fixture_findings) نه از حدس مسیر.
         fixture_findings = [
             finding for finding in data.secret_findings if finding.is_test_fixture
         ]
@@ -203,8 +208,8 @@ def compute_health_score(data: ReportData) -> HealthScore:
 
         if fixture_findings:
             recommendations.append(
-                f"{len(fixture_findings)} secret-pattern match(es) explicitly identified "
-                "as test fixtures were excluded from the health score."
+                f"{len(fixture_findings)} secret-pattern match(es) in files listed under "
+                "[secrets] fixture_paths (.sarand.toml) were excluded from the health score."
             )
     breakdown["code"] = max(0.0, code_score)
 

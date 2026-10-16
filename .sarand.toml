@@ -12,3 +12,12 @@ warn    = ["MPL-2.0"]
 # syft برای crate های Rust لایسنسی نمی‌خواند (Cargo.lock ندارد)؛ مرجعِ آن‌ها
 # cargo-deny است (deny.toml).
 unknown = "allow"
+
+# tests/test_secrets.py holds deliberately fake credentials (it proves that the
+# secret scan detects them). Findings in exactly this file do not lower the
+# health score; they are still listed and the file is still never embedded.
+# tests/test_secrets.py اعتبارنامه‌ی جعلی عمدی دارد (ثابت می‌کند اسکن آن‌ها را
+# پیدا می‌کند). یافته‌های دقیقاً همین فایل امتیاز را کم نمی‌کنند؛ همچنان
+# فهرست می‌شوند و فایل همچنان هرگز embed نمی‌شود.
+[secrets]
+fixture_paths = ["tests/test_secrets.py"]
