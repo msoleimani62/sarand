@@ -93,6 +93,9 @@ Health  : 76.0/100 (C)
 > [!TIP]
 > Run `sarand --doctor` first if you want to see which tools are installed and how to add the missing ones.
 
+> [!WARNING]
+> A scan runs the project's own test suite (and, with `--quality`, `--security` or `--full`, its linters and audit tools), so scanning a project you do not trust means running its code. See the [trust model](#trust-model-scanning-runs-project-code). `sarand --skip-tests` on its own starts no project toolchain.
+
 ## How it works
 
 ```mermaid
@@ -333,6 +336,30 @@ Running sarand again on the same project replaces its previous report at that pa
 | Lockfile check | Confirms that the manifest has a lockfile and that the lockfile is not git-ignored. |
 
 Independently of this flag, sarand never copies a file that contains a detected secret into the report, and reports how many files it left out.
+
+### Trust model: scanning runs project code
+
+> [!IMPORTANT]
+> sarand reads your files, but it also **runs the tools of the project it scans**. Scanning a project is like running its test command: its code runs with your user's permissions, files and network.
+
+| You run | What sarand starts | Can project code run? |
+|---|---|---|
+| `sarand --skip-tests` | Nothing beyond reading and hashing files, the secret and TODO scans, version probes of installed tools and read-only `git` commands | No project toolchain. `git` itself honours the repository's own configuration |
+| `sarand` (default) | Adds the project's **test suite** with its own toolchain: `pytest`, `cargo test`, `npm test`, `go test`, `mvn test` or `./gradlew test`, `dotnet test`, `swift test`, `zig build test`, `phpunit`, ... | **Yes**: `conftest.py`, `build.rs` and procedural macros, the `test` script of `package.json`, the project's own `gradlew` wrapper script, ... |
+| `--quality` | Linters, formatters and type checkers | Mostly read-only, but some run project-controlled code: `npm run lint` (a script from `package.json`), `cargo clippy` (build scripts and procedural macros), ESLint and stylelint (JavaScript config files), `mypy` plugins, `bundle exec` (the Gemfile is Ruby), Maven and Gradle plugin tasks |
+| `--security` | Dependency audits, `gitleaks`, SBOM (`syft`) | They read manifests and lock files, but `cargo audit`, `npm audit`, `pip-audit`, `govulncheck` and `bundler-audit` (it downloads its advisory database first) contact the network, and most of them send package names and versions, and `./gradlew dependencyCheckAnalyze` runs Gradle |
+| `--full` | All of the above | Yes |
+
+What sarand does **not** do, and a test keeps it that way: install dependencies, run `make`, start a shell, or run a `package.json` script other than `test` and `lint`.
+
+**Safer ways to scan code you do not trust**
+
+1. Use `sarand --skip-tests` (without `--quality`, `--security` or `--full`), which starts no project toolchain.
+2. Or scan inside a disposable VM, container or throwaway user that holds no credentials and, if possible, has no network.
+3. Add `--no-source` when you only want the structure and the health summary: it keeps file contents out of the report (it does not change what runs).
+4. Read a report before you share it. Secret exclusion is best effort (a list of credential-shaped file names, 16 content rules, and `gitleaks` with `--security`), not a guarantee.
+
+To report a vulnerability privately, see [SECURITY.md](https://github.com/msoleimani62/sarand/blob/main/SECURITY.md).
 
 ### Check results and TODO markers
 
@@ -582,11 +609,11 @@ sarand keeps a few things outside the package. Delete them if you want a clean r
 ```bash
 ruff format .
 ruff check .
-mypy python
+mypy .
 pytest -q
 ```
 
-Continuous integration runs the same checks on Linux, macOS and Windows.
+Continuous integration also runs `cargo fmt`, `cargo clippy` and `cargo test`, and repeats everything on Linux, macOS and Windows. The full checklist is in [CONTRIBUTING.md](https://github.com/msoleimani62/sarand/blob/main/CONTRIBUTING.md). Please report vulnerabilities privately, as described in [SECURITY.md](https://github.com/msoleimani62/sarand/blob/main/SECURITY.md).
 
 ## License
 

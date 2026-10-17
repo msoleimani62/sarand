@@ -138,6 +138,12 @@ Examples:
   sarand --project ~/myproject --quality
   sarand --skip-tests --format json -o report.json
   sarand --set-output-dir ~/ai-reports    # persist output location, once
+
+Trust model:
+  A scan runs the project's own test suite and, with --quality, --security
+  or --full, its linters and audit tools: scanning code you do not trust
+  means running it. `sarand --skip-tests` alone starts no project toolchain.
+  See "Trust model" in the README and SECURITY.md.
         """,
     )
 

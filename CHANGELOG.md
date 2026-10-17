@@ -4,6 +4,22 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
+## [Unreleased]
+
+### Added
+
+- A "Trust model" section in both READMEs, a warning in Quick start and a note
+  in `sarand --help`: scanning a project runs its test suite (and, with
+  `--quality` / `--security` / `--full`, its linters and audit tools), so
+  scanning code you do not trust means running it. `sarand --skip-tests` alone
+  starts no project toolchain.
+- `SECURITY.md` (private vulnerability reporting) and `CONTRIBUTING.md`.
+
+### Fixed
+
+- The English README's Contributing block said `mypy python`; CI runs
+  `mypy .`.
+
 ## [0.6.20] - 2026-10-17
 
 ### Fixed

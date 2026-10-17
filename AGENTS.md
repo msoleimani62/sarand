@@ -4633,3 +4633,65 @@ code was NOT compiled here. The owner's check chain compiles it with
 **Lessons.** A filter that runs on `entry.path()` is a filter on a string the
 caller partly chose. Match on the entry's own name, and prune at the directory
 so the intent ("never look inside") is also the behaviour.
+
+
+### 5.70 — Audit remediation R4: trust model and community files (2026-10-17)
+
+Fourth round of `docs/AUDIT_FIX_PROMPT.md` (finding A4, part of C6). Released
+rounds R1-R3 as v0.6.20 first (see the CHANGELOG); this round is documentation
+plus guard tests, no behaviour change.
+
+**CONFIRMED.** The README said sarand "runs its tests" and nothing more, and
+the repository had no `SECURITY.md` / `CONTRIBUTING.md`. Reading the analyzers
+showed that the exposure is wider than the test phase: the node analyzer starts
+`npm test` and `npm run lint` (project scripts), the Java and Android analyzers
+prefer the project's own `./gradlew` wrapper over a system Gradle, `cargo
+clippy` runs build scripts and procedural macros, ESLint/stylelint execute
+JavaScript config files, `bundle exec` evaluates the Gemfile, and several audit
+tools contact the network. Defaults: tests on, `--quality` / `--security` off,
+`--full` enables both.
+
+**Clarification of §4.3.** "An analyzer never executes project code itself"
+means sarand never interprets or imports project files; the *toolchains it
+launches* do run them. The README now says so plainly.
+
+**BUILT.**
+
+1. `README.md` / `README.fa.md`: a "Trust model: scanning runs project code"
+   section (a table of what each flag starts and whether project code can run,
+   what sarand never does, and four safer ways to scan untrusted code), a
+   warning callout in Quick start, and a corrected Contributing block
+   (`mypy python` was wrong: CI runs `mypy .`). The Persian file has an explicit
+   `<a id="trust-model">` anchor because Persian heading slugs are fragile.
+2. `SECURITY.md` (private reporting through GitHub, scope, what is not a
+   vulnerability) and `CONTRIBUTING.md` (setup, the exact CI check chain,
+   conventions that cost a CI run in the past, how to add an analyzer).
+3. `sarand --help` epilog: a "Trust model" paragraph (no new flags).
+4. `tests/test_trust_model.py` turns the README's claims into checks: no
+   `shell=True`; no argv-shaped list starting with `make` and none that
+   installs dependencies; every `npm` invocation is `test`, `run lint` or
+   `audit`; both READMEs carry the section; the help epilog mentions it; the
+   community files exist and are linked with absolute URLs; the CONTRIBUTING
+   check chain matches ci.yml. The first three passed against the unchanged
+   code before any documentation was written.
+
+**Deviations from the prompt (deliberate).** None in substance. The prompt
+suggested "run inside a container" generically; the README does not give a
+Docker command because a read-only mount breaks the tools that write caches.
+`SECURITY.md` names GitHub private vulnerability reporting, which the owner
+must enable (Settings, Code security); the 7-day acknowledgement is a stated
+goal of a one-person project, not a guarantee.
+
+**Non-goals (recorded).** Sandboxing or containers built into sarand; an
+interactive consent prompt; a flag that forbids project code (it would need
+per-analyzer plumbing).
+
+**Verification.** The whole suite plus the new guard tests; README and help
+text were read against the code listed above. `ruff`, `mypy` and `cargo` were
+not run in the sandbox (no behaviour change in Rust).
+
+**Lessons.** After `maturin develop`, an older version-specific
+`python/sarand/_core.cpython-3xx-*.so` shadows the fresh `_core.abi3.so`
+(Python prefers it), so pytest silently loads a stale core. Delete the
+`cpython-*` ones; CONTRIBUTING says so. A parity test that runs against the
+compiled core is what exposed it.
