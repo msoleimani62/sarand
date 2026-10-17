@@ -8,8 +8,9 @@
 //! sarand روی یک ریپوی بزرگ است -- دقیقاً همان دلیلی که اینجا (نه در
 //! پایتون) پیاده‌سازی شده.
 
-use ignore::WalkBuilder;
+use ignore::{DirEntry, WalkBuilder};
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -42,6 +43,8 @@ pub struct FileRecord {
 /// Args:
 ///   root: absolute project root.
 ///   ignore_dirs: directory *names* (not paths) to always prune, e.g. "target", "node_modules".
+///     A directory is pruned by its own name, at any depth *below* `root`; the
+///     components of `root` itself (its ancestors) are never examined.
 ///   hash_max_bytes: only hash files at or under this size (duplicate detection).
 ///   max_hash_files: hard cap on total files hashed, to bound work on huge repos.
 pub fn scan(
@@ -54,6 +57,9 @@ pub fn scan(
     // fast: it is just directory traversal, no file I/O yet).
     // جمع‌آوری مسیرهای کاندید در یک پیمایش تک‌رشته‌ای (سریع، چون فقط
     // پیمایش دایرکتوری است، هنوز I/O روی فایل انجام نشده).
+    // `filter_entry` needs a `'static` closure, so it owns a copy of the names.
+    // `filter_entry` یک closure با طول عمر `'static` می‌خواهد، پس کپی نام‌ها را نگه می‌دارد.
+    let pruned: HashSet<String> = ignore_dirs.iter().cloned().collect();
     let mut builder = WalkBuilder::new(root);
     builder
         .hidden(false) // we decide hidden-handling ourselves, per-file
@@ -61,19 +67,15 @@ pub fn scan(
         .git_global(true)
         .git_exclude(true)
         .require_git(false)
-        .parents(true);
+        .parents(true)
+        // Prune ignored directories *during* the walk, so they are never
+        // entered (before: walked, then discarded).
+        // دایرکتوری‌های نادیده را *در حین* پیمایش هرس می‌کند تا هرگز وارد نشود.
+        .filter_entry(move |entry| !is_pruned_dir(entry, &pruned));
 
     let candidates: Vec<PathBuf> = builder
         .build()
         .filter_map(|entry| entry.ok())
-        .filter(|entry| {
-            // Prune directories that match the caller-supplied ignore list.
-            // حذف دایرکتوری‌هایی که با لیست نادیده‌ی فراخوان مطابقت دارند.
-            !entry
-                .path()
-                .components()
-                .any(|c| ignore_dirs.iter().any(|d| c.as_os_str() == d.as_str()))
-        })
         .filter(|entry| {
             entry
                 .file_type()
@@ -93,6 +95,24 @@ pub fn scan(
         .par_iter()
         .filter_map(|path| build_record(root, path, hash_max_bytes, max_hash_files, &hashed_count))
         .collect()
+}
+
+/// True for a *directory* below the walk root whose own name is in `pruned`
+/// (a symlink that points to a directory counts, as it does for `os.walk`).
+///
+/// Only the entry's own name is compared, never the components of its path: the
+/// path starts at the caller-chosen root, so matching it would drop every file
+/// of a project that lives under, say, `/build` or `~/.cache`. Plain files are
+/// never pruned (a file named `dist` is kept) and the root (depth 0) never is.
+///
+/// فقط نام خودِ دایرکتوری مقایسه می‌شود، نه اجزای مسیر؛ ریشه و فایل‌ها هرگز هرس نمی‌شوند.
+fn is_pruned_dir(entry: &DirEntry, pruned: &HashSet<String>) -> bool {
+    // Name first: it is free, the file-type checks may touch the disk.
+    entry.depth() > 0
+        && pruned.contains(&*entry.file_name().to_string_lossy())
+        && entry
+            .file_type()
+            .is_some_and(|kind| kind.is_dir() || (kind.is_symlink() && entry.path().is_dir()))
 }
 
 fn is_symlink(path: &Path) -> bool {

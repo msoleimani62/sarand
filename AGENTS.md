@@ -4566,3 +4566,70 @@ must be wrapped in their own parentheses (or joined with an explicit
 comma-free expression). The rule was already written down in this file;
 the delivery did not apply it. Before shipping, scan changed files for
 adjacent string literals inside `[...]`, `{...}` and tuple parentheses.
+
+
+### 5.69 — Audit remediation R3: scan-engine parity (2026-10-17)
+
+Third round of `docs/AUDIT_FIX_PROMPT.md` (findings A5, A8). The two scan
+engines (compiled Rust core, pure-Python fallback) must report the same files
+for the same tree; they did not.
+
+**CONFIRMED.**
+
+- **A8 — confirmed by running it.** `_pure_python_scan` pruned every directory
+  whose name starts with `.git`, so `.github/workflows/ci.yml` was missing from
+  the scan records on a machine without the compiled core, while the Python
+  tree view (and the Rust core) showed it. A second difference found while
+  writing the parity test: the fallback stored `rel_path` with the platform
+  separator (`str(Path)`), Rust always stores `/`.
+- **A5 — confirmed by reading, not by running.** `src/walker.rs` pruned with
+  `entry.path().components().any(...)`: the *absolute* path, so a project whose
+  root sits below a directory named `build`, `dist`, `target`, `.cache`, `venv`,
+  ... (a Docker `WORKDIR /build`, a checkout under `~/build/`) lost every file.
+  The sandbox has no `cargo`; the proof is the new Rust test plus the Python
+  parity test that runs against the compiled core in CI.
+
+**BUILT.**
+
+1. `walker.rs`: the ignore list is applied with `WalkBuilder::filter_entry` to
+   *directories only*, at depth > 0, by the directory's own name. The old
+   post-filter is gone, so an ignored directory is no longer traversed at all
+   (the walk used to descend into `node_modules` of a non-git tree and discard
+   the result). The root's ancestors are never examined and the root itself is
+   never pruned. A symlink to a directory with an ignored name is pruned too (as
+   `os.walk` and the old behaviour did). A *plain file* that happens to be named
+   like an ignored directory (`dist`) is kept, as the fallback always did. The closure owns a
+   `HashSet<String>` because `filter_entry` requires `'static`.
+2. `rust_bridge._pure_python_scan`: prunes exactly `ignore_dirs` (so
+   `.github`, `.gitlab`, `.gitea` are kept; `.git` stays ignored because it is
+   in `IGNORE_DIRS`) and stores POSIX `rel_path`.
+3. Tests: two Rust tests in `walker_tests.rs`, and `tests/test_scan_parity.py`
+   (fallback behaviour; and, when the compiled core is present, that both
+   engines return the same file set for a plain tree and for a tree under
+   `build/dist/`). CI builds the wheel before pytest, so the parity test runs
+   there on all three operating systems.
+
+**Single ignore semantics (now the contract).** A directory is ignored when its
+own name is in `IGNORE_DIRS`, at any depth below the root. Nothing else about the
+path matters. `.gitignore`/`.ignore` handling remains Rust-only (known and
+documented: the fallback never had it).
+
+**Deviation from the prompt.** None in substance. The prompt said the Rust
+change "could not be executed in the sandbox"; this round's delivery therefore
+tells the owner to run `cargo fmt`, `cargo clippy` and `cargo test` before
+committing, and to rebuild the extension before pytest.
+
+**Non-goals (recorded).** Walk error reporting and `git_global` (R7, B4);
+hashing, line counting, binary sniffing; the cache format; making the fallback
+honour `.gitignore`; the tree builder (`tree.rs` already compared the entry's own
+name, so it was never affected).
+
+**Verification.** In the sandbox: the Python tests pass and the A8 test was
+confirmed failing before the fix; the whole existing suite is unchanged. The Rust
+code was NOT compiled here. The owner's check chain compiles it with
+`cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`,
+`cargo test` and `maturin develop --release`, and CI repeats all of it.
+
+**Lessons.** A filter that runs on `entry.path()` is a filter on a string the
+caller partly chose. Match on the entry's own name, and prune at the directory
+so the intent ("never look inside") is also the behaviour.

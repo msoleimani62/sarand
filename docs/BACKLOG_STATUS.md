@@ -122,8 +122,8 @@ The audit of v0.6.19 and its eight rounds are written in
 `docs/AUDIT_FIX_PROMPT.md`. Round R1 (secrets: wider filename and content
 rules, gitleaks-driven exclusion, explicit fixture allowlist) is delivered
 (AGENTS.md 5.67), and so is R2 (truthful issue extraction, inconclusive
-audit tools, TODO noise; AGENTS.md 5.68). Still open: R3 scan-engine parity (Rust walker ancestor-path bug, Python fallback
-dropping `.github/`), R4 trust model documentation, R5 CI and release
+audit tools, TODO noise; AGENTS.md 5.68), and R3 (scan-engine parity: Rust walker ancestor-path bug,
+Python fallback dropping `.github/`; AGENTS.md 5.69). Still open: R4 trust model documentation, R5 CI and release
 hygiene, R6 `--jobs` and bounded command output, R7 Rust walker errors,
 R8 repository hygiene.
 

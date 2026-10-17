@@ -8,6 +8,16 @@ version may include behaviour changes.
 
 ### Fixed
 
+- A project located under a directory named `build`, `dist`, `target`, `.cache`,
+  `venv`, ... (for example a Docker `WORKDIR /build`) produced an empty report
+  with the compiled Rust core: the ignore list was matched against every
+  component of the absolute path. It now applies to directories below the
+  project root only, by their own name, and ignored directories are no longer
+  walked at all.
+- Without the compiled core, `.github/` (and any other directory starting with
+  `.git`) was missing from the scan, and file paths used the platform separator.
+  Both engines now return the same files.
+
 - A healthy tool line such as syft's "0 exception(s) applied" was listed as an
   error, and "Compilation or lint errors were detected." appeared in Quick
   Context although every lint and type check had passed. Errors now come only

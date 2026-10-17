@@ -181,3 +181,72 @@ fn detects_broken_symlinks() {
 
     remove_tree(&root);
 }
+
+#[test]
+fn keeps_files_when_the_root_sits_under_an_ignored_directory_name() {
+    let base = temp_dir("walker-ancestor");
+    let root = base.join("build").join("proj");
+
+    fs::create_dir_all(root.join("src")).expect("directory must be creatable");
+    fs::write(root.join("src").join("a.rs"), "fn a() {}\n").expect("file must be writable");
+
+    let ignore = vec!["build".to_string(), "target".to_string()];
+    let records = scan(&root, &ignore, 524_288, 5000);
+
+    assert!(records.iter().any(|record| record.rel_path == "src/a.rs"));
+
+    remove_tree(&base);
+}
+
+#[test]
+fn prunes_ignored_directories_but_keeps_same_named_files_and_dot_github() {
+    let root = temp_dir("walker-prune");
+
+    fs::create_dir_all(root.join("src").join("build")).expect("directory must be creatable");
+    fs::create_dir_all(root.join(".github").join("workflows"))
+        .expect("directory must be creatable");
+    fs::write(root.join("src").join("build").join("gen.rs"), "x\n").expect("file must be writable");
+    fs::write(
+        root.join(".github").join("workflows").join("ci.yml"),
+        "on: push\n",
+    )
+    .expect("file must be writable");
+    fs::write(root.join("dist"), "a plain file\n").expect("file must be writable");
+    fs::write(root.join("kept.rs"), "fn k() {}\n").expect("file must be writable");
+
+    let ignore = vec!["build".to_string(), "dist".to_string()];
+    let records = scan(&root, &ignore, 524_288, 5000);
+
+    assert!(records.iter().any(|record| record.rel_path == "kept.rs"));
+    assert!(records.iter().any(|record| record.rel_path == "dist"));
+    assert!(records
+        .iter()
+        .any(|record| record.rel_path == ".github/workflows/ci.yml"));
+    assert!(!records
+        .iter()
+        .any(|record| record.rel_path.starts_with("src/build/")));
+
+    remove_tree(&root);
+}
+
+#[cfg(unix)]
+#[test]
+fn prunes_symlinks_to_directories_that_are_named_like_ignored_ones() {
+    use std::os::unix::fs::symlink;
+
+    let root = temp_dir("walker-symlink-prune");
+
+    fs::create_dir(root.join("real")).expect("directory must be creatable");
+    fs::write(root.join("real").join("a.txt"), "a\n").expect("file must be writable");
+    symlink(root.join("real"), root.join("node_modules")).expect("symlink must be creatable");
+
+    let ignore = vec!["node_modules".to_string()];
+    let records = scan(&root, &ignore, 524_288, 5000);
+
+    assert!(records.iter().any(|record| record.rel_path == "real/a.txt"));
+    assert!(!records
+        .iter()
+        .any(|record| record.rel_path == "node_modules"));
+
+    remove_tree(&root);
+}

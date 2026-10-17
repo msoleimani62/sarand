@@ -131,12 +131,16 @@ def _pure_python_scan(
     hashed = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [
-            d for d in dirnames if d not in ignore_dirs and not d.startswith(".git")
-        ]
+        # Prune exactly the ignore list, by directory name (same contract as the
+        # Rust walker). `.git` is in IGNORE_DIRS; `.github`, `.gitlab` are kept.
+        # دقیقاً فهرست نادیده را با نام دایرکتوری هرس کن (همان قرارداد walker
+        # در Rust). `.git` در IGNORE_DIRS هست؛ `.github` و `.gitlab` می‌مانند.
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
         for name in filenames:
             path = Path(dirpath) / name
-            rel = str(safe_relative(path, root))
+            # POSIX separators on every platform, like the Rust core.
+            # جداکننده‌ی POSIX روی همه‌ی پلتفرم‌ها، مثل هسته‌ی Rust.
+            rel = safe_relative(path, root).as_posix()
 
             if path.is_symlink():
                 broken = not path.exists()
