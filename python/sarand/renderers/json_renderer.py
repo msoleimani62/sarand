@@ -10,8 +10,34 @@ from typing import Any
 
 from sarand.core.package_summary import summarize_packages
 from sarand.core.quick_context import build_quick_context
-from sarand.models.results import ReportData, WorkspaceInfo
+from sarand.models.results import (
+    CommandResult,
+    HealthScore,
+    ReportData,
+    WorkspaceInfo,
+)
 from sarand.progress import status
+
+
+def _result_payload(result: CommandResult) -> dict[str, Any]:
+    """A result as a dict; the inconclusive field appears only when set.
+
+    Same convention as the other optional keys here: an ordinary run's JSON
+    does not gain a key just because the feature exists.
+    """
+    payload = dict(result.__dict__)
+    if not payload.get("inconclusive_reason"):
+        payload.pop("inconclusive_reason", None)
+    return payload
+
+
+def _health_payload(health: HealthScore | None) -> dict[str, Any] | None:
+    if health is None:
+        return None
+    payload = dict(health.__dict__)
+    if not payload.get("checks_inconclusive"):
+        payload.pop("checks_inconclusive", None)
+    return payload
 
 
 def _workspace_payload(workspace: WorkspaceInfo) -> dict[str, Any]:
@@ -46,10 +72,10 @@ def render(
         "git": data.git.__dict__,
         "stats": data.stats.__dict__,
         "todos": [t.__dict__ for t in data.todos],
-        "test_results": [r.__dict__ for r in data.test_results],
-        "quality_results": [r.__dict__ for r in data.quality_results],
-        "security_results": [r.__dict__ for r in data.security_results],
-        "health": data.health.__dict__ if data.health else None,
+        "test_results": [_result_payload(r) for r in data.test_results],
+        "quality_results": [_result_payload(r) for r in data.quality_results],
+        "security_results": [_result_payload(r) for r in data.security_results],
+        "health": _health_payload(data.health),
         "known_issues": data.known_issues,
         "ai_summary": data.ai_summary,
         "suggested_reading_order": data.suggested_reading_order,
@@ -70,6 +96,11 @@ def render(
     # غیر-workspace نباید فقط به‌خاطر وجود این قابلیت یک کلید جدید
     # بگیرد (و، نه اتفاقی، snapshotهای golden موجود -- آیتم ۶.۱ -- را
     # با این افزوده‌ی نامرتبط دست‌نخورده نگه می‌دارد).
+    # Only a run that suppressed some TODO markers gets this key (ordinary
+    # reports and the golden snapshots stay byte-identical).
+    # فقط اجرایی که چند marker را حذف کرده این کلید را می‌گیرد.
+    if data.todos_suppressed:
+        payload["todos_suppressed"] = data.todos_suppressed
     if data.workspace is not None:
         payload["workspace"] = _workspace_payload(data.workspace)
     # Only a repository with more than one workspace gets this key (the

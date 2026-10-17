@@ -21,3 +21,10 @@ unknown = "allow"
 # فهرست می‌شوند و فایل همچنان هرگز embed نمی‌شود.
 [secrets]
 fixture_paths = ["tests/test_secrets.py"]
+
+# Two test files are full of TODO/FIXME strings on purpose (they test how
+# markers are counted); they would otherwise swamp sarand's own report.
+# دو فایل تست عمداً پر از رشته‌ی TODO/FIXME هستند (شمارش marker را تست می‌کنند)
+# و گزارش خودِ sarand را پر می‌کردند.
+[todo]
+exclude_globs = ["tests/test_health.py", "tests/test_todo_filter.py"]

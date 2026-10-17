@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from sarand.models.results import HealthScore, ReportData, TodoItem
+from sarand.models.results import CommandResult, HealthScore, ReportData, TodoItem
 
 # Only markers written with explicit task syntax count as technical debt.
 # فقط markerهایی که با syntax صریح task نوشته شده‌اند به‌عنوان بدهی فنی حساب می‌شوند.
@@ -32,6 +32,14 @@ def _is_actionable_todo(item: TodoItem) -> bool:
         return False
 
     return bool(_ACTIONABLE_TODO_RE.search((item.content or "").strip()))
+
+
+def _unfinished(result: CommandResult) -> bool:
+    """True for a check that gave no verdict: skipped, or inconclusive.
+
+    چکی که حکمی نداده: رد شده یا inconclusive.
+    """
+    return result.skipped or result.inconclusive
 
 
 def _count_actionable_todos(data: ReportData) -> int:
@@ -83,7 +91,7 @@ def compute_health_score(data: ReportData) -> HealthScore:
         )
     else:
         passed = sum(1 for r in test_results if r.passed and not r.skipped)
-        total = sum(1 for r in test_results if not r.skipped)
+        total = sum(1 for r in test_results if not _unfinished(r))
         if total == 0:
             breakdown["tests"] = 10.0
             recommendations.append(
@@ -103,7 +111,7 @@ def compute_health_score(data: ReportData) -> HealthScore:
         recommendations.append("Run quality checks with --quality.")
     else:
         q_passed = sum(1 for r in quality if r.passed and not r.skipped)
-        q_total = sum(1 for r in quality if not r.skipped)
+        q_total = sum(1 for r in quality if not _unfinished(r))
         if q_total == 0:
             breakdown["quality"] = 8.0
         else:
@@ -116,8 +124,8 @@ def compute_health_score(data: ReportData) -> HealthScore:
     # --- Security ---
     security = data.security_results
     if security:
-        s_failed = sum(1 for r in security if not r.passed and not r.skipped)
-        s_ran = sum(1 for r in security if not r.skipped)
+        s_failed = sum(1 for r in security if not r.passed and not _unfinished(r))
+        s_ran = sum(1 for r in security if not _unfinished(r))
         if s_failed:
             breakdown["security"] = 5.0
             critical.append("Security tool reported issues.")
@@ -128,10 +136,11 @@ def compute_health_score(data: ReportData) -> HealthScore:
             # همه‌ی چک‌های امنیتی رد شده‌اند (ابزاری نصب نیست): چیزی بررسی
             # نشده، پس این نباید امتیاز کامل «تمیز» بگیرد.
             breakdown["security"] = 8.0
-            recommendations.append(
-                "No security check could run: install the security tools "
-                "(see `sarand --doctor`)."
-            )
+            if any(r.skipped for r in security):
+                recommendations.append(
+                    "No security check could run: install the security tools "
+                    "(see `sarand --doctor`)."
+                )
         else:
             breakdown["security"] = 15.0
     else:
@@ -220,7 +229,7 @@ def compute_health_score(data: ReportData) -> HealthScore:
     # نه بر اساس تعداد ابزارهایی که روی ماشین نصب هستند.
     requested = [*test_results, *quality, *security]
     applicable_checks = len(requested)
-    runnable_checks = sum(1 for r in requested if not r.skipped)
+    runnable_checks = sum(1 for r in requested if not _unfinished(r))
 
     if applicable_checks:
         breakdown["tooling"] = round(
@@ -246,8 +255,9 @@ def compute_health_score(data: ReportData) -> HealthScore:
     # --- Transparency: how much of this score rests on checks that ran? ---
     # requested is already computed in the tooling block above.
     # متغیر requested بالاتر در بلوک tooling محاسبه شده است.
-    checks_run = sum(1 for r in requested if not r.skipped)
+    checks_run = sum(1 for r in requested if not _unfinished(r))
     checks_skipped = sorted({r.kind for r in requested if r.skipped})
+    checks_inconclusive = sorted({r.kind for r in requested if r.inconclusive})
     missing_tools = sorted(
         {
             r.kind
@@ -256,11 +266,24 @@ def compute_health_score(data: ReportData) -> HealthScore:
             and (r.returncode == 127 or "not installed" in r.skip_reason.lower())
         }
     )
+    unfinished = len(checks_skipped) + len(checks_inconclusive)
     confidence = (
-        round(checks_run / (checks_run + len(checks_skipped)), 2)
-        if checks_run + len(checks_skipped)
+        round(checks_run / (checks_run + unfinished), 2)
+        if checks_run + unfinished
         else 1.0
     )
+    if checks_inconclusive:
+        shown = ", ".join(checks_inconclusive[:8])
+        more = (
+            f" and {len(checks_inconclusive) - 8} more"
+            if len(checks_inconclusive) > 8
+            else ""
+        )
+        recommendations.append(
+            f"{len(checks_inconclusive)} check(s) could not finish ({shown}{more}), "
+            "for example because the network was unreachable; the score does not "
+            "reflect them. Re-run with network access."
+        )
     if missing_tools:
         shown = ", ".join(missing_tools[:8])
         more = f" and {len(missing_tools) - 8} more" if len(missing_tools) > 8 else ""
@@ -285,4 +308,5 @@ def compute_health_score(data: ReportData) -> HealthScore:
         checks_run=checks_run,
         checks_skipped=missing_tools,
         confidence=confidence,
+        checks_inconclusive=checks_inconclusive,
     )

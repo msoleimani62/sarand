@@ -68,7 +68,10 @@ def _count(
     counts: dict[str, list[int]] = {}
     for result in results:
         slot = counts.setdefault(_package_of(result.kind, longest_first), [0, 0, 0])
-        if result.skipped:
+        if result.skipped or result.inconclusive:
+            # An inconclusive check gave no verdict either: counted with the
+            # skipped ones, never as passed or failed.
+            # چک inconclusive هم حکمی نداده: با رد‌شده‌ها شمرده می‌شود.
             slot[2] += 1
         elif result.passed:
             slot[0] += 1

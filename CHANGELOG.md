@@ -6,6 +6,21 @@ version may include behaviour changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- A healthy tool line such as syft's "0 exception(s) applied" was listed as an
+  error, and "Compilation or lint errors were detected." appeared in Quick
+  Context although every lint and type check had passed. Errors now come only
+  from commands that exited non-zero, are recognised by line shape, and known
+  issues are read only from failed checks.
+- An audit tool that exits 0 but could not finish (for example `cargo audit`
+  timing out on the yanked-crate check) is now reported as `INCONCLUSIVE`
+  instead of `PASS`: it lowers the report's confidence, not the score. A failing
+  exit is never downgraded.
+- The TODO scan no longer counts golden/fixture/snapshot directories or
+  Markdown/reStructuredText prose, says how many markers it suppressed, and
+  accepts extra `[todo] exclude_globs` in `.sarand.toml`.
+
 ### Security
 
 - The credential-file denylist is wider (`secrets.yaml/json/toml`,

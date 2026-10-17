@@ -17,6 +17,8 @@ from sarand.utils.fs import human_size
 def _status_badge(result: CommandResult) -> str:
     if result.skipped:
         return "SKIP"
+    if result.inconclusive:
+        return "INCONCLUSIVE"
     return "PASS" if result.passed else "FAIL"
 
 
@@ -40,6 +42,17 @@ def _render_command_block(
 ) -> list[str]:
     badge = _status_badge(result)
     lines = [f"### {result.kind} [{badge}]"]
+    if result.inconclusive:
+        lines.extend(
+            [
+                "",
+                (
+                    f"*Inconclusive:* {result.inconclusive_reason}. The tool "
+                    "exited 0 but did not finish its checks; re-run with "
+                    "network access."
+                ),
+            ]
+        )
     if result.skipped:
         lines.extend(["", f"*Skipped:* {result.skip_reason}", ""])
         return lines
@@ -498,7 +511,7 @@ def render(
             parts.append(f"| `{p}` | {human_size(sz)} |")
         parts.append("")
 
-    if data.todos:
+    if data.todos or data.todos_suppressed:
         parts.extend(
             [
                 "## TODO / FIXME markers",
@@ -513,6 +526,13 @@ def render(
             parts.append(f"| `{t.path}` | {t.line_number} | {t.kind} | `{content}` |")
         if not full_output and len(data.todos) > 100:
             parts.append(f"| ... | ... | ... | ({len(data.todos) - 100} more) |")
+        if data.todos_suppressed:
+            parts.append("")
+            parts.append(
+                f"*{data.todos_suppressed} marker(s) suppressed by the TODO "
+                "exclusions (golden/fixture directories, Markdown prose, "
+                "`[todo] exclude_globs`).*"
+            )
         parts.append("")
 
     parts.extend(_render_package_results(data))

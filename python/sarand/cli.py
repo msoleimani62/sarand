@@ -55,6 +55,7 @@ from sarand.core.secrets import (
     scan_for_secrets,
 )
 from sarand.core.secrets_config import SecretsConfigError, load_fixture_paths
+from sarand.core.todo_config import TodoConfigError, load_exclude_globs
 from sarand.core.workspace import detect_workspaces
 from sarand.discovery.project_detector import detect_project
 from sarand.models.results import ReportData
@@ -68,7 +69,7 @@ from sarand.scanners.environment import (
 from sarand.scanners.essential_files import collect_essential_files
 from sarand.scanners.git import collect_git_snapshot
 from sarand.scanners.stats import collect_project_stats
-from sarand.scanners.todos import scan_todos
+from sarand.scanners.todos import filter_todos, scan_todos
 from sarand.userconfig import save_persisted_config
 from sarand.utils.fs import human_size
 from sarand.utils.installation import installation_info, stale_note
@@ -406,6 +407,18 @@ async def run(config: SarandConfig) -> int:
         todos = []
     if cache_hits:
         todos = todos + reconstruct_todos(cache_hits)
+    # Markers in golden/fixture directories and Markdown prose are not tasks
+    # (AGENTS.md 5.68). Filtering here, after the cache merge, also removes
+    # stale cached markers of files that have become excluded; the count is
+    # reported so nothing is hidden silently.
+    # مارکر در پوشه‌های golden/fixture و متن Markdown «کار» نیست. فیلتر بعد از
+    # ادغام کش، مارکرهای کهنه‌ی کش را هم حذف می‌کند؛ تعداد گزارش می‌شود.
+    try:
+        todo_globs = load_exclude_globs(root)
+    except TodoConfigError as exc:
+        warning(f"{exc} -- using only the default TODO exclusions.")
+        todo_globs = ()
+    todos, todos_suppressed = filter_todos(todos, todo_globs)
 
     # BUG FIX (part 2): scan_for_secrets was still called unconditionally
     # too, even over an empty `secret_scan_targets` list, for the same
@@ -628,6 +641,7 @@ async def run(config: SarandConfig) -> int:
         detection=detection,
         used_rust_core=RUST_CORE_AVAILABLE,
         todos=todos,
+        todos_suppressed=todos_suppressed,
         test_results=test_results,
         quality_results=quality_results,
         security_results=security_results,

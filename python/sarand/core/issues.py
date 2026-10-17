@@ -40,20 +40,36 @@ from sarand.models.results import CommandResult
 # دیده نمی‌شود.
 _BANDIT_CONTEXT_LINE = re.compile(r"^\d+\t")
 
+# BUG FIX (round 3, AGENTS.md 5.68): the two fixes above filtered *lines*, but
+# the scan still ran over the output of every tool, passing ones included, so
+# any "error:" in a healthy run (a quoted string, a log line) could still make
+# the report claim "Compilation or lint errors were detected." while ruff,
+# mypy and clippy all passed. Now only a check that FAILED (non-zero exit, not
+# skipped, not inconclusive) can contribute, and the patterns are line-shaped
+# regexes (constants.KNOWN_ISSUE_PATTERNS).
+#
+# اصلاح باگ (دور سوم، AGENTS.md 5.68): دو اصلاح بالا «خطوط» را فیلتر می‌کردند
+# ولی اسکن هنوز روی خروجی همه‌ی ابزارها، از جمله موفق‌ها، اجرا می‌شد. حالا
+# فقط چکی که شکست خورده (کد غیرصفر، نه skipped، نه inconclusive) سهم دارد و
+# الگوها regex خط‌محورند.
 _PATTERN_CACHE: dict[str, re.Pattern[str]] = {
-    pattern: re.compile(r"\b" + re.escape(pattern.lower()))
+    pattern: re.compile(pattern, re.MULTILINE)
     for pattern, _note in KNOWN_ISSUE_PATTERNS
 }
 
 
 def detect_known_issues(results: list[CommandResult]) -> list[str]:
-    combined = "\n".join(r.raw_output for r in results if r.raw_output)
-    real_lines = (
+    failed = [
+        r
+        for r in results
+        if r.raw_output and r.returncode != 0 and not r.skipped and not r.inconclusive
+    ]
+    combined = "\n".join(r.raw_output for r in failed)
+    text = "\n".join(
         line for line in combined.splitlines() if not _BANDIT_CONTEXT_LINE.match(line)
     )
-    lower = "\n".join(real_lines).lower()
     return [
         note
         for pattern, note in KNOWN_ISSUE_PATTERNS
-        if _PATTERN_CACHE[pattern].search(lower)
+        if _PATTERN_CACHE[pattern].search(text)
     ]

@@ -152,20 +152,91 @@ LANG_MAP: dict[str, str] = {
     ".nix": "nix",
 }
 
-WARNING_PATTERNS: tuple[str, ...] = ("warning:", "warning[", "deprecated", "unused")
-ERROR_PATTERNS: tuple[str, ...] = (
-    "error:",
-    "failed",
-    "traceback",
-    "panic",
-    "exception",
+# Diagnostics are recognised by the SHAPE of a line, not by a bare substring
+# (AGENTS.md 5.68). A substring match listed syft's healthy "0 exception(s)
+# applied" as an error and made the report claim "compilation or lint errors"
+# while ruff, mypy and clippy all passed. Errors are only extracted from a
+# command that exited non-zero (utils/command.py), so these patterns can be
+# permissive about *which* tool printed the line.
+# تشخیص diagnostic بر اساس «شکل خط» است، نه substring خالی (AGENTS.md 5.68).
+# خطا فقط از دستوری استخراج می‌شود که با کد غیرصفر تمام شده.
+_ERROR_COLON = r"(?:^|[:\s])(?i:error)(?:\[[^\]\s]+\])?:"
+WARNING_LINE_PATTERNS: tuple[str, ...] = (
+    r"(?:^|[:\s])(?i:warning)(?:\[[^\]\s]+\])?:",
+    r"\b(?:Deprecation|PendingDeprecation|Future|User|Runtime)Warning:",
+)
+ERROR_LINE_PATTERNS: tuple[str, ...] = (
+    _ERROR_COLON,
+    r"^Traceback \(most recent call last\)",
+    r"^(?:\w+\.)*\w*(?:Error|Exception):",
+    r"\bpanicked at\b",
+    r"^(?:FAILED|ERROR)\b",
+    r"^npm ERR!",
+    r"^(?:--- )?FAIL\b",
+    r"\btest result: FAILED\b",
+    r"\b[1-9]\d* failed\b",
 )
 
+# Patterns are regexes, matched per line over the output of FAILED checks only.
+# الگوها regex هستند و فقط روی خروجی چک‌های شکست‌خورده خط‌به‌خط اعمال می‌شوند.
 KNOWN_ISSUE_PATTERNS: list[tuple[str, str]] = [
-    ("Failed to parse", "One or more source files contain syntax errors."),
-    ("ModuleNotFoundError", "A required Python dependency is missing."),
-    ("error:", "Compilation or lint errors were detected."),
+    (r"Failed to parse", "One or more source files contain syntax errors."),
+    (r"ModuleNotFoundError", "A required Python dependency is missing."),
+    (_ERROR_COLON, "Compilation or lint errors were detected."),
 ]
+
+# A dependency-audit tool can exit 0 although it could not finish (cargo audit
+# printed "couldn't check if the package is yanked: ... timeframe" three times
+# and still passed). Such a result is INCONCLUSIVE: neither PASS nor FAIL.
+# Detection is limited to audit-style kinds and to exit code 0: a failing exit
+# is never downgraded, because a tool that found real vulnerabilities may
+# also print a network warning.
+# ابزار audit می‌تواند با کد ۰ تمام شود بی‌آنکه کارش را تمام کرده باشد.
+# چنین نتیجه‌ای INCONCLUSIVE است. شناسایی فقط برای نوع‌های audit و فقط با
+# کد خروج ۰ انجام می‌شود؛ شکست هرگز تنزل داده نمی‌شود.
+INCONCLUSIVE_KIND_MARKERS: tuple[str, ...] = ("audit", "vuln")
+INCONCLUSIVE_SIGNATURES: tuple[tuple[str, str], ...] = (
+    (
+        r"couldn't check if the package is yanked",
+        "the yanked-crate check could not complete (network)",
+    ),
+    (
+        r"(?i:couldn't fetch advisory database|failed to fetch advisory database)",
+        "the advisory database could not be fetched",
+    ),
+    (
+        r"(?i:temporary failure in name resolution|could not resolve host)",
+        "the network was unreachable",
+    ),
+    (
+        (
+            r"(?i:max retries exceeded|failed to establish a new connection"
+            r"|connection timed out|read timed out)"
+        ),
+        "the audit service could not be reached",
+    ),
+    (
+        r"\b(?:ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ECONNREFUSED)\b",
+        "the audit service could not be reached",
+    ),
+    (
+        r"(?i:error sending request for url)",
+        "the audit service could not be reached",
+    ),
+)
+
+# TODO scan: places skipped by default (AGENTS.md 5.68). Directory names are
+# compared case-insensitively against every directory segment of the path;
+# suffixes against the file name. Extra project globs live in `.sarand.toml`
+# `[todo] exclude_globs`. The report states how many markers were suppressed.
+# مکان‌هایی که اسکن TODO به‌طور پیش‌فرض رد می‌کند.
+TODO_EXCLUDE_DIRS: tuple[str, ...] = (
+    "golden",
+    "fixtures",
+    "snapshots",
+    "__snapshots__",
+)
+TODO_EXCLUDE_SUFFIXES: tuple[str, ...] = (".md", ".mdx", ".rst")
 
 TODO_PATTERNS: tuple[str, ...] = ("TODO", "FIXME", "BUG", "HACK", "SAFETY", "XXX")
 

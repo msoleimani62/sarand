@@ -60,10 +60,19 @@ class CommandResult:
     duration_seconds: float = 0.0
     skipped: bool = False
     skip_reason: str = ""
+    # Non-empty when an audit-style check exited 0 but could not finish (for
+    # example a network timeout): neither PASS nor FAIL. See
+    # utils/command.detect_inconclusive and AGENTS.md 5.68.
+    # غیرخالی وقتی چک audit با کد ۰ تمام شده ولی نتوانسته کارش را تمام کند.
+    inconclusive_reason: str = ""
+
+    @property
+    def inconclusive(self) -> bool:
+        return bool(self.inconclusive_reason)
 
     @property
     def passed(self) -> bool:
-        return self.returncode == 0 and not self.skipped
+        return self.returncode == 0 and not self.skipped and not self.inconclusive
 
 
 @dataclass
@@ -173,6 +182,11 @@ class HealthScore:
     checks_run: int = 0
     checks_skipped: list[str] = field(default_factory=list)
     confidence: float = 1.0
+    # Checks that exited 0 but could not finish: they prove nothing either, so
+    # they lower `confidence` like a skipped check (not the score).
+    # چک‌هایی که با کد ۰ تمام شده ولی کامل نشده‌اند: آن‌ها هم چیزی ثابت
+    # نمی‌کنند و مثل چک ردشده `confidence` را پایین می‌آورند (نه امتیاز را).
+    checks_inconclusive: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -378,6 +392,9 @@ class ReportData:
     detection: ProjectDetection = field(default_factory=ProjectDetection)
     used_rust_core: bool = False
     todos: list[TodoItem] = field(default_factory=list)
+    # Markers dropped by the TODO exclusions; the report states the number.
+    # تعداد markerهای حذف‌شده با استثناها؛ گزارش این عدد را اعلام می‌کند.
+    todos_suppressed: int = 0
     test_results: list[CommandResult] = field(default_factory=list)
     quality_results: list[CommandResult] = field(default_factory=list)
     security_results: list[CommandResult] = field(default_factory=list)

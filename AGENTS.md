@@ -4465,3 +4465,104 @@ failed on `windows-latest` only: `SecretFinding.path` is `str(rel)`, so it
 carries a backslash there and the test compared it with a POSIX string. The
 feature was right (`matches_fixture_path` already normalises); the test
 helper now normalises too. Any test that reads a finding path must do so.
+
+
+### 5.68 — Audit remediation R2: truthful issue extraction (2026-10-16)
+
+Second round of `docs/AUDIT_FIX_PROMPT.md` (findings A6, A7, C2). Each finding
+was re-checked against the code and the self-report before anything changed.
+
+**CONFIRMED.**
+
+- **A6 — confirmed, two layers.** `scan_for_issues` classified lines by bare
+  substrings (`failed`, `exception`, `panic`, `error:`) over the output of
+  every tool, passing ones included: syft's healthy line "License policy:
+  0 violation(s), 0 warning(s), 0 exception(s) applied" was listed under
+  *Errors detected* (it contains `exception`). On top of that,
+  `detect_known_issues` ran over every result and its `error:` pattern made
+  Quick Context claim "Compilation or lint errors were detected." although
+  ruff, mypy and clippy had all passed.
+- **A7 — confirmed.** `cargo audit` printed "couldn't check if the package is
+  yanked ... timeframe" three times, exited 0 and was reported as PASS.
+- **C2 — confirmed.** 583 TODO-style rows on this repo, 390 of them in golden
+  fixtures and Markdown prose.
+
+**BUILT.**
+
+1. Diagnostics are recognised by line shape: `constants.WARNING_LINE_PATTERNS`
+   and `ERROR_LINE_PATTERNS` (`error:` / `error[E0308]:` after a line start,
+   `:` or whitespace, a traceback header, a column-0 `...Error:` line,
+   `panicked at`, `FAILED `/`ERROR ` summary lines, `npm ERR!`, go `FAIL`,
+   `test result: FAILED`, a non-zero `N failed`). `OSError:` and a quoted
+   `"error: boom"` no longer match; `0 failed` needs no special case.
+2. `make_command_result` drops the errors of a command that exited 0 (the
+   warnings stay). `detect_known_issues` only reads results that failed
+   (non-zero exit, not skipped, not inconclusive) and its patterns are
+   regexes (`KNOWN_ISSUE_PATTERNS`).
+3. INCONCLUSIVE: `CommandResult.inconclusive_reason` (the `inconclusive`
+   property is derived from it, and `passed` is false for it). It is set only
+   for audit-style kinds (`audit` / `vuln` in the kind: cargo audit, pip-audit,
+   npm audit, govulncheck, bundler-audit, composer audit, dotnet
+   `--vulnerable`) and only when the exit code was 0, from
+   `constants.INCONCLUSIVE_SIGNATURES` (yanked-check timeout, advisory DB
+   fetch failure, name resolution, connection timeouts, ETIMEDOUT/ENOTFOUND,
+   "error sending request"). **A failing exit is never downgraded**: a tool that
+   found real vulnerabilities may also print a network warning.
+4. Health: an inconclusive check is "did not run" (decision D5 of the prompt,
+   default as recommended): no security penalty and no critical finding, but
+   it lowers `confidence`, is listed in the new
+   `HealthScore.checks_inconclusive`, and a recommendation says to re-run with
+   network access. A real failure next to an inconclusive one still takes the
+   security penalty.
+5. Renderers: markdown `[INCONCLUSIVE]` plus a one-line reason, HTML badge,
+   Quick Context status and risk line, package summary counts it with the
+   skipped ones. JSON carries `inconclusive_reason` and
+   `health.checks_inconclusive` only when set, following the file's own rule
+   that an ordinary run must not gain keys, so **all golden snapshots stay
+   byte-identical** (the full suite is the proof).
+6. TODO noise: `scanners/todos.py` `is_todo_excluded` / `filter_todos`. Default
+   exclusions (recorded as deliberate): any directory segment named `golden`,
+   `fixtures`, `snapshots`, `__snapshots__` (case-insensitive) and prose files
+   (`.md`, `.mdx`, `.rst`). `[todo] exclude_globs` in `.sarand.toml`
+   (`core/todo_config.py`, same strict rules as `[secrets]`) adds more. The
+   filter runs after the cache merge, so stale cached markers of newly excluded
+   files disappear too. `ReportData.todos_suppressed` is printed under the TODO
+   heading (the section stays visible even when every marker was suppressed) and
+   appears in JSON only when non-zero. On this repo the defaults remove 390 of
+   583; sarand's own `.sarand.toml` adds the two fixture-heavy test files.
+
+**Deviations from the prompt (deliberate).**
+
+- JSON keys appear only when set (not always), to keep the established
+  byte-identical-goldens convention.
+- `inconclusive_reason` is one string field (the boolean is derived), not a
+  boolean plus a separate reason.
+- Inconclusive detection is limited to audit-style kinds and exit code 0. The
+  prompt allowed generic kinds; that would mislabel a passing test suite that
+  merely prints a network error line.
+- A failing audit tool with a network error stays FAIL (the pre-existing
+  behaviour). Telling "found vulnerabilities" apart from "could not reach the
+  service" in a non-zero exit needs per-tool structured output: not done.
+
+**Non-goals (recorded).** Parsing every tool's structured output; changing
+sarand's own exit codes; per-tool configurable warning rules; making the
+network-failure case of a *failing* audit inconclusive; rewriting the
+`Known issues` wording.
+
+**Verification.** New tests: `tests/test_issue_extraction.py` (A6/A7, health,
+renderers, package counts) and `tests/test_todo_filter.py` (C2 and the config
+table). The whole existing suite passes unchanged, including every golden
+snapshot. `ruff`, `mypy` and `cargo` were NOT run in the sandbox; the delivery's
+check chain runs them on the device.
+
+**Lessons.** Fixing the symptom twice (bandit context lines, `OSError:`) hid
+the cause: the scan ran over output it had no business reading. The durable
+fix was to decide *which results may speak* (failed ones) before deciding
+*which lines count*.
+
+**Lint follow-up (first run).** `ruff` (ISC004) rejected two multi-line
+strings written as implicit concatenation *inside a tuple or list*: they
+must be wrapped in their own parentheses (or joined with an explicit
+comma-free expression). The rule was already written down in this file;
+the delivery did not apply it. Before shipping, scan changed files for
+adjacent string literals inside `[...]`, `{...}` and tuple parentheses.

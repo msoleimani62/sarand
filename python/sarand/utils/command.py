@@ -18,7 +18,13 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from sarand.constants import DEFAULT_CMD_TIMEOUT, ERROR_PATTERNS, WARNING_PATTERNS
+from sarand.constants import (
+    DEFAULT_CMD_TIMEOUT,
+    ERROR_LINE_PATTERNS,
+    INCONCLUSIVE_KIND_MARKERS,
+    INCONCLUSIVE_SIGNATURES,
+    WARNING_LINE_PATTERNS,
+)
 from sarand.models.results import CommandResult, Issue
 
 
@@ -110,11 +116,29 @@ def summarize_tail(output: str, lines: int = 80) -> str:
 #  - خلاصه‌ی cargo/pytest در حالت موفق «0 failed» می‌نویسد.
 _BANDIT_CONTEXT_LINE = re.compile(r"^\d+\t")
 _TOOL_LOG_LINE = re.compile(r"^\[[a-z_]+\]\t(?!ERROR)", re.IGNORECASE)
-_ZERO_FAILED = re.compile(r"\b0 failed\b")
+# Compiled once. The error patterns only match a NON-ZERO failure count
+# (`[1-9]\d* failed`), so "0 failed" needs no special case any more.
+# یک‌بار compile می‌شوند. الگوی خطا فقط تعداد غیرصفر را می‌گیرد، پس
+# «0 failed» دیگر حالت خاص نمی‌خواهد.
+_WARNING_RES = tuple(re.compile(p) for p in WARNING_LINE_PATTERNS)
+_ERROR_RES = tuple(re.compile(p) for p in ERROR_LINE_PATTERNS)
+_INCONCLUSIVE_RES = tuple(
+    (re.compile(p), reason) for p, reason in INCONCLUSIVE_SIGNATURES
+)
 
 
 def scan_for_issues(source: str, output: str) -> tuple[list[Issue], list[Issue]]:
-    """Extract warnings and errors from command output."""
+    """Extract warnings and errors from command output.
+
+    Lines are classified by their shape (constants.WARNING_LINE_PATTERNS /
+    ERROR_LINE_PATTERNS), never by a bare substring. Whether the *command*
+    failed is not known here; `make_command_result` drops the errors of a
+    command that exited 0.
+
+    خطوط بر اساس شکل‌شان دسته‌بندی می‌شوند، نه substring خالی. اینکه خودِ
+    دستور شکست خورده یا نه اینجا معلوم نیست؛ `make_command_result` خطاهای
+    دستوری که با کد ۰ تمام شده را حذف می‌کند.
+    """
     warnings: list[Issue] = []
     errors: list[Issue] = []
     for line in output.splitlines():
@@ -123,12 +147,32 @@ def scan_for_issues(source: str, output: str) -> tuple[list[Issue], list[Issue]]
             continue
         if _BANDIT_CONTEXT_LINE.match(line) or _TOOL_LOG_LINE.match(line):
             continue
-        lower = _ZERO_FAILED.sub("", line.lower())
-        if any(pattern in lower for pattern in WARNING_PATTERNS):
+        if any(rx.search(line) for rx in _WARNING_RES):
             warnings.append(Issue(source=source, message=stripped, severity="warning"))
-        if any(pattern in lower for pattern in ERROR_PATTERNS):
+        if any(rx.search(line) for rx in _ERROR_RES):
             errors.append(Issue(source=source, message=stripped, severity="error"))
     return warnings, errors
+
+
+def detect_inconclusive(kind: str, returncode: int, output: str) -> str:
+    """Why an audit-style check that exited 0 did not really finish, or "".
+
+    Only audit-style kinds (`cargo audit`, `pip-audit`, `npm audit`,
+    `govulncheck`, ...) and only exit code 0 are considered: a failing exit
+    is never downgraded to "inconclusive".
+
+    دلیل اینکه یک چک از نوع audit با کد خروج ۰ واقعاً تمام نشده، یا "". فقط
+    نوع‌های audit و فقط کد ۰؛ شکست هرگز به «نامشخص» تنزل داده نمی‌شود.
+    """
+    if returncode != 0:
+        return ""
+    lowered_kind = kind.lower()
+    if not any(marker in lowered_kind for marker in INCONCLUSIVE_KIND_MARKERS):
+        return ""
+    for rx, reason in _INCONCLUSIVE_RES:
+        if rx.search(output):
+            return reason
+    return ""
 
 
 def make_command_result(
@@ -141,7 +185,19 @@ def make_command_result(
     skip_reason: str = "",
 ) -> CommandResult:
     """Build a CommandResult from raw execution data."""
-    warnings, errors = scan_for_issues(kind, output) if not skipped else ([], [])
+    warnings: list[Issue] = []
+    errors: list[Issue] = []
+    inconclusive_reason = ""
+    if not skipped:
+        warnings, errors = scan_for_issues(kind, output)
+        if returncode == 0:
+            # A command that exited 0 reports no errors: an "error:" line in
+            # a passing tool's output is a quotation or a log line, not a
+            # failure (AGENTS.md 5.68).
+            # دستوری که با کد ۰ تمام شده خطایی گزارش نمی‌کند: خط «error:» در
+            # خروجی ابزار موفق نقل‌قول یا log است، نه شکست.
+            errors = []
+        inconclusive_reason = detect_inconclusive(kind, returncode, output)
     return CommandResult(
         kind=kind,
         returncode=returncode,
@@ -152,6 +208,7 @@ def make_command_result(
         duration_seconds=duration,
         skipped=skipped,
         skip_reason=skip_reason,
+        inconclusive_reason=inconclusive_reason,
     )
 
 

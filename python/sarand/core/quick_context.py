@@ -124,6 +124,8 @@ def _capped(items: list[str], limit: int) -> list[str]:
 def _status(result: CommandResult) -> str:
     if result.skipped:
         return "skipped"
+    if result.inconclusive:
+        return "inconclusive"
     return "passed" if result.passed else "failed"
 
 
@@ -177,6 +179,12 @@ def _risks(data: ReportData, all_results: list[CommandResult]) -> list[str]:
     failed = _names(all_results, "failed")
     if failed:
         risks.append(f"{len(failed)} check(s) failed: {_name_list(failed)}")
+    inconclusive = _names(all_results, "inconclusive")
+    if inconclusive:
+        risks.append(
+            f"{len(inconclusive)} check(s) could not finish, so the score does "
+            f"not reflect them: {_name_list(inconclusive)}"
+        )
     skipped = _names(all_results, "skipped")
     if skipped:
         risks.append(

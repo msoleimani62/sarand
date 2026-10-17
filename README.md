@@ -334,6 +334,17 @@ Running sarand again on the same project replaces its previous report at that pa
 
 Independently of this flag, sarand never copies a file that contains a detected secret into the report, and reports how many files it left out.
 
+### Check results and TODO markers
+
+Each check ends as `PASS`, `FAIL`, `SKIP` (tool missing or not applicable) or `INCONCLUSIVE`. `INCONCLUSIVE` is for dependency-audit tools (`cargo audit`, `pip-audit`, `npm audit`, `govulncheck`, ...) that exited 0 but reported that they could not finish, usually because the network was unreachable. It lowers the report's confidence instead of earning a green `PASS`, and a failing exit is never downgraded. The errors listed in a report come only from checks that failed.
+
+The TODO scan skips golden, fixture and snapshot directories and Markdown or reStructuredText prose by default, and the report states how many markers it suppressed. Add project-specific exclusions in `.sarand.toml`:
+
+```toml
+[todo]
+exclude_globs = ["vendor/*"]
+```
+
 ### Secret handling
 
 Files whose *name* looks like a credential (`.env*`, `*.pem`, `secrets.yaml`, `kubeconfig`, `.docker/config.json`, `*.tfvars`, ...) are left out before their content is read, and so is any file in which the built-in scan finds a credential-shaped value. With `--security`, a file that `gitleaks` flags is left out too. If your project keeps deliberately fake credentials in its own tests, list those files so they stop lowering the health score:

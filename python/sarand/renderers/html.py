@@ -57,6 +57,8 @@ def _badge(text: str, kind: str) -> str:
 def _status_badge_html(result: CommandResult) -> str:
     if result.skipped:
         return _badge("SKIP", "warn")
+    if result.inconclusive:
+        return _badge("INCONCLUSIVE", "warn")
     return _badge("PASS", "ok") if result.passed else _badge("FAIL", "fail")
 
 

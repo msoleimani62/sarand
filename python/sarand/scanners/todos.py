@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Sequence
+from fnmatch import fnmatchcase
 from pathlib import Path
 
-from sarand.constants import TODO_PATTERNS
+from sarand.constants import (
+    TODO_EXCLUDE_DIRS,
+    TODO_EXCLUDE_SUFFIXES,
+    TODO_PATTERNS,
+)
 from sarand.models.results import TodoItem
 from sarand.progress import status, track
 from sarand.rust_bridge import FileRecord, scan_project
@@ -16,6 +22,38 @@ logger = get_logger("todos")
 _TODO_RE = re.compile(
     r"\b(" + "|".join(re.escape(p) for p in TODO_PATTERNS) + r")\b", re.IGNORECASE
 )
+
+
+def is_todo_excluded(path: str, extra_globs: Sequence[str] = ()) -> bool:
+    """True when a marker in `path` is not a task: default places or a glob.
+
+    Defaults: any directory segment named like TODO_EXCLUDE_DIRS (golden,
+    fixtures, snapshots), and prose files (Markdown, reStructuredText).
+    `extra_globs` are `fnmatch` patterns on the POSIX-style path.
+
+    مارکر در این مسیر «کار» نیست: مکان‌های پیش‌فرض یا یک glob.
+    """
+    posix = path.replace("\\", "/")
+    parts = posix.split("/")
+    if any(segment.lower() in TODO_EXCLUDE_DIRS for segment in parts[:-1]):
+        return True
+    if parts[-1].lower().endswith(TODO_EXCLUDE_SUFFIXES):
+        return True
+    return any(fnmatchcase(posix, pattern) for pattern in extra_globs)
+
+
+def filter_todos(
+    items: Iterable[TodoItem], extra_globs: Sequence[str] = ()
+) -> tuple[list[TodoItem], int]:
+    """Drop excluded markers; return the kept ones and how many were dropped."""
+    kept: list[TodoItem] = []
+    suppressed = 0
+    for item in items:
+        if is_todo_excluded(item.path, extra_globs):
+            suppressed += 1
+        else:
+            kept.append(item)
+    return kept, suppressed
 
 
 def scan_todos(
