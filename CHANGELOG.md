@@ -4,7 +4,7 @@ All notable changes to sarand are listed here, newest first. Versions follow
 [Semantic Versioning](https://semver.org/); while sarand is 0.x, a minor
 version may include behaviour changes.
 
-## [Unreleased]
+## [0.6.20] - 2026-10-17
 
 ### Fixed
 
