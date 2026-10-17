@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
@@ -147,7 +147,7 @@ def test_raw_manifests_alone_do_not_make_a_project_hybrid() -> None:
 def _data(kubernetes: KubernetesInfo) -> ReportData:
     return ReportData(
         project_root=Path("project"),
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(),
         git=GitSnapshot(),
         stats=ProjectStats(),

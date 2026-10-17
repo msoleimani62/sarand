@@ -61,16 +61,11 @@ from __future__ import annotations
 
 import fnmatch
 import re
-import sys
+import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # Python 3.10: same parser, packaged separately
-    import tomli as tomllib
 
 POLICY_FILENAME = ".sarand.toml"
 _UNKNOWN_MODES = ("allow", "warn", "deny")

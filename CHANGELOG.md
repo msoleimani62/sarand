@@ -6,6 +6,14 @@ version may include behaviour changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Python 3.11 or newer is required.** Python 3.10 reached end of life in
+  October 2026, so the `tomli` backport is gone and the compiled wheel is now
+  `cp311-abi3`. Users on Python 3.10 keep installing 0.6.20.
+- CI runs Python 3.11, 3.12 (all systems), 3.14 and, as a non-blocking check,
+  3.15.
+
 ### Added
 
 - A "Trust model" section in both READMEs, a warning in Quick start and a note

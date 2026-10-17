@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from _helpers import write
@@ -93,7 +93,7 @@ def test_malformed_chart_yaml_falls_back_to_dirname_instead_of_crashing() -> Non
 def _minimal_report_data(root: Path, kubernetes: KubernetesInfo | None) -> ReportData:
     return ReportData(
         project_root=root,
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(),
         git=GitSnapshot(),
         stats=ProjectStats(),

@@ -7,7 +7,7 @@ Markdown table and the JSON key, and that an ordinary report is unchanged.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sarand.core.package_summary import (
@@ -97,7 +97,7 @@ def test_duplicate_package_paths_are_listed_once() -> None:
 def _data(**kwargs: object) -> ReportData:
     return ReportData(
         project_root=Path("project"),
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(),
         git=GitSnapshot(),
         stats=ProjectStats(),

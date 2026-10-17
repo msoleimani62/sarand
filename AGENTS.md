@@ -4695,3 +4695,54 @@ not run in the sandbox (no behaviour change in Rust).
 (Python prefers it), so pytest silently loads a stale core. Delete the
 `cpython-*` ones; CONTRIBUTING says so. A parity test that runs against the
 compiled core is what exposed it.
+
+
+### 5.71 — Audit remediation R5a: Python 3.11 is the new floor (2026-10-17)
+
+First half of R5 in `docs/AUDIT_FIX_PROMPT.md` (finding B6, owner decision D1:
+"drop Python 3.10 inside R5"). The second half (CI/release hygiene) follows
+as R5b.
+
+**Why now.** The CPython devguide gives October 2026 as the end of life of 3.10,
+and two news reports say the final release (3.10.22) shipped on 1 October. Those
+two are secondary sources; the devguide is the primary one, and its month is
+enough. The audit's "about two weeks left" was wrong: 3.10 is at or past the end.
+Python 3.15.0 is out too (reports differ between 1 and 9 October; the
+`actions/python-versions` manifest has it since 10 October).
+
+**BUILT.**
+
+1. `pyproject.toml`: `requires-python = ">=3.11"`, the 3.10 classifier and the
+   `tomli` dependency are gone, the wheel is `cp311-abi3` (`pyo3/abi3-py311`).
+2. Five modules and one test dropped the `sys.version_info`/`tomli` shim and just
+   `import tomllib` (license_policy, components, workspace, secrets_config,
+   todo_config, test_pyproject_valid).
+3. `doctor` checks for 3.11; the example plugin and `docs/PUBLISHING*.md`, both
+   READMEs (badge, requirements table, the `tomli` notes) and CONTRIBUTING say 3.11.
+4. CI: the oldest blocking job is Python 3.11 (Linux), 3.12 stays on every OS,
+   3.14 on Linux, and **3.15 runs as a non-blocking job** (`continue-on-error`,
+   `experimental: true`): a failure there is information, it does not turn the
+   workflow red or stop `release.py tag`. Release smoke tests start at 3.11.
+5. `tests/test_python_floor.py` reads the floor from `pyproject.toml` and requires
+   the classifiers, the abi3 feature, the doctor check, the CI matrix, the release
+   smoke matrix and both README badges to agree, and that `tomli` is gone. The
+   next floor change is a one-line edit plus whatever this test lists.
+
+**Consequences for users.** `pip` enforces `requires-python`: a user on 3.10 keeps
+resolving to 0.6.20 and is not offered the new wheel. Because dropping a Python
+version is a compatibility break, the next release should be a minor bump
+(**0.7.0**), not 0.6.21; that is chosen at `release.py bump` time.
+
+**Non-goals (recorded).** Rewriting code to 3.11-only idioms (`Self`, `StrEnum`,
+`ExceptionGroup`, `tomllib` everywhere else): possible later, no behaviour gain
+now. Raising mypy's target (it follows the interpreter). Python 3.15 as a
+*blocking* job: wait until a full green run shows PyO3 and every dependency
+accept it (PyO3's `cargo test` builds without the abi3 feature and may reject an
+interpreter newer than it knows).
+
+**Verification.** In the sandbox: the whole suite plus the new floor test. The
+CI matrix and release workflow edits are checked by their own tests and by the
+first CI run; `ruff`, `mypy`, `cargo` and `actionlint` were not run here.
+
+**Lessons.** A constraint written in a dozen places is a constraint nobody can
+change safely. Make one place the truth and make a test read it.

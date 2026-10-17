@@ -124,7 +124,7 @@ def emit_block(
             report_id=report_id,
             source=str(paths.source),
             source_fingerprint=state["source_fingerprint"],
-            generated_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            generated_at=datetime.datetime.now(datetime.UTC).isoformat(),
             report_format="text",
             total_chunks=total_chunks_all,
             report_hash=report_hash,

@@ -15,6 +15,9 @@ jobs:
   quality:
     name: quality (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    # The experimental entry (Python 3.15) may fail without failing the workflow.
+    # ورودی آزمایشی (پایتون ۳.۱۵) می‌تواند بدون شکست‌دادن workflow شکست بخورد.
+    continue-on-error: ${{ matrix.experimental == true }}
     # A hung test must fail the job in minutes, not run for hours (a Windows
     # job once ran for ~7 hours). Normal runs take about 3-4 minutes.
     # یک تست گیرکرده باید در چند دقیقه job را fail کند، نه ساعت‌ها اجرا شود
@@ -24,20 +27,26 @@ jobs:
       fail-fast: false
       matrix:
         # Every OS on one Python, plus the oldest and newest supported Python
-        # on Linux -- `requires-python` is >=3.10, so 3.10 must really work.
+        # on Linux -- `requires-python` is >=3.11, so 3.11 must really work.
         # ubuntu is pinned so the "ubuntu-latest" migration to a new release
         # cannot change results by surprise; bump it deliberately.
         # هر OS روی یک نسخه‌ی پایتون، به‌علاوه‌ی قدیمی‌ترین و جدیدترین پایتونِ
-        # پشتیبانی‌شده روی Linux -- `requires-python` برابر >=3.10 است، پس
-        # 3.10 باید واقعاً کار کند. ubuntu ثابت شده تا مهاجرت "ubuntu-latest"
+        # پشتیبانی‌شده روی Linux -- `requires-python` برابر >=3.11 است، پس
+        # 3.11 باید واقعاً کار کند. ubuntu ثابت شده تا مهاجرت "ubuntu-latest"
         # به نسخه‌ی جدید نتایج را ناگهانی عوض نکند؛ عمداً ارتقایش بده.
         os: [ubuntu-24.04, macos-latest, windows-latest]
         python-version: ["3.12"]
         include:
           - os: ubuntu-24.04
-            python-version: "3.10"
+            python-version: "3.11"
           - os: ubuntu-24.04
             python-version: "3.14"
+          # Python 3.15 is out (October 2026). Informative only: a failure here
+          # must not turn the workflow red or block a release.
+          # پایتون ۳.۱۵ منتشر شده؛ فقط اطلاع‌رسانی است و نباید جلوی انتشار را بگیرد.
+          - os: ubuntu-24.04
+            python-version: "3.15"
+            experimental: true
 
     steps:
       - uses: actions/checkout@v6

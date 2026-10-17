@@ -7,7 +7,7 @@ design rationale.
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from _helpers import write
@@ -106,7 +106,7 @@ def _minimal_report_data(root: Path, workspace: WorkspaceInfo | None) -> ReportD
 
     return ReportData(
         project_root=root,
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(),
         git=GitSnapshot(),
         stats=ProjectStats(),

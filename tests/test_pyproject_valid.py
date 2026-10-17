@@ -3,23 +3,17 @@ section 5.63). A duplicated `[project.urls]` table once made the file
 unparseable (ruff, maturin and pip all refuse it) while every regex-based test
 still passed, so this test parses the file for real.
 
-`tomllib` exists from Python 3.11; on 3.10 the same parser is the `tomli`
-package, a dependency there. The import follows the project's own idiom (see
-`core/components.py`), which mypy understands on every Python version.
+`tomllib` is in the standard library since Python 3.11, the floor of this
+project (AGENTS.md 5.71).
 
 `pyproject.toml` باید TOML معتبر باشد؛ این تست آن را واقعاً parse می‌کند.
 """
 
 from __future__ import annotations
 
-import sys
+import tomllib
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # Python 3.10: same parser, packaged separately
-    import tomli as tomllib
 
 _PYPROJECT = Path(__file__).resolve().parent.parent / "pyproject.toml"
 

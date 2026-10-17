@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/msoleimani62/sarand/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/msoleimani62/sarand/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/msoleimani62/sarand/tags"><img alt="Version" src="https://img.shields.io/github/v/tag/msoleimani62/sarand?label=version&color=2dd4bf"></a>
-  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-3776ab?logo=python&logoColor=white">
   <img alt="Rust core" src="https://img.shields.io/badge/core-Rust%20%2B%20PyO3-dea584?logo=rust&logoColor=white">
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Termux-a78bfa">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
@@ -363,8 +363,6 @@ PYTHONPATH=/path/to/sarand/python python -m sarand -p .
 ```
 
 </div>
-
-در Python 3.10 ممکن است به وابستگی سازگاری `tomli` نیز نیاز داشته باشید.
 
 <details>
 <summary><strong>نکته‌های مربوط به Windows، macOS و Android/Termux</strong></summary>

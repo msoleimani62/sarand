@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sarand.core.health import compute_health_score
@@ -31,7 +31,7 @@ def _result(kind: str, *, skipped: bool = False, ok: bool = True) -> CommandResu
 def _data(*, tests=(), quality=(), security=()) -> ReportData:
     return ReportData(
         project_root=Path("/p"),
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(python="Python 3.13.0"),
         git=GitSnapshot(branch="main", commit="abc"),
         stats=ProjectStats(total_files=1, total_loc=1),

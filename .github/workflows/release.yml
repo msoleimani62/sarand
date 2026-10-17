@@ -67,9 +67,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Build the wheel
-        # One abi3 wheel per platform covers every Python from 3.10 on
-        # (pyproject.toml enables pyo3/abi3-py310), so it also cross-compiles.
-        # یک wheel با abi3 برای هر پلتفرم، همه‌ی پایتون‌های ۳.۱۰ به بالا را پوشش می‌دهد.
+        # One abi3 wheel per platform covers every Python from 3.11 on
+        # (pyproject.toml enables pyo3/abi3-py311), so it also cross-compiles.
+        # یک wheel با abi3 برای هر پلتفرم، همه‌ی پایتون‌های ۳.۱۱ به بالا را پوشش می‌دهد.
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
@@ -104,10 +104,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { runner: ubuntu-24.04, python: "3.10", artifact: dist-wheels-linux-x86_64 }
+          - { runner: ubuntu-24.04, python: "3.11", artifact: dist-wheels-linux-x86_64 }
           - { runner: ubuntu-24.04, python: "3.14", artifact: dist-wheels-linux-x86_64 }
-          - { runner: macos-latest, python: "3.10", artifact: dist-wheels-macos-arm64 }
-          - { runner: windows-latest, python: "3.10", artifact: dist-wheels-windows-x64 }
+          - { runner: macos-latest, python: "3.11", artifact: dist-wheels-macos-arm64 }
+          - { runner: windows-latest, python: "3.11", artifact: dist-wheels-windows-x64 }
     steps:
       - uses: actions/setup-python@v6
         with:

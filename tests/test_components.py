@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from _helpers import write
@@ -289,7 +289,7 @@ def test_detection_adds_no_findings_and_is_deterministic() -> None:
 def _data(root: Path, components: ComponentsInfo | None) -> ReportData:
     return ReportData(
         project_root=root,
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(),
         git=GitSnapshot(),
         stats=ProjectStats(),

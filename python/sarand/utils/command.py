@@ -228,7 +228,7 @@ async def _terminate_process(proc: asyncio.subprocess.Process) -> None:
             os.killpg(proc.pid, signal.SIGTERM)
             await asyncio.wait_for(proc.wait(), timeout=2)
             return
-        except (ProcessLookupError, asyncio.TimeoutError):
+        except (TimeoutError, ProcessLookupError):
             pass
 
         try:
@@ -280,7 +280,7 @@ async def run_cmd_async(
                 asyncio.shield(communicate_task),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await _terminate_process(proc)
             stdout, _ = await communicate_task
             output = stdout.decode("utf-8", errors="replace") if stdout else ""

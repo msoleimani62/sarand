@@ -8,6 +8,7 @@ The sample strings are the real ones from sarand's own self-report.
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import UTC
 
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
@@ -38,12 +39,12 @@ _CARGO_AUDIT_TIMEOUT = (
 
 
 def _report(**overrides: object) -> ReportData:
-    from datetime import datetime, timezone
+    from datetime import datetime
     from pathlib import Path
 
     defaults: dict[str, object] = {
         "project_root": Path("fixture-project"),
-        "generated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        "generated_at": datetime(2026, 1, 1, tzinfo=UTC),
         "environment": EnvironmentInfo(),
         "git": GitSnapshot(),
         "stats": ProjectStats(),

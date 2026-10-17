@@ -10,7 +10,7 @@ import asyncio
 import json
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
@@ -469,7 +469,7 @@ def test_the_audited_gap_is_closed_on_real_analyzers_for_every_model() -> None:
 def _report(root: Path, workspace: WorkspaceInfo | None) -> ReportData:
     return ReportData(
         project_root=root,
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(),
         git=GitSnapshot(),
         stats=ProjectStats(),

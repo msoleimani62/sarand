@@ -23,7 +23,7 @@ from sarand.utils.installation import (
     stale_note,
 )
 
-_MIN_PYTHON = (3, 10)
+_MIN_PYTHON = (3, 11)
 
 # (category, binary, fix-it hint, what it's used for)
 # Grouped by category so the table reads as "here's what's available
@@ -589,7 +589,7 @@ def collect_checks() -> list[DoctorCheck]:
             name="Python version",
             ok=py_ok,
             detail=f"{sys.version.split()[0]} (need >= {'.'.join(map(str, _MIN_PYTHON))})",
-            fix="Install Python 3.10 or newer." if not py_ok else "",
+            fix="Install Python 3.11 or newer." if not py_ok else "",
             critical=True,
             category="Core",
         )

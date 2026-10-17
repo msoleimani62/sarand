@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 import time
+from datetime import UTC
 from pathlib import Path
 
 from _helpers import write
@@ -135,7 +136,7 @@ def test_end_to_end_flagged_file_content_never_reaches_markdown_report() -> None
     a hardcoded key in a normal .py file must not show up anywhere in the
     rendered report, including the source-embedding section."""
     import tempfile as _tempfile
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from sarand.core.secrets import exclude_flagged_files
     from sarand.models.results import (
@@ -157,7 +158,7 @@ def test_end_to_end_flagged_file_content_never_reaches_markdown_report() -> None
 
         data = ReportData(
             project_root=root,
-            generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            generated_at=datetime(2026, 1, 1, tzinfo=UTC),
             environment=EnvironmentInfo(),
             git=GitSnapshot(),
             stats=ProjectStats(),

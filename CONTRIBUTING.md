@@ -36,7 +36,7 @@ mypy .
 pytest -q
 ```
 
-CI repeats this on Linux, macOS and Windows (Python 3.10, 3.12, 3.14), so a test
+CI repeats this on Linux, macOS and Windows (Python 3.11, 3.12, 3.14, plus 3.15 as a non-blocking check), so a test
 must not depend on the platform path separator: compare POSIX-style paths.
 
 ## Conventions that bite

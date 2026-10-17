@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from _helpers import write
@@ -33,7 +33,7 @@ def _fixture_data(root: Path) -> ReportData:
     )
     data = ReportData(
         project_root=root,
-        generated_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC),
         environment=EnvironmentInfo(python="Python 3.13.0"),
         git=GitSnapshot(branch="main", commit="abc123"),
         stats=ProjectStats(total_files=1, total_loc=1, files_by_extension={".py": 1}),

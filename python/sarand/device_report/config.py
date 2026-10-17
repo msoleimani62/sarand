@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
+from datetime import UTC
 from pathlib import Path
 
 DEFAULT_TOP_N = 30
@@ -199,9 +200,9 @@ def resolve_config(args: argparse.Namespace) -> DeviceReportConfig:
     if args.output:
         output_file = Path(args.output).expanduser()
     else:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         output_file = Path.home() / f"device-report-{timestamp}.md"
 
     top_n = args.top if args.top is not None else (UNLIMITED if full else DEFAULT_TOP_N)

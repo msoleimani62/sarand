@@ -124,8 +124,8 @@ rules, gitleaks-driven exclusion, explicit fixture allowlist) is delivered
 (AGENTS.md 5.67), and so is R2 (truthful issue extraction, inconclusive
 audit tools, TODO noise; AGENTS.md 5.68), and R3 (scan-engine parity: Rust walker ancestor-path bug,
 Python fallback dropping `.github/`; AGENTS.md 5.69; released as v0.6.20) and R4 (trust model, SECURITY.md,
-CONTRIBUTING.md; AGENTS.md 5.70). Still open: R5 CI and release
-hygiene, R6 `--jobs` and bounded command output, R7 Rust walker errors,
+CONTRIBUTING.md; AGENTS.md 5.70) and the Python 3.11 floor of R5 (AGENTS.md
+5.71). Still open: the CI and release half of R5 (hygiene), R6 `--jobs` and bounded command output, R7 Rust walker errors,
 R8 repository hygiene.
 
 ### Out of scope, with reasons

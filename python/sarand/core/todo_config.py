@@ -23,15 +23,10 @@ turns it into a warning and falls back to the defaults only.
 
 from __future__ import annotations
 
-import sys
+import tomllib
 from pathlib import Path
 
 from sarand.core.license_policy import POLICY_FILENAME
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # Python 3.10: same parser, packaged separately
-    import tomli as tomllib
 
 _TODO_KEYS = {"exclude_globs"}
 

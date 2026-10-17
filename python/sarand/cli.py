@@ -9,7 +9,7 @@ import os
 import sys
 import time
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -640,7 +640,7 @@ async def run(config: SarandConfig) -> int:
 
     data = ReportData(
         project_root=root,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         environment=env,
         git=git,
         stats=stats,

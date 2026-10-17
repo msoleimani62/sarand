@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import UTC
 from pathlib import Path
 
 from _helpers import write
@@ -106,7 +107,7 @@ def test_load_without_a_file_and_with_a_bad_file() -> None:
 
 
 def _report(todos: list[TodoItem], suppressed: int) -> object:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from sarand.models.results import (
         EnvironmentInfo,
@@ -117,7 +118,7 @@ def _report(todos: list[TodoItem], suppressed: int) -> object:
 
     return ReportData(
         project_root=Path("fixture-project"),
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         environment=EnvironmentInfo(),
         git=GitSnapshot(),
         stats=ProjectStats(),

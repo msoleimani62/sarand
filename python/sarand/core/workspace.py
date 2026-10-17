@@ -74,17 +74,12 @@ npm/pnpm/Yarn workspaces و Gradle multi-project و Maven multi-module
 
 from __future__ import annotations
 
-import sys
+import tomllib
 from pathlib import Path
 
 from sarand.core.jvm_workspace import detect_gradle_workspace, detect_maven_workspace
 from sarand.core.node_workspace import detect_node_workspace
 from sarand.models.results import WorkspaceInfo, WorkspaceMember
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # Python 3.10: same parser, packaged separately
-    import tomli as tomllib
 
 
 def detect_workspaces(root: Path) -> list[WorkspaceInfo]:

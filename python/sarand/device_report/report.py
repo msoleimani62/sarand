@@ -28,7 +28,7 @@ import os
 import platform
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sarand.device_report import environment as env
@@ -118,7 +118,7 @@ def collect_system_info(report: Report, config: DeviceReportConfig) -> None:
     uname = platform.uname()
 
     report.write(
-        f"- Report generated: `{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')}`"
+        f"- Report generated: `{datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S %Z')}`"
     )
     report.write(f"- Script version: `{SCRIPT_VERSION}`")
     report.write(f"- Detected environment: `{environment}`")
@@ -779,7 +779,7 @@ def collect_stale_files(report: Report, config: DeviceReportConfig) -> None:
     report.write()
     report.fence_open()
 
-    cutoff = datetime.now(timezone.utc).timestamp() - (config.old_days * 86400)
+    cutoff = datetime.now(UTC).timestamp() - (config.old_days * 86400)
     candidates: list[tuple[int, str, str]] = []
     for root in config.scan_roots:
         if not root.is_dir():
@@ -792,9 +792,9 @@ def collect_stale_files(report: Report, config: DeviceReportConfig) -> None:
             except OSError:
                 continue
             if st.st_mtime < cutoff:
-                date_str = datetime.fromtimestamp(
-                    st.st_mtime, tz=timezone.utc
-                ).strftime("%Y-%m-%d")
+                date_str = datetime.fromtimestamp(st.st_mtime, tz=UTC).strftime(
+                    "%Y-%m-%d"
+                )
                 candidates.append((st.st_size, date_str, str(fp)))
 
     candidates.sort(reverse=True)
@@ -850,9 +850,9 @@ def collect_downloads(report: Report, config: DeviceReportConfig) -> None:
                     st = child.stat()
                 except OSError:
                     continue
-                date_str = datetime.fromtimestamp(
-                    st.st_mtime, tz=timezone.utc
-                ).strftime("%Y-%m-%d")
+                date_str = datetime.fromtimestamp(st.st_mtime, tz=UTC).strftime(
+                    "%Y-%m-%d"
+                )
                 archives.append((date_str, st.st_size, str(child)))
     except OSError:
         pass

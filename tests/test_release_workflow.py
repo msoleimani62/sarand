@@ -118,8 +118,8 @@ def test_a_tag_that_disagrees_with_the_version_is_rejected() -> None:
 
 def test_pyproject_builds_one_abi3_wheel_per_platform() -> None:
     pyproject = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"pyo3/abi3-py310"' in pyproject
-    assert 'requires-python = ">=3.10"' in pyproject
+    assert '"pyo3/abi3-py311"' in pyproject
+    assert 'requires-python = ">=3.11"' in pyproject
 
 
 def test_every_step_runs_in_bash_so_the_wheel_glob_works_on_windows() -> None:

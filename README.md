@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/msoleimani62/sarand/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/msoleimani62/sarand/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/msoleimani62/sarand/tags"><img alt="Version" src="https://img.shields.io/github/v/tag/msoleimani62/sarand?label=version&color=2dd4bf"></a>
-  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-3776ab?logo=python&logoColor=white">
   <img alt="Rust core" src="https://img.shields.io/badge/core-Rust%20%2B%20PyO3-dea584?logo=rust&logoColor=white">
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Termux-a78bfa">
   <a href="https://github.com/msoleimani62/sarand/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
@@ -53,7 +53,7 @@ sarand scans a project, works out what it is, runs its tests, linters and securi
 
 ## Quick start
 
-Install it once with [pipx](https://pipx.pypa.io) (Python 3.10+; no Rust needed, the wheels are prebuilt):
+Install it once with [pipx](https://pipx.pypa.io) (Python 3.11+; no Rust needed, the wheels are prebuilt):
 
 ```bash
 pipx install sarand-cli
@@ -195,7 +195,7 @@ Project-wide checks that run with `--security`: `gitleaks` (secrets, including g
 
 | Needed | For |
 |---|---|
-| Python 3.10 or newer | Running sarand |
+| Python 3.11 or newer | Running sarand |
 | A Rust toolchain ([rustup.rs](https://rustup.rs)) | Only to build from source; the PyPI wheels need none |
 | [pipx](https://pipx.pypa.io) | Recommended installer |
 | Per-language tools | Optional, see `sarand --doctor` |
@@ -252,7 +252,7 @@ Building the package needs a Rust toolchain: the build backend is maturin, and `
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install rich PyYAML filelock   # plus tomli on Python 3.10
+pip install rich PyYAML filelock
 PYTHONPATH=python python -m sarand --help
 ```
 

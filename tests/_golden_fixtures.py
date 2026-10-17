@@ -13,7 +13,7 @@ Deliberately dependency-free (no ``import pytest``), mirroring
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from _helpers import write
@@ -32,7 +32,7 @@ from sarand.models.results import (
 
 # Fixed instant so every render is byte-identical across machines/timezones.
 # لحظه‌ی ثابت تا هر رندر روی هر ماشین/منطقه‌زمانی بایت‌به‌بایت یکسان باشد.
-GENERATED_AT = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+GENERATED_AT = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def build_hybrid_fixture(root: Path) -> ReportData:

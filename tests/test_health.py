@@ -9,7 +9,7 @@ scoring drift.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sarand.core.health import _is_actionable_todo, compute_health_score
@@ -26,7 +26,7 @@ from sarand.models.results import (
 def _base_report(**overrides: object) -> ReportData:
     defaults: dict[str, object] = {
         "project_root": Path("/tmp/fixture"),
-        "generated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        "generated_at": datetime(2026, 1, 1, tzinfo=UTC),
         "environment": EnvironmentInfo(),
         "git": GitSnapshot(),
         "stats": ProjectStats(),
