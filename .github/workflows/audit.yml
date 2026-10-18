@@ -1,0 +1,83 @@
+name: Audit
+
+# Dependency advisories change without any commit. This workflow therefore runs
+# weekly, on demand, and on pull requests that touch a dependency file, and it is
+# separate from CI on purpose: it needs the network and an advisory database, so
+# an outage must not turn an ordinary push red or block a release.
+# advisory وابستگی‌ها بدون هیچ commitی عوض می‌شود. این workflow هفتگی، دستی و روی
+# pull requestهایی که فایل وابستگی را عوض می‌کنند اجرا می‌شود و عمداً از CI جداست:
+# به شبکه و پایگاه داده‌ی advisory نیاز دارد و قطعی آن نباید push معمولی یا انتشار را بشکند.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "deny.toml"
+      - ".github/workflows/audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  pip-audit:
+    name: pip-audit (runtime dependencies)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: python -m pip install "pip-audit>=2.10"
+
+      - name: Audit the runtime dependencies from pyproject.toml
+        run: |
+          python - <<'PY' > requirements-audit.txt
+          import tomllib
+          with open("pyproject.toml", "rb") as handle:
+              print("\n".join(tomllib.load(handle)["project"]["dependencies"]))
+          PY
+          cat requirements-audit.txt
+          pip-audit -r requirements-audit.txt --progress-spinner off
+
+  cargo-advisories:
+    name: cargo-deny (RustSec advisories)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache the cargo-deny binary
+        id: cargo-deny-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          # Bump the number to pick up a newer cargo-deny on purpose.
+          # برای گرفتن cargo-deny جدیدتر، عدد را عمداً زیاد کنید.
+          key: cargo-deny-${{ runner.os }}-v1
+
+      - name: Install cargo-deny
+        if: steps.cargo-deny-cache.outputs.cache-hit != 'true'
+        run: cargo install --locked cargo-deny
+
+      - name: Check the advisory database against Cargo.lock
+        run: cargo deny check advisories

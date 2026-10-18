@@ -389,6 +389,7 @@ def scan_for_secrets(root: Path, included_files: list[Path]) -> list[SecretFindi
                             )
                         )
         except OSError:
+            logger.debug("cannot read %s for the secret scan", rel)
             continue
 
     if findings:

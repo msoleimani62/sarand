@@ -16,6 +16,14 @@ version may include behaviour changes.
 
 ### Added
 
+- A `static` CI job (bandit, markdownlint, actionlint, cargo-deny licenses/bans/
+  sources, gitleaks), a scheduled `Audit` workflow (pip-audit and the RustSec
+  advisories), Dependabot for Actions, Cargo and pip, least-privilege `permissions`
+  and cancellation of superseded pull-request runs.
+- Releases now check that CI succeeded for the tagged commit, smoke-test the
+  Linux aarch64 and macOS x86_64 wheels on native runners, and create a GitHub
+  Release with the wheels and a `SHA256SUMS` file.
+- `scripts/pin_actions.py` to pin the workflows' actions to commit SHAs.
 - A "Trust model" section in both READMEs, a warning in Quick start and a note
   in `sarand --help`: scanning a project runs its test suite (and, with
   `--quality` / `--security` / `--full`, its linters and audit tools), so
@@ -25,6 +33,7 @@ version may include behaviour changes.
 
 ### Fixed
 
+- Both READMEs still named Python 3.10 after the floor moved to 3.11.
 - The English README's Contributing block said `mypy python`; CI runs
   `mypy .`.
 

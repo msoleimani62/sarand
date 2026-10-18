@@ -26,7 +26,9 @@ from __future__ import annotations
 
 import posixpath
 import re
-import xml.etree.ElementTree as ET
+
+# every parse goes through _pom(), which rejects DOCTYPE/ENTITY first
+import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
 from sarand.models.results import WorkspaceInfo, WorkspaceMember
@@ -73,7 +75,8 @@ def _pom(path: Path) -> ET.Element | None:
     if text is None or "<!DOCTYPE" in text.upper() or "<!ENTITY" in text.upper():
         return None
     try:
-        return ET.fromstring(text)
+        # DOCTYPE and ENTITY were rejected above, so no entity expansion is possible
+        return ET.fromstring(text)  # nosec B314
     except ET.ParseError:
         return None
 

@@ -107,3 +107,37 @@ def test_both_readmes_show_the_floor_in_the_badge() -> None:
         text = (_ROOT / name).read_text(encoding="utf-8")
         assert f"python-{major}.{minor}%2B" in text, name
         assert f'alt="Python {major}.{minor}+"' in text, name
+
+
+def _persian(digits: str) -> str:
+    return digits.translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+
+
+def test_no_document_names_a_dropped_python_version() -> None:
+    major, floor_minor = _floor()
+    dropped = range(10, floor_minor)  # 3.10 up to the floor, exclusive
+    names = (
+        "README.md",
+        "README.fa.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "docs/PUBLISHING.md",
+        "docs/PUBLISHING.fa.md",
+    )
+    offenders: list[str] = []
+    for name in names:
+        text = (_ROOT / name).read_text(encoding="utf-8")
+        for minor in dropped:
+            ascii_form = re.compile(rf"(?<![\d.]){major}\.{minor}(?!\d)")
+            persian_form = re.compile(
+                rf"{_persian(str(major))}[٫.]{_persian(str(minor))}(?![۰-۹])"
+            )
+            if ascii_form.search(text) or persian_form.search(text):
+                offenders.append(f"{name}: Python {major}.{minor}")
+    assert offenders == []
+
+
+def test_the_persian_readme_states_the_floor_in_persian_digits() -> None:
+    major, minor = _floor()
+    text = (_ROOT / "README.fa.md").read_text(encoding="utf-8")
+    assert f"{_persian(str(major))}٫{_persian(str(minor))}" in text

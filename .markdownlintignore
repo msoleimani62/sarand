@@ -1,0 +1,17 @@
+# Files the `static` CI job does not lint yet (AGENTS.md 5.72). Each one still has
+# known violations that round R8 fixes; delete its line when it passes.
+# فایل‌هایی که job به نام static هنوز lint نمی‌کند؛ هر کدام خطای شناخته‌شده دارد و
+# دور R8 آن را رفع می‌کند. وقتی فایل پاس شد، خطش را پاک کنید.
+AGENTS.md
+docs/BACKLOG.md
+
+# A prompt written for AI models, not documentation for readers.
+# پرامپتی برای مدل‌های هوش مصنوعی، نه مستند برای خواننده.
+docs/AUDIT_FIX_PROMPT.md
+
+# Golden snapshots are generated report text; build output and tooling folders.
+# snapshotهای golden متن تولیدشده‌ی گزارش‌اند؛ پوشه‌های build و ابزار.
+tests/golden/
+target/
+.venv/
+node_modules/

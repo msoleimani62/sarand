@@ -42,7 +42,7 @@ this file is stale.
 | Scala | yes | yes | - | yes | - | Partial | `sbt` | sbt |
 | Dockerfile | - | yes | - | yes | - | Partial | `hadolint` | - |
 | Kubernetes | - | yes | - | yes | - | Partial | `helm`, `kustomize` | - |
-| GitHub Actions | - | yes | - | yes | - | Partial | `actionlint` | - |
+| GitHub Actions | - | yes | - | yes | yes | Partial | `actionlint` | - |
 | Terraform | - | yes | - | yes | - | Partial | `terraform`, `tflint` | - |
 | Protobuf | - | yes | - | yes | - | Partial | `buf` | - |
 | Swift | yes | yes | - | yes | - | Partial | `swift`, `swift-format`, `swiftlint`, `xcodebuild` | swift package manager |
@@ -68,6 +68,6 @@ this file is stale.
 | JSON | - | yes | - | yes | - | Partial | `jsonlint` | - |
 | TOML | - | yes | - | yes | - | Partial | `taplo` | - |
 | XML | - | yes | - | yes | - | Partial | `xmllint` | - |
-| Markdown | - | yes | - | yes | - | Partial | `markdownlint` | - |
+| Markdown | - | yes | - | yes | yes | Partial | `markdownlint` | - |
 
 Project-wide checks (`--security`, any ecosystem): gitleaks, syft (SBOM and license policy), lockfile check.

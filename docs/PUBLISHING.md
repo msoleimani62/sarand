@@ -7,8 +7,10 @@ PyPI, so **no password or API token is stored anywhere**.
 
 The workflow is `.github/workflows/release.yml`. It builds one wheel per
 platform (Linux x86_64 and aarch64, macOS arm64 and x86_64, Windows x64; each
-works for every Python from 3.11 on) plus the source distribution, installs the
-wheels on three systems as a smoke test, and then publishes.
+works for every Python from 3.11 on) plus the source distribution, checks that CI
+was green for the tagged commit, installs the wheels on five systems (the Linux
+aarch64 and macOS x86_64 ones natively) as a smoke test, publishes, and then
+creates a GitHub Release with the wheels, the sdist and a `SHA256SUMS` file.
 
 ## One-time setup (about 20 minutes, all from a browser)
 

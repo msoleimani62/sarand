@@ -30,7 +30,9 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
+
+# fixed argv and no shell; a maintainer tool, not user input
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -82,7 +84,8 @@ def changelog_versions(changelog_text: str) -> list[str]:
 
 
 def _git(*args: str) -> str:
-    done = subprocess.run(
+    # fixed argv, no shell; `git` and `gh` are looked up by name on purpose
+    done = subprocess.run(  # nosec B603 B607
         ["git", *args], cwd=ROOT, capture_output=True, text=True, check=False
     )
     if done.returncode != 0:
@@ -130,7 +133,8 @@ def fetch_runs() -> list[dict[str, object]]:
     """Recent workflow runs from the GitHub CLI. Raises `RuntimeError` with
     a human-readable reason when `gh` is missing, fails or answers garbage."""
     try:
-        done = subprocess.run(
+        # fixed argv, no shell; `git` and `gh` are looked up by name on purpose
+        done = subprocess.run(  # nosec B603 B607
             [
                 "gh",
                 "run",

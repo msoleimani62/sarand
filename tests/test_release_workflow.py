@@ -78,8 +78,10 @@ def test_each_publish_job_has_the_environment_named_in_the_pypi_form() -> None:
 
 
 def test_publishing_waits_for_every_build_and_the_smoke_test() -> None:
-    for name in ("publish-pypi", "publish-testpypi"):
-        assert set(_jobs()[name]["needs"]) == {"wheels", "sdist", "smoke"}
+    builds = {"wheels", "sdist", "smoke"}
+    assert set(_jobs()["publish-testpypi"]["needs"]) == builds
+    # A real release additionally needs the CI gate (AGENTS.md 5.72).
+    assert set(_jobs()["publish-pypi"]["needs"]) == builds | {"ci-gate"}
 
 
 def test_the_publish_action_is_the_official_one_and_only_testpypi_overrides_the_index() -> (

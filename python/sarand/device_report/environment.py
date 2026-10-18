@@ -127,6 +127,12 @@ def run_tool_checked(
     return True, output
 
 
+# "/tmp" is listed for its size only; nothing is created in it, so bandit's
+# B108 (insecure temporary file) does not apply. One single-line statement keeps
+# the marker attached to the line it suppresses.
+# "/tmp" فقط برای اندازه‌اش فهرست می‌شود؛ چیزی در آن ساخته نمی‌شود.
+_TMP_DIR = "/tmp"  # nosec B108
+
 # Candidate toolchain/cache directories checked for existence + size.
 # کاندیدهای دایرکتوری toolchain/cache که برای وجود + اندازه چک می‌شوند.
 TOOLCHAIN_CANDIDATES: tuple[str, ...] = (
@@ -146,7 +152,7 @@ TOOLCHAIN_CANDIDATES: tuple[str, ...] = (
     "/opt/android-sdk",
     "/var/cache/apt/archives",
     "/root/.cache",
-    "/tmp",  # nosec B108
+    _TMP_DIR,
 )
 
 BUILD_ARTIFACT_DIR_NAMES: frozenset[str] = frozenset(
@@ -217,7 +223,7 @@ IMPORTANT_PATHS: tuple[str, ...] = (
     "/sdcard",
     "/storage",
     "/storage/emulated/0",
-    "/tmp",  # nosec B108
+    _TMP_DIR,
 )
 
 ANDROID_PROPERTY_PREFIXES: tuple[str, ...] = (

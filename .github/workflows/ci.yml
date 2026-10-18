@@ -5,6 +5,19 @@ on:
     branches: ["master", "main"]
   pull_request:
 
+# Least privilege: no job here needs to write to the repository.
+# کمترین دسترسی: هیچ jobای اینجا نیاز ندارد در مخزن بنویسد.
+permissions:
+  contents: read
+
+# A newer push to the same pull request supersedes the older run. A push to
+# main is never cancelled, so every commit on main gets its full result.
+# push جدید روی همان pull request اجرای قبلی را کنار می‌گذارد؛ push روی main
+# هرگز لغو نمی‌شود.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 defaults:
   run:
     # Force bash on every OS in the matrix so shell behavior stays consistent.
@@ -195,3 +208,70 @@ jobs:
           # ندارد. `warn` از تبدیل‌شدن آن به یک شکست دوم و گیج‌کننده‌ی
           # «artifact پیدا نشد» روی شکستِ واقعی جلوگیری می‌کند.
           if-no-files-found: warn
+
+  # Checks that read the repository as it is and need no build. A separate job
+  # so they run once, not per matrix entry, and so every failing check is
+  # reported in one run (each step after the first runs even if one failed).
+  # بررسی‌هایی که مخزن را همان‌طور که هست می‌خوانند و build نمی‌خواهند؛ job جدا تا
+  # یک‌بار اجرا شوند و همه‌ی خطاها در همان اجرا گزارش شود.
+  static:
+    name: static analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # gitleaks scans the whole history, not only the last commit.
+          # gitleaks کل تاریخچه را می‌گردد، نه فقط آخرین commit.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install bandit
+        run: python -m pip install "bandit>=1.9"
+
+      - name: bandit (security linter for our own Python)
+        run: bandit -c pyproject.toml -r python scripts -q
+
+      - name: markdownlint (documentation)
+        if: ${{ !cancelled() }}
+        run: npx --yes markdownlint-cli@0.48.0 "**/*.md"
+
+      - name: actionlint (workflow syntax and embedded shell)
+        if: ${{ !cancelled() }}
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color
+
+      - name: Set up Rust
+        if: ${{ !cancelled() }}
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache the cargo-deny binary
+        id: cargo-deny-cache
+        if: ${{ !cancelled() }}
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          # Bump the number to pick up a newer cargo-deny on purpose.
+          # برای گرفتن cargo-deny جدیدتر، عدد را عمداً زیاد کنید.
+          key: cargo-deny-${{ runner.os }}-v1
+
+      - name: Install cargo-deny
+        if: ${{ !cancelled() && steps.cargo-deny-cache.outputs.cache-hit != 'true' }}
+        run: cargo install --locked cargo-deny
+
+      - name: cargo deny (licenses, bans, sources)
+        if: ${{ !cancelled() }}
+        # Advisories live in audit.yml: they need the network and must not
+        # turn an ordinary push red.
+        # advisoryها در audit.yml هستند: به شبکه نیاز دارند و نباید push معمولی را قرمز کنند.
+        run: cargo deny check licenses bans sources
+
+      - name: gitleaks (secrets in the whole history)
+        if: ${{ !cancelled() }}
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"

@@ -4746,3 +4746,96 @@ first CI run; `ruff`, `mypy`, `cargo` and `actionlint` were not run here.
 
 **Lessons.** A constraint written in a dozen places is a constraint nobody can
 change safely. Make one place the truth and make a test read it.
+
+
+### 5.72 — Audit remediation R5b: CI, audit and release hygiene (2026-10-18)
+
+Second half of R5 in `docs/AUDIT_FIX_PROMPT.md` (findings B1, B2, B5, C5; owner
+decisions: add every static check, add the GitHub Release).
+
+**CONFIRMED.** CI ran none of bandit, pip-audit, cargo deny, gitleaks,
+actionlint, markdownlint (the owner's own self-report listed bandit and
+markdownlint as failing), had no `permissions:`, no concurrency control and no
+Dependabot. `release.yml` smoke-tested only three of the five wheels, never
+asked whether CI had been green for the tagged commit, and created no GitHub
+Release. A new, unplanned finding while verifying: both READMEs still said
+"Python 3.10" in three places after R5a (the Persian one with Persian digits and
+the Arabic decimal separator, which an ASCII search cannot see).
+
+**Verified against sources before writing** (no versions from memory):
+`ubuntu-24.04-arm` and `macos-15-intel` are listed GitHub-hosted runners for
+public repositories (docs.github.com, supported runners); the gitleaks action's
+README now says `gitleaks/gitleaks-action@v3` (v2 is going away); `markdownlint`
+0.48.0 exists (it was run here, for real, over every document in scope).
+
+**BUILT.**
+
+1. `ci.yml`: `permissions: contents: read`, concurrency that cancels a
+   superseded *pull-request* run (never a push to main), and a `static` job
+   (Ubuntu only) running bandit, markdownlint, actionlint (pinned Docker image),
+   `cargo deny check licenses bans sources` and gitleaks. Every check after the
+   first has `if: !cancelled()`, so one run reports all problems. The checkout is
+   complete (`fetch-depth: 0`) because gitleaks reads history.
+2. `audit.yml` (new): `pip-audit` on the runtime dependencies and
+   `cargo deny check advisories`, weekly, on demand and on pull requests that
+   touch a dependency file. **Separate from CI on purpose** (deviation from the
+   prompt, which put them in `static`): they need the network and an advisory
+   database, and an outage there must not turn an ordinary push red or block
+   `release.py tag`, which only accepts a green CI workflow.
+3. `dependabot.yml`: GitHub Actions, Cargo and pip, weekly, one grouped pull
+   request per ecosystem.
+4. `release.yml`: `ci-gate` (a tag is only released if the CI workflow succeeded
+   for its commit; `publish-pypi` needs it), native smoke tests for the two
+   cross-built wheels (`ubuntu-24.04-arm` for linux-aarch64, `macos-15-intel` for
+   macos-x86_64), and `github-release` after `publish-pypi`: wheels, sdist and a
+   generated `SHA256SUMS` attached to a release whose notes are the CHANGELOG
+   section of that version. It runs only for tags, so TestPyPI dry runs never
+   create one.
+5. `scripts/pin_actions.py` + `tests/test_action_pins.py`: pins every `uses:` to
+   a commit SHA (needs the network, so the maintainer runs it). The test enforces
+   "tag, documented branch or SHA" today and requires SHAs once `ENFORCE_PINNED`
+   is flipped. **Not enforced yet**: this environment has no network and a
+   fabricated SHA would be worse than a tag.
+6. bandit: `[tool.bandit]` in `pyproject.toml`, reasoned `# nosec` markers on
+   exactly the lines the owner's report named (release.py, smoke_install.py,
+   jvm_workspace.py), and the one new `try/except/continue` of R1 (B112) now logs.
+7. markdownlint: `.markdownlintignore` lists the three files that still have
+   violations (AGENTS.md and docs/BACKLOG.md for round R8, the AI prompt
+   docs/AUDIT_FIX_PROMPT.md); every other document passes, after fixing the
+   Persian README's ten anchor-above-heading errors, two of my own R4 slips
+   (bold text used as a heading; two callouts separated by a blank line), and a
+   file-level `MD029` directive for BACKLOG_STATUS, whose numbered items continue
+   across sections on purpose (other documents cite "item 8").
+8. `tests/test_ci_workflows.py` pins the shape of all of the above;
+   `tests/test_python_floor.py` gained a check that no document names a dropped
+   Python version (in ASCII or Persian digits).
+
+**Deviations from the prompt (deliberate).** pip-audit/cargo advisories moved to
+`audit.yml` (above). cargo-deny is installed with `cargo install --locked` and a
+cache instead of a third-party action, because its version could not be verified.
+actionlint runs from the `rhysd/actionlint:1.7.7` image: that tag is an existing
+release, but it was not re-checked against the latest. The release workflow's
+header comment still says "after the approval ...", which stays true.
+
+**Non-goals (recorded).** SHA pins (script provided); zizmor (it would fail
+today on every unpinned action); a blocking Python 3.15 job (its first run was
+green, so this is now a decision, not a blocker); Windows ARM wheels; attestation
+changes.
+
+**Verification.** `markdownlint` 0.48.0 over every in-scope document (zero
+errors); every workflow and config file parsed; the whole suite plus the new
+tests; the pin script's rewrite logic against a fake resolver. **NOT run here:**
+bandit, actionlint, cargo-deny, gitleaks and the workflows themselves. The first
+CI run is their real test, and a small follow-up commit after it is expected.
+
+**Lessons.** Two checks silently covered less than they claimed: a search for
+"3.10" does not find "۳٫۱۰", and a step without `if: !cancelled()` does not run
+after a failure, so a multi-tool job reports one problem per push.
+
+**Follow-up (first local run).** bandit reads every word after `# nosec`
+as a test id, so `# nosec B404 -- some reason` logged a warning per word;
+write the reason on the line above and keep only the ids on the marker.
+A marker inside a multi-line statement applies to every line of it and
+warns on those with nothing to suppress: keep the suppressed construct on
+one line. `scripts/pin_actions.py` now refuses any URL that is not
+`https://api.github.com/` before it opens it (B310).

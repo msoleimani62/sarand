@@ -1,0 +1,39 @@
+# Dependabot keeps the three kinds of dependency this repository has current:
+# the GitHub Actions the workflows use, the Rust crates and the Python packages.
+# Updates arrive as one grouped pull request per ecosystem and week, so a review
+# is one diff, not a dozen. CI (and the weekly audit) run on every one.
+# Dependabot سه نوع وابستگی این مخزن را به‌روز نگه می‌دارد: actionهای GitHub، crateهای
+# Rust و بسته‌های Python؛ هر اکوسیستم در هفته یک pull request گروهی.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+    groups:
+      rust:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+    groups:
+      python:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

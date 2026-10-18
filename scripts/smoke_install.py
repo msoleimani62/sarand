@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import os
 import re
-import subprocess
+
+# fixed argv and no shell; a maintainer tool, not user input
+import subprocess  # nosec B404
 import sys
 import tempfile
 import venv
@@ -57,7 +59,8 @@ def venv_python(env_dir: Path) -> Path:
 
 
 def run(python: Path, *args: str, cwd: Path | None = None) -> str:
-    done = subprocess.run(
+    # argv starts with the interpreter of a venv this script built; no shell
+    done = subprocess.run(  # nosec B603
         [str(python), *args],
         cwd=cwd,
         capture_output=True,

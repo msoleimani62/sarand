@@ -126,6 +126,12 @@ features = ["pyo3/extension-module", "pyo3/abi3-py311"]
 # ثبتِ دقیقِ همان چیزی است که رندرکننده تولید می‌کند، بدون ویرایش.
 extend-exclude = ["tests/golden"]
 
+# bandit (CI job `static`): our own Python only. Tests may assert and spawn
+# processes freely; the build output and the virtualenv are not ours.
+# bandit فقط روی پایتون خودمان؛ تست‌ها آزادانه assert و subprocess دارند.
+[tool.bandit]
+exclude_dirs = ["tests", "target", ".venv", "dist"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

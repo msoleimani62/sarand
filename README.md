@@ -69,6 +69,9 @@ cd ~/my-project
 sarand --full
 ```
 
+> [!WARNING]
+> A scan runs the project's own test suite (and, with `--quality`, `--security` or `--full`, its linters and audit tools), so scanning a project you do not trust means running its code. See the [trust model](#trust-model-scanning-runs-project-code). `sarand --skip-tests` on its own starts no project toolchain.
+
 The last lines tell you where the report went (by default the `Downloads` folder). Example output:
 
 ```text
@@ -92,9 +95,6 @@ Health  : 76.0/100 (C)
 
 > [!TIP]
 > Run `sarand --doctor` first if you want to see which tools are installed and how to add the missing ones.
-
-> [!WARNING]
-> A scan runs the project's own test suite (and, with `--quality`, `--security` or `--full`, its linters and audit tools), so scanning a project you do not trust means running its code. See the [trust model](#trust-model-scanning-runs-project-code). `sarand --skip-tests` on its own starts no project toolchain.
 
 ## How it works
 
@@ -207,7 +207,7 @@ pipx install sarand-cli
 sarand --version
 ```
 
-The package is called `sarand-cli` on PyPI (the name `sarand` there belongs to an unrelated project); the command it installs is `sarand`. Prebuilt wheels cover Linux (glibc) on x86_64 and aarch64, macOS on Intel and Apple silicon, and Windows on x64, for every Python from 3.10 on. Other systems build from source, as below. To upgrade: `pipx upgrade sarand-cli`.
+The package is called `sarand-cli` on PyPI (the name `sarand` there belongs to an unrelated project); the command it installs is `sarand`. Prebuilt wheels cover Linux (glibc) on x86_64 and aarch64, macOS on Intel and Apple silicon, and Windows on x64, for every Python from 3.11 on. Other systems build from source, as below. To upgrade: `pipx upgrade sarand-cli`.
 
 ### From source with pipx
 
@@ -352,7 +352,7 @@ Independently of this flag, sarand never copies a file that contains a detected 
 
 What sarand does **not** do, and a test keeps it that way: install dependencies, run `make`, start a shell, or run a `package.json` script other than `test` and `lint`.
 
-**Safer ways to scan code you do not trust**
+#### Safer ways to scan code you do not trust
 
 1. Use `sarand --skip-tests` (without `--quality`, `--security` or `--full`), which starts no project toolchain.
 2. Or scan inside a disposable VM, container or throwaway user that holds no credentials and, if possible, has no network.
