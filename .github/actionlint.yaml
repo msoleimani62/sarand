@@ -1,0 +1,9 @@
+# actionlint (CI job `static`) only knows the runner labels of its own release.
+# `macos-15-intel` is a real GitHub-hosted runner (docs.github.com, "Supported
+# runners and hardware resources") that actionlint 1.7.7 does not list yet, so it is
+# declared here. Remove the entry once the pinned actionlint knows the label.
+# actionlint فقط برچسب runnerهای نسخه‌ی خودش را می‌شناسد. macos-15-intel یک runner
+# واقعی GitHub است که actionlint 1.7.7 هنوز ندارد؛ اینجا معرفی می‌شود.
+self-hosted-runner:
+  labels:
+    - macos-15-intel

@@ -152,3 +152,17 @@ def test_bandit_is_configured_in_pyproject() -> None:
 
     config = tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert "tests" in config["tool"]["bandit"]["exclude_dirs"]
+
+
+def test_actionlint_accepts_every_runner_label_the_workflows_use() -> None:
+    # actionlint 1.7.7 does not know `macos-15-intel`; the label must stay declared
+    # in .github/actionlint.yaml for as long as release.yml uses it (AGENTS.md 5.72).
+    release = _load(_GITHUB / "workflows" / "release.yml")
+    runners = {
+        entry["runner"]
+        for entry in release["jobs"]["smoke"]["strategy"]["matrix"]["include"]
+    }
+    config = _load(_GITHUB / "actionlint.yaml")
+    declared = set(config["self-hosted-runner"]["labels"])
+    assert "macos-15-intel" in runners
+    assert "macos-15-intel" in declared

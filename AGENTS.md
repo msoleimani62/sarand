@@ -4839,3 +4839,10 @@ A marker inside a multi-line statement applies to every line of it and
 warns on those with nothing to suppress: keep the suppressed construct on
 one line. `scripts/pin_actions.py` now refuses any URL that is not
 `https://api.github.com/` before it opens it (B310).
+
+**Follow-up (first CI run, 2026-10-18).** The `static` job failed on one check
+of five: actionlint 1.7.7 did not know the label `macos-15-intel` (a real
+runner), so it is declared in `.github/actionlint.yaml`. bandit, markdownlint,
+cargo-deny and gitleaks 8.24.3 passed on their first run. Dependabot opened its
+first pull requests within minutes of the merge (Actions major bumps and
+dependency groups); each must pass CI before it is merged.
