@@ -429,6 +429,7 @@ PYTHONPATH=/path/to/sarand/python python -m sarand -p .
 | `--set-output-dir PATH` | ذخیره‌ی مسیر به‌عنوان پوشه‌ی پیش‌فرض گزارش و سپس خروج |
 | `-f, --format FORMAT` | قالب خروجی: `markdown`، `json`، `text`، `html`، `pdf` یا `sarif` |
 | `--skip-tests` | اجرا نکردن آزمون‌ها |
+| `--jobs N` | حداکثر N ابزار بیرونی را هم‌زمان اجرا کن (پیش‌فرض: یکی برای هر CPU و هر گیگابایت حافظه‌ی آزاد، حداکثر ۸؛ متغیر `SARAND_JOBS` هم کار می‌کند) |
 | `--quality` | اجرای ابزارهای کیفیت، قالب‌بندی و بررسی نوع برای زبان‌های تشخیص‌داده‌شده |
 | `--security` | اجرای بررسی‌های امنیتی و آسیب‌پذیری |
 | `--skip-audit` | صرف‌نظر از بررسی‌های `pip-audit` و `cargo-audit` |

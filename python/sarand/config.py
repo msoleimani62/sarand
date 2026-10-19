@@ -48,6 +48,9 @@ class SarandConfig:
     output_dir: Path = field(default_factory=lambda: DEFAULT_OUTPUT_DIR)
     output_name: str = ""
     skip_tests: bool = False
+    # None: decided by SARAND_JOBS or the machine (core/concurrency.py).
+    # None: با SARAND_JOBS یا از روی دستگاه تعیین می‌شود.
+    jobs: int | None = None
     run_quality: bool = False
     run_security: bool = False
     skip_audit: bool = False
@@ -94,6 +97,7 @@ class SarandConfig:
             output_dir=out_dir,
             output_name=output_name,
             skip_tests=bool(getattr(args, "skip_tests", False)),
+            jobs=getattr(args, "jobs", None),
             run_quality=full or bool(getattr(args, "quality", False)),
             run_security=full or bool(getattr(args, "security", False)),
             skip_audit=bool(getattr(args, "skip_audit", False)),

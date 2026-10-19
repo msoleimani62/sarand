@@ -32,6 +32,7 @@ from sarand.core.cache import (
 )
 from sarand.core.components import detect_components
 from sarand.core.compose import detect_compose
+from sarand.core.concurrency import jobs_argument, resolve_jobs
 from sarand.core.detection_refine import refine_detection
 from sarand.core.estimate import estimate_source_bytes, size_advice
 from sarand.core.gitleaks import gitleaks_flagged_paths, run_gitleaks
@@ -71,6 +72,7 @@ from sarand.scanners.git import collect_git_snapshot
 from sarand.scanners.stats import collect_project_stats
 from sarand.scanners.todos import filter_todos, scan_todos
 from sarand.userconfig import save_persisted_config
+from sarand.utils.command import set_max_concurrent_commands
 from sarand.utils.fs import human_size
 from sarand.utils.installation import installation_info, stale_note
 from sarand.utils.logging import get_logger, setup_logging
@@ -197,6 +199,15 @@ Trust model:
     )
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument(
+        "--jobs",
+        metavar="N",
+        type=jobs_argument,
+        help=(
+            "Start at most N external tools at once (1-64). Default: one per CPU "
+            "and per GiB of free memory, at most 8; also SARAND_JOBS"
+        ),
+    )
+    parser.add_argument(
         "--quality",
         action="store_true",
         help="Run quality checks (per detected language)",
@@ -320,6 +331,19 @@ async def run(config: SarandConfig) -> int:
     root = config.project_root
     config.output_dir.mkdir(parents=True, exist_ok=True)
     output_path = config.output_dir / config.output_name
+
+    # One process-wide limit on external tools (AGENTS.md 5.73): --jobs, then
+    # SARAND_JOBS, then one per CPU and per GiB of free memory.
+    # یک سقف سراسری روی ابزارهای بیرونی: --jobs، بعد SARAND_JOBS، بعد پیش‌فرض دستگاه.
+    cpus = os.cpu_count()
+    free_memory = available_memory_bytes()
+    try:
+        jobs = resolve_jobs(config.jobs, os.environ, cpus, free_memory)
+    except ValueError as exc:
+        warning(f"{exc} -- using the default number of parallel tools.")
+        jobs = resolve_jobs(config.jobs, {}, cpus, free_memory)
+    set_max_concurrent_commands(jobs)
+    logger.info("Running at most %d external tool(s) at once", jobs)
 
     detection = detect_project(root)
     # Cheap (one small TOML parse at most) and self-gating -- returns

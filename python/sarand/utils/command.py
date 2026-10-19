@@ -23,6 +23,7 @@ from sarand.constants import (
     ERROR_LINE_PATTERNS,
     INCONCLUSIVE_KIND_MARKERS,
     INCONCLUSIVE_SIGNATURES,
+    MAX_COMMAND_OUTPUT_BYTES,
     WARNING_LINE_PATTERNS,
 )
 from sarand.models.results import CommandResult, Issue
@@ -241,17 +242,115 @@ async def _terminate_process(proc: asyncio.subprocess.Process) -> None:
     await proc.wait()
 
 
+# --- Limits on external commands (AGENTS.md 5.73) ---------------------------------
+# Every analyzer subprocess goes through `run_cmd_async`, so the two limits live here:
+# how many run at once, and how much of each one's output is kept.
+# دو سقف روی دستورهای بیرونی: چند تا هم‌زمان اجرا شوند و چقدر از خروجی هرکدام نگه
+# داشته شود. هر زیرفرایند analyzer از `run_cmd_async` می‌گذرد، پس هر دو اینجا هستند.
+
+_READ_CHUNK = 65536
+_max_commands: int | None = None  # None: not limited (the library default)
+_limiter: tuple[asyncio.AbstractEventLoop, int, asyncio.Semaphore] | None = None
+
+
+def set_max_concurrent_commands(limit: int | None) -> None:
+    """At most `limit` external commands run at once from now on (None: no limit)."""
+    global _max_commands, _limiter
+    _max_commands = limit
+    _limiter = None
+
+
+def _command_slots() -> asyncio.Semaphore | None:
+    """The semaphore for the running event loop, rebuilt when the loop or limit changes."""
+    global _limiter
+    if _max_commands is None:
+        return None
+    loop = asyncio.get_running_loop()
+    if _limiter is None or _limiter[0] is not loop or _limiter[1] != _max_commands:
+        _limiter = (loop, _max_commands, asyncio.Semaphore(_max_commands))
+    return _limiter[2]
+
+
+async def _drain(proc: asyncio.subprocess.Process, cap: int) -> bytes:
+    """Read the merged output to its end and wait for the process, keeping at most `cap`
+    bytes: the first half and the last half of the budget, with a marker in between.
+
+    The pipe is read to the very end even past the cap, so the child never blocks on
+    a full pipe. The tail is trimmed only when it has doubled, which keeps the work per
+    chunk constant and the peak memory near 1.5 times `cap`.
+
+    خروجی را تا پایان می‌خواند ولی حداکثر `cap` بایت نگه می‌دارد (نیمه‌ی اول و نیمه‌ی
+    آخر بودجه، با یک نشانه در وسط). لوله تا آخر خوانده می‌شود تا child روی لوله‌ی پر
+    گیر نکند.
+    """
+    stream = proc.stdout
+    if stream is None:
+        await proc.wait()
+        return b""
+    head_cap = cap // 2
+    tail_cap = cap - head_cap
+    head = bytearray()
+    tail = bytearray()
+    total = 0
+    while True:
+        chunk = await stream.read(_READ_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if len(head) < head_cap:
+            room = head_cap - len(head)
+            head += chunk[:room]
+            chunk = chunk[room:]
+        if chunk:
+            tail += chunk
+            if len(tail) > 2 * tail_cap:
+                del tail[: len(tail) - tail_cap]
+    await proc.wait()
+    if len(tail) > tail_cap:
+        del tail[: len(tail) - tail_cap]
+    omitted = total - len(head) - len(tail)
+    if omitted <= 0:
+        return bytes(head + tail)
+    marker = f"\n[sarand: {omitted} bytes omitted from the middle of this output]\n"
+    return bytes(head) + marker.encode() + bytes(tail)
+
+
 async def run_cmd_async(
     cmd: Sequence[str],
     cwd: Path,
     timeout: int = DEFAULT_CMD_TIMEOUT,
     *,
     env: dict[str, str] | None = None,
+    max_output_bytes: int = MAX_COMMAND_OUTPUT_BYTES,
 ) -> tuple[int, str, float]:
-    """Execute a command asynchronously with timeout and cancellation cleanup."""
+    """Execute a command asynchronously with timeout and cancellation cleanup.
+
+    At most `set_max_concurrent_commands` of these run at once; the timeout starts
+    when the command gets its slot, not while it waits for one.
+    """
+    slots = _command_slots()
+    if slots is None:
+        return await _run_cmd(
+            cmd, cwd, timeout, env=env, max_output_bytes=max_output_bytes
+        )
+    async with slots:
+        return await _run_cmd(
+            cmd, cwd, timeout, env=env, max_output_bytes=max_output_bytes
+        )
+
+
+async def _run_cmd(
+    cmd: Sequence[str],
+    cwd: Path,
+    timeout: int,
+    *,
+    env: dict[str, str] | None,
+    max_output_bytes: int,
+) -> tuple[int, str, float]:
+    """The unlimited body of `run_cmd_async` (see there)."""
     start = time.perf_counter()
     proc: asyncio.subprocess.Process | None = None
-    communicate_task: asyncio.Task[tuple[bytes, bytes]] | None = None
+    communicate_task: asyncio.Task[bytes] | None = None
     argv = _resolve_argv(cmd)
 
     try:
@@ -273,16 +372,16 @@ async def run_cmd_async(
                 env=env,
             )
 
-        communicate_task = asyncio.create_task(proc.communicate())
+        communicate_task = asyncio.create_task(_drain(proc, max_output_bytes))
 
         try:
-            stdout, _ = await asyncio.wait_for(
+            stdout = await asyncio.wait_for(
                 asyncio.shield(communicate_task),
                 timeout=timeout,
             )
         except TimeoutError:
             await _terminate_process(proc)
-            stdout, _ = await communicate_task
+            stdout = await communicate_task
             output = stdout.decode("utf-8", errors="replace") if stdout else ""
             if not output:
                 output = "Command timed out."

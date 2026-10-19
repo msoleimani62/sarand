@@ -248,6 +248,17 @@ AI_NOTICE = (
 DEFAULT_CMD_TIMEOUT = 300
 LONG_CMD_TIMEOUT = 3600
 
+# External commands run at most this many at once unless `--jobs` / SARAND_JOBS say
+# otherwise (core/concurrency.py): one per CPU and per MEMORY_PER_JOB_MIB of free
+# memory, at most DEFAULT_MAX_JOBS. A command's output is kept up to
+# MAX_COMMAND_OUTPUT_BYTES: its head and its tail, the middle dropped and marked.
+# ابزارهای بیرونی حداکثر به این تعداد هم‌زمان اجرا می‌شوند، مگر `--jobs` یا
+# SARAND_JOBS چیز دیگری بگوید؛ از خروجی هر دستور فقط ابتدا و انتها نگه داشته می‌شود.
+DEFAULT_MAX_JOBS = 8
+MEMORY_PER_JOB_MIB = 1024
+MAX_JOBS_LIMIT = 64
+MAX_COMMAND_OUTPUT_BYTES = 8 * 1024 * 1024
+
 # Marker files used for project/language discovery, in priority order.
 # فایل‌های نشانگر برای تشخیص پروژه/زبان، به ترتیب اولویت.
 PROJECT_MARKERS: dict[str, tuple[str, str, str]] = {

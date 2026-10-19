@@ -4846,3 +4846,66 @@ runner), so it is declared in `.github/actionlint.yaml`. bandit, markdownlint,
 cargo-deny and gitleaks 8.24.3 passed on their first run. Dependabot opened its
 first pull requests within minutes of the merge (Actions major bumps and
 dependency groups); each must pass CI before it is merged.
+
+
+### 5.73 — Audit remediation R6: limits on parallel tools and on output (2026-10-18)
+
+Sixth round of `docs/AUDIT_FIX_PROMPT.md` (finding B3).
+
+**CONFIRMED.** `run_tests/quality/security_concurrently` gathered every matching
+analyzer at once, per component and per workspace member, and the project-wide
+trio (gitleaks, syft, lockfile check) ran beside them: in a polyglot project
+`cargo test`, `pytest`, `npm test` and the audits could all start together, on the
+owner's 6 GB phone and 2 GB laptop. `run_cmd_async` also buffered a command's whole
+output with `communicate()`, so a chatty tool could hold hundreds of MiB.
+
+**BUILT.**
+
+1. **One limit at the single choke point.** Every analyzer subprocess goes through
+   `utils/command.run_cmd_async`, so the limit lives there as a process-wide
+   `asyncio.Semaphore` (`set_max_concurrent_commands`), rebuilt per event loop.
+   It bounds real *processes*, not tasks, so it covers analyzers, components,
+   workspace members and the gitleaks/syft/lockfile trio without touching any of
+   those call sites. The timeout starts when a command gets its slot, not while it
+   waits. By default the library does not limit (callers and tests that import it
+   behave as before); the CLI always sets a value.
+2. **`--jobs N`** (1 to 64) and **`SARAND_JOBS`**. Precedence: command line, then
+   the variable, then the default of `core/concurrency.py`: one tool per CPU and
+   per GiB of *free* memory (read when the scan starts, so a busy machine gets
+   fewer), at most 8, never less than 1. The 2 GB laptop therefore runs one tool at
+   a time and a workstation up to eight. An invalid `SARAND_JOBS` warns and falls
+   back to the default; an invalid `--jobs` is an argparse error.
+3. **Bounded output.** `run_cmd_async` reads the merged output in chunks and keeps
+   the first and last half of `MAX_COMMAND_OUTPUT_BYTES` (8 MiB); the middle is
+   dropped and replaced by one marker line, `[sarand: N bytes omitted from the
+   middle of this output]`. The pipe is **drained to the end** after the cap so the
+   child never blocks on a full pipe, and the tail is trimmed only when it doubles
+   (amortised O(1) per chunk, peak about 1.5 times the cap). Timeout and
+   cancellation behave as before (a timed-out command still returns 124 with what
+   it printed). The new keyword `max_output_bytes` exists for tests.
+
+**Deviations from the prompt (deliberate).** The prompt asked for a
+`gather_limited` helper applied at the three registry helpers and at the
+component/workspace runners, and for `truncated: bool` on `CommandResult`. A
+limit on the subprocess itself is stronger (it also covers the trio and any future
+caller) and needs no new plumbing; the visible marker line in the output replaces
+the boolean, which would have needed every analyzer to pass it along. The
+prompt's fixed default (4, or 2 under 2 GiB) became the proportional rule above
+after the owner asked whether a stronger machine would use its hardware.
+
+**Non-goals (recorded).** Per-tool limits and priorities; changing timeouts; the
+synchronous `run_cmd` (short probes of installed tools only); throttling work a
+tool does internally (`cargo` still uses every core of its own slot).
+
+**Verification.** New tests: `tests/test_concurrency.py` (the default rule, parsing,
+precedence, argparse) and `tests/test_command_limits.py` (a limit of 1 never
+overlaps two commands, a limit of 2 never has three alive, the limit follows each
+event loop, the timeout excludes the wait, output over the cap keeps head and tail
+and says so, a command filling the pipe and then timing out still returns, a 25 MiB
+output stays under the cap). The overlap tests read timestamps written by the
+child processes, not the parent's clock. `ruff`, `mypy` and `cargo` were not run in
+the sandbox.
+
+**Lessons.** Put a resource limit where the resource is consumed (the process
+start), not where the work is scheduled (the call sites): the first is one place,
+the second is every place and the next one added.

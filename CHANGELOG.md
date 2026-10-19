@@ -8,6 +8,11 @@ version may include behaviour changes.
 
 ### Changed
 
+- sarand no longer starts every tool of a project at once. At most N external
+  commands run together: `--jobs N` or `SARAND_JOBS`, otherwise one per CPU and
+  per GiB of free memory (at most 8), so a 2 GB laptop runs one at a time.
+- A command's output is capped at 8 MiB: the head and the tail are kept and the
+  middle is replaced by a one-line marker.
 - **Python 3.11 or newer is required.** Python 3.10 reached end of life in
   October 2026, so the `tomli` backport is gone and the compiled wheel is now
   `cp311-abi3`. Users on Python 3.10 keep installing 0.6.20.

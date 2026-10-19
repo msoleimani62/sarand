@@ -308,6 +308,7 @@ Running sarand again on the same project replaces its previous report at that pa
 | `--set-output-dir PATH` | Save PATH as the default output folder and exit |
 | `-f, --format FORMAT` | `markdown` (default), `json`, `text`, `html`, `pdf` or `sarif` |
 | `--skip-tests` | Do not run tests |
+| `--jobs N` | Start at most N external tools at once (default: one per CPU and per GiB of free memory, at most 8; the `SARAND_JOBS` variable works too) |
 | `--quality` | Run lint, format and type checks for each detected language |
 | `--security` | Run security and vulnerability checks for each detected language |
 | `--skip-audit` | Skip `pip-audit` and `cargo-audit`, whose database lookups can take tens of seconds |
