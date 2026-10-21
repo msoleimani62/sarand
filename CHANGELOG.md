@@ -38,6 +38,10 @@ version may include behaviour changes.
 
 ### Fixed
 
+- A directory sarand may not enter, or a file that vanished during the scan, no
+  longer disappears silently from the counts: the report shows a "Scan warning"
+  with how many paths were skipped and the first few reasons (without the absolute
+  project path), and the command line prints a warning.
 - Both READMEs still named Python 3.10 after the floor moved to 3.11.
 - The English README's Contributing block said `mypy python`; CI runs
   `mypy .`.

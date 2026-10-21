@@ -21,6 +21,7 @@ slower.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypedDict
 
@@ -80,6 +81,78 @@ def scan_project(
     return _pure_python_scan(root, ignore_dirs, hash_max_bytes, max_hash_files)
 
 
+# How many reasons are kept (the count is always exact): a million unreadable
+# files must not become a million strings.
+# چند دلیل نگه داشته می‌شود (شمارش همیشه دقیق است).
+MAX_PROBLEM_SAMPLES = 5
+
+
+@dataclass
+class ScanProblems:
+    """Paths the scan could not read (permission denied, vanished, ...).
+
+    Before AGENTS.md 5.74 these were dropped silently, so every count in the report
+    could be short with no sign of it. `samples` never holds an absolute path.
+
+    مسیرهایی که اسکن نتوانست بخواند؛ قبلاً بی‌صدا حذف می‌شدند.
+    """
+
+    skipped: int = 0
+    samples: list[str] = field(default_factory=list)
+
+    def add(self, message: str) -> None:
+        self.skipped += 1
+        if len(self.samples) < MAX_PROBLEM_SAMPLES:
+            self.samples.append(message)
+
+
+def scan_project_report(
+    root: Path,
+    *,
+    ignore_dirs: frozenset[str] = IGNORE_DIRS,
+    hash_max_bytes: int = HASH_MAX_BYTES,
+    max_hash_files: int = MAX_HASH_FILES,
+) -> tuple[list[FileRecord], ScanProblems]:
+    """Like `scan_project`, plus what could not be read.
+
+    A compiled core built before this function existed (a stale `_core*.so` next to
+    newer Python) has no `scan_project_report`; it is used through the old function
+    and reports no problems rather than crashing.
+    """
+    if RUST_CORE_AVAILABLE:
+        report = getattr(_core, "scan_project_report", None)
+        if report is not None:
+            records, skipped, samples = report(
+                str(root), list(ignore_dirs), hash_max_bytes, max_hash_files
+            )
+            return records, ScanProblems(skipped=skipped, samples=list(samples))
+        return (
+            scan_project(
+                root,
+                ignore_dirs=ignore_dirs,
+                hash_max_bytes=hash_max_bytes,
+                max_hash_files=max_hash_files,
+            ),
+            ScanProblems(),
+        )
+
+    problems = ScanProblems()
+    records = _pure_python_scan(
+        root, ignore_dirs, hash_max_bytes, max_hash_files, problems=problems
+    )
+    return records, problems
+
+
+def _describe_walk_error(root: Path, error: OSError) -> str:
+    """`relative/path: reason`, never the absolute path."""
+    where = (
+        safe_relative(Path(str(error.filename)), root).as_posix()
+        if error.filename
+        else "?"
+    )
+    return f"{where}: {error.strerror or error}"
+
+
 def build_tree_text(
     root: Path,
     *,
@@ -124,13 +197,18 @@ def _pure_python_scan(
     ignore_dirs: frozenset[str],
     hash_max_bytes: int,
     max_hash_files: int,
+    problems: ScanProblems | None = None,
 ) -> list[FileRecord]:
     import hashlib
 
     records: list[FileRecord] = []
     hashed = 0
 
-    for dirpath, dirnames, filenames in os.walk(root):
+    def on_error(error: OSError) -> None:
+        if problems is not None:
+            problems.add(_describe_walk_error(root, error))
+
+    for dirpath, dirnames, filenames in os.walk(root, onerror=on_error):
         # Prune exactly the ignore list, by directory name (same contract as the
         # Rust walker). `.git` is in IGNORE_DIRS; `.github`, `.gitlab` are kept.
         # دقیقاً فهرست نادیده را با نام دایرکتوری هرس کن (همان قرارداد walker
@@ -165,7 +243,9 @@ def _pure_python_scan(
 
             try:
                 st = path.stat()
-            except OSError:
+            except OSError as error:
+                if problems is not None:
+                    problems.add(f"{rel}: {error.strerror or error}")
                 continue
 
             binary = is_binary(path)

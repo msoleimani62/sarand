@@ -35,6 +35,38 @@ pub struct FileRecord {
     pub content_hash: Option<String>,
 }
 
+/// How many entries could not be read, and the first few reasons. A directory
+/// the process may not enter, or a file that vanished mid-scan, used to disappear
+/// from the results without a trace; now it is counted and shown.
+///
+/// چند مسیر خوانده نشد و دلیل چند مورد اول. دایرکتوری ممنوع یا فایلی که وسط اسکن
+/// ناپدید شده بود قبلاً بی‌صدا از نتیجه حذف می‌شد؛ حالا شمرده و نشان داده می‌شود.
+#[derive(Debug, Default)]
+pub struct ScanProblems {
+    pub skipped: usize,
+    pub samples: Vec<String>,
+}
+
+/// Only the first few messages are kept: a million unreadable files must not
+/// become a million strings.
+const MAX_SAMPLES: usize = 5;
+
+impl ScanProblems {
+    fn record(&mut self, message: String) {
+        self.skipped += 1;
+        if self.samples.len() < MAX_SAMPLES {
+            self.samples.push(message);
+        }
+    }
+}
+
+/// The records plus what could not be read.
+#[derive(Debug)]
+pub struct ScanReport {
+    pub records: Vec<FileRecord>,
+    pub problems: ScanProblems,
+}
+
 /// Walk `root`, skipping directories named in `ignore_dirs` *and*
 /// anything `.gitignore`/`.ignore`/global-git-excludes would skip
 /// (via the `ignore` crate -- this is real .gitignore support, which
@@ -53,6 +85,21 @@ pub fn scan(
     hash_max_bytes: u64,
     max_hash_files: usize,
 ) -> Vec<FileRecord> {
+    scan_report(root, ignore_dirs, hash_max_bytes, max_hash_files).records
+}
+
+/// Same walk as [`scan`], but also reports every entry that could not be read
+/// (see [`ScanProblems`]). Messages never contain the absolute scan root, because
+/// a report is often shared.
+///
+/// همان پیمایش `scan` ولی هر مسیری را که خوانده نشد هم گزارش می‌کند. پیام‌ها هرگز
+/// مسیر مطلق ریشه را ندارند، چون گزارش اغلب به اشتراک گذاشته می‌شود.
+pub fn scan_report(
+    root: &Path,
+    ignore_dirs: &[String],
+    hash_max_bytes: u64,
+    max_hash_files: usize,
+) -> ScanReport {
     // Collect candidate file paths first (single-threaded walk, but
     // fast: it is just directory traversal, no file I/O yet).
     // جمع‌آوری مسیرهای کاندید در یک پیمایش تک‌رشته‌ای (سریع، چون فقط
@@ -73,17 +120,22 @@ pub fn scan(
         // دایرکتوری‌های نادیده را *در حین* پیمایش هرس می‌کند تا هرگز وارد نشود.
         .filter_entry(move |entry| !is_pruned_dir(entry, &pruned));
 
-    let candidates: Vec<PathBuf> = builder
-        .build()
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| {
-            entry
-                .file_type()
-                .map(|t| t.is_file() || is_symlink(entry.path()))
-                .unwrap_or(false)
-        })
-        .map(|entry| entry.into_path())
-        .collect();
+    let mut problems = ScanProblems::default();
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    for entry in builder.build() {
+        match entry {
+            Ok(entry) => {
+                let is_candidate = entry
+                    .file_type()
+                    .map(|t| t.is_file() || is_symlink(entry.path()))
+                    .unwrap_or(false);
+                if is_candidate {
+                    candidates.push(entry.into_path());
+                }
+            }
+            Err(error) => problems.record(without_root(root, &error.to_string())),
+        }
+    }
 
     let hashed_count = AtomicUsize::new(0);
 
@@ -91,10 +143,32 @@ pub fn scan(
     // hash) out across all cores.
     // پخش کار پرهزینه‌ی هر فایل (stat، تشخیص باینری، شمارش خط، هش)
     // روی تمام هسته‌ها.
-    candidates
+    let outcomes: Vec<Result<FileRecord, String>> = candidates
         .par_iter()
-        .filter_map(|path| build_record(root, path, hash_max_bytes, max_hash_files, &hashed_count))
-        .collect()
+        .map(|path| build_record(root, path, hash_max_bytes, max_hash_files, &hashed_count))
+        .collect();
+
+    let mut records = Vec::with_capacity(outcomes.len());
+    for outcome in outcomes {
+        match outcome {
+            Ok(record) => records.push(record),
+            Err(message) => problems.record(message),
+        }
+    }
+    ScanReport { records, problems }
+}
+
+/// `message` with every occurrence of the scan root replaced by `.`, so a report
+/// does not reveal where on the machine the project lives.
+///
+/// پیام با جایگزینی هر ریشه‌ی اسکن با `.` تا گزارش محل پروژه روی دستگاه را فاش نکند.
+fn without_root(root: &Path, message: &str) -> String {
+    let root_text = root.to_string_lossy();
+    if root_text.len() > 1 {
+        message.replace(&*root_text, ".")
+    } else {
+        message.to_string()
+    }
 }
 
 /// True for a *directory* below the walk root whose own name is in `pruned`
@@ -127,21 +201,26 @@ fn build_record(
     hash_max_bytes: u64,
     max_hash_files: usize,
     hashed_count: &AtomicUsize,
-) -> Option<FileRecord> {
+) -> Result<FileRecord, String> {
     let rel_path = path
         .strip_prefix(root)
-        .ok()?
+        .map_err(|_| "a path outside the scan root".to_string())?
         .to_string_lossy()
         .replace('\\', "/");
-    let file_name = path.file_name()?.to_string_lossy();
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| format!("{rel_path}: has no file name"))?
+        .to_string_lossy();
     let is_hidden = file_name.starts_with('.');
 
-    let symlink_meta = path.symlink_metadata().ok()?;
+    let symlink_meta = path
+        .symlink_metadata()
+        .map_err(|error| format!("{rel_path}: {error}"))?;
     let is_link = symlink_meta.file_type().is_symlink();
 
     if is_link {
         let broken = std::fs::metadata(path).is_err();
-        return Some(FileRecord {
+        return Ok(FileRecord {
             rel_path,
             size: 0,
             is_symlink: true,
@@ -158,7 +237,7 @@ fn build_record(
         });
     }
 
-    let meta = std::fs::metadata(path).ok()?;
+    let meta = std::fs::metadata(path).map_err(|error| format!("{rel_path}: {error}"))?;
     let size = meta.len();
     let extension = path
         .extension()
@@ -192,7 +271,7 @@ fn build_record(
         None
     };
 
-    Some(FileRecord {
+    Ok(FileRecord {
         rel_path,
         size,
         is_symlink: false,

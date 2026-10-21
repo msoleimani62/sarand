@@ -1,5 +1,6 @@
-use super::scan;
+use super::{scan, scan_report, without_root, ScanProblems};
 use std::fs;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn temp_dir(name: &str) -> std::path::PathBuf {
@@ -247,6 +248,95 @@ fn prunes_symlinks_to_directories_that_are_named_like_ignored_ones() {
     assert!(!records
         .iter()
         .any(|record| record.rel_path == "node_modules"));
+
+    remove_tree(&root);
+}
+
+#[test]
+fn a_clean_tree_reports_no_problems() {
+    let root = temp_dir("walker-clean");
+
+    fs::write(root.join("a.rs"), "fn a() {}\n").expect("file must be writable");
+
+    let report = scan_report(&root, &[], 524_288, 5000);
+
+    assert_eq!(report.records.len(), 1);
+    assert_eq!(report.problems.skipped, 0);
+    assert!(report.problems.samples.is_empty());
+
+    remove_tree(&root);
+}
+
+#[test]
+fn only_the_first_few_problem_messages_are_kept() {
+    let mut problems = ScanProblems::default();
+
+    for index in 0..12 {
+        problems.record(format!("problem {index}"));
+    }
+
+    assert_eq!(problems.skipped, 12);
+    assert_eq!(problems.samples.len(), 5);
+    assert_eq!(problems.samples[0], "problem 0");
+}
+
+#[test]
+fn messages_do_not_contain_the_absolute_scan_root() {
+    let root = Path::new("/home/someone/project");
+
+    let message = without_root(
+        root,
+        "IO error for operation on /home/someone/project/locked: denied",
+    );
+
+    assert_eq!(message, "IO error for operation on ./locked: denied");
+    assert_eq!(without_root(Path::new("/"), "keep /as/is"), "keep /as/is");
+}
+
+#[cfg(unix)]
+#[test]
+fn reports_an_unreadable_directory_instead_of_hiding_it() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = temp_dir("walker-unreadable");
+    let locked = root.join("locked");
+
+    fs::create_dir(&locked).expect("directory must be creatable");
+    fs::write(locked.join("secret.rs"), "fn s() {}\n").expect("file must be writable");
+    fs::write(root.join("open.rs"), "fn o() {}\n").expect("file must be writable");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000))
+        .expect("permissions must be changeable");
+
+    // Root (and some containers) can read anything, which makes this scenario
+    // impossible to build; restore and stop in that case.
+    if fs::read_dir(&locked).is_ok() {
+        fs::set_permissions(&locked, fs::Permissions::from_mode(0o755))
+            .expect("permissions must be restorable");
+        remove_tree(&root);
+        return;
+    }
+
+    let report = scan_report(&root, &[], 524_288, 5000);
+
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755))
+        .expect("permissions must be restorable");
+
+    assert!(report
+        .records
+        .iter()
+        .any(|record| record.rel_path == "open.rs"));
+    assert!(report.problems.skipped >= 1);
+    assert!(report
+        .problems
+        .samples
+        .iter()
+        .any(|sample| sample.contains("locked")));
+    let root_text = root.to_string_lossy().to_string();
+    assert!(report
+        .problems
+        .samples
+        .iter()
+        .all(|sample| !sample.contains(&root_text)));
 
     remove_tree(&root);
 }

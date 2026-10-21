@@ -62,7 +62,11 @@ from sarand.discovery.project_detector import detect_project
 from sarand.models.results import ReportData
 from sarand.progress import error, status, success, warning
 from sarand.renderers import html, json_renderer, markdown, sarif, text
-from sarand.rust_bridge import RUST_CORE_AVAILABLE, build_tree_text, scan_project
+from sarand.rust_bridge import (
+    RUST_CORE_AVAILABLE,
+    build_tree_text,
+    scan_project_report,
+)
 from sarand.scanners.environment import (
     available_memory_bytes,
     collect_environment_info,
@@ -375,7 +379,13 @@ async def run(config: SarandConfig) -> int:
 
     # Single filesystem scan, shared by tree/stats/essential-files/todos.
     # یک اسکن فایل‌سیستمی واحد، به‌اشتراک‌گذاشته‌شده بین tree/stats/essential-files/todos.
-    records = scan_project(root)
+    records, scan_problems = scan_project_report(root)
+    if scan_problems.skipped:
+        first = "; ".join(scan_problems.samples[:2])
+        warning(
+            f"{scan_problems.skipped} path(s) could not be read and are missing "
+            f"from the report (first: {first})."
+        )
     tree_text = build_tree_text(
         root, max_depth=config.max_tree_depth, max_entries=config.max_tree_entries
     )
@@ -672,6 +682,8 @@ async def run(config: SarandConfig) -> int:
         used_rust_core=RUST_CORE_AVAILABLE,
         todos=todos,
         todos_suppressed=todos_suppressed,
+        scan_skipped=scan_problems.skipped,
+        scan_skipped_samples=list(scan_problems.samples),
         test_results=test_results,
         quality_results=quality_results,
         security_results=security_results,

@@ -505,6 +505,14 @@ def render(
         ]
     )
 
+    if data.scan_skipped:
+        shown = "; ".join(f"`{sample}`" for sample in data.scan_skipped_samples)
+        notice = (
+            f"> **Scan warning:** {data.scan_skipped} path(s) could not be read and "
+            f"are missing from every number above (first: {shown})."
+        )
+        parts.extend([notice, ""])
+
     if s.largest_files:
         parts.extend(["### Largest files", "", "| Path | Size |", "|------|------|"])
         for p, sz in s.largest_files[:15]:

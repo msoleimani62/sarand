@@ -70,6 +70,39 @@ fn scan_project(
         .collect()
 }
 
+/// What `scan_project_report` hands to Python: the file records, how many entries
+/// could not be read, and the first few reasons.
+type ScanReportOut = (Vec<Py<PyAny>>, usize, Vec<String>);
+
+/// Like `scan_project`, but also reports every entry that could not be read
+/// (a directory without permission, a file that vanished) instead of dropping it
+/// silently. `scan_project` stays for callers that predate it.
+///
+/// مثل `scan_project` ولی مسیرهایی را هم که خوانده نشدند گزارش می‌کند.
+// Same PyO3 wrapper false positive as `scan_project`.
+// همان false positive wrapper مربوط به PyO3 مانند `scan_project`.
+#[allow(clippy::useless_conversion)]
+#[pyfunction]
+#[pyo3(signature = (root, ignore_dirs, hash_max_bytes=524_288, max_hash_files=5000))]
+fn scan_project_report(
+    py: Python<'_>,
+    root: String,
+    ignore_dirs: Vec<String>,
+    hash_max_bytes: u64,
+    max_hash_files: usize,
+) -> PyResult<ScanReportOut> {
+    let root_path = PathBuf::from(root);
+    let report =
+        py.detach(|| walker::scan_report(&root_path, &ignore_dirs, hash_max_bytes, max_hash_files));
+
+    let records = report
+        .records
+        .iter()
+        .map(|record| record_to_dict(py, record).map(|dict| dict.into_any().unbind()))
+        .collect::<PyResult<Vec<_>>>()?;
+    Ok((records, report.problems.skipped, report.problems.samples))
+}
+
 /// Build the ASCII project tree text (same format as the old
 /// pure-Python `build_tree()`).
 // Same PyO3 wrapper false positive as `scan_project`.
@@ -102,6 +135,7 @@ fn hash_file(path: String) -> Option<String> {
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(scan_project, m)?)?;
+    m.add_function(wrap_pyfunction!(scan_project_report, m)?)?;
     m.add_function(wrap_pyfunction!(build_tree_text, m)?)?;
     m.add_function(wrap_pyfunction!(hash_file, m)?)?;
     Ok(())

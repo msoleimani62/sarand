@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 from sarand import cli
 from sarand.core.cache import _cache_path, save_cache
+from sarand.rust_bridge import ScanProblems
 
 
 async def _no_git_snapshot(root: Path) -> None:
@@ -153,7 +154,9 @@ def test_run_uses_cache_hits_for_todos_and_secrets(
         pattern_name="GitHub Token",
     )
 
-    monkeypatch.setattr(cli, "scan_project", lambda root: records)
+    monkeypatch.setattr(
+        cli, "scan_project_report", lambda root: (records, ScanProblems())
+    )
     monkeypatch.setattr(cli, "build_tree_text", lambda *args, **kwargs: "")
     monkeypatch.setattr(
         cli,
@@ -273,7 +276,9 @@ def test_run_scans_changed_files_with_cache_enabled(
 
     scan_calls: list[set[str] | None] = []
 
-    monkeypatch.setattr(cli, "scan_project", lambda root: records)
+    monkeypatch.setattr(
+        cli, "scan_project_report", lambda root: (records, ScanProblems())
+    )
     monkeypatch.setattr(cli, "build_tree_text", lambda *args, **kwargs: "")
     monkeypatch.setattr(
         cli,

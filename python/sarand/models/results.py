@@ -395,6 +395,11 @@ class ReportData:
     # Markers dropped by the TODO exclusions; the report states the number.
     # تعداد markerهای حذف‌شده با استثناها؛ گزارش این عدد را اعلام می‌کند.
     todos_suppressed: int = 0
+    # Paths the scan could not read (permission denied, vanished): how many, and
+    # the first few reasons. Both stay empty on a clean scan.
+    # مسیرهایی که اسکن نتوانست بخواند؛ در اسکن سالم هر دو خالی می‌مانند.
+    scan_skipped: int = 0
+    scan_skipped_samples: list[str] = field(default_factory=list)
     test_results: list[CommandResult] = field(default_factory=list)
     quality_results: list[CommandResult] = field(default_factory=list)
     security_results: list[CommandResult] = field(default_factory=list)

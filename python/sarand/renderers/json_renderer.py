@@ -101,6 +101,11 @@ def render(
     # فقط اجرایی که چند marker را حذف کرده این کلید را می‌گیرد.
     if data.todos_suppressed:
         payload["todos_suppressed"] = data.todos_suppressed
+    # Same rule: a clean scan gets no new keys.
+    # همان قاعده: اسکن سالم کلید تازه نمی‌گیرد.
+    if data.scan_skipped:
+        payload["scan_skipped"] = data.scan_skipped
+        payload["scan_skipped_samples"] = data.scan_skipped_samples
     if data.workspace is not None:
         payload["workspace"] = _workspace_payload(data.workspace)
     # Only a repository with more than one workspace gets this key (the

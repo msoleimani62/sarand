@@ -4909,3 +4909,58 @@ the sandbox.
 **Lessons.** Put a resource limit where the resource is consumed (the process
 start), not where the work is scheduled (the call sites): the first is one place,
 the second is every place and the next one added.
+
+
+### 5.74 — Audit remediation R7: unreadable paths are reported (2026-10-19)
+
+Seventh round of `docs/AUDIT_FIX_PROMPT.md` (finding B4, part 1 and 2; part 3, the
+`git_global` default, is a pending owner decision, D2).
+
+**CONFIRMED.** The Rust walker used `filter_map(|entry| entry.ok())` and
+`build_record` returned `Option` through `?`, and the Python fallback did
+`except OSError: continue`: a directory the process may not enter, or a file that
+vanished between the walk and the `stat`, left every count of the report short with
+no trace. (R3 already removed the other half of B4, the walk into ignored
+directories.)
+
+**BUILT.**
+
+1. Rust: `walker::scan_report` returns the records plus `ScanProblems` (how many
+   entries were skipped and the first five messages). `scan` stays as a thin wrapper
+   so every existing caller and test is untouched, and so does the `scan_project`
+   Python function; the new `scan_project_report` is an addition, not a change
+   (`src/lib.rs`, `src/walker.rs` are delivered as whole files).
+2. Messages never contain the absolute scan root (it is replaced by `.`), because a
+   report is often shared with an AI or a colleague and an absolute path names the
+   user and the machine. Only five messages are kept, so a million unreadable files do
+   not become a million strings.
+3. Python: `rust_bridge.scan_project_report(root)` returns `(records, ScanProblems)`
+   from the compiled core, or from the fallback (`os.walk(onerror=...)` and the
+   per-file `stat`). If the compiled core is an **older** build without the new
+   function (the stale `_core*.so` trap, AGENTS.md 5.69/5.70), it falls back to the
+   old function and reports nothing instead of crashing.
+4. `cli.py` calls it once, prints a warning when anything was skipped, and carries
+   `ReportData.scan_skipped` and `scan_skipped_samples`. The markdown report shows a
+   "Scan warning" under the statistics; the JSON keys appear only when something was
+   skipped (the file's rule: an ordinary run does not gain keys).
+5. Tests: four Rust tests (clean tree, the sample cap, the root redaction, and a real
+   unreadable directory on Unix) and `tests/test_scan_problems.py`.
+
+**Not done here.** `git_global`: the Rust walker honours the user's global gitignore
+(`core.excludesFile`), so the same project can scan to different file lists on two
+machines. Recommended default `false`; it changes which files appear, so it waits for
+the owner's decision (D2). A separate `--git-global` override would then be added.
+
+**Non-goals (recorded).** Retrying unreadable paths; a flag that makes unreadable
+paths an error; reporting hashing/line-count failures of a file that was readable
+(they are races on a file already stat'd).
+
+**Verification.** The Python tests and the whole suite in the sandbox; the markdown
+and JSON renderers; the stale-core fallback. The Rust code was **not compiled** here
+(no `cargo`): `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`
+and `cargo test` run in the delivery's check chain and again in CI. The unreadable
+directory tests skip themselves when the account can read anything (root), which is
+the owner's phone, so CI is the real test of that scenario.
+
+**Lessons.** A silent `.ok()` is a decision to lie by omission. When a tool's output
+is shared, even its error messages are data to scrub.
