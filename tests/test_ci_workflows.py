@@ -139,7 +139,7 @@ def test_markdownlint_scope_lists_only_files_that_exist() -> None:
         .splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     ]
-    assert "AGENTS.md" in entries
+    assert "docs/history/" in entries
     for entry in entries:
         if entry.endswith(".md"):
             assert (_ROOT / entry).is_file(), (
