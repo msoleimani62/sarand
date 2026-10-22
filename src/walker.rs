@@ -111,7 +111,7 @@ pub fn scan_report(
     builder
         .hidden(false) // we decide hidden-handling ourselves, per-file
         .git_ignore(true)
-        .git_global(true)
+        .git_global(false) // the user's global ignore file differs per machine
         .git_exclude(true)
         .require_git(false)
         .parents(true)

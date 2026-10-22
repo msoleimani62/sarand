@@ -128,8 +128,8 @@ audit tools, TODO noise; AGENTS.md 5.68), and R3 (scan-engine parity: Rust walke
 Python fallback dropping `.github/`; AGENTS.md 5.69; released as v0.6.20) and R4 (trust model, SECURITY.md,
 CONTRIBUTING.md; AGENTS.md 5.70) and the Python 3.11 floor of R5 (AGENTS.md
 5.71) and the CI/release half of R5 (AGENTS.md 5.72) and R6 (`--jobs` and bounded command output; AGENTS.md
-5.73) and R7 (unreadable paths reported; AGENTS.md 5.74). Still open: the
-`git_global` default of the Rust walker (owner decision D2), R8 repository hygiene
+5.73) and R7 (unreadable paths reported, and the project-only gitignore decision
+D2; AGENTS.md 5.74). Still open: R8 repository hygiene
 (including AGENTS.md and docs/BACKLOG.md, which `.markdownlintignore` still
 excludes), and pinning the actions to SHAs (`scripts/pin_actions.py`).
 

@@ -4964,3 +4964,14 @@ the owner's phone, so CI is the real test of that scenario.
 
 **Lessons.** A silent `.ok()` is a decision to lie by omission. When a tool's output
 is shared, even its error messages are data to scrub.
+
+**D2 decided (2026-10-20): the Rust walker no longer applies the user's global
+gitignore.** The owner chose "the project's own ignore files only" so that one
+project gives the same file list, and the same report, on every machine.
+`git_global(false)` is the whole code change; the Python fallback never applied a
+global ignore. Still applied, on purpose: the project's `.gitignore` files,
+`.git/info/exclude` (it belongs to the clone) and the ignore files of parent
+directories (git's own rule when a subdirectory of a repository is scanned). A new
+Rust test builds a global ignore file under `XDG_CONFIG_HOME` and checks that a
+file it names is still listed; it proves the change only where the global ignore
+comes from that default location, as on CI. No `--git-global` option was added.

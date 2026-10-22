@@ -340,3 +340,33 @@ fn reports_an_unreadable_directory_instead_of_hiding_it() {
 
     remove_tree(&root);
 }
+
+#[test]
+fn does_not_apply_the_users_global_gitignore() {
+    let config_home = temp_dir("walker-global-config");
+    let root = temp_dir("walker-global-ignore");
+
+    fs::create_dir_all(config_home.join("git")).expect("directory must be creatable");
+    fs::write(config_home.join("git").join("ignore"), "*.machine-local\n")
+        .expect("global ignore must be writable");
+    fs::write(root.join("notes.machine-local"), "kept\n").expect("file must be writable");
+    fs::write(root.join("kept.rs"), "fn k() {}\n").expect("file must be writable");
+
+    // The `ignore` crate reads the global file from $XDG_CONFIG_HOME/git/ignore
+    // (unless `core.excludesFile` points elsewhere, as it may on a developer machine).
+    let previous = std::env::var_os("XDG_CONFIG_HOME");
+    std::env::set_var("XDG_CONFIG_HOME", &config_home);
+    let records = scan(&root, &[], 524_288, 5000);
+    match previous {
+        Some(value) => std::env::set_var("XDG_CONFIG_HOME", value),
+        None => std::env::remove_var("XDG_CONFIG_HOME"),
+    }
+
+    assert!(records.iter().any(|record| record.rel_path == "kept.rs"));
+    assert!(records
+        .iter()
+        .any(|record| record.rel_path == "notes.machine-local"));
+
+    remove_tree(&config_home);
+    remove_tree(&root);
+}

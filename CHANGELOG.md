@@ -38,6 +38,9 @@ version may include behaviour changes.
 
 ### Fixed
 
+- The Rust scan no longer applies your global gitignore (`core.excludesFile`), so a
+  project gives the same file list on every machine. The project's own `.gitignore`
+  files still apply.
 - A directory sarand may not enter, or a file that vanished during the scan, no
   longer disappears silently from the counts: the report shows a "Scan warning"
   with how many paths were skipped and the first few reasons (without the absolute
