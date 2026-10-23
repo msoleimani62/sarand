@@ -104,6 +104,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           components: rustfmt, clippy
 
       - name: Cache cargo registry and build artifacts
@@ -279,6 +280,8 @@ jobs:
       - name: Set up Rust
         if: ${{ !cancelled() }}
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - name: Cache the cargo-deny binary
         id: cargo-deny-cache

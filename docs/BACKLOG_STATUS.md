@@ -133,7 +133,8 @@ D2; AGENTS.md 5.74), R8a (AGENTS.md diet, history moved to `docs/history/`)
 and R8b (`scripts/bench_scan.py`, `.benchmarks/` ignored; history 5.75).
 R8c is delivered too (history 5.76). R8d is delivered too (history 5.77: `docs/BACKLOG.md` is linted). Still
 open: decision D3 once the benchmark numbers of both devices exist, and
-pinning the actions to SHAs (`scripts/pin_actions.py`).
+pinning the actions to SHAs (`scripts/pin_actions.py`; R8e, history 5.78,
+made the `toolchain` input of every rust-toolchain step explicit first).
 
 ### Out of scope, with reasons
 

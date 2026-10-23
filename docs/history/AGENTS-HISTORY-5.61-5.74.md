@@ -1007,3 +1007,17 @@ between `markdownlint-disable/enable MD029` comments instead of being
 renumbered. The apply script removes its own additions from the result and
 requires the original text back, byte for byte, before it writes anything.
 `docs/BACKLOG.md` left `.markdownlintignore`; `docs/history/` stays there.
+
+### 5.78 — Audit remediation R8e: make the Rust toolchain explicit before pinning (2026-10-23)
+
+**Why.** `dtolnay/rust-toolchain` chooses the toolchain from the ref it is called
+with (`@stable`, `@1.88`). `scripts/pin_actions.py --write` replaces every ref with
+a commit SHA, after which that action has no ref to read and fails unless the
+`toolchain` input is given. Three steps (`audit.yml` cargo-deny job and two in
+`ci.yml`) relied on the ref alone; the `msrv` job already used the input.
+
+**Done.** `toolchain: stable` added to those three steps and
+`tests/test_rust_toolchain_inputs.py` requires the input on every step that uses
+the action, so the pinning round cannot break CI and a future step cannot forget
+it. No behaviour changes before pinning: `@stable` plus `toolchain: stable` is the
+same toolchain.
