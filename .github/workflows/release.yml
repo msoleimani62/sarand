@@ -39,7 +39,7 @@ jobs:
     name: Check the version
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: The tag must name the package version
         # A tag that disagrees with pyproject.toml must never reach PyPI.
         # تگی که با pyproject.toml نمی‌خواند هرگز نباید به PyPI برسد.
@@ -89,7 +89,7 @@ jobs:
           - { name: macos-x86_64, runner: macos-latest, target: x86_64-apple-darwin }
           - { name: windows-x64, runner: windows-latest, target: x64 }
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Build the wheel
         # One abi3 wheel per platform covers every Python from 3.11 on
         # (pyproject.toml enables pyo3/abi3-py311), so it also cross-compiles.
@@ -99,7 +99,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux || 'auto' }}
           args: --release --out dist
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-wheels-${{ matrix.name }}
           path: dist
@@ -109,13 +109,13 @@ jobs:
     needs: check
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Build the sdist
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
           args: --out dist
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-sdist
           path: dist
@@ -209,7 +209,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           pattern: dist-*
