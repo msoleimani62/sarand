@@ -1021,3 +1021,25 @@ a commit SHA, after which that action has no ref to read and fails unless the
 the action, so the pinning round cannot break CI and a future step cannot forget
 it. No behaviour changes before pinning: `@stable` plus `toolchain: stable` is the
 same toolchain.
+
+### 5.79 — Audit remediation R8f: every workflow action is pinned to a SHA (2026-10-23)
+
+**Done.** `scripts/pin_actions.py --write` rewrote every `uses:` in `audit.yml`,
+`ci.yml` and `release.yml` to `owner/repo@<40-hex commit> # <old ref>` (34
+references; the SHAs came from the GitHub API, annotated tags peeled to the
+commit). `ENFORCE_PINNED = True` in `tests/test_action_pins.py` now fails any
+workflow that brings back a tag or branch.
+
+The one test that asserted the gitleaks tag (`test_ci_workflows.py`) now checks the
+action name only, because the tag moved into the trailing comment. The same
+was needed in `tests/test_release_workflow.py`, which required the exact ref
+`pypa/gh-action-pypi-publish@release/v1`; the offline simulation before the
+round ran only four test files and missed it, the full suite found it.
+
+**Two things to know.** Branch refs (`dtolnay/rust-toolchain@stable`,
+`pypa/gh-action-pypi-publish@release/v1`) were pinned to the branch tip of that
+day, and Dependabot cannot tell from the `# stable` or `# release/v1` comment
+when a newer commit exists; those two are refreshed by hand with
+`pin_actions.py` after removing the SHA (or when a security notice arrives).
+`release.yml` is not run by CI; the pins point at the same commits the tags did
+that day, so it behaves as before, and the first tagged release is its real test.

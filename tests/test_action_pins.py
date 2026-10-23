@@ -17,7 +17,7 @@ from types import ModuleType
 _ROOT = Path(__file__).resolve().parent.parent
 
 # Flip to True after `python3 scripts/pin_actions.py --write` (AGENTS.md 5.72).
-ENFORCE_PINNED = False
+ENFORCE_PINNED = True
 
 # Branch refs that the action's own documentation tells users to use.
 _ALLOWED_BRANCH_REFS = {"stable", "release/v1"}

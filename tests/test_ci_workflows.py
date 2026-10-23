@@ -53,7 +53,8 @@ def test_the_static_job_runs_every_check_and_reports_all_of_them() -> None:
         assert tool in text, tool
     gitleaks = [s for s in steps if "gitleaks" in str(s.get("uses", ""))]
     assert gitleaks, "gitleaks must run through its action"
-    assert str(gitleaks[0]["uses"]).startswith("gitleaks/gitleaks-action@v3")
+    # Since R8f the ref is a commit SHA; the major version is in the comment.
+    assert str(gitleaks[0]["uses"]).startswith("gitleaks/gitleaks-action@")
     # Every check after the first still runs when an earlier one failed, so one
     # run reports every problem instead of one per push.
     tools = [s for s in steps if s.get("run") or "gitleaks" in str(s.get("uses", ""))]

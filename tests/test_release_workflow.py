@@ -97,7 +97,9 @@ def test_the_publish_action_is_the_official_one_and_only_testpypi_overrides_the_
         for name in ("publish-pypi", "publish-testpypi")
     }
     assert all(len(found) == 1 for found in steps.values())
-    assert steps["publish-pypi"][0]["uses"] == "pypa/gh-action-pypi-publish@release/v1"
+    # Since R8f the ref is a commit SHA; the action name stays the official one.
+    publish = str(steps["publish-pypi"][0]["uses"])
+    assert publish.startswith("pypa/gh-action-pypi-publish@")
     assert "repository-url" not in steps["publish-pypi"][0]["with"]
     assert "test.pypi.org" in steps["publish-testpypi"][0]["with"]["repository-url"]
 
