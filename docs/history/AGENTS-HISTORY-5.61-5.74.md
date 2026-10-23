@@ -990,3 +990,20 @@ names the crate that needs a newer Rust and 1.88 is raised to that fact.
 version once `scripts/pin_actions.py --write` replaces refs with SHAs, because
 that action reads the toolchain from the ref name. Give the version as
 `with: toolchain:` and keep the ref `@stable`.
+
+### 5.77 — Audit remediation R8d: docs/BACKLOG.md passes markdownlint (2026-10-23)
+
+**Finding.** `docs/BACKLOG.md` was the last guide file excluded from the `static`
+job: 37 errors, almost all MD029, because it is plain text that Markdown misreads
+(every numbered section title is a one-item ordered list, the Health Score table
+became one giant setext heading, and the item template holds a real heading).
+
+**Done, by anchored rules, no word changed.** The first line became `# `; the 24
+section titles (recognised by the `---` plus blank line above them) became `## N.
+Title`, so the numbers the text refers to ("items 8 and 11") are unchanged; the
+score table and the item template are fenced as `text`; the one list that
+continues its numbering across P0/P1/P2/P3 groups (section 22, a ranking) sits
+between `markdownlint-disable/enable MD029` comments instead of being
+renumbered. The apply script removes its own additions from the result and
+requires the original text back, byte for byte, before it writes anything.
+`docs/BACKLOG.md` left `.markdownlintignore`; `docs/history/` stays there.

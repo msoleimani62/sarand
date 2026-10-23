@@ -2,7 +2,6 @@
 # known violations that round R8 fixes; delete its line when it passes.
 # فایل‌هایی که job به نام static هنوز lint نمی‌کند؛ هر کدام خطای شناخته‌شده دارد و
 # دور R8 آن را رفع می‌کند. وقتی فایل پاس شد، خطش را پاک کنید.
-docs/BACKLOG.md
 docs/history/
 
 # A prompt written for AI models, not documentation for readers.

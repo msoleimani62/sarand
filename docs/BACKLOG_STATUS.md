@@ -131,11 +131,9 @@ CONTRIBUTING.md; AGENTS.md 5.70) and the Python 3.11 floor of R5 (AGENTS.md
 5.73) and R7 (unreadable paths reported, and the project-only gitignore decision
 D2; AGENTS.md 5.74), R8a (AGENTS.md diet, history moved to `docs/history/`)
 and R8b (`scripts/bench_scan.py`, `.benchmarks/` ignored; history 5.75).
-R8c is delivered too (history 5.76). Still open: decision D3 once the
-benchmark numbers of both devices exist, the markdownlint errors of
-`docs/BACKLOG.md` (still in
-`.markdownlintignore`), and pinning the actions to SHAs
-(`scripts/pin_actions.py`).
+R8c is delivered too (history 5.76). R8d is delivered too (history 5.77: `docs/BACKLOG.md` is linted). Still
+open: decision D3 once the benchmark numbers of both devices exist, and
+pinning the actions to SHAs (`scripts/pin_actions.py`).
 
 ### Out of scope, with reasons
 

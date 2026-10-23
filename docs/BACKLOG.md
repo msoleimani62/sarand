@@ -1,10 +1,10 @@
-Sarand — Engineering Backlog & Gap Audit
+# Sarand — Engineering Backlog & Gap Audit
 
 Post-v0.6.2 Engineering Reference
 
 ---
 
-0. Context
+## 0. Context
 
 Project: "sarand"
 Repository: "msoleimani62/sarand"
@@ -31,6 +31,7 @@ Tooling score is now based on the ratio of checks that actually ran for the proj
 
 Health Score maximum is explicitly:
 
+```text
 Tests       25
 Quality     20
 Security    15
@@ -39,6 +40,7 @@ Code        15
 Tooling     15
 ----------------
 Total      100
+```
 
 The post-release formatting fix was committed separately on "main" as:
 
@@ -48,7 +50,7 @@ Do not treat that formatting commit as a new release unless explicitly requested
 
 ---
 
-1. Purpose
+## 1. Purpose
 
 This document is the engineering reference for identifying and resolving remaining Sarand weaknesses, missing capabilities, architectural gaps, insufficient validation, and product limitations.
 
@@ -66,7 +68,7 @@ The goal is to:
 
 ---
 
-2. Evidence-First Rule
+## 2. Evidence-First Rule
 
 Before treating any item in this document as an actual defect or missing capability, inspect the current repository.
 
@@ -99,7 +101,7 @@ Do not silently "fix" the documentation while investigating unless documentation
 
 ---
 
-3. Scope Discipline
+## 3. Scope Discipline
 
 Work on one major backlog item at a time.
 
@@ -125,7 +127,7 @@ Record unrelated findings as backlog items instead.
 
 ---
 
-4. Priority Model
+## 4. Priority Model
 
 Use the following priority levels.
 
@@ -151,7 +153,7 @@ Do not assign priority merely because an item sounds technically interesting.
 
 ---
 
-5. Definition of Done
+## 5. Definition of Done
 
 Every backlog item must have an explicit Definition of Done before implementation begins.
 
@@ -175,7 +177,7 @@ Only check items that are actually relevant to the selected feature.
 
 ---
 
-6. P0 — Regression and Observability Foundation
+## 6. P0 — Regression and Observability Foundation
 
 6.1 Golden / Representative Reports
 
@@ -230,7 +232,7 @@ Definition of Done
 
 ---
 
-7. P0/P1 — Analyzer Capability Matrix
+## 7. P0/P1 — Analyzer Capability Matrix
 
 7.1 Analyzer Depth
 
@@ -289,7 +291,7 @@ Definition of Done
 
 ---
 
-8. P1 — Monorepo / Workspace Architecture
+## 8. P1 — Monorepo / Workspace Architecture
 
 8.1 Current-State Audit
 
@@ -349,7 +351,7 @@ Do not implement every monorepo ecosystem in one change.
 
 ---
 
-9. P1 — Report Size and Low-Memory Operation
+## 9. P1 — Report Size and Low-Memory Operation
 
 9.1 Current-State Audit
 
@@ -411,7 +413,7 @@ Definition of Done
 
 ---
 
-10. P1 — Infrastructure Ecosystem Coverage
+## 10. P1 — Infrastructure Ecosystem Coverage
 
 Investigate the current state of:
 
@@ -444,7 +446,7 @@ But reorder if repository evidence shows another gap is materially larger.
 
 ---
 
-11. P1/P2 — Hybrid Project Model
+## 11. P1/P2 — Hybrid Project Model
 
 Modern repositories may combine:
 
@@ -480,7 +482,7 @@ Definition of Done
 
 ---
 
-12. P2 — AI-Oriented Context
+## 12. P2 — AI-Oriented Context
 
 12.1 Current Problem
 
@@ -540,7 +542,7 @@ Definition of Done
 
 ---
 
-13. P2 — Distribution and Installation
+## 13. P2 — Distribution and Installation
 
 Investigate the actual current state of:
 
@@ -572,7 +574,7 @@ For each distribution channel:
 
 ---
 
-14. P2 — Plugin System
+## 14. P2 — Plugin System
 
 Investigate the current "entry_points" mechanism before changing it.
 
@@ -602,7 +604,7 @@ Do not build a plugin marketplace or ecosystem before the API itself is stable.
 
 ---
 
-15. P3 — PDF and Report Portability
+## 15. P3 — PDF and Report Portability
 
 Investigate the current PDF pipeline.
 
@@ -632,7 +634,7 @@ Definition of Done
 
 ---
 
-16. P3 — Cross-Ecosystem Vulnerability Analysis
+## 16. P3 — Cross-Ecosystem Vulnerability Analysis
 
 Current SBOM generation must not automatically be described as vulnerability scanning.
 
@@ -658,7 +660,7 @@ Definition of Done
 
 ---
 
-17. P3 — Additional Ecosystems
+## 17. P3 — Additional Ecosystems
 
 Only after higher-priority architectural work is stable, consider:
 
@@ -678,7 +680,7 @@ Niche ecosystems should remain lower priority unless real-project evidence demon
 
 ---
 
-18. Explicitly Avoid Premature Work
+## 18. Explicitly Avoid Premature Work
 
 Do not prioritize the following merely because they are technically interesting:
 
@@ -696,10 +698,11 @@ Every such change requires a concrete problem statement and evidence.
 
 ---
 
-19. Backlog Item Template
+## 19. Backlog Item Template
 
 For every future item, use this structure:
 
+```text
 ## [ID] Title
 
 Priority:
@@ -745,10 +748,11 @@ Dependencies:
 
 Notes:
 <additional evidence or constraints>
+```
 
 ---
 
-20. Investigation Protocol
+## 20. Investigation Protocol
 
 Before modifying code:
 
@@ -767,7 +771,7 @@ Do not start coding simply because an item appears in this document.
 
 ---
 
-21. Validation Protocol
+## 21. Validation Protocol
 
 After implementation:
 
@@ -799,9 +803,10 @@ Before benchmark
 
 ---
 
-22. Current Working Priority
+## 22. Current Working Priority
 
 The current backlog should initially be investigated in this order:
+<!-- markdownlint-disable MD029 -->
 
 P0
 
@@ -828,13 +833,14 @@ P3
 12. Cross-ecosystem vulnerability scanning
 13. Additional ecosystem expansion
 
+<!-- markdownlint-enable MD029 -->
 This is a starting investigation order, not a permanent ranking.
 
 If repository evidence demonstrates that another item is materially more urgent, update the priority with explicit evidence.
 
 ---
 
-23. Final Rule
+## 23. Final Rule
 
 The objective is not to maximize the number of Sarand features.
 
