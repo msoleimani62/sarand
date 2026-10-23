@@ -12,3 +12,6 @@ dist/
 
 .sarand-rc/
 *.zip
+
+# pytest-benchmark output
+.benchmarks/

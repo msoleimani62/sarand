@@ -920,3 +920,39 @@ directories (git's own rule when a subdirectory of a repository is scanned). A n
 Rust test builds a global ignore file under `XDG_CONFIG_HOME` and checks that a
 file it names is still listed; it proves the change only where the global ignore
 comes from that default location, as on CI. No `--git-global` option was added.
+
+### 5.75 — Audit remediation R8b: a benchmark for the Rust core (2026-10-23)
+
+**Finding B7.** The Rust core is about 900 lines and the dominant cost of a scan is
+the external tools, yet nothing in this repository measured what the core buys.
+**C5.** `.benchmarks/` was not in `.gitignore`.
+
+**Done.** `scripts/bench_scan.py` builds a deterministic synthetic tree (10000
+small files in nested directories plus `node_modules`, `target` and `__pycache__`
+with files that must be pruned), and times `_core.scan_project` against
+`rust_bridge._pure_python_scan`: one warm-up, then N runs (default 5), median
+reported. Each engine runs in its own child process so peak memory
+(`ru_maxrss`, converted to MiB) is not shared. `--path DIR` adds real projects,
+`--json` prints machine-readable output. The table also says whether both engines
+listed the same files; on a project with a `.gitignore` they may differ on
+purpose, because the Rust walker honours the project's own ignore files and the
+fallback does not. `tests/test_bench_scan.py` covers the tree builder, the median,
+the comparison, the table and the Python engine, and checks `.benchmarks/`.
+
+**Decision D3 is NOT taken here.** The Rust core is unchanged. The owner runs
+`python3 scripts/bench_scan.py` and `python3 scripts/bench_scan.py --path .` on both
+devices and pastes the output; the numbers are recorded below and D3 is decided on
+them.
+
+**Recorded non-gap (C4).** Both READMEs already lead with `pipx install sarand-cli`
+and describe `install.sh` as the source route; nothing to change.
+
+**Not done (R8c).** The SPDX license form needs a verified maturin and a passing
+`twine check --strict`; the MSRV needs the `rust_version` of `pyo3` from the
+owner's `cargo metadata`.
+
+**Verification.** The tests and the script's Python engine ran in the sandbox. The
+Rust engine path was **not** run there (no `cargo`); the owner's run is its first
+real execution, so a failure on that side is expected to be small and local.
+
+**Benchmark numbers.** Pending the owner's runs.
