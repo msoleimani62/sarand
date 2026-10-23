@@ -960,3 +960,33 @@ does not exist there, and `try/except ImportError` does not tell mypy that. Guar
 platform-specific stdlib calls with `if sys.platform == "win32": return`.
 
 **Benchmark numbers.** Pending the owner's runs.
+
+### 5.76 — Audit remediation R8c: SPDX license and Rust MSRV (2026-10-23)
+
+**Finding C3.** `license = { text = "MIT" }` is the legacy form and `Cargo.toml`
+had no `rust-version`.
+
+**Facts from the owner's machine (not guessed).** `maturin 1.14.1`; `cargo
+metadata` gave `rust_version` 1.88 for `ignore 0.4.33`, 1.83 for `pyo3 0.29.2`
+and 1.80 for `rayon 1.12.0` (`hex` and `sha2` declare none). The minimum is the
+largest of them, **1.88**, set by `ignore`.
+
+**Done.** `pyproject.toml`: `license = "MIT"` plus `license-files = ["LICENSE"]`;
+the `License ::` classifier is removed (PEP 639 does not allow both); the build
+floor is `maturin>=1.14.1,<2.0`, the one version that was actually run, because
+the exact version that first supported PEP 639 was not verified here. `Cargo.toml`:
+`rust-version = "1.88"`. CI: a separate `msrv` job (`dtolnay/rust-toolchain@stable` with `toolchain: "1.88"`,
+`cargo check --locked --all-targets`); `tests/test_package_metadata.py` fails if the
+declared number and the job's toolchain ever drift apart. Both READMEs name the
+minimum version. `twine check --strict` already runs in every `quality` job on
+the wheel and the sdist, so it is the proof for the metadata change.
+
+**Risk.** The `msrv` job is new and was not run before the push. It checks the
+whole `Cargo.lock`, while only five crates were inspected; if it fails, its log
+names the crate that needs a newer Rust and 1.88 is raised to that fact.
+
+**Lesson (first R8c attempt).** The job first used `dtolnay/rust-toolchain@1.88`;
+`tests/test_action_pins.py` rejected that ref. It would also have lost the
+version once `scripts/pin_actions.py --write` replaces refs with SHAs, because
+that action reads the toolchain from the ref name. Give the version as
+`with: toolchain:` and keep the ref `@stable`.

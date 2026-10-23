@@ -196,7 +196,7 @@ Project-wide checks that run with `--security`: `gitleaks` (secrets, including g
 | Needed | For |
 |---|---|
 | Python 3.11 or newer | Running sarand |
-| A Rust toolchain ([rustup.rs](https://rustup.rs)) | Only to build from source; the PyPI wheels need none |
+| A Rust toolchain, 1.88 or newer ([rustup.rs](https://rustup.rs)) | Only to build from source; the PyPI wheels need none |
 | [pipx](https://pipx.pypa.io) | Recommended installer |
 | Per-language tools | Optional, see `sarand --doctor` |
 
