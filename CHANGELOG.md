@@ -6,8 +6,16 @@ version may include behaviour changes.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-24
+
 ### Changed
 
+- Building from source needs Rust 1.88 or newer: `rust-version` is declared in
+  `Cargo.toml` and a CI job builds with exactly that version. The PyPI wheels
+  need no Rust. pyo3 moved to 0.30 and sha2 to 0.11.
+- The package declares its license as the SPDX expression `MIT` with the
+  `LICENSE` file (PEP 639); building the source distribution needs maturin
+  1.14.1 or newer.
 - sarand no longer starts every tool of a project at once. At most N external
   commands run together: `--jobs N` or `SARAND_JOBS`, otherwise one per CPU and
   per GiB of free memory (at most 8), so a 2 GB laptop runs one at a time.
@@ -28,7 +36,10 @@ version may include behaviour changes.
 - Releases now check that CI succeeded for the tagged commit, smoke-test the
   Linux aarch64 and macOS x86_64 wheels on native runners, and create a GitHub
   Release with the wheels and a `SHA256SUMS` file.
-- `scripts/pin_actions.py` to pin the workflows' actions to commit SHAs.
+- Every workflow action is pinned to a commit SHA (`scripts/pin_actions.py`
+  does it and a test enforces it).
+- `scripts/bench_scan.py` measures the Rust scan core against the pure-Python
+  scan on a synthetic tree or on a real project.
 - A "Trust model" section in both READMEs, a warning in Quick start and a note
   in `sarand --help`: scanning a project runs its test suite (and, with
   `--quality` / `--security` / `--full`, its linters and audit tools), so
