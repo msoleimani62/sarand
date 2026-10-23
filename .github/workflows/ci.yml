@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -46,7 +46,7 @@ jobs:
           toolchain: "1.88"
 
       - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -94,7 +94,7 @@ jobs:
             experimental: true
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -107,7 +107,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -226,7 +226,7 @@ jobs:
         # از صفحه‌ی Summary همین اجرا، بخش Artifacts (پایین صفحه) دانلود
         # کنید، بدون هیچ نیازی به اسکرول یک لاگ خام روی صفحه‌ی موبایل.
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: pytest-log-${{ matrix.os }}-py${{ matrix.python-version }}
           path: pytest.log
@@ -251,7 +251,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # gitleaks scans the whole history, not only the last commit.
           # gitleaks کل تاریخچه را می‌گردد، نه فقط آخرین commit.
@@ -283,7 +283,7 @@ jobs:
       - name: Cache the cargo-deny binary
         id: cargo-deny-cache
         if: ${{ !cancelled() }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/cargo-deny
           # Bump the number to pick up a newer cargo-deny on purpose.
