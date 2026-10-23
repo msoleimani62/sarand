@@ -102,10 +102,13 @@ def _peak_rss_mib() -> float | None:
 
     اوج حافظه‌ی این پردازش به MiB؛ جایی که در دسترس نیست None.
     """
-    try:
-        import resource
-    except ImportError:
+    # Windows has no `resource` module; the platform check is also the form
+    # mypy understands.
+    # ویندوز ماژول resource ندارد؛ mypy هم همین شکل بررسی را می‌فهمد.
+    if sys.platform == "win32":
         return None
+    import resource
+
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # Linux reports KiB, macOS reports bytes.
     # لینوکس KiB می‌دهد، macOS بایت.

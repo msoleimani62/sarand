@@ -955,4 +955,8 @@ owner's `cargo metadata`.
 Rust engine path was **not** run there (no `cargo`); the owner's run is its first
 real execution, so a failure on that side is expected to be small and local.
 
+**Lesson (CI run 399).** `mypy .` failed only on Windows: `resource.getrusage`
+does not exist there, and `try/except ImportError` does not tell mypy that. Guard
+platform-specific stdlib calls with `if sys.platform == "win32": return`.
+
 **Benchmark numbers.** Pending the owner's runs.
