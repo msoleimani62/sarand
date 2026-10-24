@@ -69,8 +69,21 @@ distinct name.
 **Order.** Plugins load sorted by entry-point name, so results are
 reproducible.
 
-Not provided: sandboxing, and a timeout for work that is not a subprocess.
-A plugin that awaits something forever will hang the scan.
+**Time limit.** Every `run_*` call is cancelled if it does not finish within
+one hour and one minute (the longest command timeout plus a minute); sarand
+then reports one skipped result that says so and the scan carries on. Code
+that blocks the event loop without ever awaiting (a long `time.sleep`, a CPU
+loop inside `async def`) cannot be interrupted by asyncio: use
+`run_cmd_async`, or `await asyncio.to_thread(...)` for blocking work.
+
+**Seeing your plugin.** `sarand --doctor` lists every installed plugin and,
+for one that was skipped, the reason.
+
+Not provided: sandboxing. A plugin is Python code that runs in sarand's own
+process with the user's rights; nothing in-process can confine it. Install
+only plugins you would run anyway. A real boundary needs plugins to run in a
+separate process with reduced rights, which would be a new plugin API
+version; it is a recorded non-goal until someone needs it.
 
 ## Version compatibility
 

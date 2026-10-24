@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from dataclasses import dataclass
 from importlib.metadata import entry_points
 from pathlib import Path
 
@@ -187,6 +188,65 @@ def builtin_analyzers() -> list[LanguageAnalyzer]:
     return list(_BUILTIN)
 
 
+@dataclass(frozen=True)
+class PluginStatus:
+    """What happened to one installed plugin entry point (shown by `--doctor`).
+
+    `detail` is the plugin's display name when it loaded and the reason when it
+    was skipped.
+    وضعیت یک پلاگین نصب‌شده؛ `detail` نام پلاگین است یا دلیل رد شدن.
+    """
+
+    entry_name: str
+    value: str
+    loaded: bool
+    detail: str
+
+
+def _load_plugins() -> tuple[list[LanguageAnalyzer], list[PluginStatus]]:
+    """Load the installed plugins once; return them and one status per entry point."""
+    analyzers: list[LanguageAnalyzer] = []
+    statuses: list[PluginStatus] = []
+    taken = {a.name.lower() for a in _BUILTIN}
+    try:
+        eps = sorted(
+            entry_points(group=_ENTRY_POINT_GROUP), key=lambda e: (e.name, e.value)
+        )
+    except Exception as exc:  # noqa: BLE001 - broken metadata must not crash sarand
+        logger.warning("Could not read analyzer plugin entry points: %s", exc)
+        return analyzers, statuses
+
+    for ep in eps:
+        try:
+            cls = ep.load()
+            plugin = adapt_plugin(cls(), ep.name)
+        except PluginRejected as exc:
+            logger.warning("Skipped analyzer plugin '%s': %s", ep.name, exc)
+            statuses.append(PluginStatus(ep.name, ep.value, False, str(exc)))
+            continue
+        except Exception as exc:  # noqa: BLE001 - a broken plugin must not crash sarand
+            logger.warning("Failed to load analyzer plugin '%s': %s", ep.name, exc)
+            reason = f"failed to load: {exc}"
+            statuses.append(PluginStatus(ep.name, ep.value, False, reason))
+            continue
+        if plugin.name.lower() in taken:
+            logger.warning(
+                "Skipped analyzer plugin '%s': an analyzer named '%s' is already "
+                "registered",
+                ep.name,
+                plugin.name,
+            )
+            reason = f"an analyzer named '{plugin.name}' is already registered"
+            statuses.append(PluginStatus(ep.name, ep.value, False, reason))
+            continue
+        taken.add(plugin.name.lower())
+        analyzers.append(plugin)
+        statuses.append(PluginStatus(ep.name, ep.value, True, plugin.name))
+        logger.info("Loaded plugin analyzer: %s (%s)", ep.name, ep.value)
+
+    return analyzers, statuses
+
+
 def discover_analyzers() -> list[LanguageAnalyzer]:
     """Return built-in analyzers plus any installed plugin analyzers.
 
@@ -199,38 +259,14 @@ def discover_analyzers() -> list[LanguageAnalyzer]:
     اول‌آمده برنده است: نام تکراری رد می‌شود تا یک بررسی دوبار اجرا نشود.
     """
     analyzers = list(_BUILTIN)
-    taken = {a.name.lower() for a in analyzers}
-    try:
-        eps = sorted(
-            entry_points(group=_ENTRY_POINT_GROUP), key=lambda e: (e.name, e.value)
-        )
-    except Exception as exc:  # noqa: BLE001 - broken metadata must not crash sarand
-        logger.warning("Could not read analyzer plugin entry points: %s", exc)
-        return analyzers
-
-    for ep in eps:
-        try:
-            cls = ep.load()
-            plugin = adapt_plugin(cls(), ep.name)
-        except PluginRejected as exc:
-            logger.warning("Skipped analyzer plugin '%s': %s", ep.name, exc)
-            continue
-        except Exception as exc:  # noqa: BLE001 - a broken plugin must not crash sarand
-            logger.warning("Failed to load analyzer plugin '%s': %s", ep.name, exc)
-            continue
-        if plugin.name.lower() in taken:
-            logger.warning(
-                "Skipped analyzer plugin '%s': an analyzer named '%s' is already "
-                "registered",
-                ep.name,
-                plugin.name,
-            )
-            continue
-        taken.add(plugin.name.lower())
-        analyzers.append(plugin)
-        logger.info("Loaded plugin analyzer: %s (%s)", ep.name, ep.value)
-
+    plugins, _ = _load_plugins()
+    analyzers.extend(plugins)
     return analyzers
+
+
+def plugin_statuses() -> list[PluginStatus]:
+    """One status per installed plugin entry point, for `sarand --doctor`."""
+    return _load_plugins()[1]
 
 
 def matching_analyzers(

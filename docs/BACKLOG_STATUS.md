@@ -107,8 +107,12 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 10. **Quick Context:** frameworks and an inferred risk model (not in the report
     data), layers L3 (architecture and risks) and L4 (relevant source subset),
     HTML and text renderer sections.
-11. **Plugins:** timeouts for non-subprocess work, sandboxing, a plugin listing
-    in `--doctor`. A marketplace stays out of scope until the API has been
+11. **Plugins -- done in R10a** (history 5.81): a plugin phase is cancelled
+    after one hour and a minute and reported as a skipped check, and
+    `--doctor` lists the plugins and why one was skipped. Sandboxing is a
+    recorded non-goal: a plugin is Python code in the same process and cannot
+    be confined; a real boundary needs a separate process and a new plugin
+    API version. A marketplace stays out of scope until the API has been
     stable for a while.
 12. **PDF:** a real engine in CI (Debian's `wkhtmltopdf` may need an X server,
     unverified); Termux and Android PDF export is unverified, use

@@ -12,6 +12,7 @@ from __future__ import annotations
 import shutil
 import sys
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from sarand.progress import console
 from sarand.rust_bridge import RUST_CORE_AVAILABLE
@@ -22,6 +23,11 @@ from sarand.utils.installation import (
     probe_version,
     stale_note,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from sarand.analyzers.registry import PluginStatus
 
 _MIN_PYTHON = (3, 11)
 
@@ -709,6 +715,34 @@ def _print_language_tools(checks: list[DoctorCheck]) -> None:
     console.print(Group(*panels))
 
 
+def _print_plugins(statuses: Sequence[PluginStatus]) -> None:
+    """A panel that lists installed plugins and why a plugin was skipped.
+
+    Text that comes from a plugin is escaped: it must never be read as markup.
+    متنی که از پلاگین می‌آید escape می‌شود تا هرگز به‌عنوان markup خوانده نشود.
+    """
+    from rich.markup import escape
+    from rich.panel import Panel
+
+    lines: list[str] = []
+    for status in statuses:
+        entry = escape(status.entry_name)
+        detail = escape(status.detail)
+        value = escape(status.value)
+        if status.loaded:
+            lines.append(f"[green]✓[/green] [bold]{entry}[/bold] -- {detail}")
+        else:
+            lines.append(
+                f"[yellow]○[/yellow] [bold]{entry}[/bold] -- skipped: {detail}"
+                f"\n   [dim]{value}[/dim]"
+            )
+    if not lines:
+        lines.append("[dim]none installed (how to write one: docs/PLUGINS.md)[/dim]")
+    console.print(
+        Panel("\n".join(lines), title="Plugins", title_align="left", expand=True)
+    )
+
+
 def run_doctor() -> int:
     """Print the full diagnostic report and return an exit code.
 
@@ -729,6 +763,10 @@ def run_doctor() -> int:
     _print_core(checks)
     console.print()
     _print_language_tools(checks)
+    console.print()
+    from sarand.analyzers.registry import plugin_statuses
+
+    _print_plugins(list(plugin_statuses()))
     console.print()
 
     critical_failed = [c for c in checks if c.critical and not c.ok]

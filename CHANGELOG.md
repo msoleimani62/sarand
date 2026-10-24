@@ -8,9 +8,17 @@ version may include behaviour changes.
 
 ### Added
 
+- `sarand --doctor` lists the installed plugins and, for a plugin that was
+  skipped, the reason.
 - `musllinux` wheels for x86_64 and aarch64: `pipx install sarand-cli` on
   Alpine no longer builds from the source distribution. Each wheel is
   installed and run inside an Alpine container before a release is published.
+
+### Changed
+
+- A plugin phase that does not finish within one hour and one minute is
+  cancelled and reported as a skipped check, instead of hanging the scan.
+- `filelock` 4.x is allowed (`>=3.14,<5`); the full test suite passed with it.
 
 ## [0.7.0] - 2026-10-24
 

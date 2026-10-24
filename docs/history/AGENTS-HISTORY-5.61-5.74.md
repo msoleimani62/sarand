@@ -1071,3 +1071,36 @@ push cannot exercise it. The first proof is the manual dry run
 (`gh workflow run release.yml --ref main -f publish_to_testpypi=true`): the two
 musllinux builds, the Alpine smoke test and the TestPyPI upload. Do not tag a
 release before that run is green.
+
+### 5.81 — Round R10a: plugin hardening (item 11) and the filelock range (2026-10-24)
+
+**filelock.** The owner ran the whole suite with `filelock>=4,<5` installed over
+the project venv: 1236 passed. The range is now `>=3.14,<5`. (My first command
+for that test conflicted with the editable install's own pin and proved nothing;
+the second, with `--no-deps`, is the evidence.)
+
+**Plugin time limit (confirmed gap).** `PluginAnalyzer._call` awaited the
+plugin with no limit; the module docstring said so. Each phase now runs under
+`asyncio.timeout(PLUGIN_PHASE_TIMEOUT)` (`LONG_CMD_TIMEOUT` plus a minute, so a
+plugin that legitimately runs a long command is not cut short). On expiry the
+phase is cancelled (`run_cmd_async` already kills its process group on
+cancellation) and one skipped result says `did not finish within N s and was
+cancelled`. A `TimeoutError` raised by the plugin itself is told apart with
+`scope.expired()` and reported as an ordinary failure. Limit: blocking code
+that never awaits cannot be interrupted by asyncio; docs/PLUGINS.md says so
+and points to `to_thread`.
+
+**Doctor listing.** `registry._load_plugins()` is now the single loader (same
+log lines as before, plus one `PluginStatus` per entry point), `discover_analyzers`
+uses it, `plugin_statuses()` exposes the statuses and `--doctor` prints a Plugins
+panel. Plugin-supplied text is escaped before it reaches rich.
+
+**Sandboxing: recorded non-goal.** A plugin is Python code in sarand's own
+process with the user's rights; nothing in-process confines it. A real boundary
+needs plugins in a separate process with reduced rights, which means a new plugin
+API version; not worth building before a plugin author asks for it.
+The marketplace stays out of scope.
+
+**Not verified here.** The sandbox has no `rich`, so the doctor panel was run
+through a stub and by reading; the real rendering is checked by the owner's full
+`pytest` (`tests/test_doctor_plugins.py`).

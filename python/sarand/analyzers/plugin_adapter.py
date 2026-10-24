@@ -36,9 +36,12 @@ for authors. Every plugin instance is wrapped in `PluginAnalyzer`:
 - invalid entries in a returned list are dropped and reported once.
 
 Built-in analyzers are NOT wrapped: they are trusted, tested code and
-keep their exact behaviour. Not covered: plugin timeouts (sarand's
-subprocess helper already enforces them for the tools a plugin runs, but
-a plugin awaiting something else forever would still hang) and sandboxing.
+keep their exact behaviour. Each plugin phase is also cancelled after
+PLUGIN_PHASE_TIMEOUT (the longest command timeout plus a minute) and reported
+as a skipped check, so a plugin awaiting something forever cannot hang the
+scan (round R10a). Not covered: sandboxing (a plugin is Python code in the
+same process and cannot be confined; see docs/PLUGINS.md) and blocking code
+that never yields to the event loop, which asyncio cannot interrupt.
 
 لایه‌ی جداسازی بین sarand و پلاگین‌های آنالایزر شخص‌ثالث (آیتم ۱۴).
 
@@ -56,10 +59,12 @@ a plugin awaiting something else forever would still hang) and sandboxing.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from pathlib import Path
 
 from sarand.analyzers.base import PLUGIN_API_VERSION
+from sarand.constants import LONG_CMD_TIMEOUT
 from sarand.models.results import CommandResult
 from sarand.utils.command import make_command_result
 from sarand.utils.logging import get_logger
@@ -69,9 +74,19 @@ logger = get_logger("analyzers.plugin")
 _REQUIRED_METHODS = ("matches", "entry_points", "run_tests", "run_quality")
 _MAX_ERROR_CHARS = 200
 
+# A plugin phase may legitimately last as long as the longest command it can
+# start (LONG_CMD_TIMEOUT); the extra minute covers its own work around it.
+# یک فاز پلاگین می‌تواند تا طولانی‌ترین فرمانِ مجاز طول بکشد؛ یک دقیقه‌ی اضافه
+# برای کار خودِ پلاگین دور آن فرمان است.
+PLUGIN_PHASE_TIMEOUT = float(LONG_CMD_TIMEOUT + 60)
+
 
 class PluginRejected(Exception):
     """A plugin that cannot be used; the message says why."""
+
+
+class PluginTimeout(Exception):
+    """A plugin phase that outlived PLUGIN_PHASE_TIMEOUT and was cancelled."""
 
 
 def _clip(text: str) -> str:
@@ -84,9 +99,16 @@ def _clip(text: str) -> str:
 class PluginAnalyzer:
     """Wraps one plugin instance so it cannot take sarand down with it."""
 
-    def __init__(self, inner: object, name: str) -> None:
+    def __init__(
+        self,
+        inner: object,
+        name: str,
+        *,
+        phase_timeout: float = PLUGIN_PHASE_TIMEOUT,
+    ) -> None:
         self._inner = inner
         self.name = name
+        self._phase_timeout = phase_timeout
 
     def _skipped(self, phase: str, reason: str) -> CommandResult:
         return make_command_result(
@@ -100,7 +122,12 @@ class PluginAnalyzer:
 
     def _crashed(self, phase: str, exc: BaseException) -> CommandResult:
         logger.warning("Plugin '%s' failed in %s: %r", self.name, phase, exc)
-        detail = _clip(f"{type(exc).__name__}: {exc}")
+        if isinstance(exc, PluginTimeout):
+            detail = (
+                f"did not finish within {self._phase_timeout:g} s and was cancelled"
+            )
+        else:
+            detail = _clip(f"{type(exc).__name__}: {exc}")
         return self._skipped(phase, f"failed in {phase}: {detail}")
 
     def matches(self, root: Path) -> bool:
@@ -126,7 +153,17 @@ class PluginAnalyzer:
                 f"{method} must be `async def` "
                 f"(it returned {type(outcome).__name__}, not a coroutine)"
             )
-        return await outcome
+        # asyncio.timeout cancels the phase; run_cmd_async cleans up its process
+        # group on cancellation. A TimeoutError the plugin raised itself is not
+        # ours: scope.expired() tells the two apart.
+        # اگر TimeoutError را خودِ پلاگین ایجاد کرده باشد مال ما نیست؛ expired() فرق را می‌گوید.
+        try:
+            async with asyncio.timeout(self._phase_timeout) as scope:
+                return await outcome
+        except TimeoutError as exc:
+            if scope.expired():
+                raise PluginTimeout(method) from exc
+            raise
 
     async def run_tests(self, root: Path) -> CommandResult | None:
         try:
