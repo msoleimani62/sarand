@@ -106,7 +106,8 @@ def test_every_wheel_is_smoke_tested_natively() -> None:
     }
     smoked = {
         entry["artifact"]
-        for entry in release["jobs"]["smoke"]["strategy"]["matrix"]["include"]
+        for job in ("smoke", "smoke-musl")
+        for entry in release["jobs"][job]["strategy"]["matrix"]["include"]
     }
     assert wheel_names == smoked
     runners = {

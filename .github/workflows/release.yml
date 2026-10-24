@@ -85,6 +85,8 @@ jobs:
         include:
           - { name: linux-x86_64, runner: ubuntu-24.04, target: x86_64, manylinux: auto }
           - { name: linux-aarch64, runner: ubuntu-24.04, target: aarch64, manylinux: auto }
+          - { name: musllinux-x86_64, runner: ubuntu-24.04, target: x86_64, manylinux: musllinux_1_2 }
+          - { name: musllinux-aarch64, runner: ubuntu-24.04, target: aarch64, manylinux: musllinux_1_2 }
           - { name: macos-arm64, runner: macos-latest, target: aarch64-apple-darwin }
           - { name: macos-x86_64, runner: macos-latest, target: x86_64-apple-darwin }
           - { name: windows-x64, runner: windows-latest, target: x64 }
@@ -154,10 +156,38 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: python -c "import os, sarand; ref = os.environ['GITHUB_REF_NAME']; assert ref == 'v' + sarand.__version__, (ref, sarand.__version__)"
 
+  smoke-musl:
+    name: Smoke test (Alpine, ${{ matrix.arch }})
+    # A musllinux wheel cannot be installed on the glibc runner, so each one is
+    # installed and run inside an Alpine container with the image's own pip.
+    # wheel مبتنی بر musl روی runner مبتنی بر glibc نصب نمی‌شود؛ داخل کانتینر Alpine امتحان می‌شود.
+    needs: wheels
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x86_64, runner: ubuntu-24.04, artifact: dist-wheels-musllinux-x86_64 }
+          - { arch: aarch64, runner: ubuntu-24.04-arm, artifact: dist-wheels-musllinux-aarch64 }
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist
+      - name: Install the wheel on Alpine and run it
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+          SCRIPT: |
+            pip install --no-cache-dir /dist/*.whl
+            sarand --version
+            python -c "import sarand._core as core; print('Rust core:', core.__file__)"
+            if [ -n "$RELEASE_TAG" ]; then python -c "import os, sarand; ref = os.environ['RELEASE_TAG']; assert ref == 'v' + sarand.__version__, (ref, sarand.__version__)"; fi
+        run: docker run --rm --env RELEASE_TAG --volume "$PWD/dist:/dist:ro" python:3.12-alpine sh -ec "$SCRIPT"
+
   publish-testpypi:
     name: Publish to TestPyPI
     if: github.event_name == 'workflow_dispatch' && inputs.publish_to_testpypi
-    needs: [wheels, sdist, smoke]
+    needs: [wheels, sdist, smoke, smoke-musl]
     runs-on: ubuntu-24.04
     environment:
       name: testpypi
@@ -180,7 +210,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [wheels, sdist, smoke, ci-gate]
+    needs: [wheels, sdist, smoke, smoke-musl, ci-gate]
     runs-on: ubuntu-24.04
     environment:
       name: pypi

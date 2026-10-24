@@ -6,6 +6,12 @@ version may include behaviour changes.
 
 ## [Unreleased]
 
+### Added
+
+- `musllinux` wheels for x86_64 and aarch64: `pipx install sarand-cli` on
+  Alpine no longer builds from the source distribution. Each wheel is
+  installed and run inside an Alpine container before a release is published.
+
 ## [0.7.0] - 2026-10-24
 
 ### Changed

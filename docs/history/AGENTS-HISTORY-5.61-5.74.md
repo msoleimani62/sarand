@@ -1043,3 +1043,31 @@ when a newer commit exists; those two are refreshed by hand with
 `pin_actions.py` after removing the SHA (or when a security notice arrives).
 `release.yml` is not run by CI; the pins point at the same commits the tags did
 that day, so it behaves as before, and the first tagged release is its real test.
+
+### 5.80 — Audit remediation R9a: musllinux wheels (D4) and a documentation sync (2026-10-24)
+
+**Decision D4** (musllinux wheels or a pure-Python wheel; feasibility unknown):
+musllinux wheels, because the workflow already builds with `maturin-action` and
+only needed `manylinux: musllinux_1_2` for the two Linux targets. A pure-Python
+wheel was not pursued: it would be a second build of the same distribution name,
+and the musllinux wheels remove the main reason for it (Alpine users compiling
+Rust from the source distribution). D1 (Python 3.10) was closed earlier by the
+3.11 floor of v0.7.0.
+
+**Done.** `release.yml`: two matrix entries (`musllinux-x86_64`,
+`musllinux-aarch64`), a `smoke-musl` job that installs each wheel with the
+`python:3.12-alpine` image's pip and runs `sarand --version`, the compiled core
+import and (on a tag) the version check, and both publish jobs now `need` it.
+No new action was added (it uses `docker run`), so there is no new SHA to pin.
+`tests/test_musllinux_release.py` keeps this shape;
+`tests/test_release_workflow.py` now expects seven platforms and the extra job.
+`docs/PUBLISHING.md`, the CHANGELOG (`Unreleased`) and `BACKLOG_STATUS.md` say so;
+`BACKLOG_STATUS.md` also stops saying that the latest release is v0.6.19 and that a
+GitHub Release is still open (v0.7.0 created one with five wheels, the sdist and
+`SHA256SUMS`).
+
+**Not verified.** The workflow runs only on a tag or by hand, so CI on the
+push cannot exercise it. The first proof is the manual dry run
+(`gh workflow run release.yml --ref main -f publish_to_testpypi=true`): the two
+musllinux builds, the Alpine smoke test and the TestPyPI upload. Do not tag a
+release before that run is green.

@@ -78,7 +78,7 @@ def test_each_publish_job_has_the_environment_named_in_the_pypi_form() -> None:
 
 
 def test_publishing_waits_for_every_build_and_the_smoke_test() -> None:
-    builds = {"wheels", "sdist", "smoke"}
+    builds = {"wheels", "sdist", "smoke", "smoke-musl"}
     assert set(_jobs()["publish-testpypi"]["needs"]) == builds
     # A real release additionally needs the CI gate (AGENTS.md 5.72).
     assert set(_jobs()["publish-pypi"]["needs"]) == builds | {"ci-gate"}
@@ -104,11 +104,13 @@ def test_the_publish_action_is_the_official_one_and_only_testpypi_overrides_the_
     assert "test.pypi.org" in steps["publish-testpypi"][0]["with"]["repository-url"]
 
 
-def test_wheels_are_built_for_the_five_platforms() -> None:
+def test_wheels_are_built_for_the_seven_platforms() -> None:
     matrix = _jobs()["wheels"]["strategy"]["matrix"]["include"]
     assert {entry["name"] for entry in matrix} == {
         "linux-x86_64",
         "linux-aarch64",
+        "musllinux-x86_64",
+        "musllinux-aarch64",
         "macos-arm64",
         "macos-x86_64",
         "windows-x64",

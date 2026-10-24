@@ -15,7 +15,7 @@ those items lives only in that document. When follow-ups 1 to 4 are done (or
 dropped with a reason recorded here), delete `docs/BACKLOG.md` and this file;
 git history keeps both.
 
-Latest release: **v0.6.19**. Every released version carries its own number
+Latest release: **v0.7.0**. Every released version carries its own number
 in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 (`scripts/release.py` and `tests/test_distribution.py` enforce it).
 
@@ -98,9 +98,10 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    command and the import name are unchanged), abi3 wheels for Linux
    x86_64 / aarch64, macOS arm64 / x86_64 and Windows x64, published by
    `.github/workflows/release.yml` with trusted publishing (guide:
-   `docs/PUBLISHING.md`). Open: a GitHub Release with the files attached;
-   `musllinux` wheels (Alpine) and free-threaded Python builds have none and
-   build from the sdist.
+   `docs/PUBLISHING.md`). Every release also creates a GitHub Release with
+   the files and a `SHA256SUMS` file (AGENTS.md 5.72; seen working with
+   v0.7.0). `musllinux` wheels (Alpine) are built since R9a (history 5.80);
+   free-threaded Python builds have none and build from the sdist.
 9. **AUR:** the `PKGBUILD` is correct but unpublished; run `updpkgsums` once a
    release tag exists.
 10. **Quick Context:** frameworks and an inferred risk model (not in the report
@@ -133,7 +134,9 @@ D2; AGENTS.md 5.74), R8a (AGENTS.md diet, history moved to `docs/history/`)
 and R8b (`scripts/bench_scan.py`, `.benchmarks/` ignored; history 5.75).
 R8c is delivered too (history 5.76). R8d is delivered too (history 5.77: `docs/BACKLOG.md` is linted). Still
 open: decision D3 once the benchmark numbers of both devices exist. The
-actions are pinned to SHAs (R8e, then R8f, history 5.78 and 5.79).
+actions are pinned to SHAs (R8e, then R8f, history 5.78 and 5.79); v0.7.0 is
+released; D1 (Python 3.10) was closed by its 3.11 floor and D4 (musllinux
+wheels) by R9a (history 5.80).
 
 ### Out of scope, with reasons
 
