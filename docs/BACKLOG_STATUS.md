@@ -114,9 +114,11 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
     be confined; a real boundary needs a separate process and a new plugin
     API version. A marketplace stays out of scope until the API has been
     stable for a while.
-12. **PDF:** a real engine in CI (Debian's `wkhtmltopdf` may need an X server,
-    unverified); Termux and Android PDF export is unverified, use
-    `--format html` and print from a browser.
+12. **PDF:** the CI job `pdf` (R10d, history 5.82) installs the real engines:
+    WeasyPrint must render a PDF, and wkhtmltopdf is tried without and with an
+    X server and reported in the job summary (whether Debian's build needs one
+    is the open question the first run answers). Termux and Android PDF export
+    is unverified, use `--format html` and print from a browser.
 13. **Docker Compose and Makefile execution** (`docker compose config`,
     `hadolint`, running targets). Detection only today; `make` is never run
     on purpose. (Kubernetes charts and overlays are linted since 5.60.)

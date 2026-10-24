@@ -57,6 +57,65 @@ jobs:
       - name: cargo check with the declared minimum
         run: cargo check --locked --all-targets
 
+  pdf:
+    name: PDF engines (real ones)
+    # Every other PDF test uses a fake engine. This job installs the real
+    # ones. WeasyPrint must work; wkhtmltopdf is only reported, because
+    # Debian's build may need an X server (backlog item 12, unverified).
+    # موتورهای واقعی نصب می‌شوند؛ WeasyPrint باید کار کند و wkhtmltopdf فقط گزارش می‌شود.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install sarand and WeasyPrint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0
+          python -m pip install --upgrade pip maturin
+          python -m pip install -e ".[dev]" weasyprint
+
+      - id: weasy
+        name: WeasyPrint renders a real PDF
+        env:
+          SARAND_REAL_PDF_ENGINES: weasyprint
+        run: python -m pytest -q tests/test_pdf_real_engines.py
+
+      - id: wk_install
+        name: Install wkhtmltopdf and xvfb (information only)
+        continue-on-error: true
+        run: sudo apt-get install -y --no-install-recommends wkhtmltopdf xvfb
+
+      - id: wk_plain
+        name: wkhtmltopdf without an X server (information only)
+        continue-on-error: true
+        env:
+          SARAND_REAL_PDF_ENGINES: wkhtmltopdf
+        run: python -m pytest -q tests/test_pdf_real_engines.py
+
+      - id: wk_xvfb
+        name: wkhtmltopdf under xvfb-run (information only)
+        continue-on-error: true
+        env:
+          SARAND_REAL_PDF_ENGINES: wkhtmltopdf
+        run: xvfb-run -a python -m pytest -q tests/test_pdf_real_engines.py
+
+      - name: Write the outcome to the job summary
+        if: always()
+        run: |
+          {
+            echo "### PDF engines on ubuntu-24.04"
+            echo "- WeasyPrint renders a PDF: ${{ steps.weasy.outcome }}"
+            echo "- wkhtmltopdf installed from apt: ${{ steps.wk_install.outcome }}"
+            echo "- wkhtmltopdf without an X server: ${{ steps.wk_plain.outcome }}"
+            echo "- wkhtmltopdf under xvfb-run: ${{ steps.wk_xvfb.outcome }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   quality:
     name: quality (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}

@@ -1104,3 +1104,20 @@ The marketplace stays out of scope.
 **Not verified here.** The sandbox has no `rich`, so the doctor panel was run
 through a stub and by reading; the real rendering is checked by the owner's full
 `pytest` (`tests/test_doctor_plugins.py`).
+
+### 5.82 — Round R10d: the real PDF engines in CI (item 12) (2026-10-24)
+
+**Gap.** Every PDF test used a fake engine, and the one real-engine test
+(`test_new_renderers.py`) skipped silently because CI had no engine installed;
+so `renderers/pdf.py` had never been run against WeasyPrint or wkhtmltopdf in
+CI, and "Debian's wkhtmltopdf may need an X server" stayed a rumour.
+
+**Done.** `tests/test_pdf_real_engines.py` runs the real engines named in
+`SARAND_REAL_PDF_ENGINES` (skipped visibly otherwise) and a guard that the CI job
+keeps WeasyPrint a hard check. The CI job `pdf` installs Pango and WeasyPrint
+(must pass), then wkhtmltopdf with and without `xvfb-run` (reported only, with
+`continue-on-error`), and writes the four outcomes into the job summary.
+
+**Next.** The first run decides: record the facts in `renderers/pdf.py` and
+`BACKLOG_STATUS.md`, and add `xvfb-run` handling or a clearer hint if wkhtmltopdf
+needs an X server. Nothing was changed in the renderer itself on a guess.
