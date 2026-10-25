@@ -139,7 +139,7 @@ jobs:
           - { runner: ubuntu-24.04-arm, python: "3.12", artifact: dist-wheels-linux-aarch64 }
           - { runner: macos-15-intel, python: "3.12", artifact: dist-wheels-macos-x86_64 }
     steps:
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
