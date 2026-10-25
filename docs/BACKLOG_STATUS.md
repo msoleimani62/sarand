@@ -82,7 +82,11 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    manifests are found by content, and `helm lint` / `kustomize build` run
    on charts and overlays. Still open: `kubeconform` validation (its schemas
    come from the network and it was not verified against a real binary) and
-   `helm template`.
+   `helm template`. Design constraint found 2026-10-25: the analyzer's own
+   rules forbid network checks and forbid capturing a rendered `Secret`, so
+   this is built opt-in only, when a local schema directory is configured,
+   with `helm template --output-dir` into a temporary directory that is
+   deleted (history 5.84).
 6. **Gradle / Maven multi-module -- done 2026-10-10** (AGENTS.md 5.61): the
    structure is a `maven` / `gradle` workspace in the report (no execution
    change: the root build already tests every module), and a Gradle root
@@ -104,9 +108,12 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    free-threaded Python builds have none and build from the sdist.
 9. **AUR:** the `PKGBUILD` is correct but unpublished; run `updpkgsums` once a
    release tag exists.
-10. **Quick Context:** frameworks and an inferred risk model (not in the report
-    data), layers L3 (architecture and risks) and L4 (relevant source subset),
-    HTML and text renderer sections.
+10. **Quick Context -- designed 2026-10-25, not implemented.** The full design
+    and every decision are in `docs/QUICK_CONTEXT_DESIGN.md` (history 5.84):
+    R11a frameworks as declared dependencies plus the HTML and text sections,
+    R11b layer L3 with rule-based risks that cite their evidence (the
+    "inferred risk model" became a fixed rule table), R11c layer L4 behind
+    `--relevant-source[=TOKENS]`.
 11. **Plugins -- done in R10a** (history 5.81): a plugin phase is cancelled
     after one hour and a minute and reported as a skipped check, and
     `--doctor` lists the plugins and why one was skipped. Sandboxing is a
@@ -123,8 +130,18 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 13. **Docker Compose and Makefile execution** (`docker compose config`,
     `hadolint`, running targets). Detection only today; `make` is never run
     on purpose. (Kubernetes charts and overlays are linted since 5.60.)
+    Found 2026-10-25: `hadolint` already runs on Dockerfiles, so only
+    `docker compose config` is new; `make` targets would run project code and
+    only ever come behind an explicit opt-in flag (history 5.84).
 14. **Memory profiling of `--quality` and the test phase** (item 9 follow-up);
     only if a real report names one of them.
+
+**Order agreed on 2026-10-25** (details and reasons in history 5.84): the real
+follow-ups above, one verifiable round each, are done in this order: items 12
+and 11 (done), then 5 (opt-in), 13, 10 (R11a, R11b, R11c), 1 (design first),
+and last the packaging in the roadmap file (Docker first). Item 14 stays
+skipped by its own rule. Item 9 (AUR) needs the owner's Arch machine and an
+AUR account.
 
 ### Audit remediation (started 2026-10-15)
 

@@ -1135,3 +1135,51 @@ gone. Lesson about the first version: a step with `continue-on-error` shows a gr
 tick in `gh run watch` even when it failed (`conclusion` is success, `outcome` is
 failure) and the job summary text is not shown by `gh`; the facts had to be read from
 the step log. The summary step was removed along with the information-only steps.
+
+### 5.84 — Design record: Quick Context L2/L3/L4 and the plan for the rest of the product backlog (2026-10-25)
+
+No code changed. The owner asked for every remaining product item, even the ones
+marked out of scope, and for the design of Quick Context to be as good and as fast
+as possible; this section records what was decided so it cannot be forgotten.
+
+**Quick Context.** Full design in `docs/QUICK_CONTEXT_DESIGN.md`, decisions
+D-QC1 to D-QC7, an outside review dispositioned point by point, three rounds
+R11a, R11b, R11c with acceptance criteria, thresholds deliberately left to be set
+from evidence. Findings that shaped it: the report has no import graph, no
+file/line on `Issue` and no per-file line counts; `included_files` already holds
+every exclusion, so L4 uses it as its only universe; `scan_line` in
+`core/secrets.py` can be reused to re-check snippets.
+
+**The rest of the product backlog (BACKLOG_STATUS items), with the reasons found
+by reading the code.**
+
+- Item 5 (`kubeconform`, `helm template`): the Kubernetes analyzer states two
+  rules in its docstring (5.60): no check that needs the network, and a rendered
+  `Secret` must never be captured. `kubeconform` downloads schemas by default and
+  `helm template` prints Secrets. So: opt-in only, run when a local schema
+  directory is configured, render with `--output-dir` into a temporary directory
+  that is deleted, never on by default.
+- Item 12 (PDF): done in 5.82 and 5.83.
+- Item 11 (plugins): done in 5.81; sandboxing is a recorded non-goal.
+- Item 13: `hadolint` already runs on Dockerfiles; the new part is
+  `docker compose config`. `make` stays out unless an explicit opt-in flag, because
+  it executes project code (the Makefile analyzer's decision is that `make` is
+  never run on purpose).
+- Item 1 (Nx and Turborepo task graphs): design first, as a separate round.
+- Item 14 (memory profiling): not done, by its own rule (only if a real report
+  names a problem).
+- Packaging (Docker, Homebrew, deb, rpm, a standalone binary): the roadmap file
+  says to build them only when a real need shows up; the owner overrode that, so
+  they come **last**, one target per round, Docker first, each verified by a
+  real build in CI. Homebrew needs a separate tap repository; deb and rpm are low
+  value for a Python tool with a Rust core that `pipx` already covers. This is
+  recorded so the decision can be revisited with the facts in hand.
+- Item 9 (AUR publication): needs `makepkg` in a clean Arch chroot and an AUR
+  account, so it is the owner's step.
+
+**Process lessons kept for the next rounds.** The sandbox has no `mypy`, `ruff` or
+`rich`, so type-annotate test helpers exactly and do not use `object` plus
+attribute access. A `continue-on-error` step shows a green tick in `gh run watch`;
+read its log. When a script anchors on the end of a block, search the end after
+the start, because other jobs end the same way. Run every test file that reads
+workflows after a workflow change, not a hand-picked few.
