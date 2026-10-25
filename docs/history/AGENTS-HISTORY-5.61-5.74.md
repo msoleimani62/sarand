@@ -1121,3 +1121,17 @@ keeps WeasyPrint a hard check. The CI job `pdf` installs Pango and WeasyPrint
 **Next.** The first run decides: record the facts in `renderers/pdf.py` and
 `BACKLOG_STATUS.md`, and add `xvfb-run` handling or a clearer hint if wkhtmltopdf
 needs an X server. Nothing was changed in the renderer itself on a guess.
+
+### 5.83 — Round R10d2: what the first PDF run proved (2026-10-25)
+
+**Facts** (CI run 40110801760, ubuntu-24.04). WeasyPrint rendered a real PDF.
+wkhtmltopdf 0.12.6-2build2 installed from the Ubuntu archive and rendered one
+without an X server and again under `xvfb-run` (3 tests passed each time). The
+worry that Debian's wkhtmltopdf needs an X server therefore does not hold for the
+Ubuntu 24.04 build; Debian itself, Kali, Termux and Android were not tested.
+
+**Changed.** Both engines are now hard checks in the `pdf` job and the xvfb step is
+gone. Lesson about the first version: a step with `continue-on-error` shows a green
+tick in `gh run watch` even when it failed (`conclusion` is success, `outcome` is
+failure) and the job summary text is not shown by `gh`; the facts had to be read from
+the step log. The summary step was removed along with the information-only steps.

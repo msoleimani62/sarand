@@ -63,12 +63,14 @@ def test_each_requested_engine_renders_a_real_pdf() -> None:
             assert out.stat().st_size > 500
 
 
-def test_ci_has_a_pdf_job_where_only_wkhtmltopdf_may_fail() -> None:
+def test_ci_checks_both_real_pdf_engines_without_an_x_server() -> None:
     steps = yaml.safe_load(_CI.read_text(encoding="utf-8"))["jobs"]["pdf"]["steps"]
-    engines = {
-        str(step.get("env", {}).get("SARAND_REAL_PDF_ENGINES", "")): step
+    by_engine = {
+        str(step["env"]["SARAND_REAL_PDF_ENGINES"]): step
         for step in steps
         if "SARAND_REAL_PDF_ENGINES" in step.get("env", {})
     }
-    assert engines["weasyprint"].get("continue-on-error") is not True
-    assert engines["wkhtmltopdf"].get("continue-on-error") is True
+    assert set(by_engine) == {"weasyprint", "wkhtmltopdf"}
+    for step in by_engine.values():
+        assert step.get("continue-on-error") is not True
+    assert not any("xvfb" in str(step.get("run", "")) for step in steps)
