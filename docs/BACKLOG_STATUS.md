@@ -80,13 +80,12 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    `--skip-ci-check` overrides it. See AGENTS.md section 5.49.
 5. **Kubernetes next phase -- done 2026-10-09** (AGENTS.md 5.60): raw
    manifests are found by content, and `helm lint` / `kustomize build` run
-   on charts and overlays. Still open: `kubeconform` validation (its schemas
-   come from the network and it was not verified against a real binary) and
-   `helm template`. Design constraint found 2026-10-25: the analyzer's own
-   rules forbid network checks and forbid capturing a rendered `Secret`, so
-   this is built opt-in only, when a local schema directory is configured,
-   with `helm template --output-dir` into a temporary directory that is
-   deleted (history 5.84).
+   on charts and overlays. Opt-in `kubeconform` validation done in R10c
+   (history 5.85, `docs/KUBERNETES.md`): the analyzer's own rules forbid
+   network checks and capturing a rendered `Secret`, so it runs only when
+   `SARAND_KUBECONFORM_SCHEMAS` names a local schema directory, with
+   `helm template --output-dir` into a temporary directory that is deleted.
+   Not done: validating loose manifest files.
 6. **Gradle / Maven multi-module -- done 2026-10-10** (AGENTS.md 5.61): the
    structure is a `maven` / `gradle` workspace in the report (no execution
    change: the root build already tests every module), and a Gradle root

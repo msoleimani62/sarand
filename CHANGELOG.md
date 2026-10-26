@@ -8,6 +8,12 @@ version may include behaviour changes.
 
 ### Added
 
+- Opt-in schema validation of Kubernetes charts and overlays: with
+  `SARAND_KUBECONFORM_SCHEMAS` pointing at a local directory of Kubernetes
+  JSON schemas, `--quality` renders each chart (`helm template`) and overlay
+  (`kustomize build`) into a temporary directory and checks it with
+  `kubeconform`, offline. Nothing rendered is kept in the report. See
+  `docs/KUBERNETES.md`.
 - `sarand --doctor` lists the installed plugins and, for a plugin that was
   skipped, the reason.
 - `musllinux` wheels for x86_64 and aarch64: `pipx install sarand-cli` on

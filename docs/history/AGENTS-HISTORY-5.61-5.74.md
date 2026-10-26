@@ -1183,3 +1183,47 @@ attribute access. A `continue-on-error` step shows a green tick in `gh run watch
 read its log. When a script anchors on the end of a block, search the end after
 the start, because other jobs end the same way. Run every test file that reads
 workflows after a workflow change, not a hand-picked few.
+
+### 5.85 — Round R10c: opt-in kubeconform validation (item 5) (2026-10-25)
+
+**Constraint found first.** The Kubernetes analyzer states two rules (5.60): no
+check that needs the network, and a rendered `Secret` must never be captured.
+`kubeconform` downloads schemas by default and `helm template` prints Secrets, so
+a plain implementation would break both.
+
+**Design.** Off unless `SARAND_KUBECONFORM_SCHEMAS` names a local directory in the
+`kubernetes-json-schema` layout (`<dir>/<version>-standalone-strict/<kind>...json`;
+version `master` unless `SARAND_KUBECONFORM_VERSION`). Per chart:
+`helm template sarand-check CHART --output-dir TMP`, then `kubeconform -strict
+-summary -ignore-missing-schemas -schema-location <local template> TMP`; the
+temporary directory is deleted and a successful render's output (the list of
+written files) is dropped. Per overlay: the existing `kustomize build -o` file is
+checked the same way after a successful build. A failing render is reported as
+`helm template CHART`; a chart with unbuilt dependencies is skipped before
+rendering. Because `-ignore-missing-schemas` counts a resource without a schema as
+skipped, a summary with zero valid, zero invalid, zero errors and some skipped is
+reported as **skipped** ("no schema found ...") instead of a pass: a wrong or empty
+schema directory must not look like a clean result. A path with a brace is refused
+(it becomes part of the template). `kubeconform` is listed in `--doctor` and in the
+coverage matrix.
+
+**Verification.** `tests/test_kubeconform.py` (14 tests, tool runner replaced) pins
+the wiring: argv, order, what is dropped, the temp directory deleted, skip and
+failure reporting, the unset variable changing nothing. `tests/test_kubeconform_real.py`
+and the CI job `kube` run the real `helm` (preinstalled on the runner) and
+`kubeconform` (pinned v0.6.7, installed by `scripts/ci_install_kubeconform.sh` with
+`go install`, kept out of ci.yml so the coverage matrix does not read it as Go in CI)
+against a one-file local schema: a valid
+chart passes, an invalid one fails, an empty schema directory is skipped. The flags,
+the layout and the summary format are from the kubeconform documentation and were
+**not** run in the sandbox (no binaries); the first CI run is their proof, so a
+failure of the `kube` job is information about those assumptions, not a regression.
+
+**Not done.** Loose manifest files (the analyzer only matches charts and overlays);
+Helm charts whose dependencies are not vendored are skipped, as for `helm lint`.
+
+**Lesson (first attempt).** The README row linked `docs/KUBERNETES.md` with a
+relative link and `tests/test_pypi_readiness.py` failed: README links must be
+absolute because PyPI renders the README outside the repository. I had not run
+that test file before delivering; the sandbox can run most test files with a
+mini runner, so run the whole directory and compare it with a baseline.

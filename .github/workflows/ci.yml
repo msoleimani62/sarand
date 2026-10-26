@@ -94,6 +94,34 @@ jobs:
           SARAND_REAL_PDF_ENGINES: wkhtmltopdf
         run: python -m pytest -q tests/test_pdf_real_engines.py
 
+  kube:
+    name: Kubernetes tools (real ones)
+    # The mocked tests pin sarand's wiring; this job runs the real helm and
+    # kubeconform against a one-file local schema, so the flags, the schema layout
+    # and the summary format are proven (backlog item 5, round R10c).
+    # ابزارهای واقعی روی یک schema محلی؛ flagها و قالب خروجی اینجا اثبات می‌شوند.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the real tools and sarand
+        run: |
+          helm version --short
+          bash scripts/ci_install_kubeconform.sh
+          python -m pip install --upgrade pip maturin
+          python -m pip install -e ".[dev]"
+
+      - name: helm and kubeconform check a real chart
+        env:
+          SARAND_REAL_KUBECONFORM: "1"
+        run: python -m pytest -q tests/test_kubeconform_real.py
+
   quality:
     name: quality (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}

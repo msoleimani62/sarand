@@ -382,6 +382,16 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         "--quality (kustomize build on each overlay)",
     ),
     (
+        "Kubernetes",
+        "kubeconform",
+        "https://github.com/yannh/kubeconform (or `brew install kubeconform`)",
+        (
+            "--quality (schema check of rendered charts and overlays; only when "
+            "SARAND_KUBECONFORM_SCHEMAS names a local directory, see "
+            "docs/KUBERNETES.md)"
+        ),
+    ),
+    (
         "GitHub Actions",
         "actionlint",
         "https://github.com/rhysd/actionlint (or `brew install actionlint`)",

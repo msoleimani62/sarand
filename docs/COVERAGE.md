@@ -41,7 +41,7 @@ this file is stale.
 | Erlang | yes | yes | - | yes | - | Partial | `rebar3` | rebar3 |
 | Scala | yes | yes | - | yes | - | Partial | `sbt` | sbt |
 | Dockerfile | - | yes | - | yes | - | Partial | `hadolint` | - |
-| Kubernetes | - | yes | - | yes | - | Partial | `helm`, `kustomize` | - |
+| Kubernetes | - | yes | - | yes | yes | Partial | `helm`, `kustomize`, `kubeconform` | - |
 | GitHub Actions | - | yes | - | yes | yes | Partial | `actionlint` | - |
 | Terraform | - | yes | - | yes | - | Partial | `terraform`, `tflint` | - |
 | Protobuf | - | yes | - | yes | - | Partial | `buf` | - |

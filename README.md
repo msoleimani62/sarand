@@ -178,7 +178,7 @@ sarand drives the standard tools of each ecosystem. Nothing here is required: a 
 | Erlang | tests, quality: `rebar3` (EUnit, xref) |
 | Scala | tests: `sbt` · quality: scalafmt through `sbt`, when the project uses it |
 | Dockerfile | quality: `hadolint` |
-| Kubernetes | quality: `helm lint` per chart, `kustomize build` per overlay (never applies anything; remote bases and unbuilt dependencies are skipped) |
+| Kubernetes | quality: `helm lint` per chart, `kustomize build` per overlay (never applies anything; remote bases and unbuilt dependencies are skipped); opt-in: with `SARAND_KUBECONFORM_SCHEMAS` set, rendered charts and overlays are validated by `kubeconform` against local schemas ([`docs/KUBERNETES.md`](https://github.com/msoleimani62/sarand/blob/main/docs/KUBERNETES.md)) |
 | GitHub Actions | quality: `actionlint` |
 | Terraform | quality: `terraform fmt`, `tflint` (never init, plan or apply) |
 | Protobuf | quality: `buf lint` |
