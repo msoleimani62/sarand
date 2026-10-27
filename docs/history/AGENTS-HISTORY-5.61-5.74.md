@@ -1227,3 +1227,11 @@ relative link and `tests/test_pypi_readiness.py` failed: README links must be
 absolute because PyPI renders the README outside the repository. I had not run
 that test file before delivering; the sandbox can run most test files with a
 mini runner, so run the whole directory and compare it with a baseline.
+
+**Lesson (Windows).** CI run 40306830174 failed only on Windows:
+`str(Path)` has backslashes there, so the schema template (and the test that
+pinned it) differed. A string that goes to another tool, or into a template,
+uses `Path.as_posix()`; a test compares against the same call, not a literal
+built with `str(path)`. The Linux jobs, including the real helm and kubeconform
+job `kube`, passed, which also confirms the flags, the schema layout and the
+summary format against the real binaries.

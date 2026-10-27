@@ -168,7 +168,7 @@ def configured_schemas() -> tuple[Path | None, str]:
 
 def schema_location(schemas: Path) -> str:
     """The `-schema-location` template for a local kubernetes-json-schema tree."""
-    return f"{schemas}/{_SCHEMA_LAYOUT}"
+    return f"{schemas.as_posix()}/{_SCHEMA_LAYOUT}"
 
 
 def kubeconform_argv(schemas: Path, target: str) -> list[str]:

@@ -108,7 +108,7 @@ def test_a_chart_is_rendered_to_a_directory_then_checked_against_local_schemas()
         assert check[-1] == template[5]
         assert check[1:4] == ["-strict", "-summary", "-ignore-missing-schemas"]
         assert check[check.index("-schema-location") + 1] == (
-            f"{schemas}/{{{{ .NormalizedKubernetesVersion }}}}-standalone"
+            f"{Path(schemas).as_posix()}/{{{{ .NormalizedKubernetesVersion }}}}-standalone"
             "{{ .StrictSuffix }}/{{ .ResourceKind }}{{ .KindSuffix }}.json"
         )
         assert "-kubernetes-version" not in check
