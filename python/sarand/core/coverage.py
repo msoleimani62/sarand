@@ -210,6 +210,7 @@ DOCTOR_CATEGORIES: dict[str, tuple[str, ...]] = {
     "Scala": ("Scala",),
     "Dockerfile": ("Dockerfile",),
     "Kubernetes": ("Kubernetes",),
+    "Compose": ("Docker Compose",),
     "GitHub Actions": ("GitHub Actions",),
     "Terraform": ("Terraform",),
     "Protobuf": ("Protobuf",),

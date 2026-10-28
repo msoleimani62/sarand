@@ -392,6 +392,15 @@ _TOOL_CHECKS: tuple[tuple[str, str, str, str], ...] = (
         ),
     ),
     (
+        "Docker Compose",
+        "docker",
+        "https://docs.docker.com/compose/install/",
+        (
+            "--quality (docker compose config on each Compose file; needs the "
+            "Compose plugin)"
+        ),
+    ),
+    (
         "GitHub Actions",
         "actionlint",
         "https://github.com/rhysd/actionlint (or `brew install actionlint`)",
@@ -509,6 +518,7 @@ _CATEGORY_ORDER = (
     "Scala",
     "Dockerfile",
     "Kubernetes",
+    "Docker Compose",
     "GitHub Actions",
     "Terraform",
     "Protobuf",

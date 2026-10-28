@@ -28,6 +28,7 @@ from pathlib import Path
 from sarand.analyzers.android_analyzer import AndroidAnalyzer
 from sarand.analyzers.assembly_analyzer import AssemblyAnalyzer
 from sarand.analyzers.base import LanguageAnalyzer
+from sarand.analyzers.compose_analyzer import ComposeAnalyzer
 from sarand.analyzers.cpp_analyzer import CppAnalyzer
 from sarand.analyzers.csharp_analyzer import CSharpAnalyzer
 from sarand.analyzers.css_analyzer import CssAnalyzer
@@ -100,6 +101,7 @@ _BUILTIN: list[LanguageAnalyzer] = [
     ScalaAnalyzer(),
     DockerfileAnalyzer(),
     KubernetesAnalyzer(),
+    ComposeAnalyzer(),
     GitHubActionsAnalyzer(),
     TerraformAnalyzer(),
     ProtobufAnalyzer(),

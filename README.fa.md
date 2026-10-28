@@ -192,6 +192,7 @@ flowchart TD
 | Scala | آزمون: `sbt`؛ قالب‌بندی با `scalafmt` از طریق `sbt`، در صورت استفاده‌ی پروژه |
 | Dockerfile | کیفیت: `hadolint` |
 | Kubernetes | `helm lint` برای هر Chart و `kustomize build` برای هر Overlay؛ اختیاری: با تنظیم `SARAND_KUBECONFORM_SCHEMAS` خروجی رندرشده با `kubeconform` و schema محلی اعتبارسنجی می‌شود ([`docs/KUBERNETES.md`](https://github.com/msoleimani62/sarand/blob/main/docs/KUBERNETES.md)) |
+| Docker Compose | کیفیت: `docker compose config` برای هر فایل Compose همراه با override یا نوع آن (هرگز چیزی نمی‌سازد، pull نمی‌کند و اجرا نمی‌کند؛ متغیرها جایگزین نمی‌شوند و `include:` راه‌دور skipped می‌شود) |
 | GitHub Actions | کیفیت: `actionlint` |
 | Terraform | `terraform fmt` و `tflint`؛ دستورهای `init`، `plan` و `apply` اجرا نمی‌شوند |
 | Protobuf | کیفیت: `buf lint` |

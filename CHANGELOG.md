@@ -8,6 +8,12 @@ version may include behaviour changes.
 
 ### Added
 
+- Docker Compose files are checked with `docker compose config --quiet
+  --no-interpolate` under `--quality`: a base file alone and with each
+  override or variant next to it. Nothing is built, pulled or started;
+  a variable that is only set on your machine is not a failure; a file that
+  loads a remote `include:` is skipped. Without `docker` or its Compose
+  plugin the check is skipped, not failed.
 - Opt-in schema validation of Kubernetes charts and overlays: with
   `SARAND_KUBECONFORM_SCHEMAS` pointing at a local directory of Kubernetes
   JSON schemas, `--quality` renders each chart (`helm template`) and overlay

@@ -126,12 +126,12 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
     `xvfb-run`, so that is not needed). Debian, Kali, Termux and Android are
     unverified; on Termux and Android use `--format html` and print from a
     browser.
-13. **Docker Compose and Makefile execution** (`docker compose config`,
-    `hadolint`, running targets). Detection only today; `make` is never run
-    on purpose. (Kubernetes charts and overlays are linted since 5.60.)
-    Found 2026-10-25: `hadolint` already runs on Dockerfiles, so only
-    `docker compose config` is new; `make` targets would run project code and
-    only ever come behind an explicit opt-in flag (history 5.84).
+13. **Docker Compose -- `docker compose config` done in R10e** (history 5.86):
+    `--quiet --no-interpolate`, a base file checked alone and with each override
+    or variant, remote `include:` / `extends:` skipped, missing docker or Compose
+    plugin skipped. `hadolint` already ran on Dockerfiles. Not done, by decision:
+    running `make` targets (it would run project code; only ever behind an
+    explicit opt-in flag, history 5.84) and `dclint`.
 14. **Memory profiling of `--quality` and the test phase** (item 9 follow-up);
     only if a real report names one of them.
 

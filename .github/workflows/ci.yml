@@ -122,6 +122,33 @@ jobs:
           SARAND_REAL_KUBECONFORM: "1"
         run: python -m pytest -q tests/test_kubeconform_real.py
 
+  compose:
+    name: Docker Compose (real docker)
+    # The mocked tests pin sarand's wiring; this job runs the real
+    # `docker compose config` so the flags and the "required variable is not an
+    # error" assumption are proven (backlog item 13, round R10e).
+    # docker واقعی؛ flagها و فرض «متغیر الزامی خطا نیست» اینجا اثبات می‌شوند.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install sarand
+        run: |
+          docker compose version
+          python -m pip install --upgrade pip maturin
+          python -m pip install -e ".[dev]"
+
+      - name: docker compose config checks real files
+        env:
+          SARAND_REAL_COMPOSE: "1"
+        run: python -m pytest -q tests/test_compose_real.py
+
   quality:
     name: quality (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}

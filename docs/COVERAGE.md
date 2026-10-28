@@ -42,6 +42,7 @@ this file is stale.
 | Scala | yes | yes | - | yes | - | Partial | `sbt` | sbt |
 | Dockerfile | - | yes | - | yes | - | Partial | `hadolint` | - |
 | Kubernetes | - | yes | - | yes | yes | Partial | `helm`, `kustomize`, `kubeconform` | - |
+| Compose | - | yes | - | yes | yes | Partial | `docker` | - |
 | GitHub Actions | - | yes | - | yes | yes | Partial | `actionlint` | - |
 | Terraform | - | yes | - | yes | - | Partial | `terraform`, `tflint` | - |
 | Protobuf | - | yes | - | yes | - | Partial | `buf` | - |
