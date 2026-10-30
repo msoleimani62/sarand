@@ -164,6 +164,12 @@ def render(
             "total_files": data.makefile.total_files,
         }
 
+    # Declared Turborepo / Nx tasks (core/monorepo_tools.py): same contract,
+    # absent entirely unless a config file was found.
+    # taskهای اعلام‌شده‌ی Turborepo/Nx: کلید شرطی، غایب مگر اینکه فایل پیدا شود.
+    if data.monorepo_tools:
+        payload["monorepo_tools"] = [asdict(tool) for tool in data.monorepo_tools]
+
     # Same conditional-key contract as the other optional sections:
     # absent entirely unless the project was detected as hybrid.
     # همان قرارداد کلیدِ شرطیِ بخش‌های اختیاریِ دیگر: کاملاً غایب مگر

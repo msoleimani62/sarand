@@ -41,6 +41,7 @@ from sarand.core.issues import detect_known_issues
 from sarand.core.kubernetes import detect_kubernetes
 from sarand.core.lockfiles import run_lockfile_check
 from sarand.core.makefile import detect_makefiles
+from sarand.core.monorepo_tools import detect_monorepo_tools
 from sarand.core.node_pm import refine_build_system
 from sarand.core.per_component import (
     plan_component_runs,
@@ -364,6 +365,7 @@ async def run(config: SarandConfig) -> int:
     kubernetes = detect_kubernetes(root)
     compose = detect_compose(root)
     makefile = detect_makefiles(root)
+    monorepo_tools = detect_monorepo_tools(root, workspaces)
     components = detect_components(root, kubernetes, compose, makefile)
     # Hybrid projects: describe the whole project, not just its root.
     # پروژه‌ی ترکیبی: کل پروژه را توصیف کن، نه فقط ریشه را.
@@ -699,6 +701,7 @@ async def run(config: SarandConfig) -> int:
         kubernetes=kubernetes,
         compose=compose,
         makefile=makefile,
+        monorepo_tools=monorepo_tools,
         components=components,
     )
 

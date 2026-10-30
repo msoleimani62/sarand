@@ -49,10 +49,10 @@ assumed:
   execution to represent workspace structure *for* yet. Adding Bazel
   support is a new-analyzer backlog item in its own right, prior to
   anything workspace-shaped.
-- **Nx / Turborepo** (`nx.json` / `turbo.json`) -- OUT OF SCOPE for the
-  same reason as Bazel, one level removed: both layer on top of an
-  npm/pnpm/Yarn workspace, so they need that base workspace detection
-  built first (see above, also not implemented this round).
+- **Nx / Turborepo** (`nx.json` / `turbo.json`) -- their *declared* tasks and
+  projects are shown since round R12 (`core/monorepo_tools.py`, read
+  statically, nothing is run); the computed task graph and the targets
+  that Nx plugins infer are not.
 
 This module's public surface (`detect_workspace`) is deliberately
 generic, not `detect_cargo_workspace`, so the *next* ecosystem
@@ -68,8 +68,9 @@ Workspace»).
 مستقیماً روی سورس همین مخزن چک شده، نه فرض‌شده -- برای جزئیات به متن
 انگلیسیِ بالا نگاه کنید. خلاصه: Cargo workspace این دور پیاده‌سازی شد؛
 npm/pnpm/Yarn workspaces و Gradle multi-project و Maven multi-module
-شکاف تأییدشده‌اند ولی این دور پیاده نشدند؛ Bazel و Nx/Turborepo کاملاً
-خارج از scope‌اند چون sarand اصلاً آنالایزر Bazel ندارد.
+شکاف تأییدشده‌اند ولی این دور پیاده نشدند؛ Bazel خارج از scope است چون
+sarand اصلاً آنالایزر Bazel ندارد؛ taskهای اعلام‌شده‌ی Nx/Turborepo از دور R12
+به‌صورت ایستا در گزارش نشان داده می‌شوند.
 """
 
 from __future__ import annotations

@@ -381,6 +381,45 @@ class ComponentsInfo:
 
 
 @dataclass
+class MonorepoTask:
+    """A Turborepo task or an Nx target as declared: its name, the raw `dependsOn`
+    entries and a short detail ("cache off", "executor ..."). Static, never run.
+    """
+
+    name: str
+    depends_on: list[str] = field(default_factory=list)
+    detail: str = ""
+
+
+@dataclass
+class MonorepoProject:
+    """An Nx project found through a `project.json` or an `nx.targets` block."""
+
+    path: str
+    name: str
+    name_declared: bool = True
+    targets: list[MonorepoTask] = field(default_factory=list)
+    targets_total: int = 0
+
+
+@dataclass
+class MonorepoToolInfo:
+    """Turborepo or Nx, as far as the repository's own files say (see
+    `core/monorepo_tools.py`). `*_total` count everything found; the lists are
+    capped. `notes` say what was not read and why.
+    """
+
+    kind: str  # "turbo" | "nx"
+    config_files: list[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
+    tasks: list[MonorepoTask] = field(default_factory=list)
+    tasks_total: int = 0
+    projects: list[MonorepoProject] = field(default_factory=list)
+    projects_total: int = 0
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
 class ReportData:
     """Complete data package used to render any report format."""
 
@@ -417,6 +456,9 @@ class ReportData:
     compose: ComposeInfo | None = None
     makefile: MakefileInfo | None = None
     components: ComponentsInfo | None = None
+    # Turborepo / Nx declared tasks (core/monorepo_tools.py); empty unless a
+    # config file was found, so other reports stay byte-identical.
+    monorepo_tools: list[MonorepoToolInfo] = field(default_factory=list)
     extra: dict[str, Any] = field(default_factory=dict)
     # Workspaces after the first one (a repository with both a Cargo and a
     # Node workspace). `workspace` stays the first so every existing reader

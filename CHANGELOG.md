@@ -8,6 +8,12 @@ version may include behaviour changes.
 
 ### Added
 
+- The report shows the declared tasks of Turborepo (`turbo.json`) and the
+  declared targets and projects of Nx (`nx.json` with its `project.json`
+  files), in a "Monorepo tooling" section and a `monorepo_tools` JSON key that
+  exist only when one of them is found. It reads files only and never runs
+  `turbo`, `nx` or project code; targets that Nx plugins infer and the computed
+  task graph are not shown, and the report says so.
 - Docker Compose files are checked with `docker compose config --quiet
   --no-interpolate` under `--quality`: a base file alone and with each
   override or variant next to it. Nothing is built, pulled or started;

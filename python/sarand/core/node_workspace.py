@@ -36,7 +36,8 @@ ecosystem in one change"): the three Node models above, nothing else.
 **Deliberately not covered:** a repo with both a Cargo workspace and a Node
 workspace (Cargo is detected first and only one `WorkspaceInfo` exists),
 Lerna/Rush/Bolt without one of the declarations above, Nx/Turborepo task
-graphs, per-package-manager commands (members are still tested with
+graphs (their declared tasks are shown statically by
+`core/monorepo_tools.py`), per-package-manager commands (members are still tested with
 `npm test`), `npm audit` per member (the root lockfile audit already covers
 the whole workspace), and relationships between member packages.
 

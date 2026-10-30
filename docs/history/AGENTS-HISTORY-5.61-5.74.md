@@ -1271,3 +1271,48 @@ first two; if it fails, that is information about the assumption.
 
 **Not done.** `make` targets (project code), `dclint`, validating Compose files with
 `--profile` selections, and resolving remote includes.
+
+### 5.87 — Round R12: Turborepo and Nx declared tasks, read statically (item 1) (2026-10-28)
+
+**Evidence first (read from the code).** The blocker the docs gave for leaving Nx
+and Turborepo out (they need an npm/pnpm/Yarn workspace base) has been resolved
+since 5.50, and `core/node_workspace.py` already recognises `turbo` / `nx` in a
+root `test` or `lint` script and skips the members, so such a repository is run
+without duplicates. The only gap was representation: the report never said which
+tool manages the repository or which tasks it declares.
+
+**Decisions (owner, 2026-10-28).** D-NX1 static only, nothing is run (their plugins
+execute project code and may use the network); D-NX2 `turbo.json` is parsed,
+`turbo.jsonc` is recognised and noted but not parsed; D-NX3 Nx through `nx.json`
+(`targetDefaults`, plugin names), `project.json` files and explicit `nx.targets`
+blocks in workspace members, also for standalone Nx projects; D-NX4 a new optional
+`ReportData.monorepo_tools` list (a list, not a single value, because a repository
+may have both tools), rendered in Markdown and JSON only when non-empty, so no
+existing report or golden changed; D-NX5 caps 40 tasks, 60 projects, 12 targets per
+project, with real totals reported; and a CI job that compares the Turborepo
+reading with the real tool.
+
+**Evidence rules.** A file name alone is not proof: Turborepo needs `turbo.json` or
+`turbo.jsonc` at the root; Nx needs `nx.json` at the root. `project.json` without
+`nx.json`, a `turbo`/`nx` dependency, or a root script that calls them is not
+enough. Broken, oversized, non-object or symlinked files become notes that never
+quote the file content. `project.json` is searched to depth 6, 400 files at most,
+without following symlinks and skipping ignored and hidden directories.
+
+**Not shown, and stated in the report:** the computed task graph; targets inferred
+by Nx plugins (names of declared plugins are listed so the reader knows inference
+exists); package-level `turbo.json` files (counted); `turbo.jsonc` content.
+
+**Verification.** `tests/test_monorepo_tools.py` (31 tests: detection and
+evidence rules, caps, broken files, symlinks and depth, Markdown cell escaping,
+JSON and Markdown agreeing, and a guard that the module imports no subprocess).
+`tests/test_monorepo_real.py` and the CI job `turbo` run a **pinned** Turborepo
+(2.5.0, installed by `scripts/ci_install_turbo.sh`, kept out of ci.yml so the
+coverage matrix does not read it as Node.js in CI) on one fixture and compare, for every declared task, sarand's `dependsOn`,
+`cache`, `persistent` and output count with Turborepo's own
+`resolvedTaskDefinition` from `turbo run <task> --dry=json`. This is evidence of
+compatibility for that version and fixture, not proof for every version; the legacy
+`pipeline` key and Nx are covered by unit tests only. The dry-run JSON field names
+and the pinned version are from the Turborepo documentation and were **not** run in
+the sandbox (no Node); the first CI run is their proof, so a red `turbo` job is
+information about those assumptions.

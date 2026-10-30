@@ -350,6 +350,74 @@ def _render_quick_context(data: ReportData) -> list[str]:
     return lines
 
 
+_MONOREPO_LABELS = {"turbo": "Turborepo", "nx": "Nx"}
+
+
+def _cell(text: str) -> str:
+    """Safe inside a table cell or a list line: names come from config files."""
+    return " ".join(text.replace("`", "'").replace("|", "\\|").split())
+
+
+def _render_monorepo_tools(data: ReportData) -> list[str]:
+    """Declared Turborepo / Nx tasks and projects; empty unless a tool was found."""
+    if not data.monorepo_tools:
+        return []
+    lines = [
+        "## Monorepo tooling",
+        "",
+        "Read statically from configuration files; nothing was executed.",
+        "",
+    ]
+    for tool in data.monorepo_tools:
+        label = _MONOREPO_LABELS.get(tool.kind, tool.kind)
+        lines += [f"### {label}", ""]
+        files = ", ".join(f"`{_cell(name)}`" for name in tool.config_files)
+        lines.append(f"- Configuration: {files}")
+        if tool.evidence:
+            lines.append(
+                "- Evidence: " + "; ".join(_cell(item) for item in tool.evidence)
+            )
+        lines.append("")
+        if tool.tasks:
+            heading = "Declared tasks" if tool.kind == "turbo" else "Target defaults"
+            lines += [
+                f"{heading} ({tool.tasks_total}):",
+                "",
+                "| Name | Depends on | Notes |",
+                "|---|---|---|",
+            ]
+            for task in tool.tasks:
+                depends = ", ".join(f"`{_cell(item)}`" for item in task.depends_on)
+                lines.append(
+                    f"| `{_cell(task.name)}` | {depends or '-'} | "
+                    f"{_cell(task.detail) or '-'} |"
+                )
+            hidden = tool.tasks_total - len(tool.tasks)
+            if hidden > 0:
+                lines += ["", f"(+{hidden} more not shown)"]
+            lines.append("")
+        if tool.projects:
+            lines += [f"Declared projects ({tool.projects_total}):", ""]
+            for project in tool.projects:
+                names = ", ".join(_cell(t.name) for t in project.targets)
+                more = project.targets_total - len(project.targets)
+                tail = f" (+{more} more)" if more > 0 else ""
+                origin = "" if project.name_declared else " (name from the directory)"
+                lines.append(
+                    f"- `{_cell(project.path)}` -- `{_cell(project.name)}`{origin}: "
+                    f"{names or 'no targets declared'}{tail}"
+                )
+            hidden = tool.projects_total - len(tool.projects)
+            if hidden > 0:
+                lines.append(f"- (+{hidden} more projects not shown)")
+            lines.append("")
+        if tool.notes:
+            lines += ["Notes:", ""]
+            lines += [f"- {_cell(note)}" for note in tool.notes]
+            lines.append("")
+    return lines
+
+
 def render(
     data: ReportData, *, include_source: bool = True, full_output: bool = False
 ) -> str:
@@ -371,6 +439,7 @@ def render(
         *_render_detected_project(data),
         *_render_components(data),
         *_render_workspace(data),
+        *_render_monorepo_tools(data),
         *_render_kubernetes(data),
         *_render_compose(data),
         *_render_makefile(data),

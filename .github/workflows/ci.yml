@@ -149,6 +149,33 @@ jobs:
           SARAND_REAL_COMPOSE: "1"
         run: python -m pytest -q tests/test_compose_real.py
 
+  turbo:
+    name: Turborepo (real, pinned version)
+    # Evidence of compatibility, not proof for every version: sarand's reading of
+    # turbo.json is compared with Turborepo's own resolved task definitions on one
+    # fixture (backlog item 1, round R12).
+    # شاهد سازگاری برای یک نسخه‌ی پین‌شده؛ نه اثبات برای همه‌ی نسخه‌ها.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the pinned Turborepo and sarand
+        run: |
+          bash scripts/ci_install_turbo.sh
+          python -m pip install --upgrade pip maturin
+          python -m pip install -e ".[dev]"
+
+      - name: sarand's reading of turbo.json matches the real Turborepo
+        env:
+          SARAND_REAL_TURBO: "1"
+        run: python -m pytest -q tests/test_monorepo_real.py
+
   quality:
     name: quality (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}

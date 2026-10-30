@@ -65,7 +65,9 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    both a Cargo and a Node workspace is modelled since 2026-10-08
    (AGENTS.md 5.58). Per-package results are in the report since
    2026-10-09 (AGENTS.md 5.59, as a table, not a per-package score). Still
-   open: Nx/Turborepo task graphs.
+   open: nothing for Nx/Turborepo except their computed task graph. Their
+   declared tasks and projects are shown since R12 (history 5.87, statically;
+   `docs/WORKSPACES.md`).
 2. **A root analyzer that does not cascade hides its components -- fixed
    2026-10-06** (AGENTS.md 5.52) for Node.js, Go and Rust in hybrid
    projects, and since 2026-10-08 (AGENTS.md 5.55, 5.56) in non-hybrid
@@ -137,7 +139,8 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 
 **Order agreed on 2026-10-25** (details and reasons in history 5.84): the real
 follow-ups above, one verifiable round each, are done in this order: items 12
-and 11 (done), then 5 (opt-in), 13, 10 (R11a, R11b, R11c), 1 (design first),
+and 11 (done), then 5 (done, R10c), 13 (done, R10e), 1 (done, R12), 10 (R11a,
+R11b, R11c),
 and last the packaging in the roadmap file (Docker first). Item 14 stays
 skipped by its own rule. Item 9 (AUR) needs the owner's Arch machine and an
 AUR account.
@@ -165,8 +168,9 @@ wheels) by R9a (history 5.80).
 
 - **Bazel:** no Bazel analyzer exists in the roster; it would need a
   new-analyzer item first.
-- **Nx / Turborepo:** both need an npm/pnpm/Yarn workspace base detected first
-  (follow-up 1).
+- **Nx / Turborepo computed task graphs and Nx plugin-inferred targets:** they
+  need the tools themselves (their plugins run project code); only declared
+  configuration is read (follow-up 1, R12).
 - **A plugin marketplace:** the API has to stay stable first.
 
 ## Notes

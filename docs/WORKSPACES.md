@@ -56,6 +56,34 @@ counted once. A failing member test suite lowers the shared test ratio and
 adds "One or more test suites failed" to the critical list, exactly as a
 failing root suite would.
 
+## Monorepo tooling: Turborepo and Nx
+
+sarand reads the **declared** configuration of Turborepo and Nx and shows it in
+the report (the "Monorepo tooling" section, and the `monorepo_tools` key in
+JSON, both absent when neither tool is found). It reads files only: it never
+runs `turbo`, `nx` or any project code.
+
+| Tool | Detected when | What is listed |
+|---|---|---|
+| Turborepo | `turbo.json` (or `turbo.jsonc`) at the project root | the tasks under `tasks` (or the Turborepo 1.x `pipeline`): `dependsOn`, `cache: false`, `persistent`, the number of `outputs` |
+| Nx | `nx.json` at the project root | `targetDefaults`; each `project.json` (name, declared `targets`); an `nx.targets` block in a workspace member's `package.json`; the names of declared plugins |
+
+A file name alone is not proof. A `project.json` without an `nx.json`, a `turbo`
+or `nx` dependency, or a root script that calls them does **not** make sarand
+report the tool.
+
+What is not shown, and the report says so: the computed task graph; targets that
+Nx plugins infer (for example from `package.json` scripts or tool configuration
+files), which need Nx itself; package-level `turbo.json` files (counted, not
+read); the content of `turbo.jsonc` (it may contain comments). Lists are capped
+(40 tasks, 60 projects, 12 targets per project) and the report gives the real
+totals.
+
+How it is checked: the Turborepo reading is compared with the real Turborepo (one
+pinned version, one fixture) in the CI job `turbo`. That is evidence for that
+version and those features, not a promise for every Turborepo version. The Nx
+reading has unit tests only.
+
 ## What is not supported
 
 - **Maven modules that exist only in a `<profile>`**, `includeBuild` /
@@ -63,10 +91,8 @@ failing root suite would.
   loop: the structure is read statically, so these are not seen. A Maven
   module or Gradle project whose directory does not exist is left out, not
   guessed.
-- **Bazel, Nx and Turborepo** as workspace models. Bazel has no analyzer at
-  all. Nx and Turborepo sit on top of an npm/Yarn/pnpm workspace: that
-  workspace is detected, and a root script that calls them is recognised as
-  fanning out, but their task graphs are not read.
+- **Bazel** as a workspace model: it has no analyzer at all. Nx and Turborepo
+  are read statically (above); what is not read is listed there.
 - **Package-manager-specific commands.** Members are still tested with
   `npm test`, even in a pnpm or Yarn repository; the scripts run, but a repo
   that forbids `npm` through corepack needs its own tooling.
