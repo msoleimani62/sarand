@@ -43,7 +43,7 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
-import subprocess  # nosec B404 -- fixed argv only, this is a dev tool
+import subprocess  # nosec B404
 import sys
 import tempfile
 import time
