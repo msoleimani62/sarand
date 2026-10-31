@@ -8,7 +8,11 @@ from sarand.core.package_summary import (
     PhaseCount,
     summarize_packages,
 )
-from sarand.core.quick_context import build_quick_context
+from sarand.core.quick_context import (
+    FRAMEWORKS_LABEL,
+    build_quick_context,
+    format_framework,
+)
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
 from sarand.utils.fs import human_size
@@ -322,6 +326,13 @@ def _render_quick_context(data: ReportData) -> list[str]:
     ]
     if qc.components:
         lines.append(f"- **Components:** {'; '.join(qc.components)}")
+    if qc.frameworks_declared:
+        shown = "; ".join(_cell(format_framework(e)) for e in qc.frameworks_declared)
+        extra = qc.frameworks_declared_total - len(qc.frameworks_declared)
+        lines.append(
+            f"- **{FRAMEWORKS_LABEL}:** {shown}"
+            + (f" (+{extra} more)" if extra > 0 else "")
+        )
     structure = ", ".join(s if s.startswith("(") else f"`{s}`" for s in qc.structure)
     size = f"{qc.total_files} files, {qc.total_loc} LOC"
     lines.append(f"- **Structure:** {structure + ' -- ' if structure else ''}{size}")

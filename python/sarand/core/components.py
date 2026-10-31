@@ -88,6 +88,7 @@ import posixpath
 import re
 import tomllib
 from pathlib import Path
+from typing import NamedTuple
 
 import yaml as _yaml
 
@@ -226,32 +227,46 @@ def _normalise_py(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
-def _node_hint(manifest: Path) -> str:
-    text = _read_limited(manifest)
+class DeclaredDependency(NamedTuple):
+    """One dependency name read from a manifest. `scope` is `runtime` or
+    `dev` only where the manifest makes it unambiguous, otherwise empty.
+    یک نام وابستگی از مانیفست؛ `scope` فقط وقتی بی‌ابهام است پر می‌شود.
+    """
+
+    name: str
+    scope: str
+    manifest: str  # file name inside the directory, e.g. "package.json"
+
+
+_NODE_SECTIONS: tuple[tuple[str, str], ...] = (
+    ("dependencies", "runtime"),
+    ("devDependencies", "dev"),
+    ("peerDependencies", ""),
+)
+
+
+def _node_dependencies(directory: Path) -> list[DeclaredDependency]:
+    text = _read_limited(directory / "package.json")
     if text is None:
-        return ""
+        return []
     try:
         data = json.loads(text)
     except ValueError:
-        return ""
+        return []
     if not isinstance(data, dict):
-        return ""
-    deps: set[str] = set()
-    for key in ("dependencies", "devDependencies", "peerDependencies"):
+        return []
+    found: list[DeclaredDependency] = []
+    for key, scope in _NODE_SECTIONS:
         section = data.get(key)
         if isinstance(section, dict):
-            deps.update(str(k) for k in section)
-    front = bool(deps & _NODE_FRONTEND)
-    back = bool(deps & _NODE_BACKEND)
-    if front and not back:
-        return "frontend"
-    if back and not front:
-        return "backend"
-    return ""
+            found.extend(
+                DeclaredDependency(str(name), scope, "package.json") for name in section
+            )
+    return found
 
 
-def _python_hint(directory: Path, files: set[str]) -> str:
-    names: set[str] = set()
+def _python_dependencies(directory: Path, files: set[str]) -> list[DeclaredDependency]:
+    found: list[DeclaredDependency] = []
     if "pyproject.toml" in files:
         text = _read_limited(directory / "pyproject.toml")
         if text is not None:
@@ -266,12 +281,23 @@ def _python_hint(directory: Path, files: set[str]) -> str:
                     for dep in deps:
                         match = _PY_DEP_NAME.match(str(dep))
                         if match:
-                            names.add(_normalise_py(match.group(1)))
+                            found.append(
+                                DeclaredDependency(
+                                    _normalise_py(match.group(1)),
+                                    "runtime",
+                                    "pyproject.toml",
+                                )
+                            )
             poetry = data.get("tool", {}).get("poetry", {})
             if isinstance(poetry, dict) and isinstance(
                 poetry.get("dependencies"), dict
             ):
-                names.update(_normalise_py(str(k)) for k in poetry["dependencies"])
+                found.extend(
+                    DeclaredDependency(
+                        _normalise_py(str(name)), "runtime", "pyproject.toml"
+                    )
+                    for name in poetry["dependencies"]
+                )
     if "requirements.txt" in files:
         text = _read_limited(directory / "requirements.txt")
         for line in (text or "").splitlines():
@@ -280,7 +306,42 @@ def _python_hint(directory: Path, files: set[str]) -> str:
                 continue
             match = _PY_DEP_NAME.match(line)
             if match:
-                names.add(_normalise_py(match.group(1)))
+                found.append(
+                    DeclaredDependency(
+                        _normalise_py(match.group(1)), "", "requirements.txt"
+                    )
+                )
+    return found
+
+
+def declared_dependencies(directory: Path, files: set[str]) -> list[DeclaredDependency]:
+    """Dependency names declared in the manifests of one directory (Node:
+    `package.json`; Python: `pyproject.toml` and `requirements.txt`). The
+    single reader behind the `kind` hint below and the declared-frameworks
+    line of Quick Context (core/frameworks.py), so the two cannot disagree.
+    Cargo and Go manifests are not read here (nothing reads them yet).
+    خواننده‌ی واحد وابستگی‌های اعلام‌شده؛ Cargo و Go هنوز خوانده نمی‌شوند.
+    """
+    found: list[DeclaredDependency] = []
+    if "package.json" in files:
+        found.extend(_node_dependencies(directory))
+    found.extend(_python_dependencies(directory, files))
+    return found
+
+
+def _node_hint(directory: Path) -> str:
+    deps = {d.name for d in _node_dependencies(directory)}
+    front = bool(deps & _NODE_FRONTEND)
+    back = bool(deps & _NODE_BACKEND)
+    if front and not back:
+        return "frontend"
+    if back and not front:
+        return "backend"
+    return ""
+
+
+def _python_hint(directory: Path, files: set[str]) -> str:
+    names = {d.name for d in _python_dependencies(directory, files)}
     return "backend" if names & _PY_BACKEND else ""
 
 
@@ -306,7 +367,7 @@ def _application_components(
         directory = root if rel == "." else root / rel
         hints: set[str] = set()
         if "package.json" in markers:
-            hints.add(_node_hint(directory / "package.json"))
+            hints.add(_node_hint(directory))
         if "Python" in languages:
             hints.add(_python_hint(directory, files))
         hints.discard("")

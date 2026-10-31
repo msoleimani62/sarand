@@ -11,6 +11,21 @@
     "project_type": "workspace",
     "build_system": "pip + cargo + go mod",
     "components": [],
+    "frameworks_declared": [
+      {
+        "name": "fastapi",
+        "label": "FastAPI",
+        "scope": "runtime",
+        "manifest": "pyproject.toml"
+      },
+      {
+        "name": "pytest",
+        "label": "pytest",
+        "scope": "",
+        "manifest": "requirements.txt"
+      }
+    ],
+    "frameworks_declared_total": 2,
     "structure": [
       "src/",
       "(1 top-level file(s))"

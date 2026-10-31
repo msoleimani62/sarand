@@ -20,6 +20,7 @@ from _helpers import write
 from sarand.models.results import (
     CommandResult,
     EnvironmentInfo,
+    FrameworkEntry,
     GitSnapshot,
     HealthScore,
     Issue,
@@ -266,6 +267,15 @@ def build_hybrid_fixture(root: Path) -> ReportData:
         known_issues=["Compilation or lint errors were detected"],
         ai_summary="This is a hybrid Python/Rust/Go workspace with one failing test.",
         suggested_reading_order=suggested_reading_order,
+        frameworks_declared=[
+            FrameworkEntry(
+                name="fastapi",
+                label="FastAPI",
+                scope="runtime",
+                manifest="pyproject.toml",
+            ),
+            FrameworkEntry(name="pytest", label="pytest", manifest="requirements.txt"),
+        ],
     )
 
 

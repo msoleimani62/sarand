@@ -109,9 +109,11 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
    free-threaded Python builds have none and build from the sdist.
 9. **AUR:** the `PKGBUILD` is correct but unpublished; run `updpkgsums` once a
    release tag exists.
-10. **Quick Context -- designed 2026-10-25, not implemented.** The full design
-    and every decision are in `docs/QUICK_CONTEXT_DESIGN.md` (history 5.84):
-    R11a frameworks as declared dependencies plus the HTML and text sections,
+10. **Quick Context -- designed 2026-10-25; R11a done 2026-10-31 (history
+    5.88), R11b and R11c not implemented.** The full design and every decision
+    are in `docs/QUICK_CONTEXT_DESIGN.md` (history 5.84): R11a frameworks as
+    declared dependencies (Node and Python only; Cargo and Go are an open
+    question for the owner) plus the HTML and text sections,
     R11b layer L3 with rule-based risks that cite their evidence (the
     "inferred risk model" became a fixed rule table), R11c layer L4 behind
     `--relevant-source[=TOKENS]`.
@@ -139,7 +141,7 @@ in `pyproject.toml`, `Cargo.toml`, `Cargo.lock` and the AUR `PKGBUILD`
 
 **Order agreed on 2026-10-25** (details and reasons in history 5.84): the real
 follow-ups above, one verifiable round each, are done in this order: items 12
-and 11 (done), then 5 (done, R10c), 13 (done, R10e), 1 (done, R12), 10 (R11a,
+and 11 (done), then 5 (done, R10c), 13 (done, R10e), 1 (done, R12), 10 (R11a done,
 R11b, R11c),
 and last the packaging in the roadmap file (Docker first). Item 14 stays
 skipped by its own rule. Item 9 (AUR) needs the owner's Arch machine and an

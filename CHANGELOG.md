@@ -8,6 +8,13 @@ version may include behaviour changes.
 
 ### Added
 
+- Quick Context now lists the frameworks that your manifests declare
+  (`package.json`, `pyproject.toml`, `requirements.txt`), in a "Declared
+  frameworks (from manifests, not verified in code)" line and a
+  `quick_context.frameworks_declared` JSON key. It reads declarations only: a
+  name in the table is not proof that the code uses it, and Cargo and Go
+  manifests are not read yet. The HTML and plain-text reports now carry the
+  Quick Context block too (Markdown and JSON already did).
 - The report shows the declared tasks of Turborepo (`turbo.json`) and the
   declared targets and projects of Nx (`nx.json` with its `project.json`
   files), in a "Monorepo tooling" section and a `monorepo_tools` JSON key that

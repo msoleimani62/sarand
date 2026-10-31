@@ -7,6 +7,8 @@
     "project_type": "unknown",
     "build_system": "unknown",
     "components": [],
+    "frameworks_declared": [],
+    "frameworks_declared_total": 0,
     "structure": [],
     "total_files": 0,
     "total_loc": 0,

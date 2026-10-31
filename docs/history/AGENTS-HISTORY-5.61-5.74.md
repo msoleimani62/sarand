@@ -1316,3 +1316,23 @@ compatibility for that version and fixture, not proof for every version; the leg
 and the pinned version are from the Turborepo documentation and were **not** run in
 the sandbox (no Node); the first CI run is their proof, so a red `turbo` job is
 information about those assumptions.
+
+### 5.88 — Round R11a: declared frameworks in Quick Context (2026-10-31)
+
+Scope and every decision are in `docs/QUICK_CONTEXT_DESIGN.md` (section 4 and
+"Result of R11a"). In short: the audit found that Node and Python dependency
+names were already read in `core/components.py` with the scope discarded, and
+that no Cargo or Go dependency is read anywhere (decision D-QC8). The reader
+became one public function, `declared_dependencies`; `core/frameworks.py` adds a
+64-name table with a version and a pinned digest and the detector;
+`ReportData.frameworks_declared` is filled in `cli.py`; Quick Context carries at
+most 8 entries with the real total; the HTML and text renderers got the Quick
+Context block through one shared function, `quick_context_lines`.
+
+**Verification.** `tests/test_frameworks.py` (21 tests) and an extended
+worst-case test in `tests/test_quick_context.py`; every `tests/test_components.py`
+test still passes, which is the proof that the extracted reader keeps the
+`frontend` / `backend` hint unchanged. Goldens regenerated with
+`SARAND_UPDATE_GOLDEN=1` and each diff read and classified as intended (design
+file). The sandbox runs a minimal runner without pytest, mypy or ruff, so the
+first full run of those is the owner's chain and CI.

@@ -11,6 +11,7 @@ This report is generated for AI analysis and contains project metadata, test res
 ## Quick Context
 
 - **Project:** `hybrid-project` -- Python (Python, Rust, Go); type workspace; build pip + cargo + go mod
+- **Declared frameworks (from manifests, not verified in code):** FastAPI (fastapi, runtime; pyproject.toml); pytest (pytest; requirements.txt)
 - **Structure:** `src/`, (1 top-level file(s)) -- 196 files, 12000 LOC
 - **Tests:** pytest: passed, cargo test: failed, go test: skipped
 - **Quality:** ruff: passed, cargo clippy: failed

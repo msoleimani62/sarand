@@ -119,8 +119,10 @@ def test_the_reports_show_the_coverage_only_when_something_was_skipped() -> None
     partial.health = compute_health_score(partial)
 
     assert "Check coverage" not in markdown.render(complete)
-    assert "confidence" not in text.render(complete)
+    # The text report's own health line; Quick Context (R11a) always shows
+    # "confidence N%" on its Health line, as the Markdown report already did.
+    assert "-- confidence" not in text.render(complete)
     assert "**Check coverage:** 1 ran, 1 skipped (tool not installed)" in (
         markdown.render(partial)
     )
-    assert "confidence 50%" in text.render(partial)
+    assert "-- confidence 50%" in text.render(partial)

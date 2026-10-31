@@ -35,6 +35,7 @@ from sarand.core.compose import detect_compose
 from sarand.core.concurrency import jobs_argument, resolve_jobs
 from sarand.core.detection_refine import refine_detection
 from sarand.core.estimate import estimate_source_bytes, size_advice
+from sarand.core.frameworks import detect_declared_frameworks
 from sarand.core.gitleaks import gitleaks_flagged_paths, run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.issues import detect_known_issues
@@ -366,6 +367,7 @@ async def run(config: SarandConfig) -> int:
     compose = detect_compose(root)
     makefile = detect_makefiles(root)
     monorepo_tools = detect_monorepo_tools(root, workspaces)
+    frameworks_declared = detect_declared_frameworks(root)
     components = detect_components(root, kubernetes, compose, makefile)
     # Hybrid projects: describe the whole project, not just its root.
     # پروژه‌ی ترکیبی: کل پروژه را توصیف کن، نه فقط ریشه را.
@@ -702,6 +704,7 @@ async def run(config: SarandConfig) -> int:
         compose=compose,
         makefile=makefile,
         monorepo_tools=monorepo_tools,
+        frameworks_declared=frameworks_declared,
         components=components,
     )
 

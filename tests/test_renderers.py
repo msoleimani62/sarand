@@ -87,7 +87,13 @@ def test_text_renderer_is_short_and_contains_essentials() -> None:
 
         assert "Detected: Python" in output
         assert "Health:" in output
-        assert len(output.splitlines()) < 20  # stays a summary, not a dump
+        # Stays a summary, not a dump: the original header is under 20 lines
+        # and, since R11a, the bounded Quick Context block follows it (its
+        # worst case is capped by the L2 limits), so the whole is under 60.
+        # از R11a بلوک محدود Quick Context بعد از سربرگ می‌آید.
+        head, _, block = output.partition("\nQuick Context\n")
+        assert len(head.splitlines()) < 20
+        assert block and len(output.splitlines()) < 60
 
 
 def test_markdown_renderer_shows_excluded_secrets_and_findings() -> None:

@@ -1,6 +1,8 @@
 # Quick Context layers L2, L3 and L4: design record
 
-Status: **accepted by the owner on 2026-10-25, not implemented yet.**
+Status: **accepted by the owner on 2026-10-25. R11a (declared frameworks and
+the HTML and text sections) is implemented, 2026-10-31; R11b and R11c are not
+implemented yet.**
 This file is the single record of the design and of every decision taken about
 it. Code is written in three rounds (R11a, R11b, R11c) that follow it; when a
 round changes something here, it changes this file in the same commit.
@@ -81,8 +83,9 @@ line) and `looks_like_secret_path(path)`, so L4 needs no new scanner.
 | D-QC5 | Every risk carries rule id, category, severity, evidence references, reason and limitation (section 6.2). | 2026-10-25 |
 | D-QC6 | The L4 budget is enforced as a hard byte cap derived from the token budget, documented as an estimate (section 5.2). | 2026-10-25 |
 | D-QC7 | L4 re-checks every snippet for secrets before it is written, even for files already in `included_files` (section 5.4). | 2026-10-25 |
+| D-QC8 | R11a reads Node (`package.json`) and Python (`pyproject.toml`, `requirements.txt`) manifests only, because those are the only ones whose dependency names are already parsed (`core/components.py`). Cargo and Go dependency names are parsed nowhere, so those ecosystems give no entries until a separate, owner-approved step adds a reader (section 4, result). | 2026-10-31 |
 
-D-QC5 to D-QC7 come from an outside review of the first design, adopted after the
+D-QC8 was taken in R11a from the audit the design asked for. D-QC5 to D-QC7 come from an outside review of the first design, adopted after the
 owner's approval; the disposition of every point of that review is in section 9.
 
 ## 4. Round R11a: finish L2
@@ -116,6 +119,68 @@ Acceptance criteria:
       (regenerate with `SARAND_UPDATE_GOLDEN=1`, read the diff, classify each
       change as intended or not);
 - [ ] the full suite passes, and analysis output is unchanged.
+
+### Result of R11a (2026-10-31)
+
+Audit finding (first step of the round): the dependency names of **Node and
+Python manifests** were already read in `core/components.py` (for the
+`frontend` / `backend` hint), but merged into one set with the scope thrown
+away. **No Cargo or Go dependency name is read anywhere** (the workspace code
+reads Cargo members, not dependencies). Decision D-QC8: reuse, do not add a
+parser. The reader was extracted into one public function,
+`declared_dependencies`, which now feeds both the `kind` hint (behaviour
+unchanged, every `test_components.py` test passes) and the framework line, so
+the two cannot disagree.
+
+What was built:
+
+- `core/frameworks.py`: `FRAMEWORK_TABLE` (64 names, Node and Python),
+  `FRAMEWORK_TABLE_VERSION = 1`, `detect_declared_frameworks(root)`. It reads the
+  project root and the application components found by `core/components.py`
+  (same bounded search, `examples/`, `tests/`, `vendor/` and `node_modules/`
+  pruned), and nothing else. Output is sorted by (manifest, label, name) and
+  capped at 100 entries.
+- `scope`: `runtime` for `dependencies`, `[project].dependencies` and Poetry
+  dependencies; `dev` for `devDependencies`; empty for `peerDependencies` and
+  `requirements.txt`, whose meaning is not unambiguous (a `requirements.txt` may
+  hold development tools). Poetry groups and `optional-dependencies` are not
+  read, as before.
+- `ReportData.frameworks_declared: list[FrameworkEntry]` (empty by default),
+  filled in `cli.py`, so Quick Context stays a pure function of `ReportData`.
+- Quick Context JSON: `frameworks_declared` (at most 8 entries) and
+  `frameworks_declared_total` (the real count). Markdown line: "Declared
+  frameworks (from manifests, not verified in code)", only when non-empty, with
+  "(+N more)".
+- One shared function, `quick_context_lines(qc)`, produces the plain lines for
+  the **HTML and text** renderers, which had no Quick Context before; Markdown
+  keeps its own markup over the same fields.
+
+Acceptance criteria, as checked:
+
+- [x] no framework from the directory layout (`test_no_framework_is_ever_reported_from_the_directory_layout`);
+- [x] stable order, same bytes twice (`test_output_is_deterministic_sorted_and_not_a_mutation_of_anything`);
+- [x] table snapshot test (version and SHA-256 of the sorted table; changing the
+      table is a deliberate edit that changes both);
+- [x] worst case still pinned and documented: the Markdown block went from 6438
+      to 7362 bytes in the worst case (8 declared frameworks at their longest),
+      so the documented figure is now about 7 KiB, and the test still requires
+      under 9000;
+- [x] goldens reviewed one by one (below);
+- [x] the full suite passes and analysis output is unchanged (a test compares
+      the report before and after rendering).
+
+Golden changes, each classified **intended**: `hybrid.md` gains one line (the
+frameworks line, from two entries added to the hand-built fixture); `hybrid.json`
+and `minimal.json` gain `frameworks_declared` and `frameworks_declared_total`
+inside `quick_context` (a stable schema, empty list when none); `hybrid.txt`,
+`minimal.txt`, `hybrid.html` and `minimal.html` gain the whole Quick Context
+block (new, from the shared function), and `minimal.txt` shows one
+trailing-newline artefact on the line above it. SARIF snapshots are unchanged.
+
+Open for the owner: a reader for Cargo (`[dependencies]`, `[dev-dependencies]`,
+`[workspace.dependencies]`) and Go (`go.mod` `require`) would let `tokio`,
+`axum`, `gin` and similar names into the table. It is small, but it is a new
+parser, which this design said not to add inside R11a.
 
 ## 5. Round R11c: L4, the relevant source subset
 

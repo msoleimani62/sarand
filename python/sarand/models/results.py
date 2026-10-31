@@ -420,6 +420,22 @@ class MonorepoToolInfo:
 
 
 @dataclass
+class FrameworkEntry:
+    """A framework recognised from a DECLARED dependency (core/frameworks.py).
+
+    Not proof of use: `name` is the dependency as the manifest spells it,
+    `label` comes from a fixed table, `scope` is `runtime` or `dev` only where
+    the manifest makes it unambiguous, `manifest` is the project-relative file
+    it was read from.
+    """
+
+    name: str
+    label: str
+    scope: str = ""
+    manifest: str = ""
+
+
+@dataclass
 class ReportData:
     """Complete data package used to render any report format."""
 
@@ -459,6 +475,11 @@ class ReportData:
     # Turborepo / Nx declared tasks (core/monorepo_tools.py); empty unless a
     # config file was found, so other reports stay byte-identical.
     monorepo_tools: list[MonorepoToolInfo] = field(default_factory=list)
+    # Frameworks recognised from declared dependencies (core/frameworks.py);
+    # empty unless a manifest declares a known one, so other reports stay
+    # byte-identical.
+    # فریم‌ورک‌های شناخته‌شده از وابستگی‌های اعلام‌شده؛ در حالت عادی خالی.
+    frameworks_declared: list[FrameworkEntry] = field(default_factory=list)
     extra: dict[str, Any] = field(default_factory=dict)
     # Workspaces after the first one (a repository with both a Cargo and a
     # Node workspace). `workspace` stays the first so every existing reader

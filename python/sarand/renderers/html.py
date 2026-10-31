@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from html import escape
 
+from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
 from sarand.utils.fs import human_size
@@ -127,6 +128,9 @@ def render(
             f"scan engine: {'Rust core' if data.used_rust_core else 'pure-Python fallback'}</p>"
         ),
     ]
+
+    quick = "\n".join(quick_context_lines(build_quick_context(data)))
+    parts.append(f"<h2>Quick Context</h2><pre>{escape(quick)}</pre>")
 
     parts.append('<div class="card">')
     if d.is_recognized:

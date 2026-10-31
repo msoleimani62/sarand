@@ -8,6 +8,7 @@ says not to build those without evidence):
 - L1 project summary -- the existing "AI Summary" section
 - **L2 Quick Context -- this module**, a short section at the very top
 - L3/L4 architecture/risks and relevant source subset -- not built
+  (designed in docs/QUICK_CONTEXT_DESIGN.md)
 
 Evidence-first audit (run on a real report: sarand scanning itself,
 1.6 MB, ~410K tokens by the 4-chars-per-token rule of thumb, plus the
@@ -28,11 +29,14 @@ golden fixtures):
    Fixed in `suggest_reading_order`: shallow paths first, test files
    never promoted, docs after the entry points, and the two
    sarand-specific substrings removed.
-3. Frameworks, "important risks" in an inferential sense and an
-   architecture graph are **not** in the report data, so Quick Context
-   does not invent them (the backlog: "exact fields must be based on
-   current report data"). Everything below is read from existing
-   `ReportData` fields; nothing is guessed.
+3. "Important risks" in an inferential sense and an architecture graph
+   are **not** in the report data, so Quick Context does not invent them
+   (the backlog: "exact fields must be based on current report data").
+   Everything below is read from existing `ReportData` fields; nothing
+   is guessed.
+4. Frameworks (R11a) are reported only as **declared** dependencies read
+   from manifests and matched against a fixed table
+   (`core/frameworks.py`); the line says "not verified in code".
 
 Properties:
 
@@ -42,15 +46,18 @@ Properties:
   finding, changes no score and no other section.
 - **Bounded:** every list is capped, every string clipped to 120
   characters, dropped items are counted as "(+N more)". Worst case is
-  about 6 KiB (~1.5K tokens) for any project; a typical report's block
-  is 1-2 KiB (~250-500 tokens). A test pins the worst case.
+  about 7 KiB (~1.8K tokens) for any project (measured 7362 bytes of
+  Markdown with the 8 declared frameworks at their longest); a typical
+  report's block is 1-2 KiB (~250-500 tokens). A test pins the worst
+  case.
 - **Preserves what matters:** failed checks, health critical failures,
   known issues, tool errors/warnings counts, secret-pattern counts
   (never paths or content), skipped checks and git drift all surface
   here, so skimming only this block still shows what is wrong.
 
-Not covered: frameworks, an inferred risk model, L3/L4, HTML/text
-renderers (Markdown and JSON carry it).
+Not covered: an inferred risk model, L3/L4. Markdown, JSON, HTML and
+text all carry the block (HTML and text through the one shared
+`quick_context_lines`).
 
 Quick Context: لایه‌ی فشرده و قطعیِ L2 گزارش (آیتم ۱۲ backlog).
 
@@ -59,11 +66,13 @@ Quick Context: لایه‌ی فشرده و قطعیِ L2 گزارش (آیتم ۱
 امنیت، یافته‌های بحرانی، ریسک‌ها و اجزا را ندارد؛ این‌ها پشت Environment،
 Git و جدول TODO (که با `--full` نامحدود است) هستند. (۲) «ترتیب مطالعه»
 گمراه‌کننده بود: ۴۰ مورد اولش ۳۳ پلاگین آنالایزر بود و `cli.py` و
-ماژول‌های `core/` هرگز نمی‌آمدند. (۳) فریمورک‌ها و مدل استنتاجیِ ریسک
-در داده‌ی گزارش نیستند و ساخته نمی‌شوند.
+ماژول‌های `core/` هرگز نمی‌آمدند. (۳) مدل استنتاجیِ ریسک
+در داده‌ی گزارش نیست و ساخته نمی‌شود. (۴) فریم‌ورک‌ها (R11a) فقط به‌صورت
+وابستگیِ *اعلام‌شده* در مانیفست و با یک جدول ثابت گزارش می‌شوند، نه
+استفاده‌ی واقعی در کد.
 
 ویژگی‌ها: قطعی (تابع محضِ `ReportData`)، بدون دست‌زدن به تحلیل، محدود
-(سقف هر فهرست، هر رشته ۱۲۰ نویسه، بدترین حالت حدود ۶ KiB ≈ ۱٫۵ هزار
+(سقف هر فهرست، هر رشته ۱۲۰ نویسه، بدترین حالت حدود ۷ KiB ≈ ۱٫۸ هزار
 توکن؛ حالت معمول ۱ تا ۲ KiB) و حافظ آنچه مهم است.
 """
 
@@ -72,7 +81,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from sarand.models.results import CommandResult, ReportData
+from sarand.models.results import CommandResult, FrameworkEntry, ReportData
 
 _CLIP = 120
 _MAX_COMPONENTS = 8
@@ -81,6 +90,7 @@ _MAX_CHECKS = 12
 _MAX_CRITICAL = 5
 _MAX_KNOWN = 5
 _MAX_NAMES = 6
+_MAX_FRAMEWORKS = 8
 _READING_ORDER_LEN = 10
 
 # One top-level entry of the rendered project tree ("├── name/").
@@ -98,6 +108,10 @@ class QuickContext:
     project_type: str = ""
     build_system: str = ""
     components: list[str] = field(default_factory=list)
+    # Declared, not verified in code (core/frameworks.py); capped, with the
+    # real total beside it.
+    frameworks_declared: list[FrameworkEntry] = field(default_factory=list)
+    frameworks_declared_total: int = 0
     structure: list[str] = field(default_factory=list)
     total_files: int = 0
     total_loc: int = 0
@@ -119,6 +133,30 @@ def _capped(items: list[str], limit: int) -> list[str]:
     if len(items) <= limit:
         return items
     return [*items[:limit], f"(+{len(items) - limit} more)"]
+
+
+def format_framework(entry: FrameworkEntry) -> str:
+    """One framework entry as plain text: `FastAPI (fastapi, runtime;
+    backend/pyproject.toml)`. Shared by every renderer."""
+    detail = entry.name + (f", {entry.scope}" if entry.scope else "")
+    if entry.manifest:
+        detail += f"; {entry.manifest}"
+    return _clip(f"{entry.label} ({detail})", 100)
+
+
+def _frameworks(data: ReportData) -> list[FrameworkEntry]:
+    return [
+        FrameworkEntry(
+            name=_clip(e.name, 60),
+            label=_clip(e.label, 40),
+            scope=_clip(e.scope, 10),
+            manifest=_clip(e.manifest, 80),
+        )
+        for e in data.frameworks_declared[:_MAX_FRAMEWORKS]
+    ]
+
+
+FRAMEWORKS_LABEL = "Declared frameworks (from manifests, not verified in code)"
 
 
 def _status(result: CommandResult) -> str:
@@ -244,6 +282,8 @@ def build_quick_context(data: ReportData) -> QuickContext:
         project_type=_clip(detection.project_type, 40),
         build_system=_clip(detection.build_system, 40),
         components=_component_labels(data),
+        frameworks_declared=_frameworks(data),
+        frameworks_declared_total=len(data.frameworks_declared),
         structure=_top_level(data.tree_text),
         total_files=data.stats.total_files,
         total_loc=data.stats.total_loc,
@@ -257,3 +297,49 @@ def build_quick_context(data: ReportData) -> QuickContext:
             _clip(p, 80) for p in data.suggested_reading_order[:_READING_ORDER_LEN]
         ],
     )
+
+
+def quick_context_lines(qc: QuickContext) -> list[str]:
+    """The block as plain text lines -- the ONE function behind the HTML and
+    text renderers, so they cannot drift apart. Nested items are indented by
+    two spaces. (Markdown formats the same fields with its own markup.)
+    بلوک به‌صورت خطوط متن ساده؛ تنها تابع پشت رندرهای HTML و متن.
+    """
+    languages = ", ".join(qc.languages) or "unknown"
+    lines = [
+        (
+            f"Project: {qc.project} -- {qc.primary_language} ({languages}); "
+            f"type {qc.project_type}; build {qc.build_system}"
+        )
+    ]
+    if qc.components:
+        lines.append(f"Components: {'; '.join(qc.components)}")
+    if qc.frameworks_declared:
+        shown = "; ".join(format_framework(e) for e in qc.frameworks_declared)
+        extra = qc.frameworks_declared_total - len(qc.frameworks_declared)
+        lines.append(
+            f"{FRAMEWORKS_LABEL}: {shown}" + (f" (+{extra} more)" if extra > 0 else "")
+        )
+    structure = ", ".join(qc.structure)
+    size = f"{qc.total_files} files, {qc.total_loc} LOC"
+    lines.append(f"Structure: {structure + ' -- ' if structure else ''}{size}")
+    for label, checks in (
+        ("Tests", qc.tests),
+        ("Quality", qc.quality),
+        ("Security", qc.security),
+    ):
+        lines.append(f"{label}: {', '.join(checks) if checks else 'none run'}")
+    if qc.health:
+        lines.append(f"Health: {qc.health}")
+    for label, items, empty in (
+        ("Critical findings", qc.critical_findings, "none recorded"),
+        ("Risks", qc.risks, "none identified"),
+    ):
+        if items:
+            lines.append(f"{label}:")
+            lines.extend(f"  - {item}" for item in items)
+        else:
+            lines.append(f"{label}: {empty}")
+    if qc.reading_order:
+        lines.append("Read first: " + ", ".join(qc.reading_order))
+    return lines
