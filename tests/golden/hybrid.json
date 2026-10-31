@@ -71,6 +71,73 @@
       "src/module_9.py"
     ]
   },
+  "architecture": {
+    "components": [],
+    "workspaces": [],
+    "entry_points": [
+      "src/main.py",
+      "src/lib.rs",
+      "cmd/server/main.go"
+    ],
+    "compose": [],
+    "kubernetes": []
+  },
+  "risks": {
+    "risks": [
+      {
+        "rule_id": "HEALTH-CRITICAL",
+        "category": "quality",
+        "severity": "high",
+        "evidence_refs": [
+          "health.critical_failures"
+        ],
+        "reason": "1 critical failure(s) in the health score",
+        "limitations": "Covers only the checks that ran."
+      },
+      {
+        "rule_id": "SEC-CHECK-FAILED",
+        "category": "security",
+        "severity": "high",
+        "evidence_refs": [
+          "security_results[kind=gitleaks]"
+        ],
+        "reason": "1 of 2 security check(s) failed",
+        "limitations": "A tool result, not a proven vulnerability."
+      },
+      {
+        "rule_id": "SECRET-PATTERNS",
+        "category": "security",
+        "severity": "warning",
+        "evidence_refs": [
+          "secret_findings[is_test_fixture=false]"
+        ],
+        "reason": "1 secret-pattern match(es) outside test fixtures",
+        "limitations": "Pattern matches, not confirmed leaked secrets; only a count is shown."
+      },
+      {
+        "rule_id": "DUPLICATE-FILES",
+        "category": "maintainability",
+        "severity": "info",
+        "evidence_refs": [
+          "stats.duplicate_files"
+        ],
+        "reason": "1 group(s) of files with identical content",
+        "limitations": "Identical content among the files the scan hashed (its size cap applies)."
+      },
+      {
+        "rule_id": "GIT-STATE",
+        "category": "repository-state",
+        "severity": "info",
+        "evidence_refs": [
+          "git.dirty",
+          "git.ahead"
+        ],
+        "reason": "working copy has uncommitted changes, 1 commit(s) ahead of upstream",
+        "limitations": "Says nothing about security or quality."
+      }
+    ],
+    "rules_not_evaluated": []
+  },
   "generated_at": "2026-01-01T12:00:00+00:00",
   "used_rust_core": true,
   "detection": {

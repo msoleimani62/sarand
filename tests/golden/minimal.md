@@ -18,6 +18,11 @@ This report is generated for AI analysis and contains project metadata, test res
 - **Critical findings:** none recorded
 - **Risks:** none identified
 
+## Architecture and Risks
+
+- **Risks (rule-based):** none identified
+- **Rules not evaluated (9 of 9, data absent):** CHECKS-SKIPPED, DUPLICATE-FILES, GIT-STATE, HEALTH-CRITICAL, HEALTH-LOW-CONFIDENCE, LARGE-FILE, SEC-CHECK-FAILED, SECRET-PATTERNS, TODO-CLUSTER
+
 ## Detected Project
 
 No recognized project marker was found in this directory.

@@ -29,6 +29,26 @@ This report is generated for AI analysis and contains project metadata, test res
   - working tree has uncommitted changes
 - **Read first:** `src/module_0.py`, `src/module_1.py`, `src/module_2.py`, `src/module_3.py`, `src/module_4.py`, `src/module_5.py`, `src/module_6.py`, `src/module_7.py`, `src/module_8.py`, `src/module_9.py`
 
+## Architecture and Risks
+
+- **Entry points:**
+  - src/main.py
+  - src/lib.rs
+  - cmd/server/main.go
+
+- **Risks (rule-based):**
+  - HEALTH-CRITICAL (high): 1 critical failure(s) in the health score [health.critical_failures]
+  - SEC-CHECK-FAILED (high): 1 of 2 security check(s) failed [security_results[kind=gitleaks]]
+  - SECRET-PATTERNS (warning): 1 secret-pattern match(es) outside test fixtures [secret_findings[is_test_fixture=false]]
+  - DUPLICATE-FILES (info): 1 group(s) of files with identical content [stats.duplicate_files]
+  - GIT-STATE (info): working copy has uncommitted changes, 1 commit(s) ahead of upstream [git.dirty; git.ahead]
+- **Limitations:**
+  - HEALTH-CRITICAL: Covers only the checks that ran.
+  - SEC-CHECK-FAILED: A tool result, not a proven vulnerability.
+  - SECRET-PATTERNS: Pattern matches, not confirmed leaked secrets; only a count is shown.
+  - DUPLICATE-FILES: Identical content among the files the scan hashed (its size cap applies).
+  - GIT-STATE: Says nothing about security or quality.
+
 ## Detected Project
 
 - **Primary language:** Python

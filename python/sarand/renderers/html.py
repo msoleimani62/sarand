@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from html import escape
 
+from sarand.core.architecture import l3_lines
 from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
@@ -131,6 +132,8 @@ def render(
 
     quick = "\n".join(quick_context_lines(build_quick_context(data)))
     parts.append(f"<h2>Quick Context</h2><pre>{escape(quick)}</pre>")
+    layer3 = "\n".join(l3_lines(data))
+    parts.append(f"<h2>Architecture and Risks</h2><pre>{escape(layer3)}</pre>")
 
     parts.append('<div class="card">')
     if d.is_recognized:

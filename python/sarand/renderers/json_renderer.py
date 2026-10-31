@@ -8,8 +8,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from sarand.core.architecture import build_architecture
 from sarand.core.package_summary import summarize_packages
 from sarand.core.quick_context import build_quick_context
+from sarand.core.risks import evaluate_risks
 from sarand.models.results import (
     CommandResult,
     HealthScore,
@@ -65,6 +67,8 @@ def render(
     payload = {
         "project_root": str(data.project_root),
         "quick_context": asdict(build_quick_context(data)),
+        "architecture": asdict(build_architecture(data)),
+        "risks": asdict(evaluate_risks(data)),
         "generated_at": data.generated_at.isoformat(),
         "used_rust_core": data.used_rust_core,
         "detection": data.detection.__dict__,

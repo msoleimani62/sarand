@@ -163,11 +163,11 @@ def test_worst_case_stays_within_the_documented_budget() -> None:
             FrameworkEntry(name=long, label=long, scope=long, manifest=long)
             for _ in range(100)
         ]
-        section = markdown.render(data).split("## Detected Project")[0]
+        section = markdown.render(data).split("## Architecture and Risks")[0]
         quick = section.split("## Quick Context")[1]
         assert len(quick) < 9000
         assert len(build_quick_context(data).frameworks_declared) == 8
-        assert len(text.render(data).splitlines()) < 60
+        assert len(text.render(data).splitlines()) < 100
         assert build_quick_context(data).frameworks_declared_total == 100
         qc = build_quick_context(data)
         assert qc.tests[-1] == "(+48 more)"

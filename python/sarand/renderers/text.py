@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from sarand.core.architecture import l3_lines
 from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.models.results import ReportData
 from sarand.progress import status
@@ -26,6 +27,9 @@ def render(
         "",
         "Quick Context",
         *(f"  {line}" for line in quick_context_lines(build_quick_context(data))),
+        "",
+        "Architecture and Risks",
+        *(f"  {line}" for line in l3_lines(data)),
     ]
     if data.health:
         health_line = f"Health: {data.health.score}/100 ({data.health.grade})"

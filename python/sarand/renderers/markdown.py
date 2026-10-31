@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sarand.constants import AI_NOTICE, LANG_MAP, MAX_ISSUE_ROWS
+from sarand.core.architecture import architecture_lines, build_architecture, risk_lines
 from sarand.core.package_summary import (
     ROOT_PACKAGE,
     PhaseCount,
@@ -13,6 +14,7 @@ from sarand.core.quick_context import (
     build_quick_context,
     format_framework,
 )
+from sarand.core.risks import evaluate_risks
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
 from sarand.utils.fs import human_size
@@ -310,6 +312,36 @@ def _render_components(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_architecture_and_risks(data: ReportData) -> list[str]:
+    """L3 block (core/architecture.py, core/risks.py): the architecture read
+    from existing fields, then the nine-rule risk list with each fired rule's
+    limitation once. Same lines as the HTML and text reports.
+    """
+    lines = ["## Architecture and Risks", ""]
+    arch = architecture_lines(build_architecture(data))
+    lines.extend(_md_line(line) for line in arch)
+    if arch:
+        lines.append("")
+    for line in risk_lines(evaluate_risks(data)):
+        lines.append(_md_line(line))
+    lines.append("")
+    return lines
+
+
+def _md_line(line: str) -> str:
+    """A plain L3 line as Markdown: an indented "  - item" stays a nested
+    bullet, any other line becomes a bullet with its label in bold; backticks
+    and pipes are neutralised (names come from config files)."""
+    if line.startswith("  - "):
+        return f"  - {_cell(line[4:])}"
+    label, sep, rest = line.partition(": ")
+    if sep:
+        return f"- **{_cell(label)}:** {_cell(rest)}"
+    if line.endswith(":"):
+        return f"- **{_cell(line[:-1])}:**"
+    return f"- {_cell(line)}"
+
+
 def _render_quick_context(data: ReportData) -> list[str]:
     """L2 Quick Context block (core/quick_context.py): short, bounded,
     deterministic, always first so a skimming reader sees what matters.
@@ -447,6 +479,7 @@ def render(
         "---",
         "",
         *_render_quick_context(data),
+        *_render_architecture_and_risks(data),
         *_render_detected_project(data),
         *_render_components(data),
         *_render_workspace(data),

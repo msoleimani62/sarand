@@ -17,3 +17,7 @@ Quick Context
   Security: none run
   Critical findings: none recorded
   Risks: none identified
+
+Architecture and Risks
+  Risks (rule-based): none identified
+  Rules not evaluated (9 of 9, data absent): CHECKS-SKIPPED, DUPLICATE-FILES, GIT-STATE, HEALTH-CRITICAL, HEALTH-LOW-CONFIDENCE, LARGE-FILE, SEC-CHECK-FAILED, SECRET-PATTERNS, TODO-CLUSTER

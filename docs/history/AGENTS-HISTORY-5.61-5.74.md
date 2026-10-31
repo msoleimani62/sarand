@@ -1336,3 +1336,19 @@ test still passes, which is the proof that the extracted reader keeps the
 `SARAND_UPDATE_GOLDEN=1` and each diff read and classified as intended (design
 file). The sandbox runs a minimal runner without pytest, mypy or ruff, so the
 first full run of those is the owner's chain and CI.
+
+### 5.89 — Round R11b: Quick Context L3, architecture and risks (2026-10-31)
+
+Scope, the nine rules and the decisions are in `docs/QUICK_CONTEXT_DESIGN.md`
+(section 6, result in 6.4). `core/risks.py` holds the rule table and
+`evaluate_risks`; `core/architecture.py` holds `build_architecture` and the one
+function, `l3_lines`, behind the Markdown, HTML and text sections; JSON gains
+`architecture` and `risks`. Thresholds were fixed from a real report of sarand
+on itself: `largest_files` is bytes (the design's open question), the busiest
+file had 16 markers, nothing was skipped. `CHECKS_SKIPPED_MIN` and
+`CONFIDENCE_MIN` stay provisional because that report skipped nothing.
+
+**Verification.** `tests/test_risks.py` has three tests per rule (fires, quiet,
+data absent) plus boundaries, order, purity, escaping, caps and the pinned worst
+case. Goldens were regenerated with `SARAND_UPDATE_GOLDEN=1` and each diff read.
+No assertion was weakened except the two noted in the design file.

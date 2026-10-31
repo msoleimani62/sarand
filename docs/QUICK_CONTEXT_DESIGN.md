@@ -1,8 +1,8 @@
 # Quick Context layers L2, L3 and L4: design record
 
 Status: **accepted by the owner on 2026-10-25. R11a (declared frameworks and
-the HTML and text sections) is implemented, 2026-10-31; R11b and R11c are not
-implemented yet.**
+the HTML and text sections) and R11b (L3, architecture and risks) are
+implemented, 2026-10-31; R11c is not implemented yet.**
 This file is the single record of the design and of every decision taken about
 it. Code is written in three rounds (R11a, R11b, R11c) that follow it; when a
 round changes something here, it changes this file in the same commit.
@@ -327,12 +327,55 @@ Tests, three per rule, no exception:
   `SEC-CHECK-FAILED` that means: failed fires; passed does not; no
   `security_results` does not fire and is listed as not evaluated.
 
-Other acceptance criteria:
+Other acceptance criteria (all checked in R11b, 2026-10-31):
 
-- [ ] only reads `ReportData`; analysis output unchanged (test);
-- [ ] the worst case size of L3 is pinned by a test and documented;
-- [ ] ordering is stable (test);
-- [ ] goldens reviewed one by one as in R11a.
+- [x] only reads `ReportData`; analysis output unchanged (test);
+- [x] the worst case size of L3 is pinned by a test and documented (6.4);
+- [x] ordering is stable (test);
+- [x] goldens reviewed one by one as in R11a.
+
+### 6.4 Result of R11b (2026-10-31)
+
+Code: `core/risks.py` (the nine rules as one table, `evaluate_risks`),
+`core/architecture.py` (`build_architecture`, and `l3_lines`, the one function
+behind the Markdown, HTML and text sections). JSON gains two top-level keys next
+to `quick_context`: `architecture` (five lists of short lines) and `risks`
+(`risks`, all of them, and `rules_not_evaluated`). Nothing else in the analysis
+changed.
+
+Thresholds, fixed from a real report (sarand on itself, 2026-10-31, 323 files,
+132 markers, 18 checks run):
+
+| Constant | Value | Evidence |
+|---|---|---|
+| `LARGE_FILE_BYTES` | 65536 (64 KiB) | `largest_files` holds **bytes** (confirmed: the history documents are 81-100 KB, `cli.py` is 37.6 KB). 64 KiB fires on the three history documents and not on the source files; it is information, not a verdict |
+| `TODO_CLUSTER_MIN` | 10 | the busiest files had 16, 13, 8, 7, 6 and 5 markers; 10 fires on two. Both are files whose comments explain fixes with `BUG` tags, which the rule's limitation says |
+| `CHECKS_SKIPPED_MIN` | 3 | **provisional**: the real report skipped nothing (0 of 18), so it shows only that the rule stays quiet on a complete run |
+| `CONFIDENCE_MIN` | 0.8 | **provisional**: confidence was 1.0; same remark |
+
+To calibrate the two provisional values, run sarand on a machine where some
+tools are missing and compare. `SECRET-PATTERNS` was checked against the same
+report: 5 matches, all test fixtures, so the rule correctly stays quiet.
+
+Deviations from the text above, each deliberate: the architecture block gives
+file counts per component or member but **no line counts**, because per-file
+lines are not in the report; the three renderers carry the same plain lines,
+including each fired rule's limitation once (the design had the legend only in
+Markdown); the Markdown block is always rendered (a report with no risk says
+"none identified" and lists the rules that could not be evaluated).
+
+Worst case, pinned by `tests/test_risks.py`: the L3 section is 5615 bytes and 54
+lines with every list at its cap and every string at its clip (the Markdown form
+is 5687 bytes), the whole text report 84 lines. Only a project that fires all
+nine rules and has 40 components, 40 workspace members, 20 compose files and 20
+Helm charts comes near it.
+
+Golden changes, each **intended**: every Markdown, HTML and text snapshot gains the
+"Architecture and Risks" section; both JSON snapshots gain `architecture` and
+`risks`; `minimal` shows all nine rules as not evaluated, `hybrid` shows five
+fired risks and its entry points. SARIF is unchanged. Two existing assertions
+were adjusted because the text report is longer: `test_quick_context` now slices
+the Quick Context block at the new section, and its text-length bound is 100.
 
 ## 7. Process rules for the three rounds
 
@@ -378,7 +421,7 @@ what was done with it:
 ## 10. Open parameters (to be fixed with evidence in the rounds)
 
 - R11a: which manifests are already parsed; the final framework table.
-- R11b: the four thresholds in section 6.3; the L3 worst-case size.
+- R11b: fixed on 2026-10-31 (section 6.4); two thresholds are provisional.
 - R11c: the signal weights; context lines per snippet; per-file snippet cap;
   the confirmed bytes-per-token ratio (3 is the starting value); the behaviour of
   `--focus` with several words.

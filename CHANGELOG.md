@@ -8,6 +8,15 @@ version may include behaviour changes.
 
 ### Added
 
+- The report has a new "Architecture and Risks" section (and `architecture` and
+  `risks` keys in the JSON report). It lists the components, workspace members,
+  entry points, Compose services and Kubernetes items the scan found, with file
+  counts, and a list of rule-based risks. There are nine fixed rules (failed
+  security checks, critical health failures, secret-pattern matches outside test
+  fixtures, skipped checks, repository state, low check coverage, files with many
+  TODO markers, large files, duplicate files). Each risk names the report fields
+  it comes from and says what it does not show, and a rule whose data is missing
+  is listed as not evaluated instead of counted as fine.
 - Quick Context now lists the frameworks that your manifests declare
   (`package.json`, `pyproject.toml`, `requirements.txt`), in a "Declared
   frameworks (from manifests, not verified in code)" line and a
