@@ -471,10 +471,11 @@ sarand --relevant-source=3000 --focus "login auth" --format json --no-source
 | The path contains a `--focus` word | 5 |
 | The file is changed or untracked in git | 4 |
 | The file is an entry point | 3 |
+| The file is in the report's "read first" list | 2 |
 | A secret pattern matched in the file | 2 |
 | The file has a TODO-style marker | 1 |
 
-Files are ranked by the sum of their weights, ties by path, so the same input always gives the same block. At most 20 files are shown, files with identical content count once (the others are named), and each snippet states its file, line range and reason.
+Files are ranked by the sum of their weights; ties go to the file with more marked lines, then to the path, so the same input always gives the same block. At most 20 files are shown, files with identical content count once (the others are named), and each snippet states its file, line range and reason.
 
 The size limit is on bytes: the block, with its headings, labels and line numbers, never exceeds `TOKENS × 3` UTF-8 bytes. That is a conservative estimate, not a promise about any one model's tokenizer; the JSON report states `bytes_cap` and `bytes_used`. When space runs short, file names are kept before snippets, and what was dropped is counted.
 

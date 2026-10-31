@@ -252,12 +252,23 @@ def test_the_same_input_gives_the_same_bytes_twice_and_data_is_not_mutated() -> 
         assert (list(data.included_files), list(data.todos)) == before
 
 
-def test_score_order_is_focus_git_entry_point_secret_path_todo_then_path() -> None:
+def test_score_order_is_focus_git_entry_point_then_the_weight_two_signals_then_todo() -> (
+    None
+):
     with _project() as (root, data):
-        for name in ("zz_todo", "aa_todo", "entry", "git", "focusme", "secret"):
+        for name in (
+            "zz_todo",
+            "aa_todo",
+            "entry",
+            "git",
+            "focusme",
+            "secret",
+            "first",
+        ):
             _add(root, data, f"src/{name}.py", _numbered(20))
         data.todos = [_todo("src/zz_todo.py", 5), _todo("src/aa_todo.py", 5)]
         data.detection.entry_points = ["src/entry.py"]
+        data.suggested_reading_order = ["src/first.py"]
         data.git = GitSnapshot(branch="m", commit="c", status=" M src/git.py")
         data.secret_findings = [
             SecretFinding(path="src/secret.py", line_number=3, pattern_name="K")
@@ -267,10 +278,39 @@ def test_score_order_is_focus_git_entry_point_secret_path_todo_then_path() -> No
             "src/focusme.py",
             "src/git.py",
             "src/entry.py",
+            # weight 2 each; the secret-path file has a signal line, so it goes first
             "src/secret.py",
+            "src/first.py",
             "src/aa_todo.py",
             "src/zz_todo.py",
         ]
+
+
+def test_equal_scores_go_to_the_file_with_more_markers_then_to_the_path() -> None:
+    with _project() as (root, data):
+        for name in ("a", "b", "c"):
+            _add(root, data, f"src/{name}.py", _numbered(40))
+        data.todos = [
+            _todo("src/a.py", 5),
+            _todo("src/b.py", 5),
+            _todo("src/b.py", 20),
+            _todo("src/c.py", 5),
+        ]
+        assert _paths(select_relevant_source(data, 20000)) == [
+            "src/b.py",
+            "src/a.py",
+            "src/c.py",
+        ]
+
+
+def test_file_headers_never_start_like_a_markdown_heading() -> None:
+    """A model or a script splitting the report on "## " must not cut inside the block."""
+    with _project() as (root, data):
+        _add(root, data, "src/a.py", _numbered(10))
+        data.detection.entry_points = ["src/a.py"]
+        result = select_relevant_source(data, 6000)
+        assert "=== src/a.py -- entry point (score 3)" in result.text
+        assert not any(line.startswith("#") for line in result.text.splitlines())
 
 
 def test_files_with_identical_content_count_once_and_the_unique_file_survives() -> None:

@@ -11,9 +11,10 @@ Contract (these bind this module):
   `--source` applies here with no extra code, and what L4 can show is always a
   subset of what `--source` could show.
 - **Signals** (fixed weights below): `--focus` words in the path, files changed or
-  untracked in git, entry points, the path of a secret-pattern match, files with
-  TODO-style markers. Score = sum of weights of the signals that fire; ties by
-  path, ascending.
+  untracked in git, entry points, the report's "read first" files, the path of a
+  secret-pattern match, files with TODO-style markers. Score = sum of weights of
+  the signals that fire; ties go to the file with more signal lines, then by path,
+  ascending.
 - **Budget on bytes** (D-QC6): the output text, with its headers, labels, line
   numbers and footer, plus the fixed `WRAPPER_BYTES` that a renderer adds around
   it (a heading and a code fence), never exceeds `TOKENS * 3` UTF-8 bytes. Three
@@ -64,13 +65,16 @@ BYTES_PER_TOKEN = 3
 WRAPPER_BYTES = 64
 _FOOTER_RESERVE = 90
 
-# Signal weights, fixed. Set from the real report of sarand on itself (2026-10-31):
-# 132 TODO-style markers spread over many files (so a marker alone must rank low),
-# one entry point, a clean git tree. An explicit `--focus` outranks everything.
+# Signal weights, fixed. Set from the real reports of sarand on itself (2026-10-31
+# and 2026-11-01): 132 TODO-style markers over 45 files (a marker alone cannot
+# discriminate, so it ranks lowest and ties go to the file with more markers), one
+# entry point, a clean git tree, and the report's own "read first" list as the best
+# importance signal it has. An explicit `--focus` outranks everything.
 # وزن‌های ثابت؛ `--focus` صریح از همه بالاتر است.
 WEIGHT_FOCUS = 5
 WEIGHT_GIT = 4
 WEIGHT_ENTRY_POINT = 3
+WEIGHT_READING_ORDER = 2
 WEIGHT_SECRET_PATH = 2
 WEIGHT_TODO = 1
 
@@ -163,6 +167,11 @@ def _collect(data: ReportData, focus: str) -> dict[str, _Candidate]:
             cand = _bump(cands, entry, WEIGHT_ENTRY_POINT, "entry point")
             cand.head_reason = cand.head_reason or "entry point"
 
+    for path in data.suggested_reading_order:
+        if path in allowed:
+            cand = _bump(cands, path, WEIGHT_READING_ORDER, "read-first file")
+            cand.head_reason = cand.head_reason or "read-first file"
+
     for finding in data.secret_findings:
         if finding.path in allowed:
             cand = _bump(
@@ -208,7 +217,9 @@ def _merge_duplicates(
                 if other != target.path and other not in target.same_as:
                     target.same_as.append(other)
         target.same_as = sorted(set(target.same_as))
-    return sorted(merged.values(), key=lambda c: (-c.score, c.path))
+    return sorted(
+        merged.values(), key=lambda c: (-c.score, -len(c.signal_lines), c.path)
+    )
 
 
 def _read_lines(root: Path, rel: str) -> list[str] | None:
@@ -281,7 +292,7 @@ def _snippet(lines: list[str], window: tuple[int, int, str]) -> RelevantSnippet:
 
 def _header(cand: _Candidate) -> str:
     why = "; ".join(cand.reasons) or "selected"
-    out = f"## {cand.path} -- {why} (score {cand.score})"
+    out = f"=== {cand.path} -- {why} (score {cand.score})"
     if cand.same_as:
         names = ", ".join(cand.same_as[:_MAX_SAME_AS])
         more = len(cand.same_as) - _MAX_SAME_AS

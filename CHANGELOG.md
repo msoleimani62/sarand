@@ -12,8 +12,8 @@ version may include behaviour changes.
   to the report (Markdown, HTML, text and JSON), and `--focus TEXT` prefers files
   whose path contains your words. The snippets come from files the report
   already includes, chosen by fixed signals: your `--focus` words, files changed
-  or untracked in git, entry points, files with a secret-pattern match, files
-  with TODO-style markers. The block never exceeds TOKENS x 3 UTF-8 bytes
+  or untracked in git, entry points, the files the report lists under "read
+  first", files with a secret-pattern match, files with TODO-style markers. The block never exceeds TOKENS x 3 UTF-8 bytes
   (default 6000 tokens), files with identical content count once, and every line
   is checked against the secret patterns just before it is written; a match is
   replaced by a line naming the pattern, never the value. Off by default, and a

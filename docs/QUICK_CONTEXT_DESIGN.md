@@ -294,9 +294,10 @@ How the text of section 5 was made exact:
   pass 2 adds snippets in score order, whole when they fit, trimmed when only part
   fits (never under three lines), dropped otherwise; the footer counts what was
   left out. A file is read from disk only when its header is kept.
-- **Weights** (fixed, from the self-report of 2026-10-31: 132 markers over many
-  files, one entry point, a clean tree): `--focus` 5, git change or untracked 4,
-  entry point 3, secret-pattern path 2, TODO-style marker 1.
+- **Weights** (fixed, calibrated twice on sarand's own reports): `--focus` 5, git
+  change or untracked 4, entry point 3, read-first file 2, secret-pattern path 2,
+  TODO-style marker 1. Ties go to the file with more signal lines, then to the
+  path.
 - **Secrets** (D-QC7): files in `excluded_secret_files` are never read (a test
   spies on the reader), paths that `looks_like_secret_path` are never candidates,
   and every line of every snippet goes through `scan_line` just before it is
@@ -317,9 +318,22 @@ Deviations from the text of section 5, each deliberate:
 - The duplicate rule keeps the first path of the group that is among the
   candidates and names the others (at most three, then "+N more").
 
-Open for the owner, not blocking: the weights come from one report; a second
-project would show whether the TODO weight should rise for projects with few
-markers.
+Calibration on a real run (2026-11-01, `sarand --relevant-source` on sarand
+itself, clean git tree): the first version showed one entry point and then 22
+files that each had score 1, in path order, from 45 files that carry markers
+(77 TODO, 38 BUG, 8 SAFETY, 5 FIXME, 4 XXX). Almost all of those markers are
+`BUG FIX` comments that explain an old fix, so the block was mostly comment text
+and none of the files the report itself lists under "read first". Three changes
+followed, each from that evidence: the "read first" files became a signal
+(weight 2); ties go to the file with more signal lines before the path (45 files
+tied at 1, so a path order was arbitrary); and file headers start with `===`
+instead of `##`, because a script or a model that splits the report on a
+second-level heading cut the block in pieces (the first parse of this very output did).
+
+Still open, not blocking: a snippet around a marker is cut at three lines of
+context, so a long explanatory comment is cut mid-sentence; extending the
+snippet to the end of the comment block is possible but is a syntactic
+heuristic (comment prefixes per language), so it is left for a decision.
 
 ## 6. Round R11b: L3, architecture and risks
 
