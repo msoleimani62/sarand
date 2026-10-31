@@ -83,6 +83,11 @@ HEAD_LINES = 30
 MAX_SNIPPET_LINES = 40
 MAX_SNIPPETS_PER_FILE = 3
 MAX_FILES = 20
+# The "read first" signal covers the first files of the report's reading order, as
+# many as Quick Context lists (the full list ranks every file, so using all of it
+# would give every file the same bonus).
+# سیگنال «اول بخوانید» فقط به اندازه‌ی فهرست Quick Context است، نه کل ترتیب.
+READ_FIRST_COUNT = 10
 MAX_LINE_CHARS = 200
 MAX_READ_BYTES = 256 * 1024
 _MIN_TRIMMED_LINES = 3
@@ -167,7 +172,7 @@ def _collect(data: ReportData, focus: str) -> dict[str, _Candidate]:
             cand = _bump(cands, entry, WEIGHT_ENTRY_POINT, "entry point")
             cand.head_reason = cand.head_reason or "entry point"
 
-    for path in data.suggested_reading_order:
+    for path in data.suggested_reading_order[:READ_FIRST_COUNT]:
         if path in allowed:
             cand = _bump(cands, path, WEIGHT_READING_ORDER, "read-first file")
             cand.head_reason = cand.head_reason or "read-first file"

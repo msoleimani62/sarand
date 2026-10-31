@@ -480,3 +480,21 @@ def test_the_parser_rejects_focus_without_the_flag() -> None:
         assert exc.code == 2
         return
     raise AssertionError("--focus alone was accepted")
+
+
+def test_read_first_covers_only_the_first_files_of_the_reading_order() -> None:
+    """The report's full reading order ranks every file; a bonus for all of them
+    would carry no information (found on a real run, 2026-11-01)."""
+    from sarand.core.quick_context import _READING_ORDER_LEN
+
+    assert rs_module.READ_FIRST_COUNT == _READING_ORDER_LEN
+    with _project() as (root, data):
+        for i in range(30):
+            _add(root, data, f"src/f{i:02d}.py", _numbered(10))
+        data.suggested_reading_order = [f"src/f{i:02d}.py" for i in range(29, -1, -1)]
+        result = select_relevant_source(data, 20000)
+        # the first ten of the reading order are f29..f20; equal scores go by path
+        assert [f.path for f in result.files] == [
+            f"src/f{i:02d}.py" for i in range(20, 30)
+        ]
+        assert all(f.score == 2 for f in result.files)

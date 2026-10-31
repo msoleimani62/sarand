@@ -330,6 +330,14 @@ tied at 1, so a path order was arbitrary); and file headers start with `===`
 instead of `##`, because a script or a model that splits the report on a
 second-level heading cut the block in pieces (the first parse of this very output did).
 
+The second real run (2026-11-01, after the first calibration) exposed a mistake
+in that calibration: `suggested_reading_order` ranks EVERY file, not only the ten
+that Quick Context lists, so the new signal gave all files the same bonus and 20
+files tied at score 3. It was replayed on the clipped list in Quick Context's JSON
+and looked right. The signal now covers only the first `READ_FIRST_COUNT` (10)
+files of that order, the same number Quick Context shows, and a test pins the
+count to Quick Context's constant.
+
 Still open, not blocking: a snippet around a marker is cut at three lines of
 context, so a long explanatory comment is cut mid-sentence; extending the
 snippet to the end of the comment block is possible but is a syntactic
