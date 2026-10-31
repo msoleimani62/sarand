@@ -268,6 +268,33 @@ Trust model:
         action=_VersionAction,
         help="Print the version (and warn if this is a stale editable install)",
     )
+    from sarand.core.relevant_source import (
+        TOKENS_DEFAULT,
+        TOKENS_MAX,
+        TOKENS_MIN,
+        tokens_argument,
+    )
+
+    parser.add_argument(
+        "--relevant-source",
+        nargs="?",
+        const=TOKENS_DEFAULT,
+        default=None,
+        type=tokens_argument,
+        metavar="TOKENS",
+        help=(
+            "Add a small, bounded selection of source snippets chosen by fixed "
+            "signals (TODO markers, git changes, entry points, --focus), at most "
+            f"TOKENS x 3 bytes (default {TOKENS_DEFAULT}; {TOKENS_MIN}-{TOKENS_MAX}). "
+            "Off by default"
+        ),
+    )
+    parser.add_argument(
+        "--focus",
+        metavar="TEXT",
+        default=None,
+        help="With --relevant-source: prefer files whose path contains these words",
+    )
     return parser
 
 
@@ -714,6 +741,13 @@ async def run(config: SarandConfig) -> int:
     if config.health_score:
         data.health = compute_health_score(data)
 
+    if config.relevant_source_tokens is not None:
+        from sarand.core.relevant_source import select_relevant_source
+
+        data.relevant_source = select_relevant_source(
+            data, config.relevant_source_tokens, config.focus
+        )
+
     remove_previous_report(output_path)
 
     pdf_failed = False
@@ -780,6 +814,8 @@ def main(argv: list[str] | None = None) -> int:
     harden_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.focus is not None and args.relevant_source is None:
+        parser.error("--focus needs --relevant-source")
 
     if args.doctor:
         from sarand.core.doctor import run_doctor

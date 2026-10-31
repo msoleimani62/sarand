@@ -120,6 +120,9 @@ The CPU-heavy part (walking the tree, counting lines, hashing files to find dupl
 
 | Section | What it tells you |
 |---|---|
+| Quick Context | A short, bounded block at the top: project, structure, checks, critical findings, declared frameworks and what to read first |
+| Architecture and risks | Components, workspace members, entry points, Compose and Kubernetes items, and nine rule-based risks; each risk names the report fields it comes from and says what it does not show |
+| Relevant source (`--relevant-source`) | A small, byte-bounded selection of source snippets chosen by fixed signals; secret patterns are withheld line by line |
 | Detected project | Languages, build tools and entry points |
 | Environment | OS, CPU, memory and toolchain versions |
 | Git | Branch, dirty state and recent history |
@@ -319,6 +322,8 @@ Running sarand again on the same project replaces its previous report at that pa
 | `--max-file-size SIZE` | Largest source file to embed, for example `512K`, `2M` or `1G` (default `2M`; larger files are listed as skipped). Overrides the no-limit behaviour of `--full` |
 | `--no-source` | Do not embed file contents |
 | `--no-health` | Skip the health score |
+| `--relevant-source[=TOKENS]` | Add a small selection of source snippets to read first, at most TOKENS × 3 bytes (default 6000 tokens, allowed 200 to 200000). Off by default |
+| `--focus TEXT` | With `--relevant-source`: prefer files whose path contains these words |
 | `--cache` | Skip re-scanning TODOs and secrets in files unchanged since the last `--cache` run |
 | `--clear-cache` | Delete this project's scan cache and exit |
 | `--doctor` | Diagnose the environment and exit |
@@ -451,6 +456,29 @@ The saved setting lives in a per-user config file:
 The `--cache` data is stored in the output folder under `.sarand-cache`.
 
 ## More tools
+
+### Give an AI only the code that matters
+
+A report of a whole project can be far larger than a chat can use. `--relevant-source` adds one small block at the end of the report's context sections: snippets from files the report already includes, chosen by fixed signals, not by meaning. It is a selection, not a summary.
+
+```bash
+sarand --relevant-source
+sarand --relevant-source=3000 --focus "login auth" --format json --no-source
+```
+
+| Signal | Weight |
+|---|---|
+| The path contains a `--focus` word | 5 |
+| The file is changed or untracked in git | 4 |
+| The file is an entry point | 3 |
+| A secret pattern matched in the file | 2 |
+| The file has a TODO-style marker | 1 |
+
+Files are ranked by the sum of their weights, ties by path, so the same input always gives the same block. At most 20 files are shown, files with identical content count once (the others are named), and each snippet states its file, line range and reason.
+
+The size limit is on bytes: the block, with its headings, labels and line numbers, never exceeds `TOKENS × 3` UTF-8 bytes. That is a conservative estimate, not a promise about any one model's tokenizer; the JSON report states `bytes_cap` and `bytes_used`. When space runs short, file names are kept before snippets, and what was dropped is counted.
+
+Secrets are handled twice. The content of a file that sarand excluded for secrets is never read, and every line of every snippet is checked against the secret patterns just before it is written; a match becomes a line saying which pattern matched, never its value. A secret that no pattern recognises is not withheld, which is the same limit the embedded source has.
 
 ### Paste a large report into a chat
 

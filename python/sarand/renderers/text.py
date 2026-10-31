@@ -31,6 +31,12 @@ def render(
         "Architecture and Risks",
         *(f"  {line}" for line in l3_lines(data)),
     ]
+    if data.relevant_source is not None:
+        from sarand.core.relevant_source import relevant_source_text
+
+        # Not indented: the byte budget applies to the text as it is.
+        # تورفتگی ندارد: سقف بایت روی خودِ متن است.
+        lines += ["", "Relevant Source", relevant_source_text(data.relevant_source)]
     if data.health:
         health_line = f"Health: {data.health.score}/100 ({data.health.grade})"
         if data.health.checks_skipped:

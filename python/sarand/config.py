@@ -64,6 +64,10 @@ class SarandConfig:
     health_score: bool = True
     use_cache: bool = False
     full: bool = False
+    # L4 (core/relevant_source.py): None means off, the default.
+    # L4: برابر None یعنی خاموش (پیش‌فرض).
+    relevant_source_tokens: int | None = None
+    focus: str = ""
 
     @classmethod
     def from_args(cls, args: Any) -> SarandConfig:
@@ -119,6 +123,8 @@ class SarandConfig:
             include_source=not bool(getattr(args, "no_source", False)),
             health_score=not bool(getattr(args, "no_health", False)),
             use_cache=bool(getattr(args, "cache", False)),
+            relevant_source_tokens=getattr(args, "relevant_source", None),
+            focus=str(getattr(args, "focus", None) or ""),
             # Stored (not just used locally above) because renderers need
             # it too: --full's "nothing is skipped or cut short" promise
             # (its own --help text) has to reach the *rendering* layer,

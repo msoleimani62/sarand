@@ -436,6 +436,41 @@ class FrameworkEntry:
 
 
 @dataclass
+class RelevantSnippet:
+    """Lines `start`..`end` (1-based, inclusive) of a file, and why they matter."""
+
+    start: int
+    end: int
+    reason: str
+    lines: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RelevantFile:
+    path: str
+    why: list[str] = field(default_factory=list)
+    score: int = 0
+    same_as: list[str] = field(default_factory=list)
+    snippets: list[RelevantSnippet] = field(default_factory=list)
+
+
+@dataclass
+class RelevantSource:
+    """The L4 result (core/relevant_source.py). `text` is the canonical output
+    the byte budget applies to; `files` is an index of what it shows."""
+
+    tokens: int = 6000
+    bytes_cap: int = 18000
+    bytes_used: int = 0
+    text: str = ""
+    files: list[RelevantFile] = field(default_factory=list)
+    omitted_files: int = 0
+    omitted_snippets: int = 0
+    withheld_lines: int = 0
+    unreadable_files: int = 0
+
+
+@dataclass
 class ReportData:
     """Complete data package used to render any report format."""
 
@@ -480,6 +515,10 @@ class ReportData:
     # byte-identical.
     # فریم‌ورک‌های شناخته‌شده از وابستگی‌های اعلام‌شده؛ در حالت عادی خالی.
     frameworks_declared: list[FrameworkEntry] = field(default_factory=list)
+    # The L4 relevant source subset; None unless `--relevant-source` was given,
+    # so a default run is byte-identical.
+    # زیرمجموعه‌ی کد منبع مرتبط؛ بدون `--relevant-source` برابر None است.
+    relevant_source: RelevantSource | None = None
     extra: dict[str, Any] = field(default_factory=dict)
     # Workspaces after the first one (a repository with both a Cargo and a
     # Node workspace). `workspace` stays the first so every existing reader

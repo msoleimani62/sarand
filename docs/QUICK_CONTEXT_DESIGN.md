@@ -2,7 +2,8 @@
 
 Status: **accepted by the owner on 2026-10-25. R11a (declared frameworks and
 the HTML and text sections) and R11b (L3, architecture and risks) are
-implemented, 2026-10-31; R11c is not implemented yet.**
+implemented, 2026-10-31; R11c (L4, the relevant source subset) is implemented,
+2026-11-01. All three rounds are done.**
 This file is the single record of the design and of every decision taken about
 it. Code is written in three rounds (R11a, R11b, R11c) that follow it; when a
 round changes something here, it changes this file in the same commit.
@@ -256,17 +257,69 @@ size cap and the existing path-safety checks. Memory is bounded by the byte cap.
 For scale: the 410K-token report of sarand on itself against a 6000-token budget
 is about 1.5 percent of its size.
 
-Acceptance criteria:
+Acceptance criteria (all checked in R11c, 2026-11-01):
 
-- [ ] optional flag, off by default, the default run is byte-identical;
-- [ ] `bytes_used <= bytes_cap` for every fixture, including a file larger than
+- [x] optional flag, off by default, the default run is byte-identical;
+- [x] `bytes_used <= bytes_cap` for every fixture, including a file larger than
       the whole budget and a budget too small for one header (test);
-- [ ] L4 files are a subset of `included_files` (property test);
-- [ ] planted secret absent from the output (test, all renderers);
-- [ ] deterministic: same input, same bytes, twice;
-- [ ] the duplicate-versus-unique selection test passes;
-- [ ] a timing test or documented measurement on a large fixture shows that
-      only selected files are read.
+- [x] L4 files are a subset of `included_files` (property test);
+- [x] planted secret absent from the output (test, all renderers);
+- [x] deterministic: same input, same bytes, twice;
+- [x] the duplicate-versus-unique selection test passes;
+- [x] a measurement on a 300-file fixture shows that only the selected files are
+      read (at most 20; the test spies on the reader).
+
+### 5.6 Result of R11c (2026-11-01)
+
+Code: `core/relevant_source.py` (`select_relevant_source`, `tokens_argument`, the
+constants), the three dataclasses `RelevantSource`, `RelevantFile` and
+`RelevantSnippet` in `models/results.py`, `ReportData.relevant_source` (None
+unless the flag is given, so a default run is byte-identical: no golden changed),
+the flags `--relevant-source[=TOKENS]` (allowed 200 to 200000, default 6000) and
+`--focus TEXT` (an error without `--relevant-source`), and one new block in the
+Markdown, HTML, text and JSON reports, right after "Architecture and Risks".
+
+How the text of section 5 was made exact:
+
+- **What the budget covers.** `bytes_used` is the UTF-8 size of the canonical text
+  (title, headers, labels, line numbers, footer) plus `WRAPPER_BYTES = 64`, which
+  is reserved for what a renderer adds around it (Markdown adds 34 bytes: a
+  heading and a code fence). The test checks both that `bytes_used <= bytes_cap`
+  for budgets from 1 to 20000 tokens and that the real wrapper fits the reserve.
+  HTML escaping and the JSON `files` index are representation and metadata about
+  the text, not part of the counted text; this is stated in the README.
+- **A fence cannot be closed by the text**: every source line starts with its line
+  number, so no line starts with a code fence.
+- **Order when space is short** (D-QC6): pass 1 keeps file headers in score order;
+  pass 2 adds snippets in score order, whole when they fit, trimmed when only part
+  fits (never under three lines), dropped otherwise; the footer counts what was
+  left out. A file is read from disk only when its header is kept.
+- **Weights** (fixed, from the self-report of 2026-10-31: 132 markers over many
+  files, one entry point, a clean tree): `--focus` 5, git change or untracked 4,
+  entry point 3, secret-pattern path 2, TODO-style marker 1.
+- **Secrets** (D-QC7): files in `excluded_secret_files` are never read (a test
+  spies on the reader), paths that `looks_like_secret_path` are never candidates,
+  and every line of every snippet goes through `scan_line` just before it is
+  written. The planted-secret test checks that the secret, and its first twelve
+  characters, are absent from the Markdown, text, HTML and JSON reports.
+
+Deviations from the text of section 5, each deliberate:
+
+- **No diff hunks.** `git.diff` in the report is `--stat` only, so a changed or
+  untracked file contributes the head of the file (30 lines), not its hunks.
+- **At most 20 files and three snippets of at most 40 lines per file.** Headers
+  are cheap, so without a file cap a 6000-token budget would read about 60 files
+  to show headers only; the design's own figure was "about 10 to 20".
+- **A file over 256 KiB is read up to that size**, not skipped, so a huge file can
+  still show its head and the signals inside the part that was read.
+- **Not read from disk, signals only**: a `--focus` with several words matches a
+  path that contains any of them (the open parameter of section 10).
+- The duplicate rule keeps the first path of the group that is among the
+  candidates and names the others (at most three, then "+N more").
+
+Open for the owner, not blocking: the weights come from one report; a second
+project would show whether the TODO weight should rise for projects with few
+markers.
 
 ## 6. Round R11b: L3, architecture and risks
 
@@ -422,6 +475,4 @@ what was done with it:
 
 - R11a: which manifests are already parsed; the final framework table.
 - R11b: fixed on 2026-10-31 (section 6.4); two thresholds are provisional.
-- R11c: the signal weights; context lines per snippet; per-file snippet cap;
-  the confirmed bytes-per-token ratio (3 is the starting value); the behaviour of
-  `--focus` with several words.
+- R11c: fixed on 2026-11-01 (section 5.6); the weights come from one report.

@@ -107,6 +107,13 @@ def render(
         payload["todos_suppressed"] = data.todos_suppressed
     # Same rule: a clean scan gets no new keys.
     # همان قاعده: اسکن سالم کلید تازه نمی‌گیرد.
+    # Only a run with `--relevant-source` gets this key, so the default report
+    # stays byte-identical.
+    # فقط اجرای دارای `--relevant-source` این کلید را می‌گیرد.
+    if data.relevant_source is not None:
+        from sarand.core.relevant_source import relevant_source_payload
+
+        payload["relevant_source"] = relevant_source_payload(data.relevant_source)
     if data.scan_skipped:
         payload["scan_skipped"] = data.scan_skipped
         payload["scan_skipped_samples"] = data.scan_skipped_samples

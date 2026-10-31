@@ -312,6 +312,30 @@ def _render_components(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_relevant_source(data: ReportData) -> list[str]:
+    """L4 block (core/relevant_source.py), only with `--relevant-source`. The
+    text is the canonical, byte-bounded block; the code fence cannot be closed by
+    it because every source line starts with a line number."""
+    if data.relevant_source is None:
+        return []
+    from sarand.core.relevant_source import relevant_source_text
+
+    rs = data.relevant_source
+    return [
+        "## Relevant Source",
+        "",
+        "```text",
+        relevant_source_text(rs),
+        "```",
+        "",
+        (
+            f"Budget: {rs.bytes_used} of {rs.bytes_cap} bytes "
+            f"({rs.tokens} tokens at 3 bytes per token, a conservative estimate)."
+        ),
+        "",
+    ]
+
+
 def _render_architecture_and_risks(data: ReportData) -> list[str]:
     """L3 block (core/architecture.py, core/risks.py): the architecture read
     from existing fields, then the nine-rule risk list with each fired rule's
@@ -480,6 +504,7 @@ def render(
         "",
         *_render_quick_context(data),
         *_render_architecture_and_risks(data),
+        *_render_relevant_source(data),
         *_render_detected_project(data),
         *_render_components(data),
         *_render_workspace(data),

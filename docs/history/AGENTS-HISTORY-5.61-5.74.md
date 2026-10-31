@@ -1352,3 +1352,19 @@ file had 16 markers, nothing was skipped. `CHECKS_SKIPPED_MIN` and
 data absent) plus boundaries, order, purity, escaping, caps and the pinned worst
 case. Goldens were regenerated with `SARAND_UPDATE_GOLDEN=1` and each diff read.
 No assertion was weakened except the two noted in the design file.
+
+### 5.90 — Round R11c: Quick Context L4, the relevant source subset (2026-11-01)
+
+Scope, the byte budget, the secret rules and the deviations are in
+`docs/QUICK_CONTEXT_DESIGN.md` (section 5, result in 5.6). `core/relevant_source.py`
+selects by fixed signals from `ReportData` only, inside `included_files`, in two
+passes (headers, then snippets) under a cap of TOKENS x 3 bytes, and checks every
+snippet line with `scan_line`. `--relevant-source[=TOKENS]` and `--focus` are new
+CLI options, documented in both READMEs (the README sync test caught the first
+omission). A default run is byte-identical: no golden changed.
+
+**Verification.** `tests/test_relevant_source.py` (25 tests): the budget across
+1 to 20000 tokens, a file larger than the budget, a budget too small for one
+header, the subset property, the planted secret in four renderers, determinism,
+the duplicate-versus-unique case, a spy proving at most 20 files are read, a link
+that leaves the project, binary and huge files, Persian text counted in bytes.

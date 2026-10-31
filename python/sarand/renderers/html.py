@@ -134,6 +134,13 @@ def render(
     parts.append(f"<h2>Quick Context</h2><pre>{escape(quick)}</pre>")
     layer3 = "\n".join(l3_lines(data))
     parts.append(f"<h2>Architecture and Risks</h2><pre>{escape(layer3)}</pre>")
+    if data.relevant_source is not None:
+        from sarand.core.relevant_source import relevant_source_text
+
+        parts.append(
+            "<h2>Relevant Source</h2>"
+            f"<pre>{escape(relevant_source_text(data.relevant_source))}</pre>"
+        )
 
     parts.append('<div class="card">')
     if d.is_recognized:

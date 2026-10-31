@@ -8,6 +8,16 @@ version may include behaviour changes.
 
 ### Added
 
+- `--relevant-source[=TOKENS]` adds a small, bounded selection of source snippets
+  to the report (Markdown, HTML, text and JSON), and `--focus TEXT` prefers files
+  whose path contains your words. The snippets come from files the report
+  already includes, chosen by fixed signals: your `--focus` words, files changed
+  or untracked in git, entry points, files with a secret-pattern match, files
+  with TODO-style markers. The block never exceeds TOKENS x 3 UTF-8 bytes
+  (default 6000 tokens), files with identical content count once, and every line
+  is checked against the secret patterns just before it is written; a match is
+  replaced by a line naming the pattern, never the value. Off by default, and a
+  run without the flag produces exactly the same report as before.
 - The report has a new "Architecture and Risks" section (and `architecture` and
   `risks` keys in the JSON report). It lists the components, workspace members,
   entry points, Compose services and Kubernetes items the scan found, with file
