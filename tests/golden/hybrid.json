@@ -1,4 +1,5 @@
 {
+  "schema_version": "1.0",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "hybrid-project",

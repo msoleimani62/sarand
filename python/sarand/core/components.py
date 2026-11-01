@@ -314,18 +314,98 @@ def _python_dependencies(directory: Path, files: set[str]) -> list[DeclaredDepen
     return found
 
 
+_CARGO_SECTIONS: tuple[tuple[str, str], ...] = (
+    ("dependencies", "runtime"),
+    ("dev-dependencies", "dev"),
+    ("build-dependencies", ""),
+)
+_GO_VERSION_SUFFIX = re.compile(r"/v\d+$")
+
+
+def _cargo_names(table: object, scope: str) -> list[DeclaredDependency]:
+    """Crate names of one dependency table. A renamed dependency
+    (`alias = { package = "real" }`) is reported under its real crate name."""
+    if not isinstance(table, dict):
+        return []
+    found: list[DeclaredDependency] = []
+    for key, value in table.items():
+        name = value.get("package") if isinstance(value, dict) else None
+        found.append(
+            DeclaredDependency(
+                str(name if isinstance(name, str) else key), scope, "Cargo.toml"
+            )
+        )
+    return found
+
+
+def _cargo_dependencies(directory: Path) -> list[DeclaredDependency]:
+    """`[dependencies]` (runtime), `[dev-dependencies]` (dev), `[build-dependencies]`
+    and `[workspace.dependencies]` (scope unknown: declared once, used by members).
+    Target-specific tables are not read."""
+    text = _read_limited(directory / "Cargo.toml")
+    if text is None:
+        return []
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return []
+    found: list[DeclaredDependency] = []
+    for key, scope in _CARGO_SECTIONS:
+        found.extend(_cargo_names(data.get(key), scope))
+    workspace = data.get("workspace")
+    if isinstance(workspace, dict):
+        found.extend(_cargo_names(workspace.get("dependencies"), ""))
+    return found
+
+
+def _go_dependencies(directory: Path) -> list[DeclaredDependency]:
+    """Direct `require` entries of `go.mod` (single line or block). Entries marked
+    `// indirect` are the project's transitive dependencies, not its declarations,
+    so they are skipped. A trailing major-version suffix (`/v2`) is dropped."""
+    text = _read_limited(directory / "go.mod")
+    if text is None:
+        return []
+    found: list[DeclaredDependency] = []
+    in_block = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if in_block:
+            if line.startswith(")"):
+                in_block = False
+                continue
+            entry = line
+        elif line.startswith("require ("):
+            in_block = True
+            continue
+        elif line.startswith("require "):
+            entry = line[len("require ") :].strip()
+        else:
+            continue
+        if not entry or entry.startswith("//") or "// indirect" in entry:
+            continue
+        module = entry.split()[0]
+        found.append(
+            DeclaredDependency(_GO_VERSION_SUFFIX.sub("", module), "runtime", "go.mod")
+        )
+    return found
+
+
 def declared_dependencies(directory: Path, files: set[str]) -> list[DeclaredDependency]:
     """Dependency names declared in the manifests of one directory (Node:
-    `package.json`; Python: `pyproject.toml` and `requirements.txt`). The
-    single reader behind the `kind` hint below and the declared-frameworks
-    line of Quick Context (core/frameworks.py), so the two cannot disagree.
-    Cargo and Go manifests are not read here (nothing reads them yet).
-    خواننده‌ی واحد وابستگی‌های اعلام‌شده؛ Cargo و Go هنوز خوانده نمی‌شوند.
+    `package.json`; Python: `pyproject.toml` and `requirements.txt`; Rust:
+    `Cargo.toml`; Go: `go.mod`). The single reader behind the `kind` hint below
+    and the declared-frameworks line of Quick Context (core/frameworks.py), so
+    the two cannot disagree. The `kind` hint itself reads only Node and Python.
+    خواننده‌ی واحد وابستگی‌های اعلام‌شده (Node، Python، Rust و Go).
     """
     found: list[DeclaredDependency] = []
     if "package.json" in files:
         found.extend(_node_dependencies(directory))
     found.extend(_python_dependencies(directory, files))
+    if "Cargo.toml" in files:
+        found.extend(_cargo_dependencies(directory))
+    if "go.mod" in files:
+        found.extend(_go_dependencies(directory))
     return found
 
 

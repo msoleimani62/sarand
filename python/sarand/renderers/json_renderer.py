@@ -20,6 +20,13 @@ from sarand.models.results import (
 )
 from sarand.progress import status
 
+# Version of the JSON schema (docs/JSON_SCHEMA.md), `MAJOR.MINOR`, independent of
+# the program's version. Adding a key or field bumps MINOR; removing, renaming,
+# retyping or changing the meaning of one bumps MAJOR. A test keeps the document
+# and this constant in step.
+# نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
+JSON_SCHEMA_VERSION = "1.0"
+
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
     """A result as a dict; the inconclusive field appears only when set.
@@ -65,6 +72,7 @@ def render(
         return str(obj)
 
     payload = {
+        "schema_version": JSON_SCHEMA_VERSION,
         "project_root": str(data.project_root),
         "quick_context": asdict(build_quick_context(data)),
         "architecture": asdict(build_architecture(data)),

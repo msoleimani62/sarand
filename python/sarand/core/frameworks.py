@@ -9,14 +9,14 @@ the first two:
 2. a framework **recognised** from a fixed table of dependency names;
 3. actual **use** in code -- never claimed here.
 
-Evidence-first audit (R11a, run on the code of 2026-10-30): the only manifests
-whose dependency names are already parsed are Node (`package.json`:
-`dependencies`, `devDependencies`, `peerDependencies`) and Python
-(`pyproject.toml` `[project].dependencies` and `[tool.poetry.dependencies]`,
-`requirements.txt`), in `core/components.py`. That reader is reused through
-`declared_dependencies`; there is no second parser. Cargo and Go manifests are
-not parsed anywhere, so those ecosystems yield no entries (a deliberate gap,
-recorded in the design file, not guessed around).
+Where the names come from: one reader, `declared_dependencies` in
+`core/components.py`. R11a (2026-10-30) found Node (`package.json`) and Python
+(`pyproject.toml`, `requirements.txt`) already parsed there and reused them;
+2026-11-01 added Cargo (`[dependencies]`, `[dev-dependencies]`,
+`[build-dependencies]`, `[workspace.dependencies]`) and Go (direct `require`
+lines of `go.mod`, `// indirect` skipped, `/vN` suffix dropped) to the same
+function, at the owner's request (design file, D-QC8 and D-QC9). There is no
+second parser.
 
 Rules:
 
@@ -24,15 +24,16 @@ Rules:
 - Directories read: the project root and the application components found by
   `core/components.py` (same bounded, pruned search), nothing else.
 - `scope` is `runtime` for `dependencies` / `[project].dependencies` /
-  poetry dependencies, `dev` for `devDependencies`, and empty for
-  `peerDependencies` and `requirements.txt`, whose meaning is not
-  unambiguous.
+  poetry dependencies / Cargo `[dependencies]` / a direct Go `require`, `dev` for
+  `devDependencies` and Cargo `[dev-dependencies]`, and empty for
+  `peerDependencies`, `requirements.txt`, Cargo build and workspace dependencies,
+  whose meaning is not unambiguous.
 - Pure and deterministic: no clock, no environment; output is sorted by
   (manifest, label, name) and capped.
 
 فریم‌ورک‌های اعلام‌شده: فقط از وابستگی‌های مانیفست و یک جدول ثابت، نه از
-ساختار پوشه و نه از استفاده‌ی واقعی در کد. فقط Node و Python خوانده می‌شوند
-(Cargo و Go هنوز هیچ‌جا parse نمی‌شوند). خروجی مرتب و محدود است.
+ساختار پوشه و نه از استفاده‌ی واقعی در کد. Node، Python، Rust و Go خوانده
+می‌شوند. خروجی مرتب و محدود است.
 """
 
 from __future__ import annotations
@@ -44,7 +45,7 @@ from sarand.models.results import FrameworkEntry
 
 # Bump on every deliberate edit of the table; a snapshot test pins both.
 # با هر ویرایش عمدی جدول افزایش می‌یابد؛ یک تست snapshot هر دو را قفل می‌کند.
-FRAMEWORK_TABLE_VERSION = 1
+FRAMEWORK_TABLE_VERSION = 2
 
 _MAX_ENTRIES = 100
 
@@ -78,6 +79,29 @@ FRAMEWORK_TABLE: dict[str, str] = {
     "tornado": "Tornado",
     "transformers": "Transformers",
     "typer": "Typer",
+    # Rust (crate names)
+    "actix-web": "Actix Web",
+    "axum": "Axum",
+    "bevy": "Bevy",
+    "clap": "clap",
+    "diesel": "Diesel",
+    "leptos": "Leptos",
+    "rocket": "Rocket",
+    "sqlx": "SQLx",
+    "tauri": "Tauri",
+    "tokio": "Tokio",
+    "tonic": "tonic",
+    "warp": "warp",
+    "yew": "Yew",
+    # Go (module paths without a /vN suffix)
+    "github.com/gin-gonic/gin": "Gin",
+    "github.com/go-chi/chi": "chi",
+    "github.com/gofiber/fiber": "Fiber",
+    "github.com/gorilla/mux": "gorilla/mux",
+    "github.com/labstack/echo": "Echo",
+    "github.com/spf13/cobra": "Cobra",
+    "google.golang.org/grpc": "gRPC",
+    "gorm.io/gorm": "GORM",
     # Node.js
     "@angular/core": "Angular",
     "@capacitor/core": "Capacitor",

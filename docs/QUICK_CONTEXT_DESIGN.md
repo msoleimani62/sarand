@@ -85,6 +85,7 @@ line) and `looks_like_secret_path(path)`, so L4 needs no new scanner.
 | D-QC6 | The L4 budget is enforced as a hard byte cap derived from the token budget, documented as an estimate (section 5.2). | 2026-10-25 |
 | D-QC7 | L4 re-checks every snippet for secrets before it is written, even for files already in `included_files` (section 5.4). | 2026-10-25 |
 | D-QC8 | R11a reads Node (`package.json`) and Python (`pyproject.toml`, `requirements.txt`) manifests only, because those are the only ones whose dependency names are already parsed (`core/components.py`). Cargo and Go dependency names are parsed nowhere, so those ecosystems give no entries until a separate, owner-approved step adds a reader (section 4, result). | 2026-10-31 |
+| D-QC9 | The owner asked (2026-11-01) for Cargo and Go to be read as well. They are added to the same function, `declared_dependencies` (still one reader, no second parser): Cargo `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`, `[workspace.dependencies]` (a renamed crate is reported under its real `package` name; target-specific tables are not read), and the direct `require` lines of `go.mod` (`// indirect` skipped, `/vN` dropped). The table grew from 64 to 85 names and `FRAMEWORK_TABLE_VERSION` is 2. This supersedes the limit of D-QC8. | 2026-11-01 |
 
 D-QC8 was taken in R11a from the audit the design asked for. D-QC5 to D-QC7 come from an outside review of the first design, adopted after the
 owner's approval; the disposition of every point of that review is in section 9.
@@ -178,10 +179,9 @@ inside `quick_context` (a stable schema, empty list when none); `hybrid.txt`,
 block (new, from the shared function), and `minimal.txt` shows one
 trailing-newline artefact on the line above it. SARIF snapshots are unchanged.
 
-Open for the owner: a reader for Cargo (`[dependencies]`, `[dev-dependencies]`,
-`[workspace.dependencies]`) and Go (`go.mod` `require`) would let `tokio`,
-`axum`, `gin` and similar names into the table. It is small, but it is a new
-parser, which this design said not to add inside R11a.
+Cargo and Go were left out of R11a and added on 2026-11-01 as decision D-QC9
+(section 2, decisions): the R11a design said not to add a parser inside that
+round, and the owner then asked for them.
 
 ## 5. Round R11c: L4, the relevant source subset
 

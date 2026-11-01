@@ -191,7 +191,7 @@ def test_markdown_puts_quick_context_first_with_every_field() -> None:
 def test_json_exposes_the_same_block_near_the_top() -> None:
     with _fixture("hybrid") as data:
         payload = json.loads(json_renderer.render(data))
-        assert list(payload)[:2] == ["project_root", "quick_context"]
+        assert list(payload)[:3] == ["schema_version", "project_root", "quick_context"]
         assert payload["quick_context"] == json.loads(
             json.dumps(asdict(build_quick_context(data)))
         )

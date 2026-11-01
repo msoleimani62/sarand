@@ -8,6 +8,12 @@ version may include behaviour changes.
 
 ### Added
 
+- The JSON report now starts with a `schema_version` key (`1.0`), and every key and
+  field is documented in `docs/JSON_SCHEMA.md` (and `docs/JSON_SCHEMA.fa.md`) with a
+  compatibility policy: adding a key raises the minor number and readers must ignore
+  keys they do not know; removing, renaming or retyping one raises the major number.
+  A test fails if the code and the documents drift apart. The declared-frameworks
+  line also reads Rust (`Cargo.toml`) and Go (`go.mod`) dependencies.
 - `--relevant-source[=TOKENS]` adds a small, bounded selection of source snippets
   to the report (Markdown, HTML, text and JSON), and `--focus TEXT` prefers files
   whose path contains your words. The snippets come from files the report
@@ -28,11 +34,12 @@ version may include behaviour changes.
   it comes from and says what it does not show, and a rule whose data is missing
   is listed as not evaluated instead of counted as fine.
 - Quick Context now lists the frameworks that your manifests declare
-  (`package.json`, `pyproject.toml`, `requirements.txt`), in a "Declared
+  (`package.json`, `pyproject.toml`, `requirements.txt`, `Cargo.toml`,
+  `go.mod`), in a "Declared
   frameworks (from manifests, not verified in code)" line and a
   `quick_context.frameworks_declared` JSON key. It reads declarations only: a
-  name in the table is not proof that the code uses it, and Cargo and Go
-  manifests are not read yet. The HTML and plain-text reports now carry the
+  name in the table is not proof that the code uses it. Node, Python, Cargo
+  and Go manifests are read. The HTML and plain-text reports now carry the
   Quick Context block too (Markdown and JSON already did).
 - The report shows the declared tasks of Turborepo (`turbo.json`) and the
   declared targets and projects of Nx (`nx.json` with its `project.json`

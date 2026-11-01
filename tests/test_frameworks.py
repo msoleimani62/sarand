@@ -36,8 +36,8 @@ from sarand.renderers import html, json_renderer, markdown, text
 # The pinned table. A change to FRAMEWORK_TABLE is a deliberate edit: bump
 # FRAMEWORK_TABLE_VERSION and replace the digest below in the same commit.
 # جدول قفل‌شده: هر تغییر جدول یک ویرایش عمدی است؛ نسخه و digest را با هم عوض کنید.
-_TABLE_DIGEST = "a5630620b3d8ef623a859258add0123ad594d5a3fbe1c60ee5264cc32f9c3176"
-_TABLE_SIZE = 64
+_TABLE_DIGEST = "bbbb0c417c8b8983305d2736166a0484de9aadf3e2116a723dad1b1df3c39b76"
+_TABLE_SIZE = 85
 
 
 @contextmanager
@@ -65,7 +65,7 @@ def _digest() -> str:
 
 
 def test_table_snapshot_is_pinned_with_its_version() -> None:
-    assert FRAMEWORK_TABLE_VERSION == 1
+    assert FRAMEWORK_TABLE_VERSION == 2
     assert len(FRAMEWORK_TABLE) == _TABLE_SIZE
     assert _digest() == _TABLE_DIGEST
 
@@ -148,14 +148,70 @@ def test_fixture_vendor_and_example_directories_are_not_read() -> None:
         assert detect_declared_frameworks(root) == []
 
 
-def test_cargo_and_go_manifests_yield_nothing_by_design() -> None:
-    """Their dependency names are not parsed anywhere (design file, R11a)."""
+def test_cargo_scopes_and_renamed_crates_are_read() -> None:
     with _root() as root:
         write(
-            root / "Cargo.toml", '[package]\nname = "x"\n[dependencies]\ntokio = "1"\n'
+            root / "Cargo.toml",
+            '[package]\nname = "x"\n'
+            '[dependencies]\ntokio = "1"\nweb = { package = "axum", version = "0.7" }\n'
+            'serde = "1"\n'
+            '[dev-dependencies]\nwarp = "0.3"\n'
+            '[build-dependencies]\nclap = "4"\n'
+            '[workspace.dependencies]\nbevy = "0.14"\n'
+            "[target.'cfg(unix)'.dependencies]\nrocket = \"0.5\"\n",
         )
-        write(root / "go.mod", "module x\n\nrequire github.com/gin-gonic/gin v1\n")
-        assert detect_declared_frameworks(root) == []
+        assert _entries(root) == [
+            # sorted by (manifest, label, name): capitalised labels first
+            ("Cargo.toml", "axum", "runtime"),
+            ("Cargo.toml", "bevy", ""),
+            ("Cargo.toml", "tokio", "runtime"),
+            ("Cargo.toml", "clap", ""),
+            ("Cargo.toml", "warp", "dev"),
+        ]
+
+
+def test_go_direct_requires_are_read_and_indirect_ones_are_not() -> None:
+    with _root() as root:
+        write(
+            root / "go.mod",
+            "module example.com/app\n\ngo 1.22\n\n"
+            "require github.com/gin-gonic/gin v1.9.1\n\n"
+            "require (\n"
+            "\t// a comment\n"
+            "\tgithub.com/labstack/echo/v4 v4.11.4\n"
+            "\tgithub.com/spf13/cobra v1.8.0\n"
+            "\tgithub.com/gorilla/mux v1.8.1 // indirect\n"
+            ")\n\n"
+            "replace github.com/go-chi/chi => ../chi\n",
+        )
+        assert _entries(root) == [
+            ("go.mod", "github.com/spf13/cobra", "runtime"),
+            ("go.mod", "github.com/labstack/echo", "runtime"),
+            ("go.mod", "github.com/gin-gonic/gin", "runtime"),
+        ]
+
+
+def test_a_hybrid_root_reports_every_ecosystem_with_its_own_manifest() -> None:
+    with _root() as root:
+        write(root / "Cargo.toml", '[dependencies]\ntokio = "1"\n')
+        write(root / "go.mod", "module x\nrequire google.golang.org/grpc v1\n")
+        write(root / "package.json", '{"dependencies": {"react": "1"}}')
+        write(root / "requirements.txt", "fastapi\n")
+        assert {e[0] for e in _entries(root)} == {
+            "Cargo.toml",
+            "go.mod",
+            "package.json",
+            "requirements.txt",
+        }
+
+
+def test_broken_cargo_and_go_manifests_do_not_crash() -> None:
+    with _root() as root:
+        write(root / "Cargo.toml", "[dependencies\ntokio =")
+        write(root / "go.mod", "require (\n\tgithub.com/gin-gonic/gin\n")
+        assert [e for e in _entries(root) if e[0] == "Cargo.toml"] == []
+        write(root / "Cargo.toml", "dependencies = 3\nworkspace = 1\n")
+        assert [e for e in _entries(root) if e[0] == "Cargo.toml"] == []
 
 
 def test_broken_oversized_and_non_object_manifests_do_not_crash() -> None:

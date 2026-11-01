@@ -457,6 +457,10 @@ The `--cache` data is stored in the output folder under `.sarand-cache`.
 
 ## More tools
 
+### Read the JSON report from a script
+
+`sarand --format json` starts with a `schema_version` (`MAJOR.MINOR`). Adding a key raises MINOR and a script must ignore keys it does not know; removing, renaming or retyping one raises MAJOR and the CHANGELOG says so. Every key and field is listed in [docs/JSON_SCHEMA.md](https://github.com/msoleimani62/sarand/blob/main/docs/JSON_SCHEMA.md) ([فارسی](https://github.com/msoleimani62/sarand/blob/main/docs/JSON_SCHEMA.fa.md)), and a test fails if the code and that page drift apart.
+
 ### Give an AI only the code that matters
 
 A report of a whole project can be far larger than a chat can use. `--relevant-source` adds one small block at the end of the report's context sections: snippets from files the report already includes, chosen by fixed signals, not by meaning. It is a selection, not a summary.
