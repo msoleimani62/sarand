@@ -1,0 +1,4 @@
+.github/workflows/release.yml:23:9: shellcheck reported issue in this script: SC2086:info:1:45: Double quote to prevent globbing and word splitting [shellcheck]
+   |
+23 |         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+   |         ^~~~

@@ -152,7 +152,7 @@ def test_known_issues_come_from_failed_checks_only() -> None:
         kind="ruff", returncode=0, summary="ok", raw_output="ModuleNotFoundError: x"
     )
     assert detect_known_issues([failed, passing]) == [
-        "Compilation or lint errors were detected."
+        "Compilation errors were reported by: cargo."
     ]
 
 

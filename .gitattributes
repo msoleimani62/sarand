@@ -6,3 +6,9 @@
 # می‌شکند. فایل‌های باینری خودکار تشخیص داده می‌شوند.
 * text=auto eol=lf
 *.sh text eol=lf
+
+# Real tool output kept byte for byte as test evidence (R13-A): it contains
+# trailing whitespace and a final blank line, so `git diff --check` must not judge it.
+# خروجی واقعی ابزارها بایت‌به‌بایت به‌عنوان شاهد تست نگه داشته می‌شود؛ فاصله‌ی انتهایی
+# دارد، پس `git diff --check` نباید دربارهٔ آن قضاوت کند.
+tests/data/ramz_v0_3_2/* -whitespace

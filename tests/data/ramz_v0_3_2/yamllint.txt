@@ -1,0 +1,4 @@
+.pre-commit-config.yaml
+  1:1       warning  missing document start "---"  (document-start)
+  11:81     error    line too long (83 > 80 characters)  (line-length)
+

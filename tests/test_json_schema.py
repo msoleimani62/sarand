@@ -123,6 +123,7 @@ def test_the_fields_of_the_nested_objects_are_documented() -> None:
         results.HealthScore,
         results.CommandResult,
         results.FrameworkEntry,
+        results.Failure,
     ]
     for lang, text in _DOCS.items():
         for cls in classes:

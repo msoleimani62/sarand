@@ -25,7 +25,7 @@ from sarand.progress import status
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.0"
+JSON_SCHEMA_VERSION = "1.1"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
@@ -118,6 +118,11 @@ def render(
     # Only a run with `--relevant-source` gets this key, so the default report
     # stays byte-identical.
     # فقط اجرای دارای `--relevant-source` این کلید را می‌گیرد.
+    # R13-A: the classified failures of the checks (schema 1.1). Absent when no
+    # check failed, like the other optional keys.
+    # R13-A: شکست‌های طبقه‌بندی‌شده (شمای ۱٫۱)؛ وقتی چکی شکست نخورده غایب است.
+    if data.failures:
+        payload["failures"] = [asdict(f) for f in data.failures]
     if data.relevant_source is not None:
         from sarand.core.relevant_source import relevant_source_payload
 

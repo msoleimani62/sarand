@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "hybrid-project",
@@ -49,7 +49,7 @@
     "health": "76.0/100.0 (grade C), confidence 90%",
     "critical_findings": [
       "1 potential secret was found in tracked source",
-      "Compilation or lint errors were detected"
+      "Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable."
     ],
     "risks": [
       "3 check(s) failed: cargo test, cargo clippy, gitleaks",
@@ -1126,7 +1126,7 @@
     "confidence": 0.9
   },
   "known_issues": [
-    "Compilation or lint errors were detected"
+    "Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable."
   ],
   "ai_summary": "This is a hybrid Python/Rust/Go workspace with one failing test.",
   "suggested_reading_order": [
@@ -1203,6 +1203,40 @@
       "line_number": 1,
       "pattern_name": "Generic API Key",
       "is_test_fixture": true
+    }
+  ],
+  "failures": [
+    {
+      "tool": "cargo test",
+      "group": "test",
+      "category": "test_failure",
+      "cause": "exit_code",
+      "subject": "Rust tests",
+      "returncode": 1,
+      "summary": "cargo test (Rust tests) reported failing tests (exit code 1).",
+      "signals": []
+    },
+    {
+      "tool": "cargo clippy",
+      "group": "quality",
+      "category": "lint_failure",
+      "cause": "exit_code",
+      "subject": "Rust lints",
+      "returncode": 1,
+      "summary": "cargo clippy (Rust lints) reported lint or validation problems.",
+      "signals": []
+    },
+    {
+      "tool": "gitleaks",
+      "group": "security",
+      "category": "security_finding_detected",
+      "cause": "exit_code",
+      "subject": "secret scanning",
+      "returncode": 1,
+      "summary": "gitleaks (secret scanning) reported security findings; this is a tool result, not proof that the project is exploitable.",
+      "signals": [
+        "leak-reported"
+      ]
     }
   ],
   "source_files": [

@@ -2,7 +2,7 @@
 
 `sarand --format json` یک شیء JSON می‌نویسد. این صفحه همه‌ی کلیدهای سطح بالا، فیلدهای شیءهای تو در تو و آنچه یک اسکریپت می‌تواند به آن تکیه کند را فهرست می‌کند. نسخه‌ی فعلی پایین است؛ یک تست این صفحه و کد را هم‌گام نگه می‌دارد، پس کلیدی که در کد هست ولی اینجا نیست build را می‌شکند.
 
-نسخه‌ی فعلی: **1.0**
+نسخه‌ی فعلی: **1.1**
 
 ## سیاست سازگاری
 
@@ -41,6 +41,7 @@
 | `excluded_secret_files` | آرایه‌ی رشته‌ها | همیشه | مسیرهایی که چون شبیه راز هستند یا راز دارند کنار گذاشته شدند. فقط مسیر، هرگز محتوا. |
 | `secret_findings` | آرایه | همیشه | موردهای مطابق با الگوی راز: `path`، `line_number`، `pattern_name`، `is_test_fixture`. هرگز مقدار. |
 | `todos_suppressed` | عدد صحیح | فقط وقتی نشانه‌ای حذف شده | تعداد نشانه‌هایی که یک استثنا حذف کرده است. |
+| `failures` | آرایه | فقط وقتی چکی شکست خورده | هر چک شکست‌خورده، طبقه‌بندی‌شده: ابزار، گروه، دسته، علت، موضوع، کد خروج، یک خلاصه‌ی خنثی و برچسب شواهد (فیلدها پایین). دسته می‌گوید شکست از چه نوعی است، نه اینکه پروژه آسیب‌پذیر است. |
 | `relevant_source` | شیء | فقط با `--relevant-source` | زیرمجموعه‌ی کد منبع مرتبط: `budget`، `text`، نمایه‌ی `files` و شمارنده‌ها (فیلدها پایین). |
 | `scan_skipped` | عدد صحیح | فقط وقتی اسکن مسیری را نتوانسته بخواند | تعداد مسیرهایی که اسکن نتوانست بخواند. |
 | `scan_skipped_samples` | آرایه‌ی رشته‌ها | همراه `scan_skipped` | چند نمونه از آن مسیرها. |
@@ -69,3 +70,9 @@
 - **`health`**: `score`, `max_score`, `grade`, `breakdown`, `recommendations`, `critical_failures`, `checks_run`, `checks_skipped`, `confidence`, `checks_inconclusive`. `confidence` بین ۰ و ۱ است و می‌گوید چند چک اجرا شده، نه اینکه کد چقدر خوب است.
 - **`result`**: `kind`, `returncode`, `summary`, `raw_output`, `warnings`, `errors`, `duration_seconds`, `skipped`, `skip_reason`, `inconclusive_reason`. شیء داخل `test_results`، `quality_results` و `security_results`؛ `inconclusive_reason` فقط وقتی مقدار دارد می‌آید.
 - **`kubernetes`**: `helm_charts`، `kustomize_overlays` و، فقط وقتی مانیفست خام پیدا شده، `manifests` و `total_manifest_files`.
+- **`failures`**: `tool`، `group`، `category`، `cause`، `subject`، `returncode`، `summary`، `signals`. `group` یکی از `test`، `quality` یا `security` است. `category` یکی از `compilation_failure`، `test_failure`، `lint_failure`، `security_tool_failure`، `security_finding_detected`، `configuration_failure`، `dependency_policy_failure`، `report_generation_failure` (رزرو، هنوز تولید نمی‌شود) یا `unknown_tool_failure` است. `cause` یکی از `exit_code`، `timeout`، `tool_not_found` یا `os_error` است؛ فقط `exit_code` یعنی خود ابزار اجرا شد و با کد غیرصفر خارج شد. `signals` برچسب شواهدی است که دسته را تعیین کرده، نه خروجی خام. یک چک شکست‌خورده می‌تواند چند ورودی بدهد (cargo deny در یک اجرا هم advisory و هم نقض سیاست گزارش می‌کند).
+
+## تاریخچه‌ی نسخه
+
+- **1.1** (R13-A): کلید اختیاری `failures` اضافه شد. عبارت‌بندی `known_issues` عوض شد: جمله‌ی کلی «Compilation or lint errors were detected.» دیگر وجود ندارد، چون روی یک گزارش واقعی از `cargo audit` و `cargo deny` می‌آمد، نه از کامپایلر یا linter. اسکریپت‌هایی که این جمله را می‌خواندند باید `failures[].category` را بخوانند. دو جمله‌ی قدیمی («One or more source files contain syntax errors.» و «A required Python dependency is missing.») بدون تغییرند.
+- **1.0**: اولین نسخه‌ی مستند.

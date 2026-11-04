@@ -177,13 +177,229 @@ ERROR_LINE_PATTERNS: tuple[str, ...] = (
     r"\b[1-9]\d* failed\b",
 )
 
-# Patterns are regexes, matched per line over the output of FAILED checks only.
-# الگوها regex هستند و فقط روی خروجی چک‌های شکست‌خورده خط‌به‌خط اعمال می‌شوند.
-KNOWN_ISSUE_PATTERNS: list[tuple[str, str]] = [
-    (r"Failed to parse", "One or more source files contain syntax errors."),
-    (r"ModuleNotFoundError", "A required Python dependency is missing."),
-    (_ERROR_COLON, "Compilation or lint errors were detected."),
-]
+# --- R13-A: failure classification ---------------------------------------
+# A failed check is classified from WHAT RAN (the tool) and WHAT IT PRINTED
+# (strong signatures), never from a bare "error:" line. The old catch-all that
+# turned every `error:` of any failed command into "Compilation or lint errors
+# were detected." is gone: on a real report it was produced by cargo audit and
+# cargo deny (security tools), not by a compiler or a linter.
+# طبقه‌بندی شکست از «چه چیزی اجرا شد» و «چه چاپ کرد» می‌آید، نه از یک خط
+# `error:` عمومی. پیام کلی قدیمی حذف شد؛ روی گزارش واقعی از cargo audit و
+# cargo deny می‌آمد، نه از کامپایلر یا linter.
+FAILURE_COMPILATION = "compilation_failure"
+FAILURE_TEST = "test_failure"
+FAILURE_LINT = "lint_failure"
+FAILURE_SECURITY_TOOL = "security_tool_failure"
+FAILURE_SECURITY_FINDING = "security_finding_detected"
+FAILURE_CONFIGURATION = "configuration_failure"
+FAILURE_DEPENDENCY_POLICY = "dependency_policy_failure"
+FAILURE_REPORT_GENERATION = "report_generation_failure"
+FAILURE_UNKNOWN_TOOL = "unknown_tool_failure"
+# Fixed order: it is the order of the known-issue lines and of the JSON enum.
+# `report_generation_failure` is part of the vocabulary; no check result
+# produces it today (it is reserved for failures of Sarand's own rendering).
+# ترتیب ثابت است. `report_generation_failure` در واژگان هست ولی هیچ نتیجه‌ی چکی
+# امروز آن را تولید نمی‌کند (برای شکست رندر خود سرند رزرو شده).
+FAILURE_CATEGORIES: tuple[str, ...] = (
+    FAILURE_COMPILATION,
+    FAILURE_TEST,
+    FAILURE_LINT,
+    FAILURE_SECURITY_TOOL,
+    FAILURE_SECURITY_FINDING,
+    FAILURE_CONFIGURATION,
+    FAILURE_DEPENDENCY_POLICY,
+    FAILURE_REPORT_GENERATION,
+    FAILURE_UNKNOWN_TOOL,
+)
+
+# Why a check failed, apart from its category (`cause`): the tool exited with
+# a code (`exit_code`), or the runner itself could not run it. The runner marks
+# the second kind with a sentinel line (utils/command.py), so a real tool exit
+# code 124 or 127 is not mistaken for a timeout or a missing tool.
+# `cause`: خروج با کد، یا ناتوانی خود runner در اجرا (با خط نشانگر مشخص می‌شود).
+CAUSE_EXIT_CODE = "exit_code"
+CAUSE_TIMEOUT = "timeout"
+CAUSE_TOOL_NOT_FOUND = "tool_not_found"
+CAUSE_OS_ERROR = "os_error"
+SENTINEL_TIMEOUT = "Command timed out."
+SENTINEL_NOT_FOUND = "Command not found:"
+SENTINEL_OS_ERROR = "OS error while running command:"
+EXECUTION_SENTINELS: tuple[tuple[int, str, str], ...] = (
+    (124, SENTINEL_TIMEOUT, CAUSE_TIMEOUT),
+    (127, SENTINEL_NOT_FOUND, CAUSE_TOOL_NOT_FOUND),
+    (1, SENTINEL_OS_ERROR, CAUSE_OS_ERROR),
+)
+
+# Tool kind (lower case, as in CommandResult.kind) -> (default category, what
+# the tool checks). The default applies only when no execution cause and no
+# stronger signature explains the failure. Security audit-style tools default
+# to "tool failure" until a findings signature proves the tool reported findings.
+# نوع ابزار -> (دسته‌ی پیش‌فرض، موضوع بررسی). پیش‌فرض فقط وقتی به کار می‌آید که
+# علت اجرا یا امضای قوی‌تری شکست را توضیح ندهد.
+TOOL_FAILURE_CLASSES: dict[str, tuple[str, str]] = {
+    # lint, format and static-analysis tools
+    "ruff": (FAILURE_LINT, "Python source"),
+    "ruff check": (FAILURE_LINT, "Python source"),
+    "ruff format --check": (FAILURE_LINT, "Python formatting"),
+    "mypy": (FAILURE_LINT, "Python type checking"),
+    "cargo fmt --check": (FAILURE_LINT, "Rust formatting"),
+    "cargo fmt/clippy": (FAILURE_LINT, "Rust formatting and lints"),
+    "cargo clippy": (FAILURE_LINT, "Rust lints"),
+    "actionlint": (FAILURE_LINT, "GitHub Actions workflow files"),
+    "yamllint": (FAILURE_LINT, "YAML files"),
+    "markdownlint": (FAILURE_LINT, "Markdown documentation"),
+    "taplo lint": (FAILURE_LINT, "TOML files"),
+    "jsonlint": (FAILURE_LINT, "JSON files"),
+    "json syntax check": (FAILURE_LINT, "JSON syntax"),
+    "shellcheck": (FAILURE_LINT, "shell scripts"),
+    "shfmt -d": (FAILURE_LINT, "shell formatting"),
+    "eslint": (FAILURE_LINT, "JavaScript and TypeScript source"),
+    "npm run lint": (FAILURE_LINT, "JavaScript and TypeScript source"),
+    "stylelint": (FAILURE_LINT, "CSS source"),
+    "sqlfluff lint": (FAILURE_LINT, "SQL source"),
+    "xmllint --noout": (FAILURE_LINT, "XML well-formedness"),
+    "go vet": (FAILURE_LINT, "Go source"),
+    "staticcheck": (FAILURE_LINT, "Go source"),
+    "clang-format --dry-run": (FAILURE_LINT, "C, C++ and Objective-C formatting"),
+    "clang-tidy": (FAILURE_LINT, "C and C++ source"),
+    "cppcheck": (FAILURE_LINT, "C and C++ source"),
+    "dotnet format --verify-no-changes": (FAILURE_LINT, ".NET formatting"),
+    "dart analyze": (FAILURE_LINT, "Dart source"),
+    "phpstan": (FAILURE_LINT, "PHP source"),
+    "rubocop": (FAILURE_LINT, "Ruby source"),
+    "luacheck": (FAILURE_LINT, "Lua source"),
+    "perlcritic": (FAILURE_LINT, "Perl source"),
+    "lintr": (FAILURE_LINT, "R source"),
+    "swiftlint": (FAILURE_LINT, "Swift source"),
+    "swift-format lint": (FAILURE_LINT, "Swift formatting"),
+    "detekt": (FAILURE_LINT, "Kotlin source"),
+    "ktlint": (FAILURE_LINT, "Kotlin source"),
+    "codenarc": (FAILURE_LINT, "Groovy source"),
+    "nixpkgs-fmt --check": (FAILURE_LINT, "Nix formatting"),
+    "zig fmt --check": (FAILURE_LINT, "Zig formatting"),
+    "invoke-scriptanalyzer": (FAILURE_LINT, "PowerShell source"),
+    "helm lint": (FAILURE_LINT, "Helm charts"),
+    "kubeconform": (FAILURE_LINT, "Kubernetes manifests"),
+    # the compiler itself
+    "tsc --noemit": (FAILURE_COMPILATION, "TypeScript compilation"),
+    # test runners
+    "cargo test": (FAILURE_TEST, "Rust tests"),
+    "pytest": (FAILURE_TEST, "Python tests"),
+    "go test": (FAILURE_TEST, "Go tests"),
+    "npm test": (FAILURE_TEST, "JavaScript and TypeScript tests"),
+    "phpunit": (FAILURE_TEST, "PHP tests"),
+    "rspec": (FAILURE_TEST, "Ruby tests"),
+    "ctest": (FAILURE_TEST, "C and C++ tests"),
+    "dotnet test": (FAILURE_TEST, ".NET tests"),
+    "dart test": (FAILURE_TEST, "Dart tests"),
+    "mvn test": (FAILURE_TEST, "Java tests"),
+    "swift test": (FAILURE_TEST, "Swift tests"),
+    "busted": (FAILURE_TEST, "Lua tests"),
+    "testthat": (FAILURE_TEST, "R tests"),
+    "prove": (FAILURE_TEST, "Perl tests"),
+    "bats": (FAILURE_TEST, "shell tests"),
+    "invoke-pester": (FAILURE_TEST, "PowerShell tests"),
+    "zig build test": (FAILURE_TEST, "Zig tests"),
+    # security tools: default = the tool failed, unless a findings signature
+    # (SECURITY_FINDING_SIGNATURES) shows it reported findings
+    "cargo audit": (FAILURE_SECURITY_TOOL, "Rust dependency advisories"),
+    "cargo deny check": (
+        FAILURE_SECURITY_TOOL,
+        "Rust dependency policy and advisories",
+    ),
+    "pip-audit": (FAILURE_SECURITY_TOOL, "Python dependency advisories"),
+    "npm audit": (FAILURE_SECURITY_TOOL, "JavaScript dependency advisories"),
+    "govulncheck": (FAILURE_SECURITY_TOOL, "Go vulnerabilities"),
+    "bundler-audit": (FAILURE_SECURITY_TOOL, "Ruby dependency advisories"),
+    "composer audit": (FAILURE_SECURITY_TOOL, "PHP dependency advisories"),
+    "dotnet list package --vulnerable": (
+        FAILURE_SECURITY_TOOL,
+        ".NET dependency advisories",
+    ),
+    "gradle dependencycheckanalyze": (
+        FAILURE_SECURITY_TOOL,
+        "Gradle dependency advisories",
+    ),
+    "mvn dependency-check": (FAILURE_SECURITY_TOOL, "Maven dependency advisories"),
+    "bandit": (FAILURE_SECURITY_TOOL, "Python source security checks"),
+    "gitleaks": (FAILURE_SECURITY_TOOL, "secret scanning"),
+    "syft (sbom)": (FAILURE_SECURITY_TOOL, "SBOM generation"),
+    # configuration checks
+    "lockfile check": (FAILURE_CONFIGURATION, "dependency lockfile"),
+}
+# Kinds that carry a file or target name are matched by prefix.
+# نوع‌هایی که نام فایل یا هدف دارند با پیشوند تطبیق داده می‌شوند.
+TOOL_FAILURE_PREFIXES: tuple[tuple[str, str, str], ...] = (
+    ("docker compose config", FAILURE_CONFIGURATION, "Docker Compose configuration"),
+    ("helm lint", FAILURE_LINT, "Helm charts"),
+    ("kubeconform", FAILURE_LINT, "Kubernetes manifests"),
+    ("gradle ", FAILURE_UNKNOWN_TOOL, "Gradle task"),
+)
+
+# Strong compilation signatures: (regex, signal label, subject). Only rustc and
+# comparable compilers print these; a linter that merely says `error:` does not.
+# Rust: `error[E0425]:`. Clippy lints promoted to errors print `error: <lint>`
+# followed by "could not compile", which is deliberately NOT a signature.
+# امضای قوی کامپایل. `error:` ساده از linter امضا نیست؛ lintهای clippy که به
+# error ارتقا یافته‌اند هم «could not compile» می‌آورند و عمداً امضا حساب نمی‌شوند.
+COMPILE_SIGNATURES: tuple[tuple[str, str, str], ...] = (
+    (r"\berror\[E\d{4}\]:", "rust-error-code", "Rust compilation"),
+    (
+        r"\b(?:SyntaxError|IndentationError|TabError)\b",
+        "python-syntax",
+        "Python syntax",
+    ),
+    (r"Failed to parse", "python-syntax", "Python syntax"),
+    (r"\[build failed\]", "go-build-failed", "Go build"),
+    (r"\berror TS\d+:", "typescript-error-code", "TypeScript compilation"),
+    (r"COMPILATION ERROR", "java-compilation-error", "Java compilation"),
+    (r"\berror CS\d+:", "dotnet-error-code", ".NET compilation"),
+)
+# Signal labels that keep their historical one-line known issue.
+# برچسب‌هایی که جمله‌ی قدیمیِ known issue خود را نگه می‌دارند.
+SIGNAL_PYTHON_SYNTAX = "python-syntax"
+SIGNAL_PYTHON_MISSING_MODULE = "python-missing-module"
+MISSING_MODULE_PATTERN = r"ModuleNotFoundError"
+KNOWN_ISSUE_SYNTAX = "One or more source files contain syntax errors."
+KNOWN_ISSUE_MISSING_MODULE = "A required Python dependency is missing."
+
+# Security tools whose non-zero exit can mean "findings reported": (substring of
+# the lower-cased kind, regex over the output, signal label). A match proves the
+# tool completed and reported findings (an advisory or a leak); it does NOT prove
+# exploitability. cargo deny is read by diagnostic code instead (below).
+# امضای «ابزار امنیتی گزارش یافته داد»؛ اثبات نمی‌کند که قابل بهره‌برداری است.
+SECURITY_FINDING_SIGNATURES: tuple[tuple[str, str, str], ...] = (
+    (
+        "cargo audit",
+        r"(?m)error: \d+ vulnerabilit(?:y|ies) found|^ID:\s+RUSTSEC-",
+        "advisory-reported",
+    ),
+    ("pip-audit", r"Found \d+ known vulnerabilit", "advisory-reported"),
+    ("npm audit", r"(?i)\b[1-9]\d* vulnerabilit", "advisory-reported"),
+    ("govulncheck", r"Vulnerability #\d+", "advisory-reported"),
+    ("bundler-audit", r"(?m)Vulnerabilities found!|^Name: ", "advisory-reported"),
+    ("composer audit", r"(?i)found \d+ security vulnerabilit", "advisory-reported"),
+    ("vulnerable", r"has the following vulnerable packages", "advisory-reported"),
+    (
+        "dependency-check",
+        r"(?i)identified with (?:known )?vulnerabilities|CVSS score",
+        "advisory-reported",
+    ),
+    ("bandit", r">> Issue:|Issue: \[", "static-finding-reported"),
+    (
+        "gitleaks",
+        r"(?im)\b[1-9]\d* leaks? found|\bleaks found:\s*[1-9]|^Finding:",
+        "leak-reported",
+    ),
+)
+# cargo deny prints `error[code]:` diagnostics. Advisory codes are security
+# findings; every other error code is a dependency POLICY violation (licenses,
+# bans, sources). Warnings (`warning[code]:`) are not failures.
+# کدهای advisory یافته‌ی امنیتی‌اند؛ هر کد error دیگر نقض سیاست وابستگی است.
+CARGO_DENY_ERROR_PATTERN = r"(?m)^error\[([a-z0-9-]+)\]:"
+CARGO_DENY_ADVISORY_CODES: frozenset[str] = frozenset(
+    {"vulnerability", "unmaintained", "unsound", "yanked", "notice"}
+)
 
 # A dependency-audit tool can exit 0 although it could not finish (cargo audit
 # printed "couldn't check if the package is yanked: ... timeframe" three times

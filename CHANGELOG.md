@@ -8,6 +8,14 @@ version may include behaviour changes.
 
 ### Added
 
+- The JSON report has a new optional key `failures` (schema `1.1`): every failed
+  check, classified by what kind of failure it is (`compilation_failure`,
+  `test_failure`, `lint_failure`, `security_tool_failure`,
+  `security_finding_detected`, `configuration_failure`,
+  `dependency_policy_failure`, `unknown_tool_failure`), with the tool, why it
+  failed (`exit_code`, `timeout`, `tool_not_found` or `os_error`), what it checks,
+  and the evidence labels that decided the category. The Markdown report has a
+  matching "Failure classification" table.
 - The JSON report now starts with a `schema_version` key (`1.0`), and every key and
   field is documented in `docs/JSON_SCHEMA.md` (and `docs/JSON_SCHEMA.fa.md`) with a
   compatibility policy: adding a key raises the minor number and readers must ignore
@@ -70,6 +78,22 @@ version may include behaviour changes.
 - A plugin phase that does not finish within one hour and one minute is
   cancelled and reported as a skipped check, instead of hanging the scan.
 - `filelock` 4.x is allowed (`>=3.14,<5`); the full test suite passed with it.
+
+### Fixed
+
+- The report no longer says "Compilation or lint errors were detected." when
+  nothing was compiled or linted wrongly. On a real report (Ramz v0.3.2) that
+  sentence came from `cargo audit` and `cargo deny`, two security tools, and
+  actionlint, yamllint and markdownlint did not trigger it. A failed check is now
+  classified from the tool that ran and from strong evidence (for example a rustc
+  error code such as `E0425`), never from a bare `error:` line. A security finding
+  is reported as a tool result, a dependency policy or license violation is not
+  called a vulnerability, and a failure that cannot be classified stays
+  "unclassified" with the tool's name. The two older sentences (syntax errors and
+  a missing Python dependency) are unchanged.
+- A command that the runner stopped for a timeout now always ends with the line
+  `Command timed out.`, even when the tool had printed something first, so a
+  timeout is never mistaken for a tool that really exits with code 124.
 
 ## [0.7.0] - 2026-10-24
 

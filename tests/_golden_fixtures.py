@@ -20,6 +20,7 @@ from _helpers import write
 from sarand.models.results import (
     CommandResult,
     EnvironmentInfo,
+    Failure,
     FrameworkEntry,
     GitSnapshot,
     HealthScore,
@@ -264,7 +265,42 @@ def build_hybrid_fixture(root: Path) -> ReportData:
         excluded_secret_files=excluded_secret_files,
         secret_findings=secret_findings,
         health=health,
-        known_issues=["Compilation or lint errors were detected"],
+        known_issues=[
+            (
+                "Security findings were reported by: gitleaks. These are tool "
+                "results, not proof that the project is exploitable."
+            )
+        ],
+        failures=[
+            Failure(
+                tool="cargo test",
+                group="test",
+                category="test_failure",
+                subject="Rust tests",
+                returncode=1,
+                summary="cargo test (Rust tests) reported failing tests (exit code 1).",
+            ),
+            Failure(
+                tool="cargo clippy",
+                group="quality",
+                category="lint_failure",
+                subject="Rust lints",
+                returncode=1,
+                summary="cargo clippy (Rust lints) reported lint or validation problems.",
+            ),
+            Failure(
+                tool="gitleaks",
+                group="security",
+                category="security_finding_detected",
+                subject="secret scanning",
+                returncode=1,
+                summary=(
+                    "gitleaks (secret scanning) reported security findings; this is "
+                    "a tool result, not proof that the project is exploitable."
+                ),
+                signals=("leak-reported",),
+            ),
+        ],
         ai_summary="This is a hybrid Python/Rust/Go workspace with one failing test.",
         suggested_reading_order=suggested_reading_order,
         frameworks_declared=[

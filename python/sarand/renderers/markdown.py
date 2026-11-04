@@ -420,6 +420,27 @@ def _render_quick_context(data: ReportData) -> list[str]:
 _MONOREPO_LABELS = {"turbo": "Turborepo", "nx": "Nx"}
 
 
+def _render_failures(data: ReportData) -> list[str]:
+    """The classified failures of the checks (core/failures.py, R13-A): which
+    tool, in which category, why it failed, and the evidence labels that decided
+    it. A category says WHAT kind of failure it is; it is not a verdict on the
+    project (a security finding is a tool result, not proof of exploitability)."""
+    lines = [
+        "## Failure classification",
+        "",
+        "| Tool | Group | Category | Cause | Subject | Evidence |",
+        "|---|---|---|---|---|---|",
+    ]
+    for f in data.failures:
+        evidence = ", ".join(f.signals) or "-"
+        lines.append(
+            f"| {_cell(f.tool)} | {f.group or '-'} | `{f.category}` | {f.cause} "
+            f"| {_cell(f.subject) or '-'} | {_cell(evidence)} |"
+        )
+    lines.append("")
+    return lines
+
+
 def _cell(text: str) -> str:
     """Safe inside a table cell or a list line: names come from config files."""
     return " ".join(text.replace("`", "'").replace("|", "\\|").split())
@@ -704,6 +725,9 @@ def render(
         parts.extend(
             ["## Known issues", "", *[f"- {i}" for i in data.known_issues], ""]
         )
+
+    if data.failures:
+        parts.extend(_render_failures(data))
 
     all_warnings: list[Issue] = []
     all_errors: list[Issue] = []

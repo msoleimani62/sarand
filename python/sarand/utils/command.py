@@ -24,6 +24,9 @@ from sarand.constants import (
     INCONCLUSIVE_KIND_MARKERS,
     INCONCLUSIVE_SIGNATURES,
     MAX_COMMAND_OUTPUT_BYTES,
+    SENTINEL_NOT_FOUND,
+    SENTINEL_OS_ERROR,
+    SENTINEL_TIMEOUT,
     WARNING_LINE_PATTERNS,
 )
 from sarand.models.results import CommandResult, Issue
@@ -57,6 +60,19 @@ def _resolve_argv(cmd: Sequence[str]) -> list[str]:
     return argv
 
 
+def _timed_out(output: str) -> str:
+    """The output of a timed-out command, always ending with the sentinel line.
+
+    The partial output a tool printed before the timeout is kept; the sentinel
+    line (with the exit code 124) is how `core/failures.py` tells a timeout of the
+    runner from a tool that itself exits with 124.
+    خروجی ناقص حفظ می‌شود و خط نشانگر همیشه آخر می‌آید؛ همین، timeout را از خروجی
+    ۱۲۴ خودِ ابزار جدا می‌کند.
+    """
+    partial = output.rstrip("\n")
+    return f"{partial}\n{SENTINEL_TIMEOUT}" if partial else SENTINEL_TIMEOUT
+
+
 def run_cmd(
     cmd: Sequence[str],
     cwd: Path,
@@ -86,13 +102,13 @@ def run_cmd(
         output = exc.output
         if isinstance(output, bytes):
             output = output.decode("utf-8", errors="replace")
-        return 124, output or "Command timed out.", duration
+        return 124, _timed_out(output or ""), duration
     except FileNotFoundError:
         duration = time.perf_counter() - start
-        return 127, f"Command not found: {cmd[0]}", duration
+        return 127, f"{SENTINEL_NOT_FOUND} {cmd[0]}", duration
     except OSError as exc:
         duration = time.perf_counter() - start
-        return 1, f"OS error while running command: {exc}", duration
+        return 1, f"{SENTINEL_OS_ERROR} {exc}", duration
 
 
 def summarize_tail(output: str, lines: int = 80) -> str:
@@ -383,9 +399,7 @@ async def _run_cmd(
             await _terminate_process(proc)
             stdout = await communicate_task
             output = stdout.decode("utf-8", errors="replace") if stdout else ""
-            if not output:
-                output = "Command timed out."
-            return 124, output, time.perf_counter() - start
+            return 124, _timed_out(output), time.perf_counter() - start
         except asyncio.CancelledError:
             await _terminate_process(proc)
             if communicate_task is not None:
@@ -399,10 +413,10 @@ async def _run_cmd(
             time.perf_counter() - start,
         )
     except FileNotFoundError:
-        return 127, f"Command not found: {cmd[0]}", time.perf_counter() - start
+        return 127, f"{SENTINEL_NOT_FOUND} {cmd[0]}", time.perf_counter() - start
     except OSError as exc:
         if proc is not None:
             await _terminate_process(proc)
         if communicate_task is not None and not communicate_task.done():
             await communicate_task
-        return 1, f"OS error while running command: {exc}", time.perf_counter() - start
+        return 1, f"{SENTINEL_OS_ERROR} {exc}", time.perf_counter() - start

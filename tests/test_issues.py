@@ -1,9 +1,11 @@
 """Tests for sarand.core.issues (detect_known_issues).
 
-Both tests below are regression tests for two separate false-positive
+The bandit tests below are regression tests for two separate false-positive
 bugs found during a self-scan review, both of which made
 `detect_known_issues` report "Compilation or lint errors were
-detected." even though every tool had actually passed.
+detected." even though every tool had actually passed. Since R13-A that
+sentence no longer exists: classification lives in core/failures.py (see
+tests/test_failures.py) and the tests below assert the new, stricter behavior.
 
 هر دو تست زیر، تست ریگرسیون برای دو باگ جدا از نوع false-positive
 هستند که در طول یک بررسی خوداسکن پیدا شدند و باعث می‌شدند
@@ -46,7 +48,22 @@ def test_ignores_error_colon_inside_a_quoted_bandit_context_line() -> None:
     assert detect_known_issues([result]) == []
 
 
-def test_still_detects_a_genuine_compiler_error() -> None:
+def test_a_rustc_error_code_is_a_compilation_failure() -> None:
+    result = _result(
+        "cargo test",
+        "error[E0432]: unresolved import `foo`\n --> src/lib.rs:1:5",
+        returncode=1,
+    )
+
+    assert detect_known_issues([result]) == [
+        "Compilation errors were reported by: cargo test."
+    ]
+
+
+def test_a_bare_error_line_from_an_unknown_tool_stays_unclassified() -> None:
+    """R13-A: the old catch-all claimed "Compilation or lint errors were
+    detected." for any `error:` line. A bare line proves neither; it is reported
+    as an unclassified failure of the named tool."""
     result = _result(
         "cargo",
         "error: unresolved import `foo`\n --> src/lib.rs:1:5",
@@ -54,7 +71,7 @@ def test_still_detects_a_genuine_compiler_error() -> None:
     )
 
     assert detect_known_issues([result]) == [
-        "Compilation or lint errors were detected."
+        "A tool failed for a reason that was not classified: cargo."
     ]
 
 
@@ -70,7 +87,7 @@ def test_still_detects_a_genuine_missing_dependency() -> None:
 
 def test_combines_findings_across_multiple_command_results() -> None:
     results = [
-        _result("cargo", "error: unresolved import `foo`", returncode=1),
+        _result("cargo test", "error[E0432]: unresolved import `foo`", returncode=1),
         _result(
             "pytest", "E   ModuleNotFoundError: No module named 'sarand'", returncode=1
         ),
@@ -78,5 +95,15 @@ def test_combines_findings_across_multiple_command_results() -> None:
 
     issues = detect_known_issues(results)
 
-    assert "Compilation or lint errors were detected." in issues
-    assert "A required Python dependency is missing." in issues
+    assert issues == [
+        "A required Python dependency is missing.",
+        "Compilation errors were reported by: cargo test.",
+    ]
+
+
+def test_the_generic_message_is_never_produced() -> None:
+    for kind in ("cargo audit", "cargo deny check", "yamllint", "unknown-tool"):
+        issues = detect_known_issues(
+            [_result(kind, "error: something went wrong", returncode=1)]
+        )
+        assert all("Compilation or lint errors" not in i for i in issues), kind

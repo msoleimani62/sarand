@@ -35,10 +35,10 @@ from sarand.core.compose import detect_compose
 from sarand.core.concurrency import jobs_argument, resolve_jobs
 from sarand.core.detection_refine import refine_detection
 from sarand.core.estimate import estimate_source_bytes, size_advice
+from sarand.core.failures import classify_failures, known_issues_from_failures
 from sarand.core.frameworks import detect_declared_frameworks
 from sarand.core.gitleaks import gitleaks_flagged_paths, run_gitleaks
 from sarand.core.health import compute_health_score
-from sarand.core.issues import detect_known_issues
 from sarand.core.kubernetes import detect_kubernetes
 from sarand.core.lockfiles import run_lockfile_check
 from sarand.core.makefile import detect_makefiles
@@ -701,7 +701,8 @@ async def run(config: SarandConfig) -> int:
                     f"{moved} file(s) flagged by gitleaks excluded from the report."
                 )
 
-    known = detect_known_issues(test_results + quality_results + security_results)
+    failures = classify_failures(test_results, quality_results, security_results)
+    known = known_issues_from_failures(failures)
 
     data = ReportData(
         project_root=root,
@@ -724,6 +725,7 @@ async def run(config: SarandConfig) -> int:
         excluded_secret_files=excluded_secrets,
         secret_findings=secret_findings,
         known_issues=known,
+        failures=failures,
         workspace=workspace,
         extra_workspaces=workspaces[1:],
         package_paths=list(dict.fromkeys(t.path for t in component_plan.targets)),

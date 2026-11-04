@@ -470,6 +470,28 @@ class RelevantSource:
     unreadable_files: int = 0
 
 
+@dataclass(frozen=True)
+class Failure:
+    """One classified failure of a check (core/failures.py, R13-A).
+
+    `category` is one of constants.FAILURE_CATEGORIES; `cause` says whether the
+    tool exited with a code or the runner could not run it; `subject` names
+    what the tool checks; `signals` are labels of the evidence that decided the
+    category (never raw output). One check result can give several failures
+    (cargo deny can report advisories and policy violations in one run).
+    یک شکست طبقه‌بندی‌شده؛ `signals` فقط برچسب شواهد است، نه خروجی خام.
+    """
+
+    tool: str
+    group: str
+    category: str
+    cause: str = "exit_code"
+    subject: str = ""
+    returncode: int = 0
+    summary: str = ""
+    signals: tuple[str, ...] = ()
+
+
 @dataclass
 class ReportData:
     """Complete data package used to render any report format."""
@@ -500,6 +522,10 @@ class ReportData:
     secret_findings: list[SecretFinding] = field(default_factory=list)
     health: HealthScore | None = None
     known_issues: list[str] = field(default_factory=list)
+    # Classified failures of the checks (core/failures.py); empty when every check
+    # passed, was skipped or was inconclusive.
+    # شکست‌های طبقه‌بندی‌شده‌ی چک‌ها؛ وقتی همه موفق/رد/نامعلوم‌اند خالی است.
+    failures: list[Failure] = field(default_factory=list)
     ai_summary: str = ""
     suggested_reading_order: list[str] = field(default_factory=list)
     workspace: WorkspaceInfo | None = None

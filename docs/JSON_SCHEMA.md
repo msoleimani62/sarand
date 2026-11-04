@@ -2,7 +2,7 @@
 
 `sarand --format json` writes one JSON object. This page lists every top-level key, the fields of its nested objects, and what a script may rely on. The current version is below; a test keeps this page and the code in step, so a key that exists but is not listed here fails the build.
 
-Current version: **1.0**
+Current version: **1.1**
 
 ## Compatibility policy
 
@@ -41,6 +41,7 @@ Current version: **1.0**
 | `excluded_secret_files` | array of strings | always | Paths left out because they look like, or contain, credentials. Only paths, never content. |
 | `secret_findings` | array | always | Secret-pattern matches: `path`, `line_number`, `pattern_name`, `is_test_fixture`. Never the matched value. |
 | `todos_suppressed` | integer | only when some markers were suppressed | How many markers an exception removed. |
+| `failures` | array | only when a check failed | Every failed check, classified: tool, group, category, cause, subject, exit code, a neutral summary and the evidence labels (fields below). A category says what kind of failure it is, not that the project is vulnerable. |
 | `relevant_source` | object | only with `--relevant-source` | The relevant source subset: `budget`, `text`, a `files` index and counters (fields below). |
 | `scan_skipped` | integer | only when the scan could not read some paths | How many paths the scan could not read. |
 | `scan_skipped_samples` | array of strings | with `scan_skipped` | A few of those paths. |
@@ -69,3 +70,9 @@ The fields of the objects named above, in the order they are written.
 - **`health`**: `score`, `max_score`, `grade`, `breakdown`, `recommendations`, `critical_failures`, `checks_run`, `checks_skipped`, `confidence`, `checks_inconclusive`. `confidence` is between 0 and 1 and says how many checks ran, not how good the code is.
 - **`result`**: `kind`, `returncode`, `summary`, `raw_output`, `warnings`, `errors`, `duration_seconds`, `skipped`, `skip_reason`, `inconclusive_reason`. The object inside `test_results`, `quality_results` and `security_results`. `inconclusive_reason` appears only when set.
 - **`kubernetes`**: `helm_charts`, `kustomize_overlays`, and, only when raw manifests were found, `manifests` and `total_manifest_files`.
+- **`failures`**: `tool`, `group`, `category`, `cause`, `subject`, `returncode`, `summary`, `signals`. `group` is `test`, `quality` or `security`. `category` is one of `compilation_failure`, `test_failure`, `lint_failure`, `security_tool_failure`, `security_finding_detected`, `configuration_failure`, `dependency_policy_failure`, `report_generation_failure` (reserved, not produced yet) or `unknown_tool_failure`. `cause` is `exit_code`, `timeout`, `tool_not_found` or `os_error`; only `exit_code` means the tool itself ran and exited non-zero. `signals` are labels of the evidence that decided the category, never raw output. One failed check can give several entries (cargo deny can report advisories and policy violations in one run).
+
+## Version history
+
+- **1.1** (R13-A): added the optional key `failures`. The wording of `known_issues` changed: the catch-all sentence "Compilation or lint errors were detected." no longer exists, because on a real report it came from `cargo audit` and `cargo deny`, not from a compiler or linter. Scripts that matched that sentence should read `failures[].category` instead. The two older sentences ("One or more source files contain syntax errors." and "A required Python dependency is missing.") are unchanged.
+- **1.0**: first documented version.

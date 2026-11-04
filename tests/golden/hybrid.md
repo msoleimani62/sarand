@@ -19,7 +19,7 @@ This report is generated for AI analysis and contains project metadata, test res
 - **Health:** 76.0/100.0 (grade C), confidence 90%
 - **Critical findings:**
   - 1 potential secret was found in tracked source
-  - Compilation or lint errors were detected
+  - Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable.
 - **Risks:**
   - 3 check(s) failed: cargo test, cargo clippy, gitleaks
   - 1 check(s) skipped, so the score does not reflect them: go test
@@ -443,7 +443,15 @@ No issues identified.
 
 ## Known issues
 
-- Compilation or lint errors were detected
+- Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable.
+
+## Failure classification
+
+| Tool | Group | Category | Cause | Subject | Evidence |
+|---|---|---|---|---|---|
+| cargo test | test | `test_failure` | exit_code | Rust tests | - |
+| cargo clippy | quality | `lint_failure` | exit_code | Rust lints | - |
+| gitleaks | security | `security_finding_detected` | exit_code | secret scanning | leak-reported |
 
 ## Warnings detected
 
