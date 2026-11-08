@@ -47,7 +47,7 @@ Structure: src/, (1 top-level file(s)) -- 196 files, 12000 LOC
 Tests: pytest: passed, cargo test: failed, go test: skipped
 Quality: ruff: passed, cargo clippy: failed
 Security: bandit: passed, gitleaks: failed
-Health: 76.0/100.0 (grade C), confidence 90%
+Health: 76.0/100.0 (grade C), execution coverage 86% (6 of 7 requested checks ran to a verdict)
 Critical findings:
   - 1 potential secret was found in tracked source
   - Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable.
@@ -82,7 +82,9 @@ Limitations:
 <span class="meta">Assembly dialects: x86 (NASM): 2 file(s), ARM: 1 file(s)</span><br>
 </div>
 <div class="card"><span class="health-score grade-C">76.0/100 (C)</span>
-<p class="meta">Check coverage: 9 ran, 1 skipped (tool not installed), confidence 90%</p>
+<p class="meta">Execution coverage: 86% (6 of 7 requested checks ran to a verdict)</p>
+<p class="meta">Not run: go test (skipped: go not installed)</p>
+<p class="meta">Execution coverage counts which requested checks ran to a verdict. It does not measure how complete or correct the analysis is.</p>
 <table><tr><td>Tests</td><td>18.0</td></tr><tr><td>Quality</td><td>15.0</td></tr><tr><td>Security</td><td>12.0</td></tr><tr><td>Git</td><td>10.0</td></tr><tr><td>Code</td><td>11.0</td></tr><tr><td>Tooling</td><td>10.0</td></tr></table>
 <p><strong>Critical:</strong></p><ul><li>1 potential secret was found in tracked source</li></ul>
 <p><strong>Recommendations:</strong></p><ul><li>Fix the failing cargo test</li><li>Rotate the leaked credential</li></ul>

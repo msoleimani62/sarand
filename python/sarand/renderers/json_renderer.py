@@ -25,7 +25,7 @@ from sarand.progress import status
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.1"
+JSON_SCHEMA_VERSION = "1.2"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:

@@ -21,7 +21,7 @@ from _golden_fixtures import FIXTURES
 from sarand.core.architecture import build_architecture, l3_lines
 from sarand.core.risks import (
     CHECKS_SKIPPED_MIN,
-    CONFIDENCE_MIN,
+    COVERAGE_MIN,
     DISPLAY_CAP,
     LARGE_FILE_BYTES,
     RULES,
@@ -57,7 +57,15 @@ def _complete() -> ReportData:
         data = FIXTURES["minimal"](root)
     data.stats.total_files = 10
     data.git = GitSnapshot(branch="main", commit="abc1234")
-    data.health = HealthScore(score=90.0, grade="A", confidence=1.0, checks_run=3)
+    data.health = HealthScore(
+        score=90.0,
+        grade="A",
+        confidence=1.0,
+        checks_run=3,
+        execution_coverage=1.0,
+        checks_requested=3,
+        checks_executed=3,
+    )
     ok = CommandResult(kind="ok", returncode=0, summary="")
     data.test_results = [copy.copy(ok)]
     data.quality_results = [copy.copy(ok)]
@@ -96,7 +104,7 @@ def _fire_git(d: ReportData) -> None:
 
 def _fire_confidence(d: ReportData) -> None:
     assert d.health is not None
-    d.health.confidence = CONFIDENCE_MIN - 0.01
+    d.health.execution_coverage = COVERAGE_MIN - 0.01
 
 
 def _fire_todo(d: ReportData) -> None:
@@ -195,7 +203,7 @@ def test_thresholds_are_inclusive_at_the_documented_boundary() -> None:
     data.quality_results = [_skipped(f"t{i}") for i in range(CHECKS_SKIPPED_MIN - 1)]
     assert "CHECKS-SKIPPED" not in _ids(data)
     assert data.health is not None
-    data.health.confidence = CONFIDENCE_MIN
+    data.health.execution_coverage = COVERAGE_MIN
     assert "HEALTH-LOW-CONFIDENCE" not in _ids(data)
 
 
@@ -471,3 +479,15 @@ def test_the_l3_section_stays_within_its_documented_worst_case() -> None:
     assert len(section.encode()) < 6500
     assert len(l3_lines(data)) < 70
     assert len(text.render(data).splitlines()) < 100
+
+
+def test_nothing_requested_means_the_coverage_rule_is_not_evaluated_not_quiet() -> None:
+    """R13-B: with no check requested there is no coverage value (None); the
+    rule must be listed as not evaluated, never counted as fine or fired."""
+    data = _complete()
+    assert data.health is not None
+    data.health.execution_coverage = None
+    data.health.checks_requested = 0
+    report = evaluate_risks(data)
+    assert "HEALTH-LOW-CONFIDENCE" in report.rules_not_evaluated
+    assert "HEALTH-LOW-CONFIDENCE" not in [r.rule_id for r in report.risks]

@@ -163,6 +163,20 @@ class SecretFinding:
     is_test_fixture: bool = False
 
 
+@dataclass(frozen=True)
+class CoverageGap:
+    """One requested check that did NOT run to a verdict (core/execution_coverage.py).
+
+    `state` is one of core/check_states.py: skipped, inconclusive, unavailable or
+    unknown; `reason` is the short human reason the check itself gave.
+    یک چک درخواست‌شده که به حکم نرسید؛ `state` از core/check_states.py می‌آید.
+    """
+
+    kind: str
+    state: str
+    reason: str = ""
+
+
 @dataclass
 class HealthScore:
     """Computed project health score and breakdown."""
@@ -187,6 +201,23 @@ class HealthScore:
     # چک‌هایی که با کد ۰ تمام شده ولی کامل نشده‌اند: آن‌ها هم چیزی ثابت
     # نمی‌کنند و مثل چک ردشده `confidence` را پایین می‌آورند (نه امتیاز را).
     checks_inconclusive: list[str] = field(default_factory=list)
+    # R13-B: EXECUTION COVERAGE, the only meaning of "how much was checked":
+    # executed / requested, where a requested check is a record in the test,
+    # quality or security results and "executed" means it reached a verdict
+    # (passed or failed). None when nothing was requested: there is no
+    # denominator, so there is no percentage (never 100%). It does NOT measure
+    # how complete or correct the analysis is. `confidence` above is the LEGACY
+    # field (deprecated): ran / (ran + distinct skipped or inconclusive kinds),
+    # 1.0 when nothing was requested; it stays for compatibility with the exact
+    # old arithmetic, and the reports no longer show it.
+    # R13-B: «پوشش اجرا» تنها معنای «چقدر بررسی شد»: executed / requested؛ وقتی
+    # هیچ چکی درخواست نشده None است (هرگز ۱۰۰٪ نیست). درستی تحلیل را نمی‌سنجد.
+    # `confidence` بالا فیلد قدیمی (منسوخ) است و با همان حساب قبلی می‌ماند.
+    execution_coverage: float | None = None
+    checks_requested: int = 0
+    checks_executed: int = 0
+    coverage_by_group: dict[str, dict[str, int]] = field(default_factory=dict)
+    coverage_gaps: list[CoverageGap] = field(default_factory=list)
 
 
 @dataclass

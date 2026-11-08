@@ -82,6 +82,9 @@ def test_critical_findings_and_risks_surface_the_important_things() -> None:
             grade="F",
             critical_failures=["tests are failing"],
             confidence=0.5,
+            execution_coverage=0.5,
+            checks_requested=2,
+            checks_executed=1,
         )
         data.known_issues = ["Linker 'cc' not found"]
         data.git.dirty = True
@@ -96,7 +99,8 @@ def test_critical_findings_and_risks_surface_the_important_things() -> None:
         ]
         qc = build_quick_context(data)
         assert qc.critical_findings == ["tests are failing", "Linker 'cc' not found"]
-        assert "confidence 50%" in qc.health and "grade F" in qc.health
+        assert "execution coverage 50% (1 of 2" in qc.health
+        assert "grade F" in qc.health and "confidence" not in qc.health
         joined = " | ".join(qc.risks)
         assert "uncommitted changes" in joined
         assert "3 commit(s) behind" in joined

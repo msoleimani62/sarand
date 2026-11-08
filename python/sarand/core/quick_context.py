@@ -81,6 +81,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from sarand.core.execution_coverage import coverage_headline
 from sarand.models.results import CommandResult, FrameworkEntry, ReportData
 
 _CLIP = 120
@@ -272,7 +273,7 @@ def build_quick_context(data: ReportData) -> QuickContext:
     if data.health is not None:
         health = (
             f"{data.health.score}/{data.health.max_score} (grade {data.health.grade}), "
-            f"confidence {round(data.health.confidence * 100)}%"
+            f"{coverage_headline(data.health)}"
         )
 
     return QuickContext(

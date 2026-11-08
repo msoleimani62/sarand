@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "hybrid-project",
@@ -46,7 +46,7 @@
       "bandit: passed",
       "gitleaks: failed"
     ],
-    "health": "76.0/100.0 (grade C), confidence 90%",
+    "health": "76.0/100.0 (grade C), execution coverage 86% (6 of 7 requested checks ran to a verdict)",
     "critical_findings": [
       "1 potential secret was found in tracked source",
       "Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable."
@@ -1123,7 +1123,31 @@
     "checks_skipped": [
       "go test (go not installed)"
     ],
-    "confidence": 0.9
+    "confidence": 0.9,
+    "execution_coverage": 0.8571,
+    "checks_requested": 7,
+    "checks_executed": 6,
+    "coverage_by_group": {
+      "tests": {
+        "requested": 3,
+        "executed": 2
+      },
+      "quality": {
+        "requested": 2,
+        "executed": 2
+      },
+      "security": {
+        "requested": 2,
+        "executed": 2
+      }
+    },
+    "coverage_gaps": [
+      {
+        "kind": "go test",
+        "state": "skipped",
+        "reason": "go not installed"
+      }
+    ]
   },
   "known_issues": [
     "Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable."

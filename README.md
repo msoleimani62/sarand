@@ -370,7 +370,7 @@ To report a vulnerability privately, see [SECURITY.md](https://github.com/msolei
 
 ### Check results and TODO markers
 
-Each check ends as `PASS`, `FAIL`, `SKIP` (tool missing or not applicable) or `INCONCLUSIVE`. `INCONCLUSIVE` is for dependency-audit tools (`cargo audit`, `pip-audit`, `npm audit`, `govulncheck`, ...) that exited 0 but reported that they could not finish, usually because the network was unreachable. It lowers the report's confidence instead of earning a green `PASS`, and a failing exit is never downgraded. The errors listed in a report come only from checks that failed.
+Each check ends as `PASS`, `FAIL`, `SKIP` (tool missing or not applicable) or `INCONCLUSIVE`. `INCONCLUSIVE` is for dependency-audit tools (`cargo audit`, `pip-audit`, `npm audit`, `govulncheck`, ...) that exited 0 but reported that they could not finish, usually because the network was unreachable. It counts as not run in the report's execution coverage instead of earning a green `PASS`, and a failing exit is never downgraded. The errors listed in a report come only from checks that failed.
 
 The TODO scan skips golden, fixture and snapshot directories and Markdown or reStructuredText prose by default, and the report states how many markers it suppressed. Add project-specific exclusions in `.sarand.toml`:
 
@@ -434,7 +434,7 @@ The score is transparent and adds up to 100:
 
 Grades: **A** 90 and above, **B** 80, **C** 70, **D** 60, **F** below 60.
 
-A score is only as trustworthy as the checks behind it, so the report also says how many checks actually ran. A check whose tool is not installed is skipped, and a skipped check proves nothing: when any were skipped, the Health section lists how many ran and how many did not, gives a **confidence** percentage, and names the tools to install. A security run in which every check was skipped no longer earns the full security points.
+A score is only as trustworthy as the checks behind it, so every report states its **execution coverage**: how many of the checks you asked for ran to a verdict (`6 of 11 requested checks`), which ones did not run and why, and which groups had nothing requested. A check whose tool is not installed is skipped, and a skipped check proves nothing. When no check was requested at all there is no percentage and the report says so; it is never 100%. Coverage says what ran, not how complete or correct the analysis is. A security run in which every check was skipped no longer earns the full security points. See [docs/EXECUTION_COVERAGE.md](https://github.com/msoleimani62/sarand/blob/main/docs/EXECUTION_COVERAGE.md).
 
 ## Configuration
 

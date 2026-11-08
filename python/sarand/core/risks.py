@@ -21,14 +21,14 @@ Thresholds are named constants fixed from a real report (sarand on itself,
 81-100 KB), the report had 18 checks run, none skipped, confidence 1.0, five
 secret-pattern matches that are all test fixtures, no duplicates, and 132
 markers of which the busiest file had 16. Two of them, `CHECKS_SKIPPED_MIN` and
-`CONFIDENCE_MIN`, are PROVISIONAL: that report skipped nothing, so it shows only
+`COVERAGE_MIN` (formerly CONFIDENCE_MIN), are PROVISIONAL: that report skipped nothing, so it shows only
 that they do not fire on a complete run. Calibrate them on a report from a
 machine with missing tools.
 
 لایه‌ی L3، بخش دوم: ریسک‌های قاعده‌محور. جدول ثابت نُه‌قاعده‌ای؛ هر ریسک
 rule_id، category، severity، evidence_refs، reason و limitations دارد. داده‌ی
 غایب هرگز «همه‌چیز خوب است» خوانده نمی‌شود و در `rules_not_evaluated` می‌آید.
-دو آستانه‌ی `CHECKS_SKIPPED_MIN` و `CONFIDENCE_MIN` موقتی‌اند.
+دو آستانه‌ی `CHECKS_SKIPPED_MIN` و `COVERAGE_MIN` موقتی‌اند.
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ import collections
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from sarand.core.execution_coverage import coverage_percent
 from sarand.models.results import CommandResult, ReportData
 
 # Thresholds (see the module docstring for where each value comes from).
@@ -44,7 +45,7 @@ from sarand.models.results import CommandResult, ReportData
 TODO_CLUSTER_MIN = 10
 LARGE_FILE_BYTES = 64 * 1024
 CHECKS_SKIPPED_MIN = 3  # provisional / موقتی
-CONFIDENCE_MIN = 0.8  # provisional / موقتی
+COVERAGE_MIN = 0.8  # provisional / موقتی
 
 DISPLAY_CAP = 8
 _MAX_REFS = 5
@@ -184,13 +185,24 @@ def _git_state(data: ReportData) -> _Fired | None:
     return "working copy has " + ", ".join(parts), refs
 
 
-def _low_confidence(data: ReportData) -> _Fired | None:
-    if data.health is None or data.health.confidence >= CONFIDENCE_MIN:
+def _low_coverage(data: ReportData) -> _Fired | None:
+    """Execution coverage (core/execution_coverage.py) below the threshold. Nothing
+    requested means no coverage value (None): the rule is then not evaluated,
+    never "fired" or "quiet"."""
+    health = data.health
+    if (
+        health is None
+        or health.execution_coverage is None
+        or health.execution_coverage >= COVERAGE_MIN
+    ):
         return None
-    pct = round(data.health.confidence * 100)
     return (
-        f"health confidence is {pct}% (threshold {round(CONFIDENCE_MIN * 100)}%)",
-        ["health.confidence"],
+        (
+            f"execution coverage is {coverage_percent(health.execution_coverage)}% "
+            f"({health.checks_executed} of {health.checks_requested} requested checks "
+            f"ran; threshold {coverage_percent(COVERAGE_MIN)}%)"
+        ),
+        ["health.execution_coverage"],
     )
 
 
@@ -279,9 +291,10 @@ RULES: tuple[_Rule, ...] = (
         "HEALTH-LOW-CONFIDENCE",
         "coverage",
         "warning",
-        "Confidence is about how many checks ran, not about the code.",
-        lambda d: d.health is not None,
-        _low_confidence,
+        "Coverage says which requested checks ran, not how correct the analysis "
+        "is. The rule id keeps its legacy name; it evaluates execution coverage.",
+        lambda d: d.health is not None and d.health.execution_coverage is not None,
+        _low_coverage,
     ),
     _Rule(
         "TODO-CLUSTER",

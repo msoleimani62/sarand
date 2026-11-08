@@ -35,6 +35,7 @@ from sarand.core.compose import detect_compose
 from sarand.core.concurrency import jobs_argument, resolve_jobs
 from sarand.core.detection_refine import refine_detection
 from sarand.core.estimate import estimate_source_bytes, size_advice
+from sarand.core.execution_coverage import coverage_oneline
 from sarand.core.failures import classify_failures, known_issues_from_failures
 from sarand.core.frameworks import detect_declared_frameworks
 from sarand.core.gitleaks import gitleaks_flagged_paths, run_gitleaks
@@ -799,13 +800,10 @@ async def run(config: SarandConfig) -> int:
             f"Cache   : {len(cache_hits)} file(s) skipped (unchanged since last --cache run)"
         )
     if data.health:
-        health_text = f"{data.health.score}/100 ({data.health.grade})"
-        if data.health.checks_skipped:
-            health_text += (
-                f" -- confidence {round(data.health.confidence * 100)}%: "
-                f"{len(data.health.checks_skipped)} check(s) skipped, "
-                "tool not installed"
-            )
+        health_text = (
+            f"{data.health.score}/100 ({data.health.grade}) -- "
+            f"{coverage_oneline(data.health)}"
+        )
         print(f"Health  : {health_text}")
     print("=" * 60)
     return 1 if pdf_failed else 0

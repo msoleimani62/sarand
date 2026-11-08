@@ -2,7 +2,7 @@
 
 `sarand --format json` یک شیء JSON می‌نویسد. این صفحه همه‌ی کلیدهای سطح بالا، فیلدهای شیءهای تو در تو و آنچه یک اسکریپت می‌تواند به آن تکیه کند را فهرست می‌کند. نسخه‌ی فعلی پایین است؛ یک تست این صفحه و کد را هم‌گام نگه می‌دارد، پس کلیدی که در کد هست ولی اینجا نیست build را می‌شکند.
 
-نسخه‌ی فعلی: **1.1**
+نسخه‌ی فعلی: **1.2**
 
 ## سیاست سازگاری
 
@@ -67,12 +67,13 @@
 - **`environment`**: `python`, `rust_core`, `os_name`, `architecture`, `cpu_summary`, `memory_summary`, `disk_free`, `hostname`, `tool_versions`.
 - **`git`**: `branch`, `commit`, `status`, `log`, `diff`, `dirty`, `ahead`, `behind`, `tags`, `stashes`, `untracked`.
 - **`stats`**: `total_files`, `total_loc`, `code_lines`, `comment_lines`, `blank_lines`, `files_by_extension`, `largest_directories`, `largest_files`, `duplicate_files`, `broken_symlinks`, `temporary_files`, `unused_cache_files`, `empty_files`, `executable_scripts`, `hidden_files`, `binary_files`. `largest_files` فهرست `[path, bytes]` و `duplicate_files` فهرست `[hash, [paths]]` است.
-- **`health`**: `score`, `max_score`, `grade`, `breakdown`, `recommendations`, `critical_failures`, `checks_run`, `checks_skipped`, `confidence`, `checks_inconclusive`. `confidence` بین ۰ و ۱ است و می‌گوید چند چک اجرا شده، نه اینکه کد چقدر خوب است.
+- **`health`**: `score`, `max_score`, `grade`, `breakdown`, `recommendations`, `critical_failures`, `checks_run`, `checks_skipped`, `confidence`, `checks_inconclusive`, `execution_coverage`, `checks_requested`, `checks_executed`, `coverage_by_group`, `coverage_gaps`. `execution_coverage` برابر `executed / requested` بین ۰ و ۱ است، یا `null` وقتی هیچ چکی درخواست نشده (برای هیچ، هرگز ۱۰۰٪ نیست)؛ می‌گوید کدام چک‌های درخواست‌شده به حکم رسیده‌اند، نه اینکه تحلیل چقدر کامل یا درست است. `coverage_by_group` شامل `tests`، `quality` و `security` است و هر کدام `requested` و `executed` دارند؛ `coverage_gaps` برای هر چک درخواست‌شده‌ای که اجرا نشده `{kind, state, reason}` می‌دهد (`state` یکی از `skipped`، `inconclusive`، `unavailable` یا `unknown`). `confidence` **منسوخ** است: حساب قدیمی‌اش را نگه می‌دارد (`ran / (ran + انواع متمایز skip یا inconclusive)`، و ۱٫۰ وقتی چیزی درخواست نشده) و در گزارش‌ها نشان داده نمی‌شود؛ به‌جایش `execution_coverage` را بخوانید. تا آخر همه‌ی نسخه‌های 1.x می‌ماند و زودتر از شمای 2.0 حذف نمی‌شود.
 - **`result`**: `kind`, `returncode`, `summary`, `raw_output`, `warnings`, `errors`, `duration_seconds`, `skipped`, `skip_reason`, `inconclusive_reason`. شیء داخل `test_results`، `quality_results` و `security_results`؛ `inconclusive_reason` فقط وقتی مقدار دارد می‌آید.
 - **`kubernetes`**: `helm_charts`، `kustomize_overlays` و، فقط وقتی مانیفست خام پیدا شده، `manifests` و `total_manifest_files`.
 - **`failures`**: `tool`، `group`، `category`، `cause`، `subject`، `returncode`، `summary`، `signals`. `group` یکی از `test`، `quality` یا `security` است. `category` یکی از `compilation_failure`، `test_failure`، `lint_failure`، `security_tool_failure`، `security_finding_detected`، `configuration_failure`، `dependency_policy_failure`، `report_generation_failure` (رزرو، هنوز تولید نمی‌شود) یا `unknown_tool_failure` است. `cause` یکی از `exit_code`، `timeout`، `tool_not_found` یا `os_error` است؛ فقط `exit_code` یعنی خود ابزار اجرا شد و با کد غیرصفر خارج شد. `signals` برچسب شواهدی است که دسته را تعیین کرده، نه خروجی خام. یک چک شکست‌خورده می‌تواند چند ورودی بدهد (cargo deny در یک اجرا هم advisory و هم نقض سیاست گزارش می‌کند).
 
 ## تاریخچه‌ی نسخه
 
+- **1.2** (R13-B): فیلدهای `health.execution_coverage`، `checks_requested`، `checks_executed`، `coverage_by_group` و `coverage_gaps` اضافه شدند؛ `health.confidence` منسوخ شد (مقدارش بدون تغییر). گزارش‌های Markdown، HTML و text، خلاصه‌ی CLI، Quick Context و قاعده‌ی ریسک `HEALTH-LOW-CONFIDENCE` حالا از پوشش اجرا استفاده می‌کنند؛ شناسه‌ی قاعده نام قدیمی را نگه می‌دارد.
 - **1.1** (R13-A): کلید اختیاری `failures` اضافه شد. عبارت‌بندی `known_issues` عوض شد: جمله‌ی کلی «Compilation or lint errors were detected.» دیگر وجود ندارد، چون روی یک گزارش واقعی از `cargo audit` و `cargo deny` می‌آمد، نه از کامپایلر یا linter. اسکریپت‌هایی که این جمله را می‌خواندند باید `failures[].category` را بخوانند. دو جمله‌ی قدیمی («One or more source files contain syntax errors.» و «A required Python dependency is missing.») بدون تغییرند.
 - **1.0**: اولین نسخه‌ی مستند.

@@ -16,7 +16,7 @@ This report is generated for AI analysis and contains project metadata, test res
 - **Tests:** pytest: passed, cargo test: failed, go test: skipped
 - **Quality:** ruff: passed, cargo clippy: failed
 - **Security:** bandit: passed, gitleaks: failed
-- **Health:** 76.0/100.0 (grade C), confidence 90%
+- **Health:** 76.0/100.0 (grade C), execution coverage 86% (6 of 7 requested checks ran to a verdict)
 - **Critical findings:**
   - 1 potential secret was found in tracked source
   - Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable.
@@ -159,7 +159,11 @@ bd88701 fix health tooling score
 
 **Score:** 76.0 / 100.0  **Grade:** C
 
-**Check coverage:** 9 ran, 1 skipped (tool not installed) -- confidence 90%
+**Execution coverage:** 86% (6 of 7 requested checks ran to a verdict)
+
+Not run: go test (skipped: go not installed)
+
+Execution coverage counts which requested checks ran to a verdict. It does not measure how complete or correct the analysis is.
 
 | Category | Points |
 |----------|--------|

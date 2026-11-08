@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sarand.core.architecture import l3_lines
+from sarand.core.execution_coverage import coverage_oneline
 from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.models.results import ReportData
 from sarand.progress import status
@@ -38,14 +39,10 @@ def render(
         # تورفتگی ندارد: سقف بایت روی خودِ متن است.
         lines += ["", "Relevant Source", relevant_source_text(data.relevant_source)]
     if data.health:
-        health_line = f"Health: {data.health.score}/100 ({data.health.grade})"
-        if data.health.checks_skipped:
-            health_line += (
-                f" -- confidence {round(data.health.confidence * 100)}% "
-                f"({len(data.health.checks_skipped)} check(s) skipped: "
-                "tool not installed)"
-            )
-        lines.append(health_line)
+        lines.append(
+            f"Health: {data.health.score}/100 ({data.health.grade}) -- "
+            f"{coverage_oneline(data.health)}"
+        )
     if data.secret_findings:
         lines.append(
             f"Secrets: {len(data.secret_findings)} potential finding(s) -- see full report"

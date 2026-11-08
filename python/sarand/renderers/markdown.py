@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sarand.constants import AI_NOTICE, LANG_MAP, MAX_ISSUE_ROWS
 from sarand.core.architecture import architecture_lines, build_architecture, risk_lines
+from sarand.core.execution_coverage import coverage_lines
 from sarand.core.package_summary import (
     ROOT_PACKAGE,
     PhaseCount,
@@ -15,7 +16,7 @@ from sarand.core.quick_context import (
     format_framework,
 )
 from sarand.core.risks import evaluate_risks
-from sarand.models.results import CommandResult, Issue, ReportData
+from sarand.models.results import CommandResult, HealthScore, Issue, ReportData
 from sarand.progress import status
 from sarand.utils.fs import human_size
 
@@ -420,6 +421,18 @@ def _render_quick_context(data: ReportData) -> list[str]:
 _MONOREPO_LABELS = {"turbo": "Turborepo", "nx": "Nx"}
 
 
+def _coverage_markdown(h: HealthScore) -> list[str]:
+    """Execution coverage for the Health Score section (core/execution_coverage.py): the
+    percentage with its basis, what did not run, and the permanent note. One
+    wording for every renderer."""
+    lines = coverage_lines(h)
+    head = lines[0].removeprefix("Execution coverage: ")
+    out = [f"**Execution coverage:** {_cell(head)}", ""]
+    for line in lines[1:]:
+        out.extend([_cell(line), ""])
+    return out
+
+
 def _render_failures(data: ReportData) -> list[str]:
     """The classified failures of the checks (core/failures.py, R13-A): which
     tool, in which category, why it failed, and the evidence labels that decided
@@ -597,18 +610,7 @@ def render(
                 "",
                 f"**Score:** {h.score} / {h.max_score}  **Grade:** {h.grade}",
                 "",
-                *(
-                    [
-                        (
-                            f"**Check coverage:** {h.checks_run} ran, "
-                            f"{len(h.checks_skipped)} skipped (tool not installed) "
-                            f"-- confidence {round(h.confidence * 100)}%"
-                        ),
-                        "",
-                    ]
-                    if h.checks_skipped
-                    else []
-                ),
+                *_coverage_markdown(h),
                 "| Category | Points |",
                 "|----------|--------|",
             ]

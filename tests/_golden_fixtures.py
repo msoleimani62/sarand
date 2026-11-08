@@ -19,6 +19,7 @@ from pathlib import Path
 from _helpers import write
 from sarand.models.results import (
     CommandResult,
+    CoverageGap,
     EnvironmentInfo,
     Failure,
     FrameworkEntry,
@@ -218,6 +219,15 @@ def build_hybrid_fixture(root: Path) -> ReportData:
         checks_run=9,
         checks_skipped=["go test (go not installed)"],
         confidence=0.9,
+        execution_coverage=0.8571,
+        checks_requested=7,
+        checks_executed=6,
+        coverage_by_group={
+            "tests": {"requested": 3, "executed": 2},
+            "quality": {"requested": 2, "executed": 2},
+            "security": {"requested": 2, "executed": 2},
+        },
+        coverage_gaps=[CoverageGap("go test", "skipped", "go not installed")],
     )
 
     # 45 entries so the ``[:40]`` slice in markdown.py is exercised.

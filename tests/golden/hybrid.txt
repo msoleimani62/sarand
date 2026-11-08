@@ -17,7 +17,7 @@ Quick Context
   Tests: pytest: passed, cargo test: failed, go test: skipped
   Quality: ruff: passed, cargo clippy: failed
   Security: bandit: passed, gitleaks: failed
-  Health: 76.0/100.0 (grade C), confidence 90%
+  Health: 76.0/100.0 (grade C), execution coverage 86% (6 of 7 requested checks ran to a verdict)
   Critical findings:
     - 1 potential secret was found in tracked source
     - Security findings were reported by: gitleaks. These are tool results, not proof that the project is exploitable.
@@ -47,5 +47,5 @@ Architecture and Risks
     - SECRET-PATTERNS: Pattern matches, not confirmed leaked secrets; only a count is shown.
     - DUPLICATE-FILES: Identical content among the files the scan hashed (its size cap applies).
     - GIT-STATE: Says nothing about security or quality.
-Health: 76.0/100 (C) -- confidence 90% (1 check(s) skipped: tool not installed)
+Health: 76.0/100 (C) -- execution coverage 86% (6 of 7 requested checks ran to a verdict); not run: go test (skipped: go not installed)
 Secrets: 2 potential finding(s) -- see full report

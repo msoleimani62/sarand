@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from sarand.core.execution_coverage import summarize_coverage
 from sarand.models.results import CommandResult, HealthScore, ReportData, TodoItem
 
 # Only markers written with explicit task syntax count as technical debt.
@@ -267,6 +268,14 @@ def compute_health_score(data: ReportData) -> HealthScore:
         }
     )
     unfinished = len(checks_skipped) + len(checks_inconclusive)
+    # LEGACY (deprecated since R13-B, schema 1.2): the original arithmetic, kept
+    # exactly as it was so the old JSON field keeps its old meaning. It differs
+    # from execution coverage in three ways: skipped and inconclusive checks are
+    # counted once per distinct kind while ran checks are counted per record, a
+    # timed-out or not-found tool counts as ran, and an empty request gives 1.0.
+    # Reports show `execution_coverage` (core/execution_coverage.py) instead.
+    # قدیمی (منسوخ از R13-B): همان حساب قبلی بدون تغییر؛ گزارش‌ها از
+    # `execution_coverage` استفاده می‌کنند.
     confidence = (
         round(checks_run / (checks_run + unfinished), 2)
         if checks_run + unfinished
@@ -298,6 +307,8 @@ def compute_health_score(data: ReportData) -> HealthScore:
             "Project looks healthy. Keep tests and quality checks green."
         )
 
+    coverage = summarize_coverage(test_results, quality, security)
+
     return HealthScore(
         score=round(score, 1),
         max_score=100.0,
@@ -309,4 +320,9 @@ def compute_health_score(data: ReportData) -> HealthScore:
         checks_skipped=missing_tools,
         confidence=confidence,
         checks_inconclusive=checks_inconclusive,
+        execution_coverage=coverage.coverage,
+        checks_requested=coverage.requested,
+        checks_executed=coverage.executed,
+        coverage_by_group=coverage.by_group,
+        coverage_gaps=list(coverage.gaps),
     )

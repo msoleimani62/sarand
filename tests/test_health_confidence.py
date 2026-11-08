@@ -14,7 +14,7 @@ from sarand.models.results import (
     ProjectStats,
     ReportData,
 )
-from sarand.renderers import markdown, text
+from sarand.renderers import html, markdown, text
 
 
 def _result(kind: str, *, skipped: bool = False, ok: bool = True) -> CommandResult:
@@ -112,17 +112,27 @@ def test_a_skip_for_another_reason_is_not_blamed_on_a_missing_tool() -> None:
     assert health.checks_skipped == []
 
 
-def test_the_reports_show_the_coverage_only_when_something_was_skipped() -> None:
+def test_the_reports_always_show_execution_coverage_and_never_call_it_confidence() -> (
+    None
+):
+    """R13-B: the coverage line is permanent (a missing line reads as "nothing to
+    report"), says "execution coverage", names what did not run, and never uses
+    the word "confidence" for a measure of what ran."""
     complete = _data(tests=[_result("pytest")])
     complete.health = compute_health_score(complete)
     partial = _data(tests=[_result("pytest")], quality=[_result("ruff", skipped=True)])
     partial.health = compute_health_score(partial)
 
-    assert "Check coverage" not in markdown.render(complete)
-    # The text report's own health line; Quick Context (R11a) always shows
-    # "confidence N%" on its Health line, as the Markdown report already did.
-    assert "-- confidence" not in text.render(complete)
-    assert "**Check coverage:** 1 ran, 1 skipped (tool not installed)" in (
-        markdown.render(partial)
+    for data in (complete, partial):
+        for out in (markdown.render(data), text.render(data), html.render(data)):
+            assert "execution coverage" in out.lower()
+            # the risk rule keeps its legacy id; no other use of the word is allowed
+            assert "confidence" not in out.replace("HEALTH-LOW-CONFIDENCE", "").lower()
+    assert "execution coverage 50% (1 of 2 requested checks ran" in text.render(partial)
+    assert "Not run: ruff (skipped" in markdown.render(partial)
+    assert "execution coverage 100% (1 of 1 requested checks ran" in text.render(
+        complete
     )
-    assert "-- confidence 50%" in text.render(partial)
+    assert "Execution coverage counts which requested checks ran" in markdown.render(
+        complete
+    )

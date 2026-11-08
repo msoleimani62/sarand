@@ -2,7 +2,7 @@
 
 `sarand --format json` writes one JSON object. This page lists every top-level key, the fields of its nested objects, and what a script may rely on. The current version is below; a test keeps this page and the code in step, so a key that exists but is not listed here fails the build.
 
-Current version: **1.1**
+Current version: **1.2**
 
 ## Compatibility policy
 
@@ -67,12 +67,13 @@ The fields of the objects named above, in the order they are written.
 - **`environment`**: `python`, `rust_core`, `os_name`, `architecture`, `cpu_summary`, `memory_summary`, `disk_free`, `hostname`, `tool_versions`.
 - **`git`**: `branch`, `commit`, `status`, `log`, `diff`, `dirty`, `ahead`, `behind`, `tags`, `stashes`, `untracked`.
 - **`stats`**: `total_files`, `total_loc`, `code_lines`, `comment_lines`, `blank_lines`, `files_by_extension`, `largest_directories`, `largest_files`, `duplicate_files`, `broken_symlinks`, `temporary_files`, `unused_cache_files`, `empty_files`, `executable_scripts`, `hidden_files`, `binary_files`. `largest_files` is a list of `[path, bytes]`; `duplicate_files` is a list of `[hash, [paths]]`.
-- **`health`**: `score`, `max_score`, `grade`, `breakdown`, `recommendations`, `critical_failures`, `checks_run`, `checks_skipped`, `confidence`, `checks_inconclusive`. `confidence` is between 0 and 1 and says how many checks ran, not how good the code is.
+- **`health`**: `score`, `max_score`, `grade`, `breakdown`, `recommendations`, `critical_failures`, `checks_run`, `checks_skipped`, `confidence`, `checks_inconclusive`, `execution_coverage`, `checks_requested`, `checks_executed`, `coverage_by_group`, `coverage_gaps`. `execution_coverage` is `executed / requested` between 0 and 1, or `null` when no check was requested (never 100% for nothing); it says which requested checks ran to a verdict, not how complete or correct the analysis is. `coverage_by_group` has `tests`, `quality` and `security`, each with `requested` and `executed`; `coverage_gaps` lists `{kind, state, reason}` for every requested check that did not run (`state` is `skipped`, `inconclusive`, `unavailable` or `unknown`). `confidence` is **deprecated**: it keeps its old arithmetic (`ran / (ran + distinct skipped or inconclusive kinds)`, 1.0 when nothing was requested) and is not shown in the reports; read `execution_coverage` instead. It stays through all 1.x versions and is removed no earlier than schema 2.0.
 - **`result`**: `kind`, `returncode`, `summary`, `raw_output`, `warnings`, `errors`, `duration_seconds`, `skipped`, `skip_reason`, `inconclusive_reason`. The object inside `test_results`, `quality_results` and `security_results`. `inconclusive_reason` appears only when set.
 - **`kubernetes`**: `helm_charts`, `kustomize_overlays`, and, only when raw manifests were found, `manifests` and `total_manifest_files`.
 - **`failures`**: `tool`, `group`, `category`, `cause`, `subject`, `returncode`, `summary`, `signals`. `group` is `test`, `quality` or `security`. `category` is one of `compilation_failure`, `test_failure`, `lint_failure`, `security_tool_failure`, `security_finding_detected`, `configuration_failure`, `dependency_policy_failure`, `report_generation_failure` (reserved, not produced yet) or `unknown_tool_failure`. `cause` is `exit_code`, `timeout`, `tool_not_found` or `os_error`; only `exit_code` means the tool itself ran and exited non-zero. `signals` are labels of the evidence that decided the category, never raw output. One failed check can give several entries (cargo deny can report advisories and policy violations in one run).
 
 ## Version history
 
+- **1.2** (R13-B): added `health.execution_coverage`, `checks_requested`, `checks_executed`, `coverage_by_group` and `coverage_gaps`; `health.confidence` is deprecated (value unchanged). The Markdown, HTML and text reports, the CLI summary, Quick Context and the risk rule `HEALTH-LOW-CONFIDENCE` now use execution coverage; the rule id keeps its legacy name.
 - **1.1** (R13-A): added the optional key `failures`. The wording of `known_issues` changed: the catch-all sentence "Compilation or lint errors were detected." no longer exists, because on a real report it came from `cargo audit` and `cargo deny`, not from a compiler or linter. Scripts that matched that sentence should read `failures[].category` instead. The two older sentences ("One or more source files contain syntax errors." and "A required Python dependency is missing.") are unchanged.
 - **1.0**: first documented version.

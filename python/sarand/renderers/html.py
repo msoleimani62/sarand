@@ -12,6 +12,7 @@ from __future__ import annotations
 from html import escape
 
 from sarand.core.architecture import l3_lines
+from sarand.core.execution_coverage import coverage_lines
 from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
@@ -169,12 +170,9 @@ def render(
             f'<div class="card"><span class="health-score grade-{escape(h.grade)}">{h.score}/100 '
             f"({escape(h.grade)})</span>"
         )
-        if h.checks_skipped:
-            parts.append(
-                f'<p class="meta">Check coverage: {h.checks_run} ran, '
-                f"{len(h.checks_skipped)} skipped (tool not installed), "
-                f"confidence {round(h.confidence * 100)}%</p>"
-            )
+        parts.extend(
+            f'<p class="meta">{escape(line)}</p>' for line in coverage_lines(h)
+        )
         rows = "".join(
             f"<tr><td>{escape(k)}</td><td>{v}</td></tr>" for k, v in h.breakdown.items()
         )

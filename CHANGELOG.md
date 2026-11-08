@@ -8,6 +8,12 @@ version may include behaviour changes.
 
 ### Added
 
+- Every report now states its **execution coverage**: how many of the checks you
+  asked for ran to a verdict (`6 of 11 requested checks`), what did not run and why,
+  and which groups had nothing requested. When no check was requested the report
+  says "not available" instead of 100%. JSON `health` gains `execution_coverage`,
+  `checks_requested`, `checks_executed`, `coverage_by_group` and `coverage_gaps`
+  (schema `1.2`). See `docs/EXECUTION_COVERAGE.md`.
 - The JSON report has a new optional key `failures` (schema `1.1`): every failed
   check, classified by what kind of failure it is (`compilation_failure`,
   `test_failure`, `lint_failure`, `security_tool_failure`,
@@ -74,6 +80,13 @@ version may include behaviour changes.
   installed and run inside an Alpine container before a release is published.
 
 ### Changed
+
+- The word "confidence" no longer appears in the reports for what is really a
+  measure of what ran. `health.confidence` in the JSON is deprecated and keeps its
+  old value (it is removed no earlier than schema 2.0); the Markdown, HTML and text
+  reports, the CLI summary, Quick Context and the risk rule `HEALTH-LOW-CONFIDENCE`
+  use execution coverage instead. A timed-out or not-found check no longer counts
+  as having run. The coverage line is always shown, not only when a tool was missing.
 
 - A plugin phase that does not finish within one hour and one minute is
   cancelled and reported as a skipped check, instead of hanging the scan.
