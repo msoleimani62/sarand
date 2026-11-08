@@ -38,6 +38,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from sarand.core.execution_coverage import coverage_percent
+from sarand.core.failures import execution_cause
 from sarand.models.results import CommandResult, ReportData
 
 # Thresholds (see the module docstring for where each value comes from).
@@ -119,7 +120,15 @@ def _clip(text: str, limit: int = 60) -> str:
 
 
 def _sec_failed(data: ReportData) -> _Fired | None:
-    failed = [_clip(r.kind) for r in data.security_results if _status(r) == "failed"]
+    # A check the runner could not execute (timeout, tool not found) gave no
+    # verdict: it is not a failed check with findings (R13-C; R13-D will give
+    # every state one shared reading).
+    # چکی که runner نتوانست اجرا کند حکمی نداده؛ «شکست با یافته» نیست.
+    failed = [
+        _clip(r.kind)
+        for r in data.security_results
+        if _status(r) == "failed" and not execution_cause(r)
+    ]
     if not failed:
         return None
     reason = f"{len(failed)} of {len(data.security_results)} security check(s) failed"

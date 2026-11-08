@@ -21,6 +21,7 @@ from sarand.analyzers.registry import (
     run_tests_concurrently,
 )
 from sarand.config import SarandConfig
+from sarand.core.advisories import collect_advisories
 from sarand.core.ai_summary import generate_ai_summary, suggest_reading_order
 from sarand.core.cache import (
     build_cache_entries,
@@ -704,6 +705,7 @@ async def run(config: SarandConfig) -> int:
 
     failures = classify_failures(test_results, quality_results, security_results)
     known = known_issues_from_failures(failures)
+    advisories = collect_advisories(security_results)
 
     data = ReportData(
         project_root=root,
@@ -727,6 +729,7 @@ async def run(config: SarandConfig) -> int:
         secret_findings=secret_findings,
         known_issues=known,
         failures=failures,
+        advisories=advisories,
         workspace=workspace,
         extra_workspaces=workspaces[1:],
         package_paths=list(dict.fromkeys(t.path for t in component_plan.targets)),

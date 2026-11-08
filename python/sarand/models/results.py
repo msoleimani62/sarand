@@ -523,6 +523,32 @@ class Failure:
     signals: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class Advisory:
+    """One dependency advisory reported by a security tool (core/advisories.py).
+
+    This is what the tool said, not a verdict on the project: `applicability` is
+    "unknown" unless evidence of reachability was gathered, and `severity` is the
+    upstream value when the tool printed one, `None` when it did not (never
+    guessed). `sources` names every check that reported it (cargo audit and
+    cargo deny report the same advisory once here).
+    یک advisory وابستگی؛ آنچه ابزار گفته، نه حکم درباره‌ی پروژه. severity وقتی
+    ابزار چیزی نچاپیده `None` است (هرگز حدس زده نمی‌شود).
+    """
+
+    id: str
+    package: str
+    version: str
+    kind: str
+    title: str = ""
+    severity: str | None = None
+    fixed_versions: tuple[str, ...] = ()
+    url: str = ""
+    sources: tuple[str, ...] = ()
+    database: str = ""
+    applicability: str = "unknown"
+
+
 @dataclass
 class ReportData:
     """Complete data package used to render any report format."""
@@ -557,6 +583,10 @@ class ReportData:
     # passed, was skipped or was inconclusive.
     # شکست‌های طبقه‌بندی‌شده‌ی چک‌ها؛ وقتی همه موفق/رد/نامعلوم‌اند خالی است.
     failures: list[Failure] = field(default_factory=list)
+    # R13-C: dependency advisories parsed from cargo audit / cargo deny output,
+    # one entry per (id, package, version); empty when none was reported.
+    # R13-C: advisoryهای وابستگی از خروجی cargo audit / cargo deny.
+    advisories: list[Advisory] = field(default_factory=list)
     ai_summary: str = ""
     suggested_reading_order: list[str] = field(default_factory=list)
     workspace: WorkspaceInfo | None = None

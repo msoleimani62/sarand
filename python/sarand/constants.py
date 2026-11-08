@@ -401,6 +401,26 @@ CARGO_DENY_ADVISORY_CODES: frozenset[str] = frozenset(
     {"vulnerability", "unmaintained", "unsound", "yanked", "notice"}
 )
 
+# R13-C: the kinds of a dependency advisory as the advisory databases name them
+# (RustSec: a vulnerability, or a warning of kind unmaintained / unsound /
+# yanked / notice). Fixed order: it is the sort order of the advisory list. An
+# advisory is a tool result: `APPLICABILITY_UNKNOWN` says nobody checked whether
+# this project reaches the affected code; no code path sets any other value.
+# R13-C: انواع advisory وابستگی به نام پایگاه‌های advisory. advisory نتیجه‌ی ابزار
+# است؛ `APPLICABILITY_UNKNOWN` یعنی کسی بررسی نکرده که پروژه به کد آسیب‌دیده
+# می‌رسد یا نه؛ هیچ مسیری مقدار دیگری نمی‌گذارد.
+ADVISORY_KINDS: tuple[str, ...] = (
+    "vulnerability",
+    "unsound",
+    "unmaintained",
+    "yanked",
+    "notice",
+)
+APPLICABILITY_UNKNOWN = "unknown"
+# The public repository, used as the SARIF `informationUri` (R13-C).
+# مخزن عمومی؛ به‌عنوان `informationUri` در SARIF.
+SARAND_INFO_URI = "https://github.com/msoleimani62/sarand"
+
 # A dependency-audit tool can exit 0 although it could not finish (cargo audit
 # printed "couldn't check if the package is yanked: ... timeframe" three times
 # and still passed). Such a result is INCONCLUSIVE: neither PASS nor FAIL.

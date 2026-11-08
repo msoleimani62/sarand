@@ -6,7 +6,7 @@
       "tool": {
         "driver": {
           "name": "sarand",
-          "informationUri": "https://github.com/example/sarand",
+          "informationUri": "https://github.com/msoleimani62/sarand",
           "rules": [
             {
               "id": "secret-detection/aws-secret-key",

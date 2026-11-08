@@ -8,6 +8,15 @@ version may include behaviour changes.
 
 ### Added
 
+- **Dependency advisories keep their identity.** The JSON report has a new optional
+  key `advisories` (schema `1.3`), the Markdown report a "Dependency advisories"
+  table and SARIF one result per advisory with the advisory id (`RUSTSEC-...`) as
+  `ruleId`: package, version, kind, fixed versions, the severity when the tool
+  printed one (`null` otherwise, never guessed), the checks that reported it and
+  the database. Every advisory has `applicability: unknown`: a tool-reported
+  advisory is not proof that the project is exploitable, and no reachability
+  analysis is done. cargo audit and cargo deny report one advisory once. See
+  `docs/SECURITY_EVIDENCE.md`.
 - Every report now states its **execution coverage**: how many of the checks you
   asked for ran to a verdict (`6 of 11 requested checks`), what did not run and why,
   and which groups had nothing requested. When no check was requested the report
@@ -81,6 +90,15 @@ version may include behaviour changes.
 
 ### Changed
 
+- A security check the runner could not execute (timeout, tool not found,
+  operating-system error) is no longer counted as "Security tool reported issues."
+  and no longer lowers the security category or fires `SEC-CHECK-FAILED`; it is an
+  execution-coverage gap. The critical message for a security check now says what
+  the tool reported: a finding, a dependency policy violation (cargo deny
+  licenses, bans, sources; not a vulnerability), or a failure without a
+  recognised finding. The weights are unchanged. The SARIF `informationUri` is the
+  real repository instead of a placeholder, and the anonymous "Warning: unsound"
+  lines of cargo audit are replaced by one result per advisory.
 - The word "confidence" no longer appears in the reports for what is really a
   measure of what ran. `health.confidence` in the JSON is deprecated and keeps its
   old value (it is removed no earlier than schema 2.0); the Markdown, HTML and text

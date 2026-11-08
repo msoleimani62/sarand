@@ -25,7 +25,7 @@ from sarand.progress import status
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.2"
+JSON_SCHEMA_VERSION = "1.3"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
@@ -123,6 +123,11 @@ def render(
     # R13-A: شکست‌های طبقه‌بندی‌شده (شمای ۱٫۱)؛ وقتی چکی شکست نخورده غایب است.
     if data.failures:
         payload["failures"] = [asdict(f) for f in data.failures]
+    # R13-C: the dependency advisories the security tools reported (schema 1.3),
+    # absent when none was reported. Tool results; applicability is "unknown".
+    # R13-C: advisoryهای گزارش‌شده توسط ابزارهای امنیتی (شمای ۱٫۳)؛ وقتی نیست غایب.
+    if data.advisories:
+        payload["advisories"] = [asdict(a) for a in data.advisories]
     if data.relevant_source is not None:
         from sarand.core.relevant_source import relevant_source_payload
 

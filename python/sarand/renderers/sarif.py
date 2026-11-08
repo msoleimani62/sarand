@@ -14,19 +14,40 @@ concepts:
 from __future__ import annotations
 
 import json
+import re
 
-from sarand.models.results import Issue, ReportData
+from sarand.constants import SARAND_INFO_URI
+from sarand.models.results import Advisory, Issue, ReportData
 from sarand.progress import status
 
 _SCHEMA_URI = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
-_SARAND_INFO_URI = (
-    "https://github.com/example/sarand"  # update once the repo has a real remote
-)
+_SARAND_INFO_URI = SARAND_INFO_URI
+# The generic lines `cargo audit` prints per advisory ("Warning:   unsound"): with
+# parsed advisories they are represented by one result each, with the advisory id.
+# خطوط عمومی cargo audit برای هر advisory؛ با advisory پارس‌شده یک نتیجه‌ی دارای id می‌گیرند.
+_AUDIT_KIND_LINE = re.compile(r"^Warning:\s+\w+$")
 
 
 def _rule_id(prefix: str, name: str) -> str:
     slug = name.strip().lower().replace(" ", "-")
     return f"{prefix}/{slug}"
+
+
+def _advisory_level(adv: Advisory) -> str:
+    """SARIF level of an advisory: a tool-reported vulnerability or unsound code
+    is a warning, a maintenance notice is a note. The upstream severity and the
+    applicability stay in `properties`; neither is folded into the level.
+    """
+    return "note" if adv.kind in ("unmaintained", "notice", "yanked") else "warning"
+
+
+def _advisory_message(adv: Advisory) -> str:
+    fixed = f"; fixed in {', '.join(adv.fixed_versions)}" if adv.fixed_versions else ""
+    return (
+        f"{adv.kind} advisory {adv.id} in {adv.package} {adv.version}{fixed}: "
+        f"{adv.title or 'no title'} (reported by {', '.join(adv.sources)}; "
+        f"applicability to this project: {adv.applicability})."
+    )
 
 
 def render(
@@ -89,8 +110,40 @@ def render(
             }
         )
 
+    def add_advisories() -> None:
+        for adv in data.advisories:
+            rule_id = adv.id
+            register_rule(rule_id, adv.title or f"Dependency advisory {adv.id}")
+            if adv.url:
+                rules[rule_id]["helpUri"] = adv.url
+            results.append(
+                {
+                    "ruleId": rule_id,
+                    "level": _advisory_level(adv),
+                    "message": {"text": _advisory_message(adv)},
+                    "properties": {
+                        "package": adv.package,
+                        "version": adv.version,
+                        "kind": adv.kind,
+                        "fixedVersions": list(adv.fixed_versions),
+                        "severity": adv.severity,
+                        "applicability": adv.applicability,
+                        "reportedBy": list(adv.sources),
+                        "database": adv.database,
+                    },
+                }
+            )
+
+    add_advisories()
+
     def add_unlocated_issues(issues: list[Issue]) -> None:
         for issue in issues:
+            if (
+                data.advisories
+                and issue.source == "cargo audit"
+                and _AUDIT_KIND_LINE.match(issue.message)
+            ):
+                continue
             rule_id = _rule_id("tool-output", issue.source)
             register_rule(rule_id, f"Output from {issue.source}")
             results.append(

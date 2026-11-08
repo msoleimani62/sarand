@@ -436,6 +436,8 @@ Grades: **A** 90 and above, **B** 80, **C** 70, **D** 60, **F** below 60.
 
 A score is only as trustworthy as the checks behind it, so every report states its **execution coverage**: how many of the checks you asked for ran to a verdict (`6 of 11 requested checks`), which ones did not run and why, and which groups had nothing requested. A check whose tool is not installed is skipped, and a skipped check proves nothing. When no check was requested at all there is no percentage and the report says so; it is never 100%. Coverage says what ran, not how complete or correct the analysis is. A security run in which every check was skipped no longer earns the full security points. See [docs/EXECUTION_COVERAGE.md](https://github.com/msoleimani62/sarand/blob/main/docs/EXECUTION_COVERAGE.md).
 
+A security tool that fails can mean it could not run, it found an advisory, or a dependency broke a policy; sarand keeps these apart, lists every cargo audit / cargo deny advisory by id with its severity only when the tool printed one, and marks its applicability as unknown: an advisory is a tool result, not proof of exploitability. See [docs/SECURITY_EVIDENCE.md](https://github.com/msoleimani62/sarand/blob/main/docs/SECURITY_EVIDENCE.md).
+
 ## Configuration
 
 The report folder is chosen in this order:

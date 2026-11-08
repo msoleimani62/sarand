@@ -222,7 +222,11 @@ def test_health_still_fails_a_real_security_failure_next_to_an_inconclusive() ->
     failing = make_command_result("pip-audit", 1, "Found 2 known vulnerabilities", 1.0)
     health = compute_health_score(_report(security_results=[inconclusive, failing]))
     assert health.breakdown["security"] == 5.0
-    assert "Security tool reported issues." in health.critical_failures
+    # R13-C: the message says what the tool reported (a finding signature).
+    assert any(
+        c.startswith("Security finding reported by pip-audit")
+        for c in health.critical_failures
+    )
 
 
 def test_renderers_label_the_state_and_the_json_key_appears_only_when_set() -> None:

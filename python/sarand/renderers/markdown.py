@@ -454,6 +454,49 @@ def _render_failures(data: ReportData) -> list[str]:
     return lines
 
 
+def _render_advisories(data: ReportData) -> list[str]:
+    """One row per dependency advisory the security tools reported (R13-C).
+
+    The rows are tool results, not proof that the project is exploitable:
+    `Applicability` says whether anyone checked that the project reaches the
+    affected code (today always `unknown`), and `Severity` is the upstream value
+    when the tool printed one (`-` when it did not; none is guessed).
+    هر ردیف یک advisory گزارش‌شده‌ی ابزار است، نه اثبات آسیب‌پذیری پروژه.
+    """
+    if not data.advisories:
+        return []
+    databases = sorted({a.database for a in data.advisories if a.database})
+    lines = [
+        "## Dependency advisories",
+        "",
+        (
+            f"{len(data.advisories)} advisory(ies) reported by the security tools. "
+            "These are tool results, not proof that this project is exploitable: "
+            "no reachability analysis was done, so applicability is unknown for "
+            "every row. Severity is shown only when the tool printed one."
+        ),
+        "",
+    ]
+    if databases:
+        lines.append(f"Database: {_cell('; '.join(databases))}")
+        lines.append("")
+    lines.extend(
+        [
+            "| ID | Package | Version | Kind | Severity | Fixed in | Reported by | Applicability |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+    )
+    for a in data.advisories:
+        fixed = ", ".join(a.fixed_versions) or "-"
+        lines.append(
+            f"| {_cell(a.id)} | {_cell(a.package)} | {_cell(a.version)} | {a.kind} "
+            f"| {_cell(a.severity or '-')} | {_cell(fixed)} "
+            f"| {_cell(', '.join(a.sources))} | {a.applicability} |"
+        )
+    lines.append("")
+    return lines
+
+
 def _cell(text: str) -> str:
     """Safe inside a table cell or a list line: names come from config files."""
     return " ".join(text.replace("`", "'").replace("|", "\\|").split())
@@ -730,6 +773,11 @@ def render(
 
     if data.failures:
         parts.extend(_render_failures(data))
+
+    # Advisories can exist without a failed check (cargo audit exits 0 when it
+    # reports only warnings such as unmaintained crates).
+    # advisory بدون چک شکست‌خورده هم می‌شود (cargo audit با فقط warning کد ۰ می‌دهد).
+    parts.extend(_render_advisories(data))
 
     all_warnings: list[Issue] = []
     all_errors: list[Issue] = []

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 
+from sarand.constants import FAILURE_DEPENDENCY_POLICY, FAILURE_SECURITY_FINDING
 from sarand.core.execution_coverage import summarize_coverage
+from sarand.core.failures import GROUP_SECURITY, classify_result, execution_cause
 from sarand.models.results import CommandResult, HealthScore, ReportData, TodoItem
 
 # Only markers written with explicit task syntax count as technical debt.
@@ -41,6 +43,57 @@ def _unfinished(result: CommandResult) -> bool:
     چکی که حکمی نداده: رد شده یا inconclusive.
     """
     return result.skipped or result.inconclusive
+
+
+_MAX_NAMED_TOOLS = 3
+_CAUSE_TEXT = {
+    "timeout": "timed out",
+    "tool_not_found": "tool not found",
+    "os_error": "operating-system error",
+}
+
+
+def _names(kinds: list[str]) -> str:
+    """Tool names for a message: at most three, then a count."""
+    unique = list(dict.fromkeys(kinds))
+    if len(unique) <= _MAX_NAMED_TOOLS:
+        return ", ".join(unique)
+    shown = ", ".join(unique[:_MAX_NAMED_TOOLS])
+    return f"{shown} and {len(unique) - _MAX_NAMED_TOOLS} more"
+
+
+def _security_failure_groups(
+    results: list[CommandResult],
+) -> tuple[list[str], list[str], list[str]]:
+    """Failed security checks split by what the tool reported (core/failures.py):
+    (security findings, dependency policy violations, failure without a finding).
+    One cargo-deny run can be in both of the first two lists.
+    """
+    findings: list[str] = []
+    policy: list[str] = []
+    other: list[str] = []
+    for result in results:
+        if result.passed:
+            continue
+        categories = {f.category for f in classify_result(result, GROUP_SECURITY)}
+        if FAILURE_SECURITY_FINDING in categories:
+            findings.append(result.kind)
+        if FAILURE_DEPENDENCY_POLICY in categories:
+            policy.append(result.kind)
+        if not categories & {FAILURE_SECURITY_FINDING, FAILURE_DEPENDENCY_POLICY}:
+            other.append(result.kind)
+    return findings, policy, other
+
+
+def _could_not_run_text(results: list[CommandResult]) -> str:
+    """One recommendation naming the checks the runner could not execute."""
+    reasons = sorted(
+        {_CAUSE_TEXT.get(execution_cause(r), "did not run") for r in results}
+    )
+    return (
+        f"Security check could not run ({_names([r.kind for r in results])}: "
+        f"{', '.join(reasons)}); it gave no verdict, so re-run it."
+    )
 
 
 def _count_actionable_todos(data: ReportData) -> int:
@@ -125,12 +178,46 @@ def compute_health_score(data: ReportData) -> HealthScore:
     # --- Security ---
     security = data.security_results
     if security:
-        s_failed = sum(1 for r in security if not r.passed and not _unfinished(r))
-        s_ran = sum(1 for r in security if not _unfinished(r))
+        # A check the runner could not execute (timeout, tool not found, OS
+        # error) gave no verdict: it is not a finding (R13-C), like a skipped one.
+        # چکی که runner نتوانست اجرا کند حکمی نداده؛ مثل رد شده «یافته» نیست.
+        s_verdict = [
+            r for r in security if not _unfinished(r) and not execution_cause(r)
+        ]
+        s_failed = sum(1 for r in s_verdict if not r.passed)
+        s_ran = len(s_verdict)
+        could_not_run = [
+            r for r in security if not _unfinished(r) and execution_cause(r)
+        ]
+        if could_not_run:
+            recommendations.append(_could_not_run_text(could_not_run))
         if s_failed:
             breakdown["security"] = 5.0
-            critical.append("Security tool reported issues.")
-            recommendations.append("Review the security tool findings.")
+            findings, policy, other = _security_failure_groups(s_verdict)
+            if findings:
+                critical.append(
+                    f"Security finding reported by {_names(findings)} "
+                    "(a tool result; exploitability is not assessed)."
+                )
+                recommendations.append(
+                    "Review the reported security advisories: whether this "
+                    "project reaches the affected code is not assessed."
+                )
+            if policy:
+                critical.append(
+                    f"Dependency policy violation reported by {_names(policy)} "
+                    "(licenses, bans or sources); not a vulnerability."
+                )
+                recommendations.append(
+                    "Review the dependency policy violations (licenses, bans, sources)."
+                )
+            if other:
+                critical.append(
+                    f"Security tool {_names(other)} failed without a recognised finding."
+                )
+                recommendations.append(
+                    "Check why the security tool failed; its output has no recognised finding."
+                )
         elif s_ran == 0:
             # Every security check was skipped (no tool installed): nothing
             # was checked, so this must not earn the "clean" full score.
