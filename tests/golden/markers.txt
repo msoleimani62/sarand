@@ -1,0 +1,25 @@
+sarand report — markers-project
+Generated: 2026-01-01 12:00:00+00:00
+Host: (unknown)
+
+Detected: unknown (unknown)
+Scan engine: pure-Python fallback
+Python: (unavailable)
+Git: (unavailable) @ (unavailable) (dirty=False)
+
+Files: 3  LOC: 0
+
+Quick Context
+  Project: markers-project -- Unknown (unknown); type unknown; build unknown
+  Structure: 3 files, 0 LOC
+  Tests: none run
+  Quality: none run
+  Security: none run
+  Health: 43.0/100.0 (grade F), execution coverage not available (no check was requested)
+  Critical findings: none recorded
+  Risks: none identified
+
+Architecture and Risks
+  Risks (rule-based): none identified
+  Rules not evaluated (4 of 9, data absent): CHECKS-SKIPPED, GIT-STATE, HEALTH-LOW-CONFIDENCE, SEC-CHECK-FAILED
+Health: 43.0/100 (F) -- execution coverage not available (no check was requested)

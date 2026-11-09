@@ -391,8 +391,71 @@ def build_unverified_fixture(root: Path) -> ReportData:
     return data
 
 
+def build_markers_fixture(root: Path) -> ReportData:
+    """One marker of every category, a line with two markers and a suppressed one
+    (R13-E), with the health score computed.
+
+    The snapshots pin that only `actionable` markers are scored, that BUG, SAFETY,
+    HACK / XXX and a mere mention stay visible with their category, and what the
+    summary line and the JSON counts say.
+
+    یک مارکر از هر دسته؛ snapshot ثابت می‌کند فقط actionable امتیاز دارد و بقیه با
+    دسته‌ی خود دیده می‌شوند.
+    """
+    data = build_minimal_fixture(root)
+    data.stats.total_files = 3
+    data.todos = [
+        TodoItem(
+            path="app/core.py",
+            line_number=12,
+            kind="TODO",
+            content="x = load()  # TODO(ana): cache this  # BUG: see #12",
+            category="actionable",
+        ),
+        TodoItem(
+            path="app/core.py",
+            line_number=12,
+            kind="BUG",
+            content="x = load()  # TODO(ana): cache this  # BUG: see #12",
+            category="historical",
+        ),
+        TodoItem(
+            path="app/core.py",
+            line_number=40,
+            kind="FIXME",
+            content="# FIXME - handle the empty file",
+            category="actionable",
+        ),
+        TodoItem(
+            path="app/unsafe.rs",
+            line_number=7,
+            kind="SAFETY",
+            content="// SAFETY: the pointer comes from a live Box",
+            category="safety",
+        ),
+        TodoItem(
+            path="app/util.py",
+            line_number=3,
+            kind="HACK",
+            content="# HACK: sleep until the socket is ready",
+            category="development",
+        ),
+        TodoItem(
+            path="README_helper.py",
+            line_number=1,
+            kind="TODO",
+            content='"""The TODO scanner reads TODO-style markers."""',
+            category="mention",
+        ),
+    ]
+    data.todos_suppressed = 2
+    data.health = compute_health_score(data)
+    return data
+
+
 FIXTURES = {
     "hybrid": build_hybrid_fixture,
+    "markers": build_markers_fixture,
     "minimal": build_minimal_fixture,
     "unverified": build_unverified_fixture,
 }

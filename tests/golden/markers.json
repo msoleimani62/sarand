@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.4",
+  "project_root": "<PROJECT_ROOT>",
+  "quick_context": {
+    "project": "markers-project",
+    "primary_language": "Unknown",
+    "languages": [],
+    "project_type": "unknown",
+    "build_system": "unknown",
+    "components": [],
+    "frameworks_declared": [],
+    "frameworks_declared_total": 0,
+    "structure": [],
+    "total_files": 3,
+    "total_loc": 0,
+    "tests": [],
+    "quality": [],
+    "security": [],
+    "health": "43.0/100.0 (grade F), execution coverage not available (no check was requested)",
+    "critical_findings": [],
+    "risks": [],
+    "reading_order": []
+  },
+  "architecture": {
+    "components": [],
+    "workspaces": [],
+    "entry_points": [],
+    "compose": [],
+    "kubernetes": []
+  },
+  "risks": {
+    "risks": [],
+    "rules_not_evaluated": [
+      "CHECKS-SKIPPED",
+      "GIT-STATE",
+      "HEALTH-LOW-CONFIDENCE",
+      "SEC-CHECK-FAILED"
+    ]
+  },
+  "generated_at": "2026-01-01T12:00:00+00:00",
+  "used_rust_core": false,
+  "detection": {
+    "languages": [],
+    "primary_language": "Unknown",
+    "project_type": "unknown",
+    "build_system": "unknown",
+    "markers_found": [],
+    "entry_points": [],
+    "details": {}
+  },
+  "environment": {
+    "python": "(unavailable)",
+    "rust_core": "(unavailable)",
+    "os_name": "(unknown)",
+    "architecture": "(unknown)",
+    "cpu_summary": "(unknown)",
+    "memory_summary": "(unknown)",
+    "disk_free": "(unknown)",
+    "hostname": "(unknown)",
+    "tool_versions": {}
+  },
+  "git": {
+    "branch": "(unavailable)",
+    "commit": "(unavailable)",
+    "status": "",
+    "log": "",
+    "diff": "",
+    "dirty": false,
+    "ahead": 0,
+    "behind": 0,
+    "tags": "",
+    "stashes": "",
+    "untracked": []
+  },
+  "stats": {
+    "total_files": 3,
+    "total_loc": 0,
+    "code_lines": 0,
+    "comment_lines": 0,
+    "blank_lines": 0,
+    "files_by_extension": {},
+    "largest_directories": [],
+    "largest_files": [],
+    "duplicate_files": [],
+    "broken_symlinks": [],
+    "temporary_files": [],
+    "unused_cache_files": [],
+    "empty_files": [],
+    "executable_scripts": [],
+    "hidden_files": 0,
+    "binary_files": 0
+  },
+  "todos": [
+    {
+      "path": "app/core.py",
+      "line_number": 12,
+      "kind": "TODO",
+      "content": "x = load()  # TODO(ana): cache this  # BUG: see #12",
+      "category": "actionable"
+    },
+    {
+      "path": "app/core.py",
+      "line_number": 12,
+      "kind": "BUG",
+      "content": "x = load()  # TODO(ana): cache this  # BUG: see #12",
+      "category": "historical"
+    },
+    {
+      "path": "app/core.py",
+      "line_number": 40,
+      "kind": "FIXME",
+      "content": "# FIXME - handle the empty file",
+      "category": "actionable"
+    },
+    {
+      "path": "app/unsafe.rs",
+      "line_number": 7,
+      "kind": "SAFETY",
+      "content": "// SAFETY: the pointer comes from a live Box",
+      "category": "safety"
+    },
+    {
+      "path": "app/util.py",
+      "line_number": 3,
+      "kind": "HACK",
+      "content": "# HACK: sleep until the socket is ready",
+      "category": "development"
+    },
+    {
+      "path": "README_helper.py",
+      "line_number": 1,
+      "kind": "TODO",
+      "content": "\"\"\"The TODO scanner reads TODO-style markers.\"\"\"",
+      "category": "mention"
+    }
+  ],
+  "test_results": [],
+  "quality_results": [],
+  "security_results": [],
+  "health": {
+    "score": 43.0,
+    "max_score": 100.0,
+    "grade": "F",
+    "breakdown": {
+      "tests": 5.0,
+      "quality": 5.0,
+      "security": 8.0,
+      "git": 10.0,
+      "code": 15.0,
+      "tooling": 0.0
+    },
+    "recommendations": [
+      "Add automated tests, or make sure your test runner is installed.",
+      "Run quality checks with --quality.",
+      "Consider enabling --security for dependency audits."
+    ],
+    "critical_failures": [],
+    "checks_run": 0,
+    "checks_skipped": [],
+    "confidence": 1.0,
+    "execution_coverage": null,
+    "checks_requested": 0,
+    "checks_executed": 0,
+    "coverage_by_group": {
+      "tests": {
+        "requested": 0,
+        "executed": 0
+      },
+      "quality": {
+        "requested": 0,
+        "executed": 0
+      },
+      "security": {
+        "requested": 0,
+        "executed": 0
+      }
+    },
+    "coverage_gaps": []
+  },
+  "known_issues": [],
+  "ai_summary": "",
+  "suggested_reading_order": [],
+  "included_files": [],
+  "skipped_files": [],
+  "excluded_secret_files": [],
+  "secret_findings": [],
+  "todos_suppressed": 2,
+  "todo_categories": {
+    "actionable": 2,
+    "historical": 1,
+    "safety": 1,
+    "development": 1,
+    "mention": 1
+  },
+  "source_files": []
+}

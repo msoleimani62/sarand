@@ -17,6 +17,7 @@ import json
 import re
 
 from sarand.constants import SARAND_INFO_URI
+from sarand.core.markers import marker_category
 from sarand.models.results import Advisory, Issue, ReportData
 from sarand.progress import status
 
@@ -99,6 +100,7 @@ def render(
                 "ruleId": rule_id,
                 "level": "note",
                 "message": {"text": todo.content},
+                "properties": {"category": marker_category(todo)},
                 "locations": [
                     {
                         "physicalLocation": {

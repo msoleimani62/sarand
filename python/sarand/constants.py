@@ -475,6 +475,11 @@ TODO_EXCLUDE_DIRS: tuple[str, ...] = (
 TODO_EXCLUDE_SUFFIXES: tuple[str, ...] = (".md", ".mdx", ".rst")
 
 TODO_PATTERNS: tuple[str, ...] = ("TODO", "FIXME", "BUG", "HACK", "SAFETY", "XXX")
+# Version of how a line is turned into markers (every occurrence per line, one
+# category each, R13-E). Part of the cache fingerprint: a change here makes every
+# cached marker result stale.
+# نسخه‌ی روش تبدیل خط به مارکر؛ جزو fingerprint کش.
+MARKER_RULES_VERSION = 2
 
 AI_NOTICE = (
     "This report is generated for AI analysis and contains project metadata, "

@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 from sarand.constants import (
+    MARKER_RULES_VERSION,
     SECRET_FILENAME_PATTERNS,
     SECRET_PATH_PATTERNS,
     TODO_PATTERNS,
@@ -67,6 +68,7 @@ def _rules_fingerprint() -> str:
     """
     parts = (
         sorted(TODO_PATTERNS)
+        + [f"marker-rules-{MARKER_RULES_VERSION}"]
         + sorted(SECRET_FILENAME_PATTERNS)
         + sorted(SECRET_PATH_PATTERNS)
         + content_rule_signatures()

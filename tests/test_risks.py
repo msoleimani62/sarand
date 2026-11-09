@@ -109,7 +109,7 @@ def _fire_confidence(d: ReportData) -> None:
 
 def _fire_todo(d: ReportData) -> None:
     d.todos = [
-        TodoItem(path="a.py", line_number=i, kind="TODO", content="x")
+        TodoItem(path="a.py", line_number=i, kind="TODO", content="TODO: x")
         for i in range(TODO_CLUSTER_MIN)
     ]
 
@@ -194,7 +194,7 @@ def test_every_rule_with_absent_data_is_listed_and_does_not_fire() -> None:
 def test_thresholds_are_inclusive_at_the_documented_boundary() -> None:
     data = _complete()
     data.todos = [
-        TodoItem(path="a.py", line_number=i, kind="TODO", content="x")
+        TodoItem(path="a.py", line_number=i, kind="TODO", content="TODO: x")
         for i in range(TODO_CLUSTER_MIN - 1)
     ]
     assert "TODO-CLUSTER" not in _ids(data)
@@ -326,7 +326,7 @@ def test_each_fired_rules_limitation_appears_once() -> None:
 def test_names_from_the_scan_are_escaped_in_html_and_markdown() -> None:
     data = _complete()
     data.todos = [
-        TodoItem(path="<b>`x`|y.py", line_number=i, kind="TODO", content="z")
+        TodoItem(path="<b>`x`|y.py", line_number=i, kind="TODO", content="TODO: z")
         for i in range(TODO_CLUSTER_MIN)
     ]
     assert (

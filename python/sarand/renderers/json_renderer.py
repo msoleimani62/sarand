@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from sarand.core.architecture import build_architecture
+from sarand.core.markers import category_counts, marker_category
 from sarand.core.package_summary import summarize_packages
 from sarand.core.quick_context import build_quick_context
 from sarand.core.risks import evaluate_risks
@@ -25,7 +26,7 @@ from sarand.progress import status
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.3"
+JSON_SCHEMA_VERSION = "1.4"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
@@ -83,7 +84,7 @@ def render(
         "environment": data.environment.__dict__,
         "git": data.git.__dict__,
         "stats": data.stats.__dict__,
-        "todos": [t.__dict__ for t in data.todos],
+        "todos": [{**t.__dict__, "category": marker_category(t)} for t in data.todos],
         "test_results": [_result_payload(r) for r in data.test_results],
         "quality_results": [_result_payload(r) for r in data.quality_results],
         "security_results": [_result_payload(r) for r in data.security_results],
@@ -113,6 +114,11 @@ def render(
     # فقط اجرایی که چند marker را حذف کرده این کلید را می‌گیرد.
     if data.todos_suppressed:
         payload["todos_suppressed"] = data.todos_suppressed
+    # R13-E: how many markers are in each category (schema 1.4); present when any
+    # marker was found. Only `actionable` ones are scored.
+    # R13-E: شمار مارکرها در هر دسته؛ فقط actionable امتیاز دارد.
+    if data.todos:
+        payload["todo_categories"] = category_counts(data.todos)
     # Same rule: a clean scan gets no new keys.
     # همان قاعده: اسکن سالم کلید تازه نمی‌گیرد.
     # Only a run with `--relevant-source` gets this key, so the default report

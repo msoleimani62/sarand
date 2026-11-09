@@ -263,109 +263,111 @@ This is a hybrid Python/Rust/Go workspace with one failing test.
 
 ## TODO / FIXME markers
 
-| File | Line | Kind | Content |
-|------|------|------|---------|
-| `src/todo_0.py` | 1 | TODO | `item 0` |
-| `src/todo_1.py` | 2 | TODO | `item 1` |
-| `src/todo_2.py` | 3 | TODO | `item 2` |
-| `src/todo_3.py` | 4 | TODO | `item 3` |
-| `src/todo_4.py` | 5 | TODO | `item 4` |
-| `src/todo_5.py` | 6 | TODO | `item 5` |
-| `src/todo_6.py` | 7 | TODO | `item 6` |
-| `src/todo_7.py` | 8 | TODO | `item 7` |
-| `src/todo_8.py` | 9 | TODO | `item 8` |
-| `src/todo_9.py` | 10 | TODO | `item 9` |
-| `src/todo_10.py` | 11 | TODO | `item 10` |
-| `src/todo_11.py` | 12 | TODO | `item 11` |
-| `src/todo_12.py` | 13 | TODO | `item 12` |
-| `src/todo_13.py` | 14 | TODO | `item 13` |
-| `src/todo_14.py` | 15 | TODO | `item 14` |
-| `src/todo_15.py` | 16 | TODO | `item 15` |
-| `src/todo_16.py` | 17 | TODO | `item 16` |
-| `src/todo_17.py` | 18 | TODO | `item 17` |
-| `src/todo_18.py` | 19 | TODO | `item 18` |
-| `src/todo_19.py` | 20 | TODO | `item 19` |
-| `src/todo_20.py` | 21 | TODO | `item 20` |
-| `src/todo_21.py` | 22 | TODO | `item 21` |
-| `src/todo_22.py` | 23 | TODO | `item 22` |
-| `src/todo_23.py` | 24 | TODO | `item 23` |
-| `src/todo_24.py` | 25 | TODO | `item 24` |
-| `src/todo_25.py` | 26 | TODO | `item 25` |
-| `src/todo_26.py` | 27 | TODO | `item 26` |
-| `src/todo_27.py` | 28 | TODO | `item 27` |
-| `src/todo_28.py` | 29 | TODO | `item 28` |
-| `src/todo_29.py` | 30 | TODO | `item 29` |
-| `src/todo_30.py` | 31 | TODO | `item 30` |
-| `src/todo_31.py` | 32 | TODO | `item 31` |
-| `src/todo_32.py` | 33 | TODO | `item 32` |
-| `src/todo_33.py` | 34 | TODO | `item 33` |
-| `src/todo_34.py` | 35 | TODO | `item 34` |
-| `src/todo_35.py` | 36 | TODO | `item 35` |
-| `src/todo_36.py` | 37 | TODO | `item 36` |
-| `src/todo_37.py` | 38 | TODO | `item 37` |
-| `src/todo_38.py` | 39 | TODO | `item 38` |
-| `src/todo_39.py` | 40 | TODO | `item 39` |
-| `src/todo_40.py` | 41 | TODO | `item 40` |
-| `src/todo_41.py` | 42 | TODO | `item 41` |
-| `src/todo_42.py` | 43 | TODO | `item 42` |
-| `src/todo_43.py` | 44 | TODO | `item 43` |
-| `src/todo_44.py` | 45 | TODO | `item 44` |
-| `src/todo_45.py` | 46 | TODO | `item 45` |
-| `src/todo_46.py` | 47 | TODO | `item 46` |
-| `src/todo_47.py` | 48 | TODO | `item 47` |
-| `src/todo_48.py` | 49 | TODO | `item 48` |
-| `src/todo_49.py` | 50 | TODO | `item 49` |
-| `src/todo_50.py` | 51 | TODO | `item 50` |
-| `src/todo_51.py` | 52 | TODO | `item 51` |
-| `src/todo_52.py` | 53 | TODO | `item 52` |
-| `src/todo_53.py` | 54 | TODO | `item 53` |
-| `src/todo_54.py` | 55 | TODO | `item 54` |
-| `src/todo_55.py` | 56 | TODO | `item 55` |
-| `src/todo_56.py` | 57 | TODO | `item 56` |
-| `src/todo_57.py` | 58 | TODO | `item 57` |
-| `src/todo_58.py` | 59 | TODO | `item 58` |
-| `src/todo_59.py` | 60 | TODO | `item 59` |
-| `src/todo_60.py` | 61 | TODO | `item 60` |
-| `src/todo_61.py` | 62 | TODO | `item 61` |
-| `src/todo_62.py` | 63 | TODO | `item 62` |
-| `src/todo_63.py` | 64 | TODO | `item 63` |
-| `src/todo_64.py` | 65 | TODO | `item 64` |
-| `src/todo_65.py` | 66 | TODO | `item 65` |
-| `src/todo_66.py` | 67 | TODO | `item 66` |
-| `src/todo_67.py` | 68 | TODO | `item 67` |
-| `src/todo_68.py` | 69 | TODO | `item 68` |
-| `src/todo_69.py` | 70 | TODO | `item 69` |
-| `src/todo_70.py` | 71 | TODO | `item 70` |
-| `src/todo_71.py` | 72 | TODO | `item 71` |
-| `src/todo_72.py` | 73 | TODO | `item 72` |
-| `src/todo_73.py` | 74 | TODO | `item 73` |
-| `src/todo_74.py` | 75 | TODO | `item 74` |
-| `src/todo_75.py` | 76 | TODO | `item 75` |
-| `src/todo_76.py` | 77 | TODO | `item 76` |
-| `src/todo_77.py` | 78 | TODO | `item 77` |
-| `src/todo_78.py` | 79 | TODO | `item 78` |
-| `src/todo_79.py` | 80 | TODO | `item 79` |
-| `src/todo_80.py` | 81 | TODO | `item 80` |
-| `src/todo_81.py` | 82 | TODO | `item 81` |
-| `src/todo_82.py` | 83 | TODO | `item 82` |
-| `src/todo_83.py` | 84 | TODO | `item 83` |
-| `src/todo_84.py` | 85 | TODO | `item 84` |
-| `src/todo_85.py` | 86 | TODO | `item 85` |
-| `src/todo_86.py` | 87 | TODO | `item 86` |
-| `src/todo_87.py` | 88 | TODO | `item 87` |
-| `src/todo_88.py` | 89 | TODO | `item 88` |
-| `src/todo_89.py` | 90 | TODO | `item 89` |
-| `src/todo_90.py` | 91 | TODO | `item 90` |
-| `src/todo_91.py` | 92 | TODO | `item 91` |
-| `src/todo_92.py` | 93 | TODO | `item 92` |
-| `src/todo_93.py` | 94 | TODO | `item 93` |
-| `src/todo_94.py` | 95 | TODO | `item 94` |
-| `src/todo_95.py` | 96 | TODO | `item 95` |
-| `src/todo_96.py` | 97 | TODO | `item 96` |
-| `src/todo_97.py` | 98 | TODO | `item 97` |
-| `src/todo_98.py` | 99 | TODO | `item 98` |
-| `src/todo_99.py` | 100 | TODO | `item 99` |
-| ... | ... | ... | (3 more) |
+Found 0 actionable, 0 historical, 0 safety, 0 development, 103 mention. Only `actionable` markers (TODO / FIXME written as a task) count toward the health score and the `TODO-CLUSTER` risk; the others are shown for review, not scored.
+
+| File | Line | Kind | Category | Content |
+|------|------|------|----------|---------|
+| `src/todo_0.py` | 1 | TODO | mention | `item 0` |
+| `src/todo_1.py` | 2 | TODO | mention | `item 1` |
+| `src/todo_2.py` | 3 | TODO | mention | `item 2` |
+| `src/todo_3.py` | 4 | TODO | mention | `item 3` |
+| `src/todo_4.py` | 5 | TODO | mention | `item 4` |
+| `src/todo_5.py` | 6 | TODO | mention | `item 5` |
+| `src/todo_6.py` | 7 | TODO | mention | `item 6` |
+| `src/todo_7.py` | 8 | TODO | mention | `item 7` |
+| `src/todo_8.py` | 9 | TODO | mention | `item 8` |
+| `src/todo_9.py` | 10 | TODO | mention | `item 9` |
+| `src/todo_10.py` | 11 | TODO | mention | `item 10` |
+| `src/todo_11.py` | 12 | TODO | mention | `item 11` |
+| `src/todo_12.py` | 13 | TODO | mention | `item 12` |
+| `src/todo_13.py` | 14 | TODO | mention | `item 13` |
+| `src/todo_14.py` | 15 | TODO | mention | `item 14` |
+| `src/todo_15.py` | 16 | TODO | mention | `item 15` |
+| `src/todo_16.py` | 17 | TODO | mention | `item 16` |
+| `src/todo_17.py` | 18 | TODO | mention | `item 17` |
+| `src/todo_18.py` | 19 | TODO | mention | `item 18` |
+| `src/todo_19.py` | 20 | TODO | mention | `item 19` |
+| `src/todo_20.py` | 21 | TODO | mention | `item 20` |
+| `src/todo_21.py` | 22 | TODO | mention | `item 21` |
+| `src/todo_22.py` | 23 | TODO | mention | `item 22` |
+| `src/todo_23.py` | 24 | TODO | mention | `item 23` |
+| `src/todo_24.py` | 25 | TODO | mention | `item 24` |
+| `src/todo_25.py` | 26 | TODO | mention | `item 25` |
+| `src/todo_26.py` | 27 | TODO | mention | `item 26` |
+| `src/todo_27.py` | 28 | TODO | mention | `item 27` |
+| `src/todo_28.py` | 29 | TODO | mention | `item 28` |
+| `src/todo_29.py` | 30 | TODO | mention | `item 29` |
+| `src/todo_30.py` | 31 | TODO | mention | `item 30` |
+| `src/todo_31.py` | 32 | TODO | mention | `item 31` |
+| `src/todo_32.py` | 33 | TODO | mention | `item 32` |
+| `src/todo_33.py` | 34 | TODO | mention | `item 33` |
+| `src/todo_34.py` | 35 | TODO | mention | `item 34` |
+| `src/todo_35.py` | 36 | TODO | mention | `item 35` |
+| `src/todo_36.py` | 37 | TODO | mention | `item 36` |
+| `src/todo_37.py` | 38 | TODO | mention | `item 37` |
+| `src/todo_38.py` | 39 | TODO | mention | `item 38` |
+| `src/todo_39.py` | 40 | TODO | mention | `item 39` |
+| `src/todo_40.py` | 41 | TODO | mention | `item 40` |
+| `src/todo_41.py` | 42 | TODO | mention | `item 41` |
+| `src/todo_42.py` | 43 | TODO | mention | `item 42` |
+| `src/todo_43.py` | 44 | TODO | mention | `item 43` |
+| `src/todo_44.py` | 45 | TODO | mention | `item 44` |
+| `src/todo_45.py` | 46 | TODO | mention | `item 45` |
+| `src/todo_46.py` | 47 | TODO | mention | `item 46` |
+| `src/todo_47.py` | 48 | TODO | mention | `item 47` |
+| `src/todo_48.py` | 49 | TODO | mention | `item 48` |
+| `src/todo_49.py` | 50 | TODO | mention | `item 49` |
+| `src/todo_50.py` | 51 | TODO | mention | `item 50` |
+| `src/todo_51.py` | 52 | TODO | mention | `item 51` |
+| `src/todo_52.py` | 53 | TODO | mention | `item 52` |
+| `src/todo_53.py` | 54 | TODO | mention | `item 53` |
+| `src/todo_54.py` | 55 | TODO | mention | `item 54` |
+| `src/todo_55.py` | 56 | TODO | mention | `item 55` |
+| `src/todo_56.py` | 57 | TODO | mention | `item 56` |
+| `src/todo_57.py` | 58 | TODO | mention | `item 57` |
+| `src/todo_58.py` | 59 | TODO | mention | `item 58` |
+| `src/todo_59.py` | 60 | TODO | mention | `item 59` |
+| `src/todo_60.py` | 61 | TODO | mention | `item 60` |
+| `src/todo_61.py` | 62 | TODO | mention | `item 61` |
+| `src/todo_62.py` | 63 | TODO | mention | `item 62` |
+| `src/todo_63.py` | 64 | TODO | mention | `item 63` |
+| `src/todo_64.py` | 65 | TODO | mention | `item 64` |
+| `src/todo_65.py` | 66 | TODO | mention | `item 65` |
+| `src/todo_66.py` | 67 | TODO | mention | `item 66` |
+| `src/todo_67.py` | 68 | TODO | mention | `item 67` |
+| `src/todo_68.py` | 69 | TODO | mention | `item 68` |
+| `src/todo_69.py` | 70 | TODO | mention | `item 69` |
+| `src/todo_70.py` | 71 | TODO | mention | `item 70` |
+| `src/todo_71.py` | 72 | TODO | mention | `item 71` |
+| `src/todo_72.py` | 73 | TODO | mention | `item 72` |
+| `src/todo_73.py` | 74 | TODO | mention | `item 73` |
+| `src/todo_74.py` | 75 | TODO | mention | `item 74` |
+| `src/todo_75.py` | 76 | TODO | mention | `item 75` |
+| `src/todo_76.py` | 77 | TODO | mention | `item 76` |
+| `src/todo_77.py` | 78 | TODO | mention | `item 77` |
+| `src/todo_78.py` | 79 | TODO | mention | `item 78` |
+| `src/todo_79.py` | 80 | TODO | mention | `item 79` |
+| `src/todo_80.py` | 81 | TODO | mention | `item 80` |
+| `src/todo_81.py` | 82 | TODO | mention | `item 81` |
+| `src/todo_82.py` | 83 | TODO | mention | `item 82` |
+| `src/todo_83.py` | 84 | TODO | mention | `item 83` |
+| `src/todo_84.py` | 85 | TODO | mention | `item 84` |
+| `src/todo_85.py` | 86 | TODO | mention | `item 85` |
+| `src/todo_86.py` | 87 | TODO | mention | `item 86` |
+| `src/todo_87.py` | 88 | TODO | mention | `item 87` |
+| `src/todo_88.py` | 89 | TODO | mention | `item 88` |
+| `src/todo_89.py` | 90 | TODO | mention | `item 89` |
+| `src/todo_90.py` | 91 | TODO | mention | `item 90` |
+| `src/todo_91.py` | 92 | TODO | mention | `item 91` |
+| `src/todo_92.py` | 93 | TODO | mention | `item 92` |
+| `src/todo_93.py` | 94 | TODO | mention | `item 93` |
+| `src/todo_94.py` | 95 | TODO | mention | `item 94` |
+| `src/todo_95.py` | 96 | TODO | mention | `item 95` |
+| `src/todo_96.py` | 97 | TODO | mention | `item 96` |
+| `src/todo_97.py` | 98 | TODO | mention | `item 97` |
+| `src/todo_98.py` | 99 | TODO | mention | `item 98` |
+| `src/todo_99.py` | 100 | TODO | mention | `item 99` |
+| ... | ... | ... | ... | (3 more) |
 
 ## Test results
 

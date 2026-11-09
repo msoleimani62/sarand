@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.3",
+  "schema_version": "1.4",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "hybrid-project",
@@ -373,619 +373,722 @@
       "path": "src/todo_0.py",
       "line_number": 1,
       "kind": "TODO",
-      "content": "item 0"
+      "content": "item 0",
+      "category": "mention"
     },
     {
       "path": "src/todo_1.py",
       "line_number": 2,
       "kind": "TODO",
-      "content": "item 1"
+      "content": "item 1",
+      "category": "mention"
     },
     {
       "path": "src/todo_2.py",
       "line_number": 3,
       "kind": "TODO",
-      "content": "item 2"
+      "content": "item 2",
+      "category": "mention"
     },
     {
       "path": "src/todo_3.py",
       "line_number": 4,
       "kind": "TODO",
-      "content": "item 3"
+      "content": "item 3",
+      "category": "mention"
     },
     {
       "path": "src/todo_4.py",
       "line_number": 5,
       "kind": "TODO",
-      "content": "item 4"
+      "content": "item 4",
+      "category": "mention"
     },
     {
       "path": "src/todo_5.py",
       "line_number": 6,
       "kind": "TODO",
-      "content": "item 5"
+      "content": "item 5",
+      "category": "mention"
     },
     {
       "path": "src/todo_6.py",
       "line_number": 7,
       "kind": "TODO",
-      "content": "item 6"
+      "content": "item 6",
+      "category": "mention"
     },
     {
       "path": "src/todo_7.py",
       "line_number": 8,
       "kind": "TODO",
-      "content": "item 7"
+      "content": "item 7",
+      "category": "mention"
     },
     {
       "path": "src/todo_8.py",
       "line_number": 9,
       "kind": "TODO",
-      "content": "item 8"
+      "content": "item 8",
+      "category": "mention"
     },
     {
       "path": "src/todo_9.py",
       "line_number": 10,
       "kind": "TODO",
-      "content": "item 9"
+      "content": "item 9",
+      "category": "mention"
     },
     {
       "path": "src/todo_10.py",
       "line_number": 11,
       "kind": "TODO",
-      "content": "item 10"
+      "content": "item 10",
+      "category": "mention"
     },
     {
       "path": "src/todo_11.py",
       "line_number": 12,
       "kind": "TODO",
-      "content": "item 11"
+      "content": "item 11",
+      "category": "mention"
     },
     {
       "path": "src/todo_12.py",
       "line_number": 13,
       "kind": "TODO",
-      "content": "item 12"
+      "content": "item 12",
+      "category": "mention"
     },
     {
       "path": "src/todo_13.py",
       "line_number": 14,
       "kind": "TODO",
-      "content": "item 13"
+      "content": "item 13",
+      "category": "mention"
     },
     {
       "path": "src/todo_14.py",
       "line_number": 15,
       "kind": "TODO",
-      "content": "item 14"
+      "content": "item 14",
+      "category": "mention"
     },
     {
       "path": "src/todo_15.py",
       "line_number": 16,
       "kind": "TODO",
-      "content": "item 15"
+      "content": "item 15",
+      "category": "mention"
     },
     {
       "path": "src/todo_16.py",
       "line_number": 17,
       "kind": "TODO",
-      "content": "item 16"
+      "content": "item 16",
+      "category": "mention"
     },
     {
       "path": "src/todo_17.py",
       "line_number": 18,
       "kind": "TODO",
-      "content": "item 17"
+      "content": "item 17",
+      "category": "mention"
     },
     {
       "path": "src/todo_18.py",
       "line_number": 19,
       "kind": "TODO",
-      "content": "item 18"
+      "content": "item 18",
+      "category": "mention"
     },
     {
       "path": "src/todo_19.py",
       "line_number": 20,
       "kind": "TODO",
-      "content": "item 19"
+      "content": "item 19",
+      "category": "mention"
     },
     {
       "path": "src/todo_20.py",
       "line_number": 21,
       "kind": "TODO",
-      "content": "item 20"
+      "content": "item 20",
+      "category": "mention"
     },
     {
       "path": "src/todo_21.py",
       "line_number": 22,
       "kind": "TODO",
-      "content": "item 21"
+      "content": "item 21",
+      "category": "mention"
     },
     {
       "path": "src/todo_22.py",
       "line_number": 23,
       "kind": "TODO",
-      "content": "item 22"
+      "content": "item 22",
+      "category": "mention"
     },
     {
       "path": "src/todo_23.py",
       "line_number": 24,
       "kind": "TODO",
-      "content": "item 23"
+      "content": "item 23",
+      "category": "mention"
     },
     {
       "path": "src/todo_24.py",
       "line_number": 25,
       "kind": "TODO",
-      "content": "item 24"
+      "content": "item 24",
+      "category": "mention"
     },
     {
       "path": "src/todo_25.py",
       "line_number": 26,
       "kind": "TODO",
-      "content": "item 25"
+      "content": "item 25",
+      "category": "mention"
     },
     {
       "path": "src/todo_26.py",
       "line_number": 27,
       "kind": "TODO",
-      "content": "item 26"
+      "content": "item 26",
+      "category": "mention"
     },
     {
       "path": "src/todo_27.py",
       "line_number": 28,
       "kind": "TODO",
-      "content": "item 27"
+      "content": "item 27",
+      "category": "mention"
     },
     {
       "path": "src/todo_28.py",
       "line_number": 29,
       "kind": "TODO",
-      "content": "item 28"
+      "content": "item 28",
+      "category": "mention"
     },
     {
       "path": "src/todo_29.py",
       "line_number": 30,
       "kind": "TODO",
-      "content": "item 29"
+      "content": "item 29",
+      "category": "mention"
     },
     {
       "path": "src/todo_30.py",
       "line_number": 31,
       "kind": "TODO",
-      "content": "item 30"
+      "content": "item 30",
+      "category": "mention"
     },
     {
       "path": "src/todo_31.py",
       "line_number": 32,
       "kind": "TODO",
-      "content": "item 31"
+      "content": "item 31",
+      "category": "mention"
     },
     {
       "path": "src/todo_32.py",
       "line_number": 33,
       "kind": "TODO",
-      "content": "item 32"
+      "content": "item 32",
+      "category": "mention"
     },
     {
       "path": "src/todo_33.py",
       "line_number": 34,
       "kind": "TODO",
-      "content": "item 33"
+      "content": "item 33",
+      "category": "mention"
     },
     {
       "path": "src/todo_34.py",
       "line_number": 35,
       "kind": "TODO",
-      "content": "item 34"
+      "content": "item 34",
+      "category": "mention"
     },
     {
       "path": "src/todo_35.py",
       "line_number": 36,
       "kind": "TODO",
-      "content": "item 35"
+      "content": "item 35",
+      "category": "mention"
     },
     {
       "path": "src/todo_36.py",
       "line_number": 37,
       "kind": "TODO",
-      "content": "item 36"
+      "content": "item 36",
+      "category": "mention"
     },
     {
       "path": "src/todo_37.py",
       "line_number": 38,
       "kind": "TODO",
-      "content": "item 37"
+      "content": "item 37",
+      "category": "mention"
     },
     {
       "path": "src/todo_38.py",
       "line_number": 39,
       "kind": "TODO",
-      "content": "item 38"
+      "content": "item 38",
+      "category": "mention"
     },
     {
       "path": "src/todo_39.py",
       "line_number": 40,
       "kind": "TODO",
-      "content": "item 39"
+      "content": "item 39",
+      "category": "mention"
     },
     {
       "path": "src/todo_40.py",
       "line_number": 41,
       "kind": "TODO",
-      "content": "item 40"
+      "content": "item 40",
+      "category": "mention"
     },
     {
       "path": "src/todo_41.py",
       "line_number": 42,
       "kind": "TODO",
-      "content": "item 41"
+      "content": "item 41",
+      "category": "mention"
     },
     {
       "path": "src/todo_42.py",
       "line_number": 43,
       "kind": "TODO",
-      "content": "item 42"
+      "content": "item 42",
+      "category": "mention"
     },
     {
       "path": "src/todo_43.py",
       "line_number": 44,
       "kind": "TODO",
-      "content": "item 43"
+      "content": "item 43",
+      "category": "mention"
     },
     {
       "path": "src/todo_44.py",
       "line_number": 45,
       "kind": "TODO",
-      "content": "item 44"
+      "content": "item 44",
+      "category": "mention"
     },
     {
       "path": "src/todo_45.py",
       "line_number": 46,
       "kind": "TODO",
-      "content": "item 45"
+      "content": "item 45",
+      "category": "mention"
     },
     {
       "path": "src/todo_46.py",
       "line_number": 47,
       "kind": "TODO",
-      "content": "item 46"
+      "content": "item 46",
+      "category": "mention"
     },
     {
       "path": "src/todo_47.py",
       "line_number": 48,
       "kind": "TODO",
-      "content": "item 47"
+      "content": "item 47",
+      "category": "mention"
     },
     {
       "path": "src/todo_48.py",
       "line_number": 49,
       "kind": "TODO",
-      "content": "item 48"
+      "content": "item 48",
+      "category": "mention"
     },
     {
       "path": "src/todo_49.py",
       "line_number": 50,
       "kind": "TODO",
-      "content": "item 49"
+      "content": "item 49",
+      "category": "mention"
     },
     {
       "path": "src/todo_50.py",
       "line_number": 51,
       "kind": "TODO",
-      "content": "item 50"
+      "content": "item 50",
+      "category": "mention"
     },
     {
       "path": "src/todo_51.py",
       "line_number": 52,
       "kind": "TODO",
-      "content": "item 51"
+      "content": "item 51",
+      "category": "mention"
     },
     {
       "path": "src/todo_52.py",
       "line_number": 53,
       "kind": "TODO",
-      "content": "item 52"
+      "content": "item 52",
+      "category": "mention"
     },
     {
       "path": "src/todo_53.py",
       "line_number": 54,
       "kind": "TODO",
-      "content": "item 53"
+      "content": "item 53",
+      "category": "mention"
     },
     {
       "path": "src/todo_54.py",
       "line_number": 55,
       "kind": "TODO",
-      "content": "item 54"
+      "content": "item 54",
+      "category": "mention"
     },
     {
       "path": "src/todo_55.py",
       "line_number": 56,
       "kind": "TODO",
-      "content": "item 55"
+      "content": "item 55",
+      "category": "mention"
     },
     {
       "path": "src/todo_56.py",
       "line_number": 57,
       "kind": "TODO",
-      "content": "item 56"
+      "content": "item 56",
+      "category": "mention"
     },
     {
       "path": "src/todo_57.py",
       "line_number": 58,
       "kind": "TODO",
-      "content": "item 57"
+      "content": "item 57",
+      "category": "mention"
     },
     {
       "path": "src/todo_58.py",
       "line_number": 59,
       "kind": "TODO",
-      "content": "item 58"
+      "content": "item 58",
+      "category": "mention"
     },
     {
       "path": "src/todo_59.py",
       "line_number": 60,
       "kind": "TODO",
-      "content": "item 59"
+      "content": "item 59",
+      "category": "mention"
     },
     {
       "path": "src/todo_60.py",
       "line_number": 61,
       "kind": "TODO",
-      "content": "item 60"
+      "content": "item 60",
+      "category": "mention"
     },
     {
       "path": "src/todo_61.py",
       "line_number": 62,
       "kind": "TODO",
-      "content": "item 61"
+      "content": "item 61",
+      "category": "mention"
     },
     {
       "path": "src/todo_62.py",
       "line_number": 63,
       "kind": "TODO",
-      "content": "item 62"
+      "content": "item 62",
+      "category": "mention"
     },
     {
       "path": "src/todo_63.py",
       "line_number": 64,
       "kind": "TODO",
-      "content": "item 63"
+      "content": "item 63",
+      "category": "mention"
     },
     {
       "path": "src/todo_64.py",
       "line_number": 65,
       "kind": "TODO",
-      "content": "item 64"
+      "content": "item 64",
+      "category": "mention"
     },
     {
       "path": "src/todo_65.py",
       "line_number": 66,
       "kind": "TODO",
-      "content": "item 65"
+      "content": "item 65",
+      "category": "mention"
     },
     {
       "path": "src/todo_66.py",
       "line_number": 67,
       "kind": "TODO",
-      "content": "item 66"
+      "content": "item 66",
+      "category": "mention"
     },
     {
       "path": "src/todo_67.py",
       "line_number": 68,
       "kind": "TODO",
-      "content": "item 67"
+      "content": "item 67",
+      "category": "mention"
     },
     {
       "path": "src/todo_68.py",
       "line_number": 69,
       "kind": "TODO",
-      "content": "item 68"
+      "content": "item 68",
+      "category": "mention"
     },
     {
       "path": "src/todo_69.py",
       "line_number": 70,
       "kind": "TODO",
-      "content": "item 69"
+      "content": "item 69",
+      "category": "mention"
     },
     {
       "path": "src/todo_70.py",
       "line_number": 71,
       "kind": "TODO",
-      "content": "item 70"
+      "content": "item 70",
+      "category": "mention"
     },
     {
       "path": "src/todo_71.py",
       "line_number": 72,
       "kind": "TODO",
-      "content": "item 71"
+      "content": "item 71",
+      "category": "mention"
     },
     {
       "path": "src/todo_72.py",
       "line_number": 73,
       "kind": "TODO",
-      "content": "item 72"
+      "content": "item 72",
+      "category": "mention"
     },
     {
       "path": "src/todo_73.py",
       "line_number": 74,
       "kind": "TODO",
-      "content": "item 73"
+      "content": "item 73",
+      "category": "mention"
     },
     {
       "path": "src/todo_74.py",
       "line_number": 75,
       "kind": "TODO",
-      "content": "item 74"
+      "content": "item 74",
+      "category": "mention"
     },
     {
       "path": "src/todo_75.py",
       "line_number": 76,
       "kind": "TODO",
-      "content": "item 75"
+      "content": "item 75",
+      "category": "mention"
     },
     {
       "path": "src/todo_76.py",
       "line_number": 77,
       "kind": "TODO",
-      "content": "item 76"
+      "content": "item 76",
+      "category": "mention"
     },
     {
       "path": "src/todo_77.py",
       "line_number": 78,
       "kind": "TODO",
-      "content": "item 77"
+      "content": "item 77",
+      "category": "mention"
     },
     {
       "path": "src/todo_78.py",
       "line_number": 79,
       "kind": "TODO",
-      "content": "item 78"
+      "content": "item 78",
+      "category": "mention"
     },
     {
       "path": "src/todo_79.py",
       "line_number": 80,
       "kind": "TODO",
-      "content": "item 79"
+      "content": "item 79",
+      "category": "mention"
     },
     {
       "path": "src/todo_80.py",
       "line_number": 81,
       "kind": "TODO",
-      "content": "item 80"
+      "content": "item 80",
+      "category": "mention"
     },
     {
       "path": "src/todo_81.py",
       "line_number": 82,
       "kind": "TODO",
-      "content": "item 81"
+      "content": "item 81",
+      "category": "mention"
     },
     {
       "path": "src/todo_82.py",
       "line_number": 83,
       "kind": "TODO",
-      "content": "item 82"
+      "content": "item 82",
+      "category": "mention"
     },
     {
       "path": "src/todo_83.py",
       "line_number": 84,
       "kind": "TODO",
-      "content": "item 83"
+      "content": "item 83",
+      "category": "mention"
     },
     {
       "path": "src/todo_84.py",
       "line_number": 85,
       "kind": "TODO",
-      "content": "item 84"
+      "content": "item 84",
+      "category": "mention"
     },
     {
       "path": "src/todo_85.py",
       "line_number": 86,
       "kind": "TODO",
-      "content": "item 85"
+      "content": "item 85",
+      "category": "mention"
     },
     {
       "path": "src/todo_86.py",
       "line_number": 87,
       "kind": "TODO",
-      "content": "item 86"
+      "content": "item 86",
+      "category": "mention"
     },
     {
       "path": "src/todo_87.py",
       "line_number": 88,
       "kind": "TODO",
-      "content": "item 87"
+      "content": "item 87",
+      "category": "mention"
     },
     {
       "path": "src/todo_88.py",
       "line_number": 89,
       "kind": "TODO",
-      "content": "item 88"
+      "content": "item 88",
+      "category": "mention"
     },
     {
       "path": "src/todo_89.py",
       "line_number": 90,
       "kind": "TODO",
-      "content": "item 89"
+      "content": "item 89",
+      "category": "mention"
     },
     {
       "path": "src/todo_90.py",
       "line_number": 91,
       "kind": "TODO",
-      "content": "item 90"
+      "content": "item 90",
+      "category": "mention"
     },
     {
       "path": "src/todo_91.py",
       "line_number": 92,
       "kind": "TODO",
-      "content": "item 91"
+      "content": "item 91",
+      "category": "mention"
     },
     {
       "path": "src/todo_92.py",
       "line_number": 93,
       "kind": "TODO",
-      "content": "item 92"
+      "content": "item 92",
+      "category": "mention"
     },
     {
       "path": "src/todo_93.py",
       "line_number": 94,
       "kind": "TODO",
-      "content": "item 93"
+      "content": "item 93",
+      "category": "mention"
     },
     {
       "path": "src/todo_94.py",
       "line_number": 95,
       "kind": "TODO",
-      "content": "item 94"
+      "content": "item 94",
+      "category": "mention"
     },
     {
       "path": "src/todo_95.py",
       "line_number": 96,
       "kind": "TODO",
-      "content": "item 95"
+      "content": "item 95",
+      "category": "mention"
     },
     {
       "path": "src/todo_96.py",
       "line_number": 97,
       "kind": "TODO",
-      "content": "item 96"
+      "content": "item 96",
+      "category": "mention"
     },
     {
       "path": "src/todo_97.py",
       "line_number": 98,
       "kind": "TODO",
-      "content": "item 97"
+      "content": "item 97",
+      "category": "mention"
     },
     {
       "path": "src/todo_98.py",
       "line_number": 99,
       "kind": "TODO",
-      "content": "item 98"
+      "content": "item 98",
+      "category": "mention"
     },
     {
       "path": "src/todo_99.py",
       "line_number": 100,
       "kind": "TODO",
-      "content": "item 99"
+      "content": "item 99",
+      "category": "mention"
     },
     {
       "path": "src/todo_100.py",
       "line_number": 101,
       "kind": "TODO",
-      "content": "item 100"
+      "content": "item 100",
+      "category": "mention"
     },
     {
       "path": "src/todo_101.py",
       "line_number": 102,
       "kind": "TODO",
-      "content": "item 101"
+      "content": "item 101",
+      "category": "mention"
     },
     {
       "path": "src/todo_102.py",
       "line_number": 103,
       "kind": "TODO",
-      "content": "item 102"
+      "content": "item 102",
+      "category": "mention"
     }
   ],
   "test_results": [
@@ -1229,6 +1332,13 @@
       "is_test_fixture": true
     }
   ],
+  "todo_categories": {
+    "actionable": 0,
+    "historical": 0,
+    "safety": 0,
+    "development": 0,
+    "mention": 103
+  },
   "failures": [
     {
       "tool": "cargo test",

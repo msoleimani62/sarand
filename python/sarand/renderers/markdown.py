@@ -15,6 +15,7 @@ from sarand.core.check_states import (
     unavailable_cause,
 )
 from sarand.core.execution_coverage import coverage_lines
+from sarand.core.markers import category_counts, marker_category
 from sarand.core.package_summary import (
     ROOT_PACKAGE,
     PhaseCount,
@@ -754,16 +755,37 @@ def render(
             [
                 "## TODO / FIXME markers",
                 "",
-                "| File | Line | Kind | Content |",
-                "|------|------|------|---------|",
+            ]
+        )
+        if data.todos:
+            counts = category_counts(data.todos)
+            parts.extend(
+                [
+                    (
+                        "Found "
+                        + ", ".join(f"{n} {name}" for name, n in counts.items())
+                        + ". Only `actionable` markers (TODO / FIXME written as a "
+                        "task) count toward the health score and the `TODO-CLUSTER` "
+                        "risk; the others are shown for review, not scored."
+                    ),
+                    "",
+                ]
+            )
+        parts.extend(
+            [
+                "| File | Line | Kind | Category | Content |",
+                "|------|------|------|----------|---------|",
             ]
         )
         shown_todos = data.todos if full_output else data.todos[:100]
         for t in shown_todos:
             content = t.content.replace("|", "\\|")
-            parts.append(f"| `{t.path}` | {t.line_number} | {t.kind} | `{content}` |")
+            parts.append(
+                f"| `{t.path}` | {t.line_number} | {t.kind} "
+                f"| {marker_category(t)} | `{content}` |"
+            )
         if not full_output and len(data.todos) > 100:
-            parts.append(f"| ... | ... | ... | ({len(data.todos) - 100} more) |")
+            parts.append(f"| ... | ... | ... | ... | ({len(data.todos) - 100} more) |")
         if data.todos_suppressed:
             parts.append("")
             parts.append(

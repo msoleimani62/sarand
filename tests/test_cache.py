@@ -180,7 +180,13 @@ def test_build_cache_entries_attaches_findings_to_the_right_file() -> None:
     entries = build_cache_entries(records, todos, secrets)
 
     assert entries["a.py"]["todos"] == [
-        {"path": "a.py", "line_number": 3, "kind": "TODO", "content": "fix this"}
+        {
+            "path": "a.py",
+            "line_number": 3,
+            "kind": "TODO",
+            "content": "fix this",
+            "category": "",
+        }
     ]
     assert entries["a.py"]["secrets"] == []
     assert entries["b.py"]["todos"] == []

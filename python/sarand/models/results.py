@@ -137,6 +137,11 @@ class TodoItem:
     line_number: int
     kind: str
     content: str
+    # What the occurrence means (core/markers.py): actionable, historical, safety,
+    # development or mention. "" = not classified yet (an older cache entry);
+    # consumers then classify from `content`.
+    # معنای این مورد؛ "" یعنی هنوز طبقه‌بندی نشده (مثلاً کش قدیمی).
+    category: str = ""
 
 
 @dataclass

@@ -16,3 +16,7 @@ tests/data/ramz_v0_3_2/* -whitespace
 # Preserve Markdown hard line breaks in the R13-D golden snapshot.
 # شکست خط‌های عمدی Markdown در Golden Fixture نسخه R13-D حفظ شود.
 tests/golden/unverified.md -whitespace
+
+# Preserve Markdown hard line breaks in the R13-E golden snapshot.
+# شکست خط‌های عمدی Markdown در Golden Fixture نسخه R13-E حفظ شود.
+tests/golden/markers.md -whitespace

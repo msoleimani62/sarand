@@ -1,0 +1,185 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "sarand",
+          "informationUri": "https://github.com/msoleimani62/sarand",
+          "rules": [
+            {
+              "id": "todo/todo",
+              "shortDescription": {
+                "text": "TODO marker found in source"
+              }
+            },
+            {
+              "id": "todo/bug",
+              "shortDescription": {
+                "text": "BUG marker found in source"
+              }
+            },
+            {
+              "id": "todo/fixme",
+              "shortDescription": {
+                "text": "FIXME marker found in source"
+              }
+            },
+            {
+              "id": "todo/safety",
+              "shortDescription": {
+                "text": "SAFETY marker found in source"
+              }
+            },
+            {
+              "id": "todo/hack",
+              "shortDescription": {
+                "text": "HACK marker found in source"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "todo/todo",
+          "level": "note",
+          "message": {
+            "text": "x = load()  # TODO(ana): cache this  # BUG: see #12"
+          },
+          "properties": {
+            "category": "actionable"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/core.py"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "todo/bug",
+          "level": "note",
+          "message": {
+            "text": "x = load()  # TODO(ana): cache this  # BUG: see #12"
+          },
+          "properties": {
+            "category": "historical"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/core.py"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "todo/fixme",
+          "level": "note",
+          "message": {
+            "text": "# FIXME - handle the empty file"
+          },
+          "properties": {
+            "category": "actionable"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/core.py"
+                },
+                "region": {
+                  "startLine": 40
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "todo/safety",
+          "level": "note",
+          "message": {
+            "text": "// SAFETY: the pointer comes from a live Box"
+          },
+          "properties": {
+            "category": "safety"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/unsafe.rs"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "todo/hack",
+          "level": "note",
+          "message": {
+            "text": "# HACK: sleep until the socket is ready"
+          },
+          "properties": {
+            "category": "development"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/util.py"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "todo/todo",
+          "level": "note",
+          "message": {
+            "text": "\"\"\"The TODO scanner reads TODO-style markers.\"\"\""
+          },
+          "properties": {
+            "category": "mention"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "README_helper.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "originalUriBaseIds": {
+        "PROJECTROOT": {
+          "uri": "<PROJECT_ROOT_URI>/"
+        }
+      }
+    }
+  ]
+}

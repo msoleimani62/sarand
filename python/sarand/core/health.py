@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import re
-
 from sarand.constants import FAILURE_DEPENDENCY_POLICY, FAILURE_SECURITY_FINDING
 from sarand.core.check_states import (
     STATE_FAILED,
@@ -20,34 +18,23 @@ from sarand.core.check_states import (
 )
 from sarand.core.execution_coverage import summarize_coverage
 from sarand.core.failures import GROUP_SECURITY, classify_result
+from sarand.core.markers import is_actionable
 from sarand.models.results import CommandResult, HealthScore, ReportData, TodoItem
-
-# Only markers written with explicit task syntax count as technical debt.
-# فقط markerهایی که با syntax صریح task نوشته شده‌اند به‌عنوان بدهی فنی حساب می‌شوند.
-# Accepted forms: TODO: ..., TODO - ..., FIXME: ..., FIXME - ...
-_ACTIONABLE_TODO_RE = re.compile(
-    r"\b(?:TODO|FIXME)\b\s*(?::|-)\s*\S",
-    re.IGNORECASE,
-)
 
 
 def _is_actionable_todo(item: TodoItem) -> bool:
-    """Return whether a TODO/FIXME uses explicit task-marker syntax.
+    """Return whether a marker is a TODO / FIXME written as a task.
 
-    The TODO scanner intentionally reports every marker occurrence.
-    Health scoring uses a stricter contract: only TODO/FIXME markers
-    written as ``TODO: ...``, ``TODO - ...``, ``FIXME: ...``, or
-    ``FIXME - ...`` count toward technical-debt scoring.
+    The scanner reports every occurrence of a marker keyword; the health score
+    counts only the `actionable` ones (core/markers.py): `TODO: ...`,
+    `TODO(owner): ...`, `TODO - ...`, `FIXME: ...`. BUG, SAFETY, HACK and XXX
+    markers and a TODO / FIXME that is only mentioned (`TODO-style`, `TODO: ...`)
+    are discovered and shown but never scored.
 
-    اسکنر عمداً همه occurrenceها را گزارش می‌کند.
-    امتیازدهی سلامت قرارداد سخت‌گیرانه‌تری دارد: فقط markerهای TODO/FIXME
-    که به شکل ``TODO: ...``، ``TODO - ...``، ``FIXME: ...`` یا
-    ``FIXME - ...`` نوشته شده‌اند به‌عنوان بدهی فنی حساب می‌شوند.
+    اسکنر همه‌ی occurrenceها را گزارش می‌کند؛ امتیاز سلامت فقط موارد actionable را
+    می‌شمارد.
     """
-    if (item.kind or "").upper() not in {"TODO", "FIXME"}:
-        return False
-
-    return bool(_ACTIONABLE_TODO_RE.search((item.content or "").strip()))
+    return is_actionable(item)
 
 
 def _unfinished(result: CommandResult) -> bool:

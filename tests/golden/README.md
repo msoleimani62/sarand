@@ -17,6 +17,10 @@ renderer-level, why only two fixtures, what's deliberately deferred).
   tool) next to passing ones, with the health score computed
   (`build_unverified_fixture`, R13-D): pins that such a check earns no points
   and is never shown as a failure.
+- `markers.*` — one marker of every category (actionable, historical, safety,
+  development, mention), a line with two markers and a suppressed count, with
+  the health score computed (`build_markers_fixture`, R13-E): pins that only
+  actionable markers are scored and the others stay visible with their category.
 - One file per (fixture, renderer) pair: `.md` (markdown), `.json`
   (json), `.txt` (text), `.sarif.json` (sarif), `.html` (html).
 

@@ -90,6 +90,17 @@ version may include behaviour changes.
 
 ### Changed
 
+- **Source markers: discovery is wide, scoring is narrow (R13-E).** Every marker
+  occurrence gets a category: `actionable` (TODO or FIXME written as a task, also
+  `TODO(owner): x`), `historical` (BUG), `safety` (SAFETY), `development` (HACK,
+  XXX) or `mention` (a TODO / FIXME that is prose, a name or a placeholder). Only
+  `actionable` markers count toward the health score and the `TODO-CLUSTER` risk;
+  the others stay in the reports. The scanner reports every marker on a line (it
+  reported the first only), `TODO-style`, `TODO-CLUSTER` and `TODO: ...` are no
+  longer counted as tasks, JSON gains `category` per marker and `todo_categories`
+  (schema `1.4`), the Markdown table a `Category` column, SARIF
+  `properties.category`. Cached marker results of older runs are discarded once.
+  See `docs/MARKERS.md`.
 - **One reading of a check's state.** Health scoring, the risk rules, Quick Context,
   the package summary and the Markdown / HTML status badges now all ask
   `core/check_states.py`; none keeps its own reading, and a test fails if one does.

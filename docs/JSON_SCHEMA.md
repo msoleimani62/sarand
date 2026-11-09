@@ -2,7 +2,7 @@
 
 `sarand --format json` writes one JSON object. This page lists every top-level key, the fields of its nested objects, and what a script may rely on. The current version is below; a test keeps this page and the code in step, so a key that exists but is not listed here fails the build.
 
-Current version: **1.3**
+Current version: **1.4**
 
 ## Compatibility policy
 
@@ -28,7 +28,7 @@ Current version: **1.3**
 | `environment` | object | always | The machine and tool versions the scan ran on (fields below). |
 | `git` | object | always | Repository state; `branch` is `(unavailable)` outside a repository (fields below). |
 | `stats` | object | always | File, line and size statistics (fields below). |
-| `todos` | array | always | TODO-style markers, each with `path`, `line_number`, `kind` and `content`. |
+| `todos` | array | always | Every marker occurrence found, each with `path`, `line_number`, `kind`, `content` and `category` (`actionable`, `historical`, `safety`, `development` or `mention`; see `docs/MARKERS.md`). |
 | `test_results` | array | always | Results of test runs (result objects, fields below). Empty when tests were skipped. |
 | `quality_results` | array | always | Results of linters and type checkers (result objects). |
 | `security_results` | array | always | Results of security tools (result objects). |
@@ -41,6 +41,7 @@ Current version: **1.3**
 | `excluded_secret_files` | array of strings | always | Paths left out because they look like, or contain, credentials. Only paths, never content. |
 | `secret_findings` | array | always | Secret-pattern matches: `path`, `line_number`, `pattern_name`, `is_test_fixture`. Never the matched value. |
 | `todos_suppressed` | integer | only when some markers were suppressed | How many markers an exception removed. |
+| `todo_categories` | object | only when a marker was found | How many markers are in each category (all five keys, in a fixed order). Only `actionable` markers are scored. |
 | `failures` | array | only when a check failed | Every failed check, classified: tool, group, category, cause, subject, exit code, a neutral summary and the evidence labels (fields below). A category says what kind of failure it is, not that the project is vulnerable. |
 | `advisories` | array | only when a security tool reported an advisory | One entry per dependency advisory (id, package, version, kind, title, severity, fixed versions, url, the checks that reported it, database, applicability; fields below). A tool result, not proof that the project is exploitable. |
 | `relevant_source` | object | only with `--relevant-source` | The relevant source subset: `budget`, `text`, a `files` index and counters (fields below). |
@@ -76,6 +77,7 @@ The fields of the objects named above, in the order they are written.
 
 ## Version history
 
+- **1.4** (R13-E): each entry of `todos` gained `category`, and the optional key `todo_categories` was added. The scanner now reports every marker on a line (it used to report the first only), so counts can rise. Only `actionable` markers (TODO or FIXME written as a task) count toward the health score and the `TODO-CLUSTER` risk; BUG, SAFETY, HACK, XXX and a mere mention are discovered and shown but not scored. SARIF marker results carry the category in `properties.category`. See `docs/MARKERS.md`.
 - **1.3** (R13-C): added the optional key `advisories`. The wording of `health.critical_failures` for security checks changed: "Security tool reported issues." is replaced by messages that say what the tool reported (a security finding, a dependency policy violation, or a failure without a recognised finding). A check the runner could not execute (timeout, tool not found, operating-system error) is no longer a critical failure and no longer lowers the security category; it appears as an execution-coverage gap. The SARIF `informationUri` is the real repository, and SARIF has one result per advisory with the advisory id as `ruleId`. See `docs/SECURITY_EVIDENCE.md`.
 - **1.2** (R13-B): added `health.execution_coverage`, `checks_requested`, `checks_executed`, `coverage_by_group` and `coverage_gaps`; `health.confidence` is deprecated (value unchanged). The Markdown, HTML and text reports, the CLI summary, Quick Context and the risk rule `HEALTH-LOW-CONFIDENCE` now use execution coverage; the rule id keeps its legacy name.
 - **1.1** (R13-A): added the optional key `failures`. The wording of `known_issues` changed: the catch-all sentence "Compilation or lint errors were detected." no longer exists, because on a real report it came from `cargo audit` and `cargo deny`, not from a compiler or linter. Scripts that matched that sentence should read `failures[].category` instead. The two older sentences ("One or more source files contain syntax errors." and "A required Python dependency is missing.") are unchanged.

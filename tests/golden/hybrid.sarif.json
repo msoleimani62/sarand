@@ -98,6 +98,9 @@
           "message": {
             "text": "item 0"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -116,6 +119,9 @@
           "level": "note",
           "message": {
             "text": "item 1"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -136,6 +142,9 @@
           "message": {
             "text": "item 2"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -154,6 +163,9 @@
           "level": "note",
           "message": {
             "text": "item 3"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -174,6 +186,9 @@
           "message": {
             "text": "item 4"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -192,6 +207,9 @@
           "level": "note",
           "message": {
             "text": "item 5"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -212,6 +230,9 @@
           "message": {
             "text": "item 6"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -230,6 +251,9 @@
           "level": "note",
           "message": {
             "text": "item 7"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -250,6 +274,9 @@
           "message": {
             "text": "item 8"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -268,6 +295,9 @@
           "level": "note",
           "message": {
             "text": "item 9"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -288,6 +318,9 @@
           "message": {
             "text": "item 10"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -306,6 +339,9 @@
           "level": "note",
           "message": {
             "text": "item 11"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -326,6 +362,9 @@
           "message": {
             "text": "item 12"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -344,6 +383,9 @@
           "level": "note",
           "message": {
             "text": "item 13"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -364,6 +406,9 @@
           "message": {
             "text": "item 14"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -382,6 +427,9 @@
           "level": "note",
           "message": {
             "text": "item 15"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -402,6 +450,9 @@
           "message": {
             "text": "item 16"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -420,6 +471,9 @@
           "level": "note",
           "message": {
             "text": "item 17"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -440,6 +494,9 @@
           "message": {
             "text": "item 18"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -458,6 +515,9 @@
           "level": "note",
           "message": {
             "text": "item 19"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -478,6 +538,9 @@
           "message": {
             "text": "item 20"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -496,6 +559,9 @@
           "level": "note",
           "message": {
             "text": "item 21"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -516,6 +582,9 @@
           "message": {
             "text": "item 22"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -534,6 +603,9 @@
           "level": "note",
           "message": {
             "text": "item 23"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -554,6 +626,9 @@
           "message": {
             "text": "item 24"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -572,6 +647,9 @@
           "level": "note",
           "message": {
             "text": "item 25"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -592,6 +670,9 @@
           "message": {
             "text": "item 26"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -610,6 +691,9 @@
           "level": "note",
           "message": {
             "text": "item 27"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -630,6 +714,9 @@
           "message": {
             "text": "item 28"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -648,6 +735,9 @@
           "level": "note",
           "message": {
             "text": "item 29"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -668,6 +758,9 @@
           "message": {
             "text": "item 30"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -686,6 +779,9 @@
           "level": "note",
           "message": {
             "text": "item 31"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -706,6 +802,9 @@
           "message": {
             "text": "item 32"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -724,6 +823,9 @@
           "level": "note",
           "message": {
             "text": "item 33"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -744,6 +846,9 @@
           "message": {
             "text": "item 34"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -762,6 +867,9 @@
           "level": "note",
           "message": {
             "text": "item 35"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -782,6 +890,9 @@
           "message": {
             "text": "item 36"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -800,6 +911,9 @@
           "level": "note",
           "message": {
             "text": "item 37"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -820,6 +934,9 @@
           "message": {
             "text": "item 38"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -838,6 +955,9 @@
           "level": "note",
           "message": {
             "text": "item 39"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -858,6 +978,9 @@
           "message": {
             "text": "item 40"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -876,6 +999,9 @@
           "level": "note",
           "message": {
             "text": "item 41"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -896,6 +1022,9 @@
           "message": {
             "text": "item 42"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -914,6 +1043,9 @@
           "level": "note",
           "message": {
             "text": "item 43"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -934,6 +1066,9 @@
           "message": {
             "text": "item 44"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -952,6 +1087,9 @@
           "level": "note",
           "message": {
             "text": "item 45"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -972,6 +1110,9 @@
           "message": {
             "text": "item 46"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -990,6 +1131,9 @@
           "level": "note",
           "message": {
             "text": "item 47"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1010,6 +1154,9 @@
           "message": {
             "text": "item 48"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1028,6 +1175,9 @@
           "level": "note",
           "message": {
             "text": "item 49"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1048,6 +1198,9 @@
           "message": {
             "text": "item 50"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1066,6 +1219,9 @@
           "level": "note",
           "message": {
             "text": "item 51"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1086,6 +1242,9 @@
           "message": {
             "text": "item 52"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1104,6 +1263,9 @@
           "level": "note",
           "message": {
             "text": "item 53"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1124,6 +1286,9 @@
           "message": {
             "text": "item 54"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1142,6 +1307,9 @@
           "level": "note",
           "message": {
             "text": "item 55"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1162,6 +1330,9 @@
           "message": {
             "text": "item 56"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1180,6 +1351,9 @@
           "level": "note",
           "message": {
             "text": "item 57"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1200,6 +1374,9 @@
           "message": {
             "text": "item 58"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1218,6 +1395,9 @@
           "level": "note",
           "message": {
             "text": "item 59"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1238,6 +1418,9 @@
           "message": {
             "text": "item 60"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1256,6 +1439,9 @@
           "level": "note",
           "message": {
             "text": "item 61"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1276,6 +1462,9 @@
           "message": {
             "text": "item 62"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1294,6 +1483,9 @@
           "level": "note",
           "message": {
             "text": "item 63"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1314,6 +1506,9 @@
           "message": {
             "text": "item 64"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1332,6 +1527,9 @@
           "level": "note",
           "message": {
             "text": "item 65"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1352,6 +1550,9 @@
           "message": {
             "text": "item 66"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1370,6 +1571,9 @@
           "level": "note",
           "message": {
             "text": "item 67"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1390,6 +1594,9 @@
           "message": {
             "text": "item 68"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1408,6 +1615,9 @@
           "level": "note",
           "message": {
             "text": "item 69"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1428,6 +1638,9 @@
           "message": {
             "text": "item 70"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1446,6 +1659,9 @@
           "level": "note",
           "message": {
             "text": "item 71"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1466,6 +1682,9 @@
           "message": {
             "text": "item 72"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1484,6 +1703,9 @@
           "level": "note",
           "message": {
             "text": "item 73"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1504,6 +1726,9 @@
           "message": {
             "text": "item 74"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1522,6 +1747,9 @@
           "level": "note",
           "message": {
             "text": "item 75"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1542,6 +1770,9 @@
           "message": {
             "text": "item 76"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1560,6 +1791,9 @@
           "level": "note",
           "message": {
             "text": "item 77"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1580,6 +1814,9 @@
           "message": {
             "text": "item 78"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1598,6 +1835,9 @@
           "level": "note",
           "message": {
             "text": "item 79"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1618,6 +1858,9 @@
           "message": {
             "text": "item 80"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1636,6 +1879,9 @@
           "level": "note",
           "message": {
             "text": "item 81"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1656,6 +1902,9 @@
           "message": {
             "text": "item 82"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1674,6 +1923,9 @@
           "level": "note",
           "message": {
             "text": "item 83"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1694,6 +1946,9 @@
           "message": {
             "text": "item 84"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1712,6 +1967,9 @@
           "level": "note",
           "message": {
             "text": "item 85"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1732,6 +1990,9 @@
           "message": {
             "text": "item 86"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1750,6 +2011,9 @@
           "level": "note",
           "message": {
             "text": "item 87"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1770,6 +2034,9 @@
           "message": {
             "text": "item 88"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1788,6 +2055,9 @@
           "level": "note",
           "message": {
             "text": "item 89"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1808,6 +2078,9 @@
           "message": {
             "text": "item 90"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1826,6 +2099,9 @@
           "level": "note",
           "message": {
             "text": "item 91"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1846,6 +2122,9 @@
           "message": {
             "text": "item 92"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1864,6 +2143,9 @@
           "level": "note",
           "message": {
             "text": "item 93"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1884,6 +2166,9 @@
           "message": {
             "text": "item 94"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1902,6 +2187,9 @@
           "level": "note",
           "message": {
             "text": "item 95"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1922,6 +2210,9 @@
           "message": {
             "text": "item 96"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1940,6 +2231,9 @@
           "level": "note",
           "message": {
             "text": "item 97"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1960,6 +2254,9 @@
           "message": {
             "text": "item 98"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -1978,6 +2275,9 @@
           "level": "note",
           "message": {
             "text": "item 99"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {
@@ -1998,6 +2298,9 @@
           "message": {
             "text": "item 100"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -2017,6 +2320,9 @@
           "message": {
             "text": "item 101"
           },
+          "properties": {
+            "category": "mention"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -2035,6 +2341,9 @@
           "level": "note",
           "message": {
             "text": "item 102"
+          },
+          "properties": {
+            "category": "mention"
           },
           "locations": [
             {

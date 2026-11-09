@@ -12,6 +12,7 @@ from sarand.constants import (
     TODO_EXCLUDE_SUFFIXES,
     TODO_PATTERNS,
 )
+from sarand.core.markers import classify_marker_text
 from sarand.models.results import TodoItem
 from sarand.progress import status, track
 from sarand.rust_bridge import FileRecord, scan_project
@@ -104,21 +105,32 @@ def scan_todos(
         try:
             with path.open("r", encoding="utf-8", errors="replace") as fh:
                 for lineno, line in enumerate(fh, start=1):
-                    match = _TODO_RE.search(line)
-                    if match:
-                        content = line.strip()
-                        if len(content) > 200:
-                            content = content[:197] + "..."
+                    # Every occurrence on the line is a marker (R13-E): a line
+                    # with `TODO: a` and a BUG note gives two, not the first only.
+                    # هر occurrence در خط یک مارکر است، نه فقط اولی.
+                    matches = list(_TODO_RE.finditer(line))
+                    if not matches:
+                        continue
+                    content = line.strip()
+                    if len(content) > 200:
+                        content = content[:197] + "..."
+                    for match in matches:
+                        kind = match.group(1).upper()
                         items.append(
                             TodoItem(
                                 path=rel,
                                 line_number=lineno,
-                                kind=match.group(1).upper(),
+                                kind=kind,
                                 content=content,
+                                category=classify_marker_text(
+                                    kind, line[match.start() :]
+                                ),
                             )
                         )
                         if len(items) >= max_items:
                             break
+                    if len(items) >= max_items:
+                        break
         except OSError:
             continue
 

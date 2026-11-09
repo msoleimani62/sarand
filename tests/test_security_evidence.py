@@ -261,9 +261,9 @@ def test_the_security_risk_fires_for_a_real_failure() -> None:
 # --- renderers: JSON, SARIF, Markdown ------------------------------------------------
 
 
-def test_json_carries_the_advisories_at_schema_1_3() -> None:
+def test_json_carries_the_advisories_since_schema_1_3() -> None:
     payload = json.loads(json_renderer.render(_data([_audit(), _deny()])))
-    assert payload["schema_version"] == "1.3"
+    assert payload["schema_version"] == "1.4"
     assert len(payload["advisories"]) == 18
     first = payload["advisories"][0]
     assert first["severity"] is None

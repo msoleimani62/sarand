@@ -43,6 +43,7 @@ from sarand.core.check_states import (
     check_state,
 )
 from sarand.core.execution_coverage import coverage_percent
+from sarand.core.markers import is_actionable
 from sarand.models.results import CommandResult, ReportData
 
 # Thresholds (see the module docstring for where each value comes from).
@@ -226,7 +227,11 @@ def _low_coverage(data: ReportData) -> _Fired | None:
 
 
 def _todo_cluster(data: ReportData) -> _Fired | None:
-    counts = collections.Counter(t.path for t in data.todos)
+    # Only TODO / FIXME written as a task count (core/markers.py): a file that
+    # merely mentions the words (prose, names, BUG notes) is not a debt hot spot.
+    # فقط TODO/FIXME نوشته‌شده به‌شکل کار؛ فایلی که فقط این واژه‌ها را ذکر می‌کند
+    # کانون بدهی نیست.
+    counts = collections.Counter(t.path for t in data.todos if is_actionable(t))
     busy = sorted(
         ((path, n) for path, n in counts.items() if n >= TODO_CLUSTER_MIN),
         key=lambda item: (-item[1], item[0]),
@@ -235,7 +240,7 @@ def _todo_cluster(data: ReportData) -> _Fired | None:
         return None
     path, n = busy[0]
     reason = (
-        f"{len(busy)} file(s) with at least {TODO_CLUSTER_MIN} markers; "
+        f"{len(busy)} file(s) with at least {TODO_CLUSTER_MIN} actionable markers; "
         f"most: {_clip(path, 50)} ({n})"
     )
     return reason, ["todos[path]"]
@@ -319,8 +324,9 @@ RULES: tuple[_Rule, ...] = (
         "TODO-CLUSTER",
         "maintainability",
         "info",
-        "A count, not a density: per-file line counts are not in the report; "
-        "comment tags that explain a fix are counted too.",
+        "A count of actionable markers (TODO / FIXME written as a task), not a "
+        "density: per-file line counts are not in the report; a task written "
+        "inside a string literal is counted too.",
         _scanned,
         _todo_cluster,
     ),
