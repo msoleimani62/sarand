@@ -8,6 +8,15 @@ version may include behaviour changes.
 
 ### Added
 
+- **One problem, one identity (R13-F).** A finding now has a stable id built from
+  structured fields, not from its sentence: `failures[].id`, `health.critical_ids`,
+  `known_issue_ids` and `quick_context.critical_finding_ids` (JSON schema `1.5`).
+  The same condition told by a health critical failure and by a known issue has
+  one id, so Quick Context shows it once (the known issue stays in `known_issues`),
+  `health.critical_failures` no longer repeats a condition, and the
+  `HEALTH-CRITICAL` risk counts distinct ids and says when it restates the failed
+  security check of `SEC-CHECK-FAILED`. Findings that merely read alike are never
+  merged. See `docs/FINDINGS.md`.
 - **Dependency advisories keep their identity.** The JSON report has a new optional
   key `advisories` (schema `1.3`), the Markdown report a "Dependency advisories"
   table and SARIF one result per advisory with the advisory id (`RUSTSEC-...`) as

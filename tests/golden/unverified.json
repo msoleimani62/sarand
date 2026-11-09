@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.4",
+  "schema_version": "1.5",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "unverified-project",
@@ -28,6 +28,9 @@
     "health": "63.0/100.0 (grade D), execution coverage 50% (3 of 6 requested checks ran to a verdict)",
     "critical_findings": [
       "Test check could not run (cargo test); it gave no verdict and earns no points."
+    ],
+    "critical_finding_ids": [
+      "test_check_unavailable:978d4c63b3cc"
     ],
     "risks": [
       "3 check(s) could not run (the runner could not execute the tool), no verdict and no score points: cargo test, ruff check, cargo audit"
@@ -229,6 +232,9 @@
     ],
     "critical_failures": [
       "Test check could not run (cargo test); it gave no verdict and earns no points."
+    ],
+    "critical_ids": [
+      "test_check_unavailable:978d4c63b3cc"
     ],
     "checks_run": 6,
     "checks_skipped": [],

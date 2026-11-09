@@ -37,7 +37,7 @@ from sarand.core.concurrency import jobs_argument, resolve_jobs
 from sarand.core.detection_refine import refine_detection
 from sarand.core.estimate import estimate_source_bytes, size_advice
 from sarand.core.execution_coverage import coverage_oneline
-from sarand.core.failures import classify_failures, known_issues_from_failures
+from sarand.core.failures import classify_failures, known_issue_entries
 from sarand.core.frameworks import detect_declared_frameworks
 from sarand.core.gitleaks import gitleaks_flagged_paths, run_gitleaks
 from sarand.core.health import compute_health_score
@@ -704,7 +704,8 @@ async def run(config: SarandConfig) -> int:
                 )
 
     failures = classify_failures(test_results, quality_results, security_results)
-    known = known_issues_from_failures(failures)
+    known_entries = known_issue_entries(failures)
+    known = [text for _, text in known_entries]
     advisories = collect_advisories(security_results)
 
     data = ReportData(
@@ -728,6 +729,7 @@ async def run(config: SarandConfig) -> int:
         excluded_secret_files=excluded_secrets,
         secret_findings=secret_findings,
         known_issues=known,
+        known_issue_ids=[fid for fid, _ in known_entries],
         failures=failures,
         advisories=advisories,
         workspace=workspace,

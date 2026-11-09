@@ -247,7 +247,7 @@ def _mixed() -> list[TodoItem]:
 
 def test_json_lists_every_marker_with_its_category() -> None:
     payload = json.loads(json_renderer.render(_data(_mixed())))
-    assert payload["schema_version"] == "1.4"
+    assert payload["schema_version"] == "1.5"
     assert [t["category"] for t in payload["todos"]] == [
         "actionable",
         "historical",

@@ -192,6 +192,11 @@ class HealthScore:
     breakdown: dict[str, float] = field(default_factory=dict)
     recommendations: list[str] = field(default_factory=list)
     critical_failures: list[str] = field(default_factory=list)
+    # R13-F: one stable id per critical failure, in the same order (core/
+    # finding_identity.py). Empty when the list was not built by the health
+    # score; then no entry is tied to another section.
+    # R13-F: شناسه‌ی پایدار هر شکست بحرانی، به همان ترتیب.
+    critical_ids: list[str] = field(default_factory=list)
     # How much of the score rests on checks that really ran. A check whose
     # tool is not installed is skipped, and a skipped check proves nothing:
     # `checks_skipped` names them, `confidence` is ran / (ran + skipped).
@@ -584,6 +589,10 @@ class ReportData:
     secret_findings: list[SecretFinding] = field(default_factory=list)
     health: HealthScore | None = None
     known_issues: list[str] = field(default_factory=list)
+    # R13-F: the id of each known issue, in the same order (empty when not built
+    # from classified failures).
+    # R13-F: شناسه‌ی هر known issue، به همان ترتیب.
+    known_issue_ids: list[str] = field(default_factory=list)
     # Classified failures of the checks (core/failures.py); empty when every check
     # passed, was skipped or was inconclusive.
     # شکست‌های طبقه‌بندی‌شده‌ی چک‌ها؛ وقتی همه موفق/رد/نامعلوم‌اند خالی است.

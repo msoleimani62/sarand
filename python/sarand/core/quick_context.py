@@ -122,6 +122,10 @@ class QuickContext:
     security: list[str] = field(default_factory=list)
     health: str = ""
     critical_findings: list[str] = field(default_factory=list)
+    # R13-F: the finding id of each critical line, same order ('' for a line with
+    # no id, such as the '(+N more)' counters).
+    # R13-F: شناسه‌ی هر خط بحرانی، به همان ترتیب.
+    critical_finding_ids: list[str] = field(default_factory=list)
     risks: list[str] = field(default_factory=list)
     reading_order: list[str] = field(default_factory=list)
 
@@ -262,6 +266,51 @@ def _risks(data: ReportData, all_results: list[CommandResult]) -> list[str]:
     return risks
 
 
+def _critical_findings(data: ReportData) -> tuple[list[str], list[str]]:
+    """The Quick Context critical lines and their finding ids (R13-F).
+
+    Health critical failures are the primary entries. A known issue is shown
+    only when it is NOT the same condition (same finding id) as a health critical
+    failure: the same problem told twice is one critical finding here. It stays
+    in full in the `Known issues` section, so nothing is dropped from the report,
+    only not counted again in this summary. Ids are compared, never sentences:
+    two known issues that merely read alike keep separate lines.
+    Without ids (a hand-built `HealthScore` or `ReportData`) nothing is merged.
+    خلاصه فقط شناسه‌ها را مقایسه می‌کند؛ مشکل یکسان دوبار شمرده نمی‌شود.
+    """
+    lines: list[str] = []
+    ids: list[str] = []
+    health_ids: set[str] = set()
+    if data.health is not None:
+        texts = data.health.critical_failures
+        h_ids = data.health.critical_ids
+        aligned = len(h_ids) == len(texts)
+        health_ids = {i for i in h_ids if i} if aligned else set()
+        for index, text in enumerate(texts[:_MAX_CRITICAL]):
+            lines.append(_clip(text))
+            ids.append(h_ids[index] if aligned else "")
+        hidden = len(texts) - _MAX_CRITICAL
+        if hidden > 0:
+            lines.append(f"(+{hidden} more critical failure(s))")
+            ids.append("")
+    k_ids = data.known_issue_ids
+    k_aligned = len(k_ids) == len(data.known_issues)
+    shown: list[tuple[str, str]] = []
+    for index, text in enumerate(data.known_issues):
+        fid = k_ids[index] if k_aligned else ""
+        if fid and fid in health_ids:
+            continue
+        shown.append((fid, text))
+    for fid, text in shown[:_MAX_KNOWN]:
+        lines.append(_clip(text))
+        ids.append(fid)
+    hidden_known = len(shown) - _MAX_KNOWN
+    if hidden_known > 0:
+        lines.append(f"(+{hidden_known} more known issue(s))")
+        ids.append("")
+    return lines, ids
+
+
 def build_quick_context(data: ReportData) -> QuickContext:
     """Build the Quick Context block from a finished `ReportData`.
     Pure and deterministic; never mutates `data`.
@@ -269,16 +318,7 @@ def build_quick_context(data: ReportData) -> QuickContext:
     detection = data.detection
     all_results = [*data.test_results, *data.quality_results, *data.security_results]
 
-    critical: list[str] = []
-    if data.health is not None:
-        critical.extend(_clip(c) for c in data.health.critical_failures[:_MAX_CRITICAL])
-        hidden = len(data.health.critical_failures) - _MAX_CRITICAL
-        if hidden > 0:
-            critical.append(f"(+{hidden} more critical failure(s))")
-    critical.extend(_clip(k) for k in data.known_issues[:_MAX_KNOWN])
-    hidden_known = len(data.known_issues) - _MAX_KNOWN
-    if hidden_known > 0:
-        critical.append(f"(+{hidden_known} more known issue(s))")
+    critical, critical_ids = _critical_findings(data)
 
     health = ""
     if data.health is not None:
@@ -304,6 +344,7 @@ def build_quick_context(data: ReportData) -> QuickContext:
         security=_checks(data.security_results),
         health=health,
         critical_findings=critical,
+        critical_finding_ids=critical_ids if any(critical_ids) else [],
         risks=_risks(data, all_results),
         reading_order=[
             _clip(p, 80) for p in data.suggested_reading_order[:_READING_ORDER_LEN]

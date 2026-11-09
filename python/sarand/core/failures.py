@@ -64,6 +64,11 @@ from sarand.constants import (
     TOOL_FAILURE_CLASSES,
     TOOL_FAILURE_PREFIXES,
 )
+from sarand.core.finding_identity import (
+    KIND_PYTHON_MISSING_MODULE,
+    KIND_PYTHON_SYNTAX,
+    condition_id,
+)
 from sarand.models.results import CommandResult, Failure
 
 GROUP_TEST = "test"
@@ -345,20 +350,32 @@ _KNOWN_ISSUE_TEMPLATES: dict[str, str] = {
 }
 
 
-def known_issues_from_failures(failures: list[Failure]) -> list[str]:
-    """Neutral known-issue sentences, in a fixed order.
+def known_issue_entries(failures: list[Failure]) -> list[tuple[str, str]]:
+    """(id, sentence) of every known issue, in a fixed order (R13-F).
 
     The two historical sentences are kept word for word when their evidence is
     present: a Python syntax error, and a missing Python dependency. Every other
-    sentence names the tools that failed and the category they failed in.
+    sentence names the tools that failed and the category they failed in; its id
+    is the condition id of that category and tool set, the same id the health
+    score gives the same condition, so the two can be tied together.
     """
-    issues: list[str] = []
+    issues: list[tuple[str, str]] = []
     syntax = [f for f in failures if SIGNAL_PYTHON_SYNTAX in f.signals]
     missing = [f for f in failures if SIGNAL_PYTHON_MISSING_MODULE in f.signals]
     if syntax:
-        issues.append(KNOWN_ISSUE_SYNTAX)
+        issues.append(
+            (
+                condition_id(KIND_PYTHON_SYNTAX, (f.tool for f in syntax)),
+                KNOWN_ISSUE_SYNTAX,
+            )
+        )
     if missing:
-        issues.append(KNOWN_ISSUE_MISSING_MODULE)
+        issues.append(
+            (
+                condition_id(KIND_PYTHON_MISSING_MODULE, (f.tool for f in missing)),
+                KNOWN_ISSUE_MISSING_MODULE,
+            )
+        )
     for category in FAILURE_CATEGORIES:
         template = _KNOWN_ISSUE_TEMPLATES.get(category)
         if template is None:
@@ -376,8 +393,18 @@ def known_issues_from_failures(failures: list[Failure]) -> list[str]:
             )
         ]
         if group:
-            issues.append(template.format(tools=_tools(group)))
+            issues.append(
+                (
+                    condition_id(category, (f.tool for f in group)),
+                    template.format(tools=_tools(group)),
+                )
+            )
     return issues
+
+
+def known_issues_from_failures(failures: list[Failure]) -> list[str]:
+    """Neutral known-issue sentences, in a fixed order (see `known_issue_entries`)."""
+    return [text for _, text in known_issue_entries(failures)]
 
 
 def detect_known_issues(results: list[CommandResult]) -> list[str]:

@@ -37,12 +37,18 @@ import collections
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from sarand.constants import (
+    FAILURE_DEPENDENCY_POLICY,
+    FAILURE_SECURITY_FINDING,
+    FAILURE_SECURITY_TOOL,
+)
 from sarand.core.check_states import (
     NO_VERDICT_STATES,
     STATE_FAILED,
     check_state,
 )
 from sarand.core.execution_coverage import coverage_percent
+from sarand.core.finding_identity import kind_of, unique_ids
 from sarand.core.markers import is_actionable
 from sarand.models.results import CommandResult, ReportData
 
@@ -134,15 +140,39 @@ def _sec_failed(data: ReportData) -> _Fired | None:
     return reason, _kind_refs("security_results", failed)
 
 
+# Health critical failures of these kinds restate a failed security check that
+# SEC-CHECK-FAILED already reports (R13-F).
+# شکست‌های بحرانیِ این انواع همان چکِ امنیتیِ شکست‌خورده‌اند که SEC-CHECK-FAILED می‌گوید.
+_SECURITY_KINDS = frozenset(
+    {FAILURE_SECURITY_FINDING, FAILURE_DEPENDENCY_POLICY, FAILURE_SECURITY_TOOL}
+)
+
+
 def _health_critical(data: ReportData) -> _Fired | None:
+    """The health score's critical failures, counted once each (R13-F).
+
+    The count is the number of DISTINCT finding ids when the health score carries
+    them, else the number of entries. When SEC-CHECK-FAILED also fires, the
+    reason says how many of these critical failures are the same failed security
+    checks, so the two risks read as one cause told twice, not two problems.
+    """
     if data.health is None:
         return None
-    count = len(data.health.critical_failures)
+    texts = data.health.critical_failures
+    ids = data.health.critical_ids
+    aligned = len(ids) == len(texts)
+    count = len(unique_ids(ids)) if aligned and all(ids) else len(texts)
     if not count:
         return None
-    return f"{count} critical failure(s) in the health score", [
-        "health.critical_failures"
-    ]
+    reason = f"{count} critical failure(s) in the health score"
+    if aligned and _sec_failed(data) is not None:
+        overlap = len({i for i in ids if kind_of(i) in _SECURITY_KINDS})
+        if overlap:
+            reason += (
+                f"; {overlap} of them restate the failed security check(s) "
+                "reported by SEC-CHECK-FAILED"
+            )
+    return reason, ["health.critical_failures"]
 
 
 def _secret_patterns(data: ReportData) -> _Fired | None:

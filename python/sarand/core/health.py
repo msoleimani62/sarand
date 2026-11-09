@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from sarand.constants import FAILURE_DEPENDENCY_POLICY, FAILURE_SECURITY_FINDING
+from sarand.constants import (
+    FAILURE_DEPENDENCY_POLICY,
+    FAILURE_SECURITY_FINDING,
+    FAILURE_SECURITY_TOOL,
+)
 from sarand.core.check_states import (
     STATE_FAILED,
     STATE_PASSED,
@@ -18,6 +22,14 @@ from sarand.core.check_states import (
 )
 from sarand.core.execution_coverage import summarize_coverage
 from sarand.core.failures import GROUP_SECURITY, classify_result
+from sarand.core.finding_identity import (
+    KIND_BROKEN_SYMLINKS,
+    KIND_SECRETS,
+    KIND_TEST_FAILED,
+    KIND_TEST_UNAVAILABLE,
+    condition_id,
+    finding_id,
+)
 from sarand.core.markers import is_actionable
 from sarand.models.results import CommandResult, HealthScore, ReportData, TodoItem
 
@@ -61,6 +73,24 @@ def _names(kinds: list[str]) -> str:
         return ", ".join(unique)
     shown = ", ".join(unique[:_MAX_NAMED_TOOLS])
     return f"{shown} and {len(unique) - _MAX_NAMED_TOOLS} more"
+
+
+class _Critical:
+    """Critical failures with a stable id each (R13-F). `texts` and `ids` stay
+    the same length; a condition already added (same id) is not added twice, so
+    one underlying problem never counts as two critical failures.
+    شکست‌های بحرانی با شناسه‌ی پایدار؛ یک شرط تکراری دوباره اضافه نمی‌شود.
+    """
+
+    def __init__(self) -> None:
+        self.texts: list[str] = []
+        self.ids: list[str] = []
+
+    def add(self, fid: str, text: str) -> None:
+        if fid in self.ids:
+            return
+        self.ids.append(fid)
+        self.texts.append(text)
 
 
 def _security_failure_groups(
@@ -144,7 +174,7 @@ def compute_health_score(data: ReportData) -> HealthScore:
     """
     breakdown: dict[str, float] = {}
     recommendations: list[str] = []
-    critical: list[str] = []
+    critical = _Critical()
 
     # --- Tests ---
     test_results = data.test_results
@@ -173,12 +203,23 @@ def compute_health_score(data: ReportData) -> HealthScore:
             ratio = passed / total
             breakdown["tests"] = round(25.0 * ratio, 1)
             if failed:
-                critical.append("One or more test suites failed.")
+                critical.add(
+                    condition_id(
+                        KIND_TEST_FAILED,
+                        [
+                            r.kind
+                            for r in test_results
+                            if check_state(r) == STATE_FAILED
+                        ],
+                    ),
+                    "One or more test suites failed.",
+                )
                 recommendations.append("Fix failing tests before release.")
             if t_lost:
-                critical.append(
+                critical.add(
+                    condition_id(KIND_TEST_UNAVAILABLE, [r.kind for r in t_lost]),
                     f"Test check could not run ({_names([r.kind for r in t_lost])}); "
-                    "it gave no verdict and earns no points."
+                    "it gave no verdict and earns no points.",
                 )
 
     # --- Quality ---
@@ -218,25 +259,28 @@ def compute_health_score(data: ReportData) -> HealthScore:
             breakdown["security"] = 5.0
             findings, policy, other = _security_failure_groups(s_verdict)
             if findings:
-                critical.append(
+                critical.add(
+                    condition_id(FAILURE_SECURITY_FINDING, findings),
                     f"Security finding reported by {_names(findings)} "
-                    "(a tool result; exploitability is not assessed)."
+                    "(a tool result; exploitability is not assessed).",
                 )
                 recommendations.append(
                     "Review the reported security advisories: whether this "
                     "project reaches the affected code is not assessed."
                 )
             if policy:
-                critical.append(
+                critical.add(
+                    condition_id(FAILURE_DEPENDENCY_POLICY, policy),
                     f"Dependency policy violation reported by {_names(policy)} "
-                    "(licenses, bans or sources); not a vulnerability."
+                    "(licenses, bans or sources); not a vulnerability.",
                 )
                 recommendations.append(
                     "Review the dependency policy violations (licenses, bans, sources)."
                 )
             if other:
-                critical.append(
-                    f"Security tool {_names(other)} failed without a recognised finding."
+                critical.add(
+                    condition_id(FAILURE_SECURITY_TOOL, other),
+                    f"Security tool {_names(other)} failed without a recognised finding.",
                 )
                 recommendations.append(
                     "Check why the security tool failed; its output has no recognised finding."
@@ -289,7 +333,10 @@ def compute_health_score(data: ReportData) -> HealthScore:
         )
     if stats.broken_symlinks:
         code_score -= 3.0
-        critical.append(f"{len(stats.broken_symlinks)} broken symlinks found.")
+        critical.add(
+            finding_id(KIND_BROKEN_SYMLINKS),
+            f"{len(stats.broken_symlinks)} broken symlinks found.",
+        )
     if stats.empty_files and len(stats.empty_files) > 10:
         code_score -= 2.0
     if data.secret_findings:
@@ -325,8 +372,9 @@ def compute_health_score(data: ReportData) -> HealthScore:
 
         if real_findings:
             code_score -= 10.0
-            critical.append(
-                f"{len(real_findings)} potential hardcoded secret(s) detected in source files."
+            critical.add(
+                finding_id(KIND_SECRETS),
+                f"{len(real_findings)} potential hardcoded secret(s) detected in source files.",
             )
             recommendations.append(
                 "Review and rotate any real credentials found; remove them from source control."
@@ -431,7 +479,8 @@ def compute_health_score(data: ReportData) -> HealthScore:
         grade=grade,
         breakdown=breakdown,
         recommendations=recommendations,
-        critical_failures=critical,
+        critical_failures=critical.texts,
+        critical_ids=critical.ids,
         checks_run=checks_run,
         checks_skipped=missing_tools,
         confidence=confidence,

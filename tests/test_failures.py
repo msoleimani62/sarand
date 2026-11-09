@@ -508,6 +508,7 @@ def test_json_carries_the_failures_and_omits_the_key_when_nothing_failed() -> No
         "returncode",
         "summary",
         "signals",
+        "id",
     }
     assert payload["failures"][2]["signals"] == ["leak-reported"]
     assert "failures" not in json.loads(

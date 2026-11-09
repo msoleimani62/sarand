@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from sarand.core.architecture import build_architecture
+from sarand.core.finding_identity import failure_id
 from sarand.core.markers import category_counts, marker_category
 from sarand.core.package_summary import summarize_packages
 from sarand.core.quick_context import build_quick_context
@@ -26,7 +27,7 @@ from sarand.progress import status
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.4"
+JSON_SCHEMA_VERSION = "1.5"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
@@ -47,6 +48,11 @@ def _health_payload(health: HealthScore | None) -> dict[str, Any] | None:
     payload = dict(health.__dict__)
     if not payload.get("checks_inconclusive"):
         payload.pop("checks_inconclusive", None)
+    # R13-F: finding ids of the critical failures (schema 1.5); absent when the
+    # health score carries none.
+    # R13-F: شناسه‌ی شکست‌های بحرانی؛ وقتی نیست غایب.
+    if not payload.get("critical_ids"):
+        payload.pop("critical_ids", None)
     return payload
 
 
@@ -128,7 +134,15 @@ def render(
     # check failed, like the other optional keys.
     # R13-A: شکست‌های طبقه‌بندی‌شده (شمای ۱٫۱)؛ وقتی چکی شکست نخورده غایب است.
     if data.failures:
-        payload["failures"] = [asdict(f) for f in data.failures]
+        # R13-F: each failure carries its stable id (schema 1.5).
+        # R13-F: هر شکست شناسه‌ی پایدار خود را دارد.
+        payload["failures"] = [
+            {**asdict(f), "id": failure_id(f)} for f in data.failures
+        ]
+    # R13-F: the id of each known issue, same order as `known_issues`.
+    # R13-F: شناسه‌ی هر known issue، به همان ترتیب.
+    if data.known_issue_ids:
+        payload["known_issue_ids"] = data.known_issue_ids
     # R13-C: the dependency advisories the security tools reported (schema 1.3),
     # absent when none was reported. Tool results; applicability is "unknown".
     # R13-C: advisoryهای گزارش‌شده توسط ابزارهای امنیتی (شمای ۱٫۳)؛ وقتی نیست غایب.
