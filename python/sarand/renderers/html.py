@@ -12,6 +12,15 @@ from __future__ import annotations
 from html import escape
 
 from sarand.core.architecture import l3_lines
+from sarand.core.check_states import (
+    STATE_FAILED,
+    STATE_INCONCLUSIVE,
+    STATE_PASSED,
+    STATE_SKIPPED,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    check_state,
+)
 from sarand.core.execution_coverage import coverage_lines
 from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.models.results import CommandResult, Issue, ReportData
@@ -57,12 +66,20 @@ def _badge(text: str, kind: str) -> str:
     return f'<span class="badge badge-{kind}">{escape(text)}</span>'
 
 
+_BADGES_HTML = {
+    STATE_PASSED: ("PASS", "ok"),
+    STATE_FAILED: ("FAIL", "fail"),
+    STATE_SKIPPED: ("SKIP", "warn"),
+    STATE_INCONCLUSIVE: ("INCONCLUSIVE", "warn"),
+    STATE_UNAVAILABLE: ("UNAVAILABLE", "warn"),
+    STATE_UNKNOWN: ("UNKNOWN", "warn"),
+}
+
+
 def _status_badge_html(result: CommandResult) -> str:
-    if result.skipped:
-        return _badge("SKIP", "warn")
-    if result.inconclusive:
-        return _badge("INCONCLUSIVE", "warn")
-    return _badge("PASS", "ok") if result.passed else _badge("FAIL", "fail")
+    """The badge of the shared check state (core/check_states.py)."""
+    text, kind = _BADGES_HTML[check_state(result)]
+    return _badge(text, kind)
 
 
 def _command_section(

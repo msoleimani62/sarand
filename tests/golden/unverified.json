@@ -1,0 +1,279 @@
+{
+  "schema_version": "1.3",
+  "project_root": "<PROJECT_ROOT>",
+  "quick_context": {
+    "project": "unverified-project",
+    "primary_language": "Unknown",
+    "languages": [],
+    "project_type": "unknown",
+    "build_system": "unknown",
+    "components": [],
+    "frameworks_declared": [],
+    "frameworks_declared_total": 0,
+    "structure": [],
+    "total_files": 0,
+    "total_loc": 0,
+    "tests": [
+      "pytest: passed",
+      "cargo test: unavailable"
+    ],
+    "quality": [
+      "ruff check: unavailable",
+      "mypy: passed"
+    ],
+    "security": [
+      "pip-audit: passed",
+      "cargo audit: unavailable"
+    ],
+    "health": "63.0/100.0 (grade D), execution coverage 50% (3 of 6 requested checks ran to a verdict)",
+    "critical_findings": [
+      "Test check could not run (cargo test); it gave no verdict and earns no points."
+    ],
+    "risks": [
+      "3 check(s) could not run (the runner could not execute the tool), no verdict and no score points: cargo test, ruff check, cargo audit"
+    ],
+    "reading_order": []
+  },
+  "architecture": {
+    "components": [],
+    "workspaces": [],
+    "entry_points": [],
+    "compose": [],
+    "kubernetes": []
+  },
+  "risks": {
+    "risks": [
+      {
+        "rule_id": "HEALTH-CRITICAL",
+        "category": "quality",
+        "severity": "high",
+        "evidence_refs": [
+          "health.critical_failures"
+        ],
+        "reason": "1 critical failure(s) in the health score",
+        "limitations": "Covers only the checks that ran."
+      },
+      {
+        "rule_id": "CHECKS-SKIPPED",
+        "category": "coverage",
+        "severity": "warning",
+        "evidence_refs": [
+          "test_results[kind=cargo test]",
+          "quality_results[kind=ruff check]",
+          "security_results[kind=cargo audit]"
+        ],
+        "reason": "3 of 6 checks gave no verdict (3 unavailable; threshold 3)",
+        "limitations": "Skipped means not run, not failed."
+      },
+      {
+        "rule_id": "HEALTH-LOW-CONFIDENCE",
+        "category": "coverage",
+        "severity": "warning",
+        "evidence_refs": [
+          "health.execution_coverage"
+        ],
+        "reason": "execution coverage is 50% (3 of 6 requested checks ran; threshold 80%)",
+        "limitations": "Coverage says which requested checks ran, not how correct the analysis is. The rule id keeps its legacy name; it evaluates execution coverage."
+      }
+    ],
+    "rules_not_evaluated": [
+      "DUPLICATE-FILES",
+      "GIT-STATE",
+      "LARGE-FILE",
+      "SECRET-PATTERNS",
+      "TODO-CLUSTER"
+    ]
+  },
+  "generated_at": "2026-01-01T12:00:00+00:00",
+  "used_rust_core": false,
+  "detection": {
+    "languages": [],
+    "primary_language": "Unknown",
+    "project_type": "unknown",
+    "build_system": "unknown",
+    "markers_found": [],
+    "entry_points": [],
+    "details": {}
+  },
+  "environment": {
+    "python": "(unavailable)",
+    "rust_core": "(unavailable)",
+    "os_name": "(unknown)",
+    "architecture": "(unknown)",
+    "cpu_summary": "(unknown)",
+    "memory_summary": "(unknown)",
+    "disk_free": "(unknown)",
+    "hostname": "(unknown)",
+    "tool_versions": {}
+  },
+  "git": {
+    "branch": "(unavailable)",
+    "commit": "(unavailable)",
+    "status": "",
+    "log": "",
+    "diff": "",
+    "dirty": false,
+    "ahead": 0,
+    "behind": 0,
+    "tags": "",
+    "stashes": "",
+    "untracked": []
+  },
+  "stats": {
+    "total_files": 0,
+    "total_loc": 0,
+    "code_lines": 0,
+    "comment_lines": 0,
+    "blank_lines": 0,
+    "files_by_extension": {},
+    "largest_directories": [],
+    "largest_files": [],
+    "duplicate_files": [],
+    "broken_symlinks": [],
+    "temporary_files": [],
+    "unused_cache_files": [],
+    "empty_files": [],
+    "executable_scripts": [],
+    "hidden_files": 0,
+    "binary_files": 0
+  },
+  "todos": [],
+  "test_results": [
+    {
+      "kind": "pytest",
+      "returncode": 0,
+      "summary": "3 passed",
+      "raw_output": "",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    },
+    {
+      "kind": "cargo test",
+      "returncode": 124,
+      "summary": "Command timed out.",
+      "raw_output": "Command timed out.",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    }
+  ],
+  "quality_results": [
+    {
+      "kind": "ruff check",
+      "returncode": 127,
+      "summary": "Command not found: ruff",
+      "raw_output": "Command not found: ruff",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    },
+    {
+      "kind": "mypy",
+      "returncode": 0,
+      "summary": "Success",
+      "raw_output": "",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    }
+  ],
+  "security_results": [
+    {
+      "kind": "pip-audit",
+      "returncode": 0,
+      "summary": "No known vulnerabilities",
+      "raw_output": "",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    },
+    {
+      "kind": "cargo audit",
+      "returncode": 124,
+      "summary": "Command timed out.",
+      "raw_output": "Command timed out.",
+      "warnings": [],
+      "errors": [],
+      "duration_seconds": 0.0,
+      "skipped": false,
+      "skip_reason": ""
+    }
+  ],
+  "health": {
+    "score": 63.0,
+    "max_score": 100.0,
+    "grade": "D",
+    "breakdown": {
+      "tests": 12.5,
+      "quality": 10.0,
+      "security": 8.0,
+      "git": 10.0,
+      "code": 15.0,
+      "tooling": 7.5
+    },
+    "recommendations": [
+      "Test check could not run (cargo test: timed out); it gave no verdict and earns no points, so re-run it.",
+      "Quality check could not run (ruff check: tool not found); it gave no verdict and earns no points, so re-run it.",
+      "Security check could not run (cargo audit: timed out); it gave no verdict and earns no points, so re-run it."
+    ],
+    "critical_failures": [
+      "Test check could not run (cargo test); it gave no verdict and earns no points."
+    ],
+    "checks_run": 6,
+    "checks_skipped": [],
+    "confidence": 1.0,
+    "execution_coverage": 0.5,
+    "checks_requested": 6,
+    "checks_executed": 3,
+    "coverage_by_group": {
+      "tests": {
+        "requested": 2,
+        "executed": 1
+      },
+      "quality": {
+        "requested": 2,
+        "executed": 1
+      },
+      "security": {
+        "requested": 2,
+        "executed": 1
+      }
+    },
+    "coverage_gaps": [
+      {
+        "kind": "cargo test",
+        "state": "unavailable",
+        "reason": "timeout"
+      },
+      {
+        "kind": "ruff check",
+        "state": "unavailable",
+        "reason": "tool_not_found"
+      },
+      {
+        "kind": "cargo audit",
+        "state": "unavailable",
+        "reason": "timeout"
+      }
+    ]
+  },
+  "known_issues": [],
+  "ai_summary": "",
+  "suggested_reading_order": [],
+  "included_files": [],
+  "skipped_files": [],
+  "excluded_secret_files": [],
+  "secret_findings": [],
+  "source_files": []
+}

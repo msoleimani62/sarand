@@ -37,8 +37,12 @@ import collections
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from sarand.core.check_states import (
+    NO_VERDICT_STATES,
+    STATE_FAILED,
+    check_state,
+)
 from sarand.core.execution_coverage import coverage_percent
-from sarand.core.failures import execution_cause
 from sarand.models.results import CommandResult, ReportData
 
 # Thresholds (see the module docstring for where each value comes from).
@@ -89,11 +93,8 @@ class _Rule:
 
 
 def _status(result: CommandResult) -> str:
-    if result.skipped:
-        return "skipped"
-    if result.inconclusive:
-        return "inconclusive"
-    return "passed" if result.passed else "failed"
+    """The shared check state (core/check_states.py); no reading of its own."""
+    return check_state(result)
 
 
 def _all_results(data: ReportData) -> list[CommandResult]:
@@ -120,14 +121,11 @@ def _clip(text: str, limit: int = 60) -> str:
 
 
 def _sec_failed(data: ReportData) -> _Fired | None:
-    # A check the runner could not execute (timeout, tool not found) gave no
-    # verdict: it is not a failed check with findings (R13-C; R13-D will give
-    # every state one shared reading).
-    # چکی که runner نتوانست اجرا کند حکمی نداده؛ «شکست با یافته» نیست.
+    # Only the `failed` state is a failed check: one the runner could not
+    # execute (`unavailable`) gave no verdict and is not a finding (R13-C/D).
+    # فقط وضعیت `failed` شکست است؛ `unavailable` حکمی نداده و «یافته» نیست.
     failed = [
-        _clip(r.kind)
-        for r in data.security_results
-        if _status(r) == "failed" and not execution_cause(r)
+        _clip(r.kind) for r in data.security_results if _status(r) == STATE_FAILED
     ]
     if not failed:
         return None
@@ -157,13 +155,25 @@ def _secret_patterns(data: ReportData) -> _Fired | None:
 
 
 def _checks_skipped(data: ReportData) -> _Fired | None:
-    skipped = [_clip(r.kind) for r in _all_results(data) if _status(r) == "skipped"]
-    if len(skipped) < CHECKS_SKIPPED_MIN:
+    """Checks that gave no verdict, in any state but passed / failed (R13-D).
+
+    The rule id keeps its legacy name `CHECKS-SKIPPED`; it counts skipped,
+    inconclusive, unavailable and unknown checks together, exactly the checks
+    that execution coverage lists as gaps. The threshold is unchanged.
+    کل چک‌های بدون حکم را می‌شمارد (رد‌شده، inconclusive، unavailable، نامعلوم).
+    """
+    results = _all_results(data)
+    counts = {
+        state: sum(1 for r in results if _status(r) == state)
+        for state in NO_VERDICT_STATES
+    }
+    missing = sum(counts.values())
+    if missing < CHECKS_SKIPPED_MIN:
         return None
-    total = len(_all_results(data))
+    parts = ", ".join(f"{n} {state}" for state, n in counts.items() if n)
     reason = (
-        f"{len(skipped)} of {total} checks were skipped "
-        f"(threshold {CHECKS_SKIPPED_MIN})"
+        f"{missing} of {len(results)} checks gave no verdict ({parts}; "
+        f"threshold {CHECKS_SKIPPED_MIN})"
     )
     refs = [
         f"{name}[kind={k}]"
@@ -172,7 +182,7 @@ def _checks_skipped(data: ReportData) -> _Fired | None:
             ("quality_results", data.quality_results),
             ("security_results", data.security_results),
         )
-        for k in (_clip(r.kind) for r in group if _status(r) == "skipped")
+        for k in (_clip(r.kind) for r in group if _status(r) in NO_VERDICT_STATES)
     ]
     return reason, refs[:_MAX_REFS]
 

@@ -81,6 +81,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from sarand.core.check_states import STATE_UNAVAILABLE, STATE_UNKNOWN, check_state
 from sarand.core.execution_coverage import coverage_headline
 from sarand.models.results import CommandResult, FrameworkEntry, ReportData
 
@@ -161,11 +162,8 @@ FRAMEWORKS_LABEL = "Declared frameworks (from manifests, not verified in code)"
 
 
 def _status(result: CommandResult) -> str:
-    if result.skipped:
-        return "skipped"
-    if result.inconclusive:
-        return "inconclusive"
-    return "passed" if result.passed else "failed"
+    """The shared check state (core/check_states.py); no reading of its own."""
+    return check_state(result)
 
 
 def _checks(results: list[CommandResult]) -> list[str]:
@@ -224,11 +222,24 @@ def _risks(data: ReportData, all_results: list[CommandResult]) -> list[str]:
             f"{len(inconclusive)} check(s) could not finish, so the score does "
             f"not reflect them: {_name_list(inconclusive)}"
         )
+    unavailable = _names(all_results, STATE_UNAVAILABLE)
+    if unavailable:
+        risks.append(
+            f"{len(unavailable)} check(s) could not run (the runner could not "
+            f"execute the tool), no verdict and no score points: "
+            f"{_name_list(unavailable)}"
+        )
     skipped = _names(all_results, "skipped")
     if skipped:
         risks.append(
             f"{len(skipped)} check(s) skipped, so the score does not reflect "
             f"them: {_name_list(skipped)}"
+        )
+    unknown = _names(all_results, STATE_UNKNOWN)
+    if unknown:
+        risks.append(
+            f"{len(unknown)} check(s) with a contradictory record, so the score "
+            f"does not reflect them: {_name_list(unknown)}"
         )
     errors = sum(len(r.errors) for r in all_results)
     warnings = sum(len(r.warnings) for r in all_results)

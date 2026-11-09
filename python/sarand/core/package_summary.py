@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from sarand.core.check_states import STATE_PASSED, check_state, is_executed
 from sarand.models.results import CommandResult
 
 ROOT_PACKAGE = "."
@@ -68,12 +69,13 @@ def _count(
     counts: dict[str, list[int]] = {}
     for result in results:
         slot = counts.setdefault(_package_of(result.kind, longest_first), [0, 0, 0])
-        if result.skipped or result.inconclusive:
-            # An inconclusive check gave no verdict either: counted with the
-            # skipped ones, never as passed or failed.
-            # چک inconclusive هم حکمی نداده: با رد‌شده‌ها شمرده می‌شود.
+        if not is_executed(result):
+            # A check with no verdict (skipped, inconclusive, unavailable,
+            # unknown) is counted with the skipped ones, never as passed or
+            # failed (core/check_states.py).
+            # چک بدون حکم با رد‌شده‌ها شمرده می‌شود، نه موفق و نه ناموفق.
             slot[2] += 1
-        elif result.passed:
+        elif check_state(result) == STATE_PASSED:
             slot[0] += 1
         else:
             slot[1] += 1

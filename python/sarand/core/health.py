@@ -5,8 +5,21 @@ from __future__ import annotations
 import re
 
 from sarand.constants import FAILURE_DEPENDENCY_POLICY, FAILURE_SECURITY_FINDING
+from sarand.core.check_states import (
+    STATE_FAILED,
+    STATE_PASSED,
+    STATE_SKIPPED,
+    STATE_UNAVAILABLE,
+    check_state,
+    has_no_verdict,
+    is_executed,
+    legacy_inconclusive,
+    legacy_ran,
+    legacy_skipped,
+    unavailable_cause,
+)
 from sarand.core.execution_coverage import summarize_coverage
-from sarand.core.failures import GROUP_SECURITY, classify_result, execution_cause
+from sarand.core.failures import GROUP_SECURITY, classify_result
 from sarand.models.results import CommandResult, HealthScore, ReportData, TodoItem
 
 # Only markers written with explicit task syntax count as technical debt.
@@ -38,11 +51,12 @@ def _is_actionable_todo(item: TodoItem) -> bool:
 
 
 def _unfinished(result: CommandResult) -> bool:
-    """True for a check that gave no verdict: skipped, or inconclusive.
+    """True for a check that gave no verdict: skipped, inconclusive, unavailable
+    (the runner could not run it) or an unknown record (core/check_states.py).
 
-    چکی که حکمی نداده: رد شده یا inconclusive.
+    چکی که حکمی نداده: رد شده، inconclusive، unavailable یا نامعلوم.
     """
-    return result.skipped or result.inconclusive
+    return has_no_verdict(result)
 
 
 _MAX_NAMED_TOOLS = 3
@@ -85,14 +99,23 @@ def _security_failure_groups(
     return findings, policy, other
 
 
-def _could_not_run_text(results: list[CommandResult]) -> str:
+def _scored(result: CommandResult) -> bool:
+    """True for a check that counts in a score ratio: it reached a verdict, or the
+    runner could not execute it (which earns nothing but is not left out).
+
+    چکی که در نسبت امتیاز می‌آید: یا حکم داده، یا runner نتوانسته اجرایش کند.
+    """
+    return is_executed(result) or check_state(result) == STATE_UNAVAILABLE
+
+
+def _could_not_run_text(label: str, results: list[CommandResult]) -> str:
     """One recommendation naming the checks the runner could not execute."""
     reasons = sorted(
-        {_CAUSE_TEXT.get(execution_cause(r), "did not run") for r in results}
+        {_CAUSE_TEXT.get(unavailable_cause(r), "did not run") for r in results}
     )
     return (
-        f"Security check could not run ({_names([r.kind for r in results])}: "
-        f"{', '.join(reasons)}); it gave no verdict, so re-run it."
+        f"{label} check could not run ({_names([r.kind for r in results])}: "
+        f"{', '.join(reasons)}); it gave no verdict and earns no points, so re-run it."
     )
 
 
@@ -144,8 +167,16 @@ def compute_health_score(data: ReportData) -> HealthScore:
             "Add automated tests, or make sure your test runner is installed."
         )
     else:
-        passed = sum(1 for r in test_results if r.passed and not r.skipped)
-        total = sum(1 for r in test_results if not _unfinished(r))
+        passed = sum(1 for r in test_results if check_state(r) == STATE_PASSED)
+        # A check the runner could not execute (`unavailable`) earns no points: it
+        # stays in the denominator, so a timeout never scores better than the
+        # same suite failing. It is NOT called a failed suite: it gave no verdict.
+        # چکِ unavailable امتیاز نمی‌گیرد (در مخرج می‌ماند) ولی «شکست» خوانده نمی‌شود.
+        total = sum(1 for r in test_results if _scored(r))
+        failed = sum(1 for r in test_results if check_state(r) == STATE_FAILED)
+        t_lost = [r for r in test_results if check_state(r) == STATE_UNAVAILABLE]
+        if t_lost:
+            recommendations.append(_could_not_run_text("Test", t_lost))
         if total == 0:
             breakdown["tests"] = 10.0
             recommendations.append(
@@ -154,9 +185,14 @@ def compute_health_score(data: ReportData) -> HealthScore:
         else:
             ratio = passed / total
             breakdown["tests"] = round(25.0 * ratio, 1)
-            if ratio < 1.0:
+            if failed:
                 critical.append("One or more test suites failed.")
                 recommendations.append("Fix failing tests before release.")
+            if t_lost:
+                critical.append(
+                    f"Test check could not run ({_names([r.kind for r in t_lost])}); "
+                    "it gave no verdict and earns no points."
+                )
 
     # --- Quality ---
     quality = data.quality_results
@@ -164,13 +200,17 @@ def compute_health_score(data: ReportData) -> HealthScore:
         breakdown["quality"] = 5.0
         recommendations.append("Run quality checks with --quality.")
     else:
-        q_passed = sum(1 for r in quality if r.passed and not r.skipped)
-        q_total = sum(1 for r in quality if not _unfinished(r))
+        q_passed = sum(1 for r in quality if check_state(r) == STATE_PASSED)
+        q_total = sum(1 for r in quality if _scored(r))
+        q_failed = sum(1 for r in quality if check_state(r) == STATE_FAILED)
+        q_lost = [r for r in quality if check_state(r) == STATE_UNAVAILABLE]
+        if q_lost:
+            recommendations.append(_could_not_run_text("Quality", q_lost))
         if q_total == 0:
             breakdown["quality"] = 8.0
         else:
             breakdown["quality"] = round(20.0 * (q_passed / q_total), 1)
-            if q_passed < q_total:
+            if q_failed:
                 recommendations.append(
                     "Address lint / format issues reported by quality tools."
                 )
@@ -181,16 +221,12 @@ def compute_health_score(data: ReportData) -> HealthScore:
         # A check the runner could not execute (timeout, tool not found, OS
         # error) gave no verdict: it is not a finding (R13-C), like a skipped one.
         # چکی که runner نتوانست اجرا کند حکمی نداده؛ مثل رد شده «یافته» نیست.
-        s_verdict = [
-            r for r in security if not _unfinished(r) and not execution_cause(r)
-        ]
-        s_failed = sum(1 for r in s_verdict if not r.passed)
+        s_verdict = [r for r in security if is_executed(r)]
+        s_failed = sum(1 for r in s_verdict if check_state(r) != STATE_PASSED)
         s_ran = len(s_verdict)
-        could_not_run = [
-            r for r in security if not _unfinished(r) and execution_cause(r)
-        ]
+        could_not_run = [r for r in security if check_state(r) == STATE_UNAVAILABLE]
         if could_not_run:
-            recommendations.append(_could_not_run_text(could_not_run))
+            recommendations.append(_could_not_run_text("Security", could_not_run))
         if s_failed:
             breakdown["security"] = 5.0
             findings, policy, other = _security_failure_groups(s_verdict)
@@ -224,11 +260,17 @@ def compute_health_score(data: ReportData) -> HealthScore:
             # همه‌ی چک‌های امنیتی رد شده‌اند (ابزاری نصب نیست): چیزی بررسی
             # نشده، پس این نباید امتیاز کامل «تمیز» بگیرد.
             breakdown["security"] = 8.0
-            if any(r.skipped for r in security):
+            if any(check_state(r) == STATE_SKIPPED for r in security):
                 recommendations.append(
                     "No security check could run: install the security tools "
                     "(see `sarand --doctor`)."
                 )
+        elif could_not_run:
+            # A security check the runner could not execute proves nothing: no
+            # full "clean" score while one of them is unproven, the same 8.0 as
+            # when nothing could run. Weights are unchanged.
+            # چک امنیتیِ اجرانشده چیزی ثابت نمی‌کند: تا وقتی هست امتیاز کامل ندارد.
+            breakdown["security"] = 8.0
         else:
             breakdown["security"] = 15.0
     else:
@@ -343,14 +385,14 @@ def compute_health_score(data: ReportData) -> HealthScore:
     # --- Transparency: how much of this score rests on checks that ran? ---
     # requested is already computed in the tooling block above.
     # متغیر requested بالاتر در بلوک tooling محاسبه شده است.
-    checks_run = sum(1 for r in requested if not _unfinished(r))
-    checks_skipped = sorted({r.kind for r in requested if r.skipped})
-    checks_inconclusive = sorted({r.kind for r in requested if r.inconclusive})
+    checks_run = sum(1 for r in requested if legacy_ran(r))
+    checks_skipped = sorted({r.kind for r in requested if legacy_skipped(r)})
+    checks_inconclusive = sorted({r.kind for r in requested if legacy_inconclusive(r)})
     missing_tools = sorted(
         {
             r.kind
             for r in requested
-            if r.skipped
+            if legacy_skipped(r)
             and (r.returncode == 127 or "not installed" in r.skip_reason.lower())
         }
     )

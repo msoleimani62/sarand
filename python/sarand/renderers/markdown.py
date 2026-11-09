@@ -4,6 +4,16 @@ from __future__ import annotations
 
 from sarand.constants import AI_NOTICE, LANG_MAP, MAX_ISSUE_ROWS
 from sarand.core.architecture import architecture_lines, build_architecture, risk_lines
+from sarand.core.check_states import (
+    STATE_FAILED,
+    STATE_INCONCLUSIVE,
+    STATE_PASSED,
+    STATE_SKIPPED,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    check_state,
+    unavailable_cause,
+)
 from sarand.core.execution_coverage import coverage_lines
 from sarand.core.package_summary import (
     ROOT_PACKAGE,
@@ -20,13 +30,19 @@ from sarand.models.results import CommandResult, HealthScore, Issue, ReportData
 from sarand.progress import status
 from sarand.utils.fs import human_size
 
+_BADGES = {
+    STATE_PASSED: "PASS",
+    STATE_FAILED: "FAIL",
+    STATE_SKIPPED: "SKIP",
+    STATE_INCONCLUSIVE: "INCONCLUSIVE",
+    STATE_UNAVAILABLE: "UNAVAILABLE",
+    STATE_UNKNOWN: "UNKNOWN",
+}
+
 
 def _status_badge(result: CommandResult) -> str:
-    if result.skipped:
-        return "SKIP"
-    if result.inconclusive:
-        return "INCONCLUSIVE"
-    return "PASS" if result.passed else "FAIL"
+    """The badge of the shared check state (core/check_states.py)."""
+    return _BADGES[check_state(result)]
 
 
 def _render_issues(
@@ -57,6 +73,16 @@ def _render_command_block(
                     f"*Inconclusive:* {result.inconclusive_reason}. The tool "
                     "exited 0 but did not finish its checks; re-run with "
                     "network access."
+                ),
+            ]
+        )
+    if check_state(result) == STATE_UNAVAILABLE:
+        lines.extend(
+            [
+                "",
+                (
+                    "*Unavailable:* the runner could not run this tool "
+                    f"({unavailable_cause(result)}); it gave no verdict."
                 ),
             ]
         )

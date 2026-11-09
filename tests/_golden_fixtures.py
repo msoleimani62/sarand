@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from _helpers import write
+from sarand.core.health import compute_health_score
 from sarand.models.results import (
     CommandResult,
     CoverageGap,
@@ -345,7 +346,53 @@ def build_minimal_fixture(root: Path) -> ReportData:
     )
 
 
+def build_unverified_fixture(root: Path) -> ReportData:
+    """Checks the runner could not execute next to checks that passed (R13-D).
+
+    One timeout, one missing tool and one security timeout, each beside a passing
+    check, with the health score computed (not hand-written): the snapshots pin
+    that an unavailable check earns no points, is never called a failure, and
+    stays visible in every report.
+
+    چک‌هایی که runner نتوانسته اجرا کند کنار چک‌های موفق؛ امتیاز محاسبه می‌شود تا
+    snapshot ثابت کند چک unavailable امتیاز نمی‌گیرد و «شکست» خوانده نمی‌شود.
+    """
+    data = build_minimal_fixture(root)
+    data.test_results = [
+        CommandResult(kind="pytest", returncode=0, summary="3 passed"),
+        CommandResult(
+            kind="cargo test",
+            returncode=124,
+            summary="Command timed out.",
+            raw_output="Command timed out.",
+        ),
+    ]
+    data.quality_results = [
+        CommandResult(
+            kind="ruff check",
+            returncode=127,
+            summary="Command not found: ruff",
+            raw_output="Command not found: ruff",
+        ),
+        CommandResult(kind="mypy", returncode=0, summary="Success"),
+    ]
+    data.security_results = [
+        CommandResult(
+            kind="pip-audit", returncode=0, summary="No known vulnerabilities"
+        ),
+        CommandResult(
+            kind="cargo audit",
+            returncode=124,
+            summary="Command timed out.",
+            raw_output="Command timed out.",
+        ),
+    ]
+    data.health = compute_health_score(data)
+    return data
+
+
 FIXTURES = {
     "hybrid": build_hybrid_fixture,
     "minimal": build_minimal_fixture,
+    "unverified": build_unverified_fixture,
 }

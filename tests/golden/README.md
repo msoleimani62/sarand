@@ -13,6 +13,10 @@ renderer-level, why only two fixtures, what's deliberately deferred).
 - `minimal.*` — an almost-empty, unrecognized-project fixture
   (`build_minimal_fixture`). Exercises the "nothing found" / empty
   branch of every renderer.
+- `unverified.*` — checks the runner could not execute (a timeout, a missing
+  tool) next to passing ones, with the health score computed
+  (`build_unverified_fixture`, R13-D): pins that such a check earns no points
+  and is never shown as a failure.
 - One file per (fixture, renderer) pair: `.md` (markdown), `.json`
   (json), `.txt` (text), `.sarif.json` (sarif), `.html` (html).
 

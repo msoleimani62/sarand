@@ -90,6 +90,21 @@ version may include behaviour changes.
 
 ### Changed
 
+- **One reading of a check's state.** Health scoring, the risk rules, Quick Context,
+  the package summary and the Markdown / HTML status badges now all ask
+  `core/check_states.py`; none keeps its own reading, and a test fails if one does.
+  The risk `CHECKS-SKIPPED` counts every check with no verdict (skipped,
+  inconclusive, unavailable, unknown) and fires at 3 as before; it used to count
+  skipped checks only, so an inconclusive check lowered the score but never showed
+  up there. A check the runner could not execute (timeout, tool not found) is now
+  `UNAVAILABLE` in the reports, is never reported as a failed test suite, a lint
+  failure or a security finding, and is never rewarded either: in the test and
+  quality groups it stays in the score ratio and earns no points (a suite that
+  passes next to one that timed out scores like one that passes next to a failing
+  one), and a security timeout keeps the security category at 8, never the clean
+  15. Its tooling points drop because the tool did not run. The critical message
+  and a recommendation say it could not run and earned no points. The weights and
+  the threshold are unchanged. See `docs/CHECK_STATES.md` for the table of every state.
 - A security check the runner could not execute (timeout, tool not found,
   operating-system error) is no longer counted as "Security tool reported issues."
   and no longer lowers the security category or fires `SEC-CHECK-FAILED`; it is an
