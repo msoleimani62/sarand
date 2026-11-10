@@ -1,9 +1,9 @@
 # R13 completion report
 
 Evidence-calibrated reporting, confidence semantics and risk integrity: stages A to
-H. Stages A to G are verified by the owner's own terminal and CI (table below);
-stage H (this report, the real-fixture comparison, `tests/test_ramz_real_fixture.py`
-and the documentation) is verified when the same chain passes on it.
+H, all verified by the owner's own terminal and CI (table below). Stage H is this
+report, the real-fixture comparison, `tests/test_ramz_real_fixture.py` and the
+documentation.
 
 ## A. Executive summary
 
@@ -80,10 +80,11 @@ Run on the owner's terminal and in CI, one stage at a time:
 | A | `3eee120` | 1436, 10 | 41802738433 |
 | B | `cde9271` | 1466, 10 | green (all jobs) |
 | C | `66a66a7` | 1501, 10 | 42521818749 |
-| D | see `git log` | 1529, 10 | 42572508443 |
+| D | `7d0f5c3` | 1529, 10 | 42572508443 |
 | E | `83f9f3e` | 1559, 10 | 42585275296 |
 | F | `1c198b5` | 1578, 10 | 42694571943 |
 | G | `01bd0c6` | 1602, 10 | 42746997234 |
+| H | `cb6c19e` | 1608, 10 | 42778552059 |
 
 Every one ran ruff lint and format, mypy, bandit, markdownlint, the full suite on
 Ubuntu (Python 3.11, 3.12, 3.14, 3.15), macOS and Windows, Clippy, the Rust tests,
@@ -102,9 +103,8 @@ The matrix of what each format carries is in `docs/RENDERERS.md`.
 
 ## H. Git status
 
-Stages A to G are commits on `main` (table above). The changes of stage H are in
-the working tree until the owner commits them; this report does not claim a clean
-tree.
+Stages A to H are commits on `main` (table above). The release commit that follows
+this report is not part of R13.
 
 ## I. Residual risks
 
@@ -193,9 +193,9 @@ two cases first.
 | 9, 10 | VERIFIED | stage E |
 | 11, 12 | VERIFIED | stage F |
 | 13 | VERIFIED | stage G and the real run (J) |
-| 14 | VERIFIED through G | the tests of every stage; stage H adds the real-fixture tests |
-| 15 | VERIFIED through G | the full suite green at every stage; behaviour changes are listed in `CHANGELOG.md` |
-| 16 | VERIFIED through G | section F; stage H after its own chain |
+| 14 | VERIFIED | the tests of every stage and the real-fixture tests of stage H |
+| 15 | VERIFIED | the full suite green at every stage; behaviour changes are listed in `CHANGELOG.md` |
+| 16 | VERIFIED | section F: every gate ran at every stage, stage H included |
 | 17 | VERIFIED | every delivery was hash-guarded and refused a changed tree |
 | 18 | by review | claims are limited to what sections F and J show |
 | 20 | VERIFIED with the limits in J | exact repository state; exact flags inferred |

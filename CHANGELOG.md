@@ -6,6 +6,19 @@ version may include behaviour changes.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-10
+
+Reports now state only what the evidence supports (R13). The main changes: an
+execution coverage figure replaces "confidence"; every failed check is classified by
+the tool and its evidence; dependency advisories are kept as evidence and are never
+called exploitable; every marker is classified and only a TODO or FIXME written as a
+task counts as debt; every finding has a stable id; and Markdown, HTML, JSON, SARIF
+and text carry the same facts. While sarand is 0.x this is a minor version with
+behaviour changes: the JSON schema goes from 1.0 to 1.6 (additive), and a check
+that could not run (a timeout, a missing tool) is no longer called a failure or a
+finding and earns no points. The evidence, with a before and after on a real
+project, is in `docs/R13_COMPLETION_REPORT.md`.
+
 ### Added
 
 - **R13 completion report and real-fixture tests (R13-H).**
