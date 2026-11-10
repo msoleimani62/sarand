@@ -453,11 +453,11 @@ No issues identified.
 
 ## Failure classification
 
-| Tool | Group | Category | Cause | Subject | Evidence |
-|---|---|---|---|---|---|
-| cargo test | test | `test_failure` | exit_code | Rust tests | - |
-| cargo clippy | quality | `lint_failure` | exit_code | Rust lints | - |
-| gitleaks | security | `security_finding_detected` | exit_code | secret scanning | leak-reported |
+| Tool | Group | Category | Cause | Subject | Evidence | Id |
+|---|---|---|---|---|---|---|
+| cargo test | test | `test_failure` | exit_code | Rust tests | - | `test_failure:e6da02efe80d` |
+| cargo clippy | quality | `lint_failure` | exit_code | Rust lints | - | `lint_failure:986381caf840` |
+| gitleaks | security | `security_finding_detected` | exit_code | secret scanning | leak-reported | `security_finding_detected:b48a5277b74b` |
 
 ## Warnings detected
 

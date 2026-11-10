@@ -14,19 +14,24 @@ concepts:
 from __future__ import annotations
 
 import json
-import re
 
 from sarand.constants import SARAND_INFO_URI
+from sarand.core.finding_identity import (
+    advisory_finding_id,
+    failure_id,
+    unique_ids,
+)
 from sarand.core.markers import marker_category
-from sarand.models.results import Advisory, Issue, ReportData
+from sarand.core.report_views import check_state_rows, collect_issues
+from sarand.models.results import Advisory, ReportData
 from sarand.progress import status
 
 _SCHEMA_URI = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 _SARAND_INFO_URI = SARAND_INFO_URI
-# The generic lines `cargo audit` prints per advisory ("Warning:   unsound"): with
-# parsed advisories they are represented by one result each, with the advisory id.
-# خطوط عمومی cargo audit برای هر advisory؛ با advisory پارس‌شده یک نتیجه‌ی دارای id می‌گیرند.
-_AUDIT_KIND_LINE = re.compile(r"^Warning:\s+\w+$")
+# The key under which sarand's own metadata is kept (SARIF property bags are free
+# form; the standard defines no field for check states or coverage).
+# کلیدی که فراداده‌ی خود sarand زیر آن می‌آید (property bag در SARIF آزاد است).
+_PROPERTY_KEY = "sarand"
 
 
 def _rule_id(prefix: str, name: str) -> str:
@@ -49,6 +54,47 @@ def _advisory_message(adv: Advisory) -> str:
         f"{adv.title or 'no title'} (reported by {', '.join(adv.sources)}; "
         f"applicability to this project: {adv.applicability})."
     )
+
+
+def _sarand_properties(data: ReportData) -> dict[str, object]:
+    """What SARIF has no native field for, kept as metadata (R13-G): the state of
+    every check, the execution coverage, the classified failures and the finding
+    ids. Nothing here is recalculated: it is the model the other formats read."""
+    props: dict[str, object] = {
+        "checkStates": [
+            {"group": group, "check": kind, "state": state}
+            for group, kind, state in check_state_rows(data)
+        ],
+        "failures": [
+            {
+                "id": failure_id(f),
+                "tool": f.tool,
+                "group": f.group,
+                "category": f.category,
+                "cause": f.cause,
+                "subject": f.subject,
+            }
+            for f in data.failures
+        ],
+        "knownIssueIds": unique_ids(data.known_issue_ids),
+    }
+    health = data.health
+    if health is not None:
+        props["health"] = {
+            "score": health.score,
+            "maxScore": health.max_score,
+            "grade": health.grade,
+            "executionCoverage": health.execution_coverage,
+            "checksRequested": health.checks_requested,
+            "checksExecuted": health.checks_executed,
+            "coverageByGroup": health.coverage_by_group,
+            "coverageGaps": [
+                {"check": g.kind, "state": g.state, "reason": g.reason}
+                for g in health.coverage_gaps
+            ],
+            "criticalFindingIds": unique_ids(health.critical_ids),
+        }
+    return props
 
 
 def render(
@@ -123,6 +169,9 @@ def render(
                     "ruleId": rule_id,
                     "level": _advisory_level(adv),
                     "message": {"text": _advisory_message(adv)},
+                    "partialFingerprints": {
+                        "sarandFindingId/v1": advisory_finding_id(adv)
+                    },
                     "properties": {
                         "package": adv.package,
                         "version": adv.version,
@@ -138,27 +187,19 @@ def render(
 
     add_advisories()
 
-    def add_unlocated_issues(issues: list[Issue]) -> None:
-        for issue in issues:
-            if (
-                data.advisories
-                and issue.source == "cargo audit"
-                and _AUDIT_KIND_LINE.match(issue.message)
-            ):
-                continue
-            rule_id = _rule_id("tool-output", issue.source)
-            register_rule(rule_id, f"Output from {issue.source}")
-            results.append(
-                {
-                    "ruleId": rule_id,
-                    "level": "error" if issue.severity == "error" else "warning",
-                    "message": {"text": issue.message},
-                }
-            )
-
-    for r in data.test_results + data.quality_results + data.security_results:
-        add_unlocated_issues(r.warnings)
-        add_unlocated_issues(r.errors)
+    # The same errors and warnings every renderer shows (core/report_views.py): a
+    # tool line that an advisory already represents is not a second result.
+    # همان errorها و warningهای همه‌ی رندرها؛ خطِ بازگوکننده‌ی advisory نتیجه‌ی دوم نیست.
+    for issue in collect_issues(data).ordered:
+        rule_id = _rule_id("tool-output", issue.source)
+        register_rule(rule_id, f"Output from {issue.source}")
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": "error" if issue.severity == "error" else "warning",
+                "message": {"text": issue.message},
+            }
+        )
 
     sarif_log = {
         "$schema": _SCHEMA_URI,
@@ -173,6 +214,7 @@ def render(
                     }
                 },
                 "results": results,
+                "properties": {_PROPERTY_KEY: _sarand_properties(data)},
                 "originalUriBaseIds": {
                     "PROJECTROOT": {"uri": data.project_root.as_uri() + "/"}
                 },

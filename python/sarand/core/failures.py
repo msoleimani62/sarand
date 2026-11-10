@@ -358,6 +358,12 @@ def known_issue_entries(failures: list[Failure]) -> list[tuple[str, str]]:
     sentence names the tools that failed and the category they failed in; its id
     is the condition id of that category and tool set, the same id the health
     score gives the same condition, so the two can be tied together.
+
+    A check the runner could not execute (a timeout, a missing tool) is NOT a known
+    issue (R13-G): it gave no verdict, so it did not "fail" and it is not a
+    finding. It stays in `failures` with its cause, in the coverage gaps and in the
+    risks, where the other formats already read it the same way.
+    چکی که runner نتوانسته اجرا کند known issue نیست: حکمی نداده، پس «شکست» نخورده.
     """
     issues: list[tuple[str, str]] = []
     syntax = [f for f in failures if SIGNAL_PYTHON_SYNTAX in f.signals]
@@ -384,6 +390,7 @@ def known_issue_entries(failures: list[Failure]) -> list[tuple[str, str]]:
             f
             for f in failures
             if f.category == category
+            and f.cause == CAUSE_EXIT_CODE
             and not (
                 category == FAILURE_COMPILATION and f.signals == (SIGNAL_PYTHON_SYNTAX,)
             )

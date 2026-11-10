@@ -1,0 +1,41 @@
+sarand report — advisories-project
+Generated: 2026-01-01 12:00:00+00:00
+Host: (unknown)
+
+Detected: unknown (unknown)
+Scan engine: pure-Python fallback
+Python: (unavailable)
+Git: (unavailable) @ (unavailable) (dirty=False)
+
+Files: 0  LOC: 0
+
+Quick Context
+  Project: advisories-project -- Unknown (unknown); type unknown; build unknown
+  Structure: 0 files, 0 LOC
+  Tests: pytest: passed
+  Quality: cargo clippy: skipped, ruff check: unavailable
+  Security: cargo audit: failed, cargo deny check: failed
+  Health: 64.0/100.0 (grade D), execution coverage 60% (3 of 5 requested checks ran to a verdict)
+  Critical findings:
+    - Security finding reported by cargo audit, cargo deny check (a tool result; exploitability is not assessed).
+    - Dependency policy violation reported by cargo deny check (licenses, bans or sources); not a vulnerability.
+  Risks:
+    - 2 check(s) failed: cargo audit, cargo deny check
+    - 1 check(s) could not run (the runner could not execute the tool), no verdict and no score points: ruff check
+    - 1 check(s) skipped, so the score does not reflect them: cargo clippy
+    - tools reported 2 error(s) and 3 warning(s)
+    - 18 dependency advisory(ies) reported by the tools (tool results; applicability unknown)
+
+Architecture and Risks
+  Risks (rule-based):
+    - HEALTH-CRITICAL (high): 2 critical failure(s) in the health score; 2 of them restate the failed security check(s) reported by SEC-CHECK-FAILED [health.critical_failures]
+    - SEC-CHECK-FAILED (high): 2 of 2 security check(s) failed [security_results[kind=cargo audit]; security_results[kind=cargo deny check]]
+    - HEALTH-LOW-CONFIDENCE (warning): execution coverage is 60% (3 of 5 requested checks ran; threshold 80%) [health.execution_coverage]
+  Limitations:
+    - HEALTH-CRITICAL: Covers only the checks that ran.
+    - SEC-CHECK-FAILED: A tool result, not a proven vulnerability.
+    - HEALTH-LOW-CONFIDENCE: Coverage says which requested checks ran, not how correct the analysis is. The rule id keeps its legacy name; it evaluates execution coverage.
+  Rules not evaluated (5 of 9, data absent): DUPLICATE-FILES, GIT-STATE, LARGE-FILE, SECRET-PATTERNS, TODO-CLUSTER
+Health: 64.0/100 (D) -- execution coverage 60% (3 of 5 requested checks ran to a verdict); not run: cargo clippy (skipped: cargo not installed), ruff check (unavailable: tool_not_found)
+Failures: 4 classified -- see full report
+Advisories: 18 reported by the security tools (tool results; applicability unknown) -- see full report

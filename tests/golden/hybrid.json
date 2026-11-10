@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.5",
+  "schema_version": "1.6",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "hybrid-project",
@@ -1102,7 +1102,8 @@
       "errors": [],
       "duration_seconds": 4.2,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "passed"
     },
     {
       "kind": "cargo test",
@@ -1119,7 +1120,8 @@
       ],
       "duration_seconds": 1.1,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "failed"
     },
     {
       "kind": "go test",
@@ -1130,7 +1132,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": true,
-      "skip_reason": "go not installed"
+      "skip_reason": "go not installed",
+      "state": "skipped"
     }
   ],
   "quality_results": [
@@ -1149,7 +1152,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "passed"
     },
     {
       "kind": "cargo clippy",
@@ -1171,7 +1175,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "failed"
     }
   ],
   "security_results": [
@@ -1184,7 +1189,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "passed"
     },
     {
       "kind": "gitleaks",
@@ -1201,7 +1207,8 @@
       ],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "failed"
     }
   ],
   "health": {
@@ -1228,6 +1235,7 @@
       "go test (go not installed)"
     ],
     "confidence": 0.9,
+    "checks_inconclusive": [],
     "execution_coverage": 0.8571,
     "checks_requested": 7,
     "checks_executed": 6,

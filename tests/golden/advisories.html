@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sarand report — advisories-project</title>
+<style>
+:root {
+  color-scheme: dark light;
+  --bg: #0f1117; --fg: #e6e6e6; --muted: #9aa0aa; --card: #171a21;
+  --border: #262a33; --accent: #4f8cff; --ok: #3fb950; --warn: #d29922; --fail: #f85149;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); margin: 0; padding: 2rem;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
+  max-width: 960px; margin-inline: auto;
+}
+h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
+h2 { font-size: 1.15rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; margin-top: 2rem; }
+.meta { color: var(--muted); font-size: 0.9rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+code, pre { font-family: "SF Mono", Consolas, monospace; }
+pre { background: #0b0d12; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; }
+.badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+.badge-ok { background: rgba(63,185,80,0.15); color: var(--ok); }
+.badge-warn { background: rgba(210,153,34,0.15); color: var(--warn); }
+.badge-fail { background: rgba(248,81,73,0.15); color: var(--fail); }
+details { margin: 0.5rem 0; }
+summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+.health-score { font-size: 2.2rem; font-weight: 700; }
+.grade-A, .grade-B { color: var(--ok); }
+.grade-C, .grade-D { color: var(--warn); }
+.grade-F { color: var(--fail); }
+@media print { body { color: #111; background: #fff; } .card { border-color: #ccc; } pre { background: #f4f4f4; } }
+</style>
+</head>
+<body>
+<h1>sarand report — advisories-project</h1>
+<p class="meta">Generated 2026-01-01 12:00:00 on (unknown) · scan engine: pure-Python fallback</p>
+<h2>Quick Context</h2><pre>Project: advisories-project -- Unknown (unknown); type unknown; build unknown
+Structure: 0 files, 0 LOC
+Tests: pytest: passed
+Quality: cargo clippy: skipped, ruff check: unavailable
+Security: cargo audit: failed, cargo deny check: failed
+Health: 64.0/100.0 (grade D), execution coverage 60% (3 of 5 requested checks ran to a verdict)
+Critical findings:
+  - Security finding reported by cargo audit, cargo deny check (a tool result; exploitability is not assessed).
+  - Dependency policy violation reported by cargo deny check (licenses, bans or sources); not a vulnerability.
+Risks:
+  - 2 check(s) failed: cargo audit, cargo deny check
+  - 1 check(s) could not run (the runner could not execute the tool), no verdict and no score points: ruff check
+  - 1 check(s) skipped, so the score does not reflect them: cargo clippy
+  - tools reported 2 error(s) and 3 warning(s)
+  - 18 dependency advisory(ies) reported by the tools (tool results; applicability unknown)</pre>
+<h2>Architecture and Risks</h2><pre>Risks (rule-based):
+  - HEALTH-CRITICAL (high): 2 critical failure(s) in the health score; 2 of them restate the failed security check(s) reported by SEC-CHECK-FAILED [health.critical_failures]
+  - SEC-CHECK-FAILED (high): 2 of 2 security check(s) failed [security_results[kind=cargo audit]; security_results[kind=cargo deny check]]
+  - HEALTH-LOW-CONFIDENCE (warning): execution coverage is 60% (3 of 5 requested checks ran; threshold 80%) [health.execution_coverage]
+Limitations:
+  - HEALTH-CRITICAL: Covers only the checks that ran.
+  - SEC-CHECK-FAILED: A tool result, not a proven vulnerability.
+  - HEALTH-LOW-CONFIDENCE: Coverage says which requested checks ran, not how correct the analysis is. The rule id keeps its legacy name; it evaluates execution coverage.
+Rules not evaluated (5 of 9, data absent): DUPLICATE-FILES, GIT-STATE, LARGE-FILE, SECRET-PATTERNS, TODO-CLUSTER</pre>
+<div class="card">
+No recognized project marker found in this directory.
+</div>
+<div class="card"><span class="health-score grade-D">64.0/100 (D)</span>
+<p class="meta">Execution coverage: 60% (3 of 5 requested checks ran to a verdict)</p>
+<p class="meta">Not run: cargo clippy (skipped: cargo not installed), ruff check (unavailable: tool_not_found)</p>
+<p class="meta">Execution coverage counts which requested checks ran to a verdict. It does not measure how complete or correct the analysis is.</p>
+<table><tr><td>tests</td><td>25.0</td></tr><tr><td>quality</td><td>0.0</td></tr><tr><td>security</td><td>5.0</td></tr><tr><td>git</td><td>10.0</td></tr><tr><td>code</td><td>15.0</td></tr><tr><td>tooling</td><td>9.0</td></tr></table>
+<p><strong>Critical:</strong></p><ul><li>Security finding reported by cargo audit, cargo deny check (a tool result; exploitability is not assessed).</li><li>Dependency policy violation reported by cargo deny check (licenses, bans or sources); not a vulnerability.</li></ul>
+<p><strong>Recommendations:</strong></p><ul><li>Quality check could not run (ruff check: tool not found); it gave no verdict and earns no points, so re-run it.</li><li>Review the reported security advisories: whether this project reaches the affected code is not assessed.</li><li>Review the dependency policy violations (licenses, bans, sources).</li><li>1 check(s) were skipped because their tool is not installed (cargo clippy); the score does not reflect them. See `sarand --doctor` for how to install them.</li></ul>
+</div>
+<h2>Project statistics</h2><div class='card'>Total files: <strong>0</strong> · LOC: <strong>0</strong><br>By extension: n/a<br>Binary: 0 · Hidden: 0 · Empty: 0 · Broken symlinks: 0</div>
+<h2>Test results</h2><details><summary>pytest <span class="badge badge-ok">PASS</span></summary><pre>3 passed</pre></details>
+<h2>Quality checks</h2><details><summary>cargo clippy <span class="badge badge-warn">SKIP</span></summary><pre>cargo not installed</pre></details><details><summary>ruff check <span class="badge badge-warn">UNAVAILABLE</span></summary><pre>Command not found: ruff</pre><details><summary>Full output</summary><pre>Command not found: ruff</pre></details></details>
+<h2>Security checks</h2><details><summary>cargo audit <span class="badge badge-fail">FAIL</span></summary><pre>Warning:   unsound
+Title:     Use-after-free through `init_using_cdict` and `init_using_ddict`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0399
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0399
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Use-after-free when changing a multithreaded context with an unfinished frame
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0406
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0406
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Double free in `DCtx::try_clone`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0404
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0404
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     `Seekable` reads a NULL or out-of-bounds seek table
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0396
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0396
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     `OutBuffer::around_pos` exposes uninitialized memory
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0397
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0397
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Use-after-free with `CParameter::StableInBuffer`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0395
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0395
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Out-of-bounds read in `train_from_buffer` when sample sizes overflow
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0401
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0401
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Heap buffer overflow in `CCtx::try_clone` on a multithreaded context
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0402
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0402
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Out-of-bounds read with an out-of-range `InBuffer::pos`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0405
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0405
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Use-after-free of a dictionary after a one-shot call on a context with an open stream
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0400
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0400
+
+error: 5 vulnerabilities found!
+warning: 13 allowed warnings found</pre><details><summary>Full output</summary><pre>    Fetching advisory database from `https://github.com/RustSec/advisory-db.git`
+      Loaded 1395 security advisories (from /home/kali/.cargo/advisory-db)
+    Updating crates.io index
+    Scanning Cargo.lock for vulnerabilities (254 crate dependencies)
+Crate:     ctutils
+Version:   0.4.2
+Title:     Non-constant-time mask generation and `u128` comparisons
+Date:      2026-10-23
+ID:        RUSTSEC-2026-0385
+URL:       https://github.com/RustCrypto/utils/pull/1569
+Solution:  Upgrade to &gt;=0.4.4
+
+Crate:     zstd
+Version:   0.13.3
+Title:     Data from an abandoned stream leaks into the next stream on a reused context
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0391
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0391
+Solution:  Upgrade to &gt;=0.14.3
+
+Crate:     zstd-safe
+Version:   7.2.4
+Title:     Uninitialized memory exposed when streaming decompression of a legacy frame fails
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0403
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0403
+Solution:  Upgrade to &gt;=8.2.0
+
+Crate:     zstd-safe
+Version:   7.2.4
+Title:     `Seekable::decompress` sets a `Vec` length beyond its capacity for offsets past the end
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0398
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0398
+Solution:  Upgrade to &gt;=8.2.0
+
+Crate:     zstd-sys
+Version:   2.0.16+zstd.1.5.7
+Title:     WebAssembly allocator shim corrupts memory on allocation failure
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0410
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0410
+Solution:  Upgrade to &gt;=2.1.2
+
+Crate:     basic-toml
+Version:   0.1.10
+Warning:   unmaintained
+Title:     `basic-toml` is unmaintained
+Date:      2026-09-26
+ID:        RUSTSEC-2026-0374
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0374
+
+Crate:     number_prefix
+Version:   0.4.0
+Warning:   unmaintained
+Title:     number_prefix crate is unmaintained
+Date:      2025-11-17
+ID:        RUSTSEC-2025-0119
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0119
+
+Crate:     proc-macro-error
+Version:   1.0.4
+Warning:   unmaintained
+Title:     proc-macro-error is unmaintained
+Date:      2024-09-01
+ID:        RUSTSEC-2024-0370
+URL:       https://rustsec.org/advisories/RUSTSEC-2024-0370
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Use-after-free through `init_using_cdict` and `init_using_ddict`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0399
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0399
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Use-after-free when changing a multithreaded context with an unfinished frame
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0406
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0406
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Double free in `DCtx::try_clone`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0404
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0404
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     `Seekable` reads a NULL or out-of-bounds seek table
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0396
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0396
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     `OutBuffer::around_pos` exposes uninitialized memory
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0397
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0397
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Use-after-free with `CParameter::StableInBuffer`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0395
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0395
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Out-of-bounds read in `train_from_buffer` when sample sizes overflow
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0401
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0401
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Heap buffer overflow in `CCtx::try_clone` on a multithreaded context
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0402
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0402
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Out-of-bounds read with an out-of-range `InBuffer::pos`
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0405
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0405
+
+Crate:     zstd-safe
+Version:   7.2.4
+Warning:   unsound
+Title:     Use-after-free of a dictionary after a one-shot call on a context with an open stream
+Date:      2026-10-16
+ID:        RUSTSEC-2026-0400
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0400
+
+error: 5 vulnerabilities found!
+warning: 13 allowed warnings found
+</pre></details></details><details><summary>cargo deny check <span class="badge badge-fail">FAIL</span></summary><pre>   ├ Announcement: https://github.com/dtolnay/basic-toml/commit/dd2ea1df197f255a402b8990cb852ade3e37ea34
+   ├ Solution: No safe upgrade is available!
+   ├ basic-toml v0.1.10
+     └── i18n-config v0.4.8
+         ├── i18n-embed-fl v0.7.0
+         │   └── age v0.10.1
+         │       └── ramz-backends-age v0.3.2
+         │           ├── ramz-cli v0.3.2
+         │           └── (dev) ramz-integration-tests v0.3.2
+         └── i18n-embed-impl v0.8.4
+             └── i18n-embed v0.14.1
+                 ├── age v0.10.1 (*)
+                 └── i18n-embed-fl v0.7.0 (*)
+
+error[vulnerability]: Non-constant-time mask generation and `u128` comparisons
+   ┌─ /home/kali/ramz/Cargo.lock:43:1
+   │
+43 │ ctutils 0.4.2 registry+https://github.com/rust-lang/crates.io-index
+   │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+   │
+   ├ ID: RUSTSEC-2026-0385
+   ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0385
+   ├ ## Summary
+     
+     The `ctutils::Choice` type has mask generation functions for each unsigned
+     integer size (`u8`, `u16`, `u32`, `u64`, `u128`). These are `const fn` and
+     therefore can&#x27;t reuse the `asm!`-backed mask generation in the `cmov` crate
+     that&#x27;s otherwise used to ensure constant-time.
+     
+     In releases prior to v0.4.4, the generated code from these functions could
+     include a branch on commonly used platforms. This has been corrected in this
+     release and now verified on several platforms using BINSEC.
+     
+     Additionally, `u128` comparison operations provided via `ctutils::Choice` and
+     intended to work in constant-time were generating branches on 32-bit targets.
+     This has been resolved via a special case implementation of these functions
+     for such targets.
+     
+     ## Impact
+     
+     Branch instructions on secret values can potentially leak such values via
+     covert channels. This can enable attackers to potentially recover such secrets.
+     
+     ## Resolution
+     
+     This has been resolved by calling `Choice::to_u8()` when generating the mask,
+     which in turn uses `black_box` as an optimization barrier. Verification that
+     this resulted in the desired change in the generated assembly across a variety
+     of target CPU architectures was performed by BINSEC, which now runs
+     automatically in CI using `cargo checkct`.
+   ├ Announcement: https://github.com/RustCrypto/utils/pull/1569
+   ├ Solution: Upgrade to &gt;=0.4.4 (try `cargo update -p ctutils`)
+   ├ ctutils v0.4.2
+     ├── hybrid-array v0.4.13
+     │   ├── block-buffer v0.12.1
+     │   │   └── digest v0.11.3
+     │   │       ├── sha2 v0.11.0
+     │   │       │   └── rust-embed-utils v8.12.0
+     │   │       │       ├── rust-embed v8.12.0
+     │   │       │       │   ├── age v0.10.1
+     │   │       │       │   │   └── ramz-backends-age v0.3.2
+     │   │       │       │   │       ├── ramz-cli v0.3.2
+     │   │       │       │   │       └── (dev) ramz-integration-tests v0.3.2
+     │   │       │       │   └── i18n-embed v0.14.1
+     │   │       │       │       ├── age v0.10.1 (*)
+     │   │       │       │       └── i18n-embed-fl v0.7.0
+     │   │       │       │           └── age v0.10.1 (*)
+     │   │       │       └── rust-embed-impl v8.12.0
+     │   │       │           └── rust-embed v8.12.0 (*)
+     │   │       └── sha3 v0.11.0
+     │   │           └── ml-kem v0.3.2
+     │   │               └── ramz-backends-age v0.3.2 (*)
+     │   ├── crypto-common v0.2.2
+     │   │   ├── digest v0.11.3 (*)
+     │   │   └── kem v0.3.0
+     │   │       └── ml-kem v0.3.2 (*)
+     │   ├── ml-kem v0.3.2 (*)
+     │   └── module-lattice v0.2.3
+     │       └── ml-kem v0.3.2 (*)
+     └── module-lattice v0.2.3 (*)</pre><details><summary>Full output</summary><pre>warning[duplicate]: found 2 duplicate entries for crate &#x27;block-buffer&#x27;
+   ┌─ /home/kali/ramz/Cargo.lock:22:1
+   │  
+22 │ ╭ block-buffer 0.10.4 registry+https://github.com/rust-lang/crates.io-index
+23 │ │ block-buffer 0.12.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ block-buffer v0.10.4
+     └── digest v0.10.7
+         ├── blake2 v0.10.6
+         │   └── argon2 v0.5.3
+         │       └── ramz-backends-age v0.3.2
+         │           ├── ramz-cli v0.3.2
+         │           └── (dev) ramz-integration-tests v0.3.2
+         ├── hmac v0.12.1
+         │   ├── age v0.10.1
+         │   │   └── ramz-backends-age v0.3.2 (*)
+         │   ├── hkdf v0.12.4
+         │   │   └── age-core v0.10.0
+         │   │       └── age v0.10.1 (*)
+         │   └── pbkdf2 v0.12.2
+         │       └── scrypt v0.11.0
+         │           └── age v0.10.1 (*)
+         ├── pbkdf2 v0.12.2 (*)
+         └── sha2 v0.10.9
+             ├── age v0.10.1 (*)
+             ├── age-core v0.10.0 (*)
+             ├── ramz-backends-age v0.3.2 (*)
+             ├── ramz-core v0.3.2
+             │   ├── ramz-backend-7z v0.3.2
+             │   │   ├── ramz-cli v0.3.2 (*)
+             │   │   └── (dev) ramz-integration-tests v0.3.2 (*)
+             │   ├── ramz-backends-age v0.3.2 (*)
+             │   ├── ramz-cli v0.3.2 (*)
+             │   └── (dev) ramz-integration-tests v0.3.2 (*)
+             └── scrypt v0.11.0 (*)
+   ├ block-buffer v0.12.1
+     └── digest v0.11.3
+         ├── sha2 v0.11.0
+         │   └── rust-embed-utils v8.12.0
+         │       ├── rust-embed v8.12.0
+         │       │   ├── age v0.10.1
+         │       │   │   └── ramz-backends-age v0.3.2
+         │       │   │       ├── ramz-cli v0.3.2
+         │       │   │       └── (dev) ramz-integration-tests v0.3.2
+         │       │   └── i18n-embed v0.14.1
+         │       │       ├── age v0.10.1 (*)
+         │       │       └── i18n-embed-fl v0.7.0
+         │       │           └── age v0.10.1 (*)
+         │       └── rust-embed-impl v8.12.0
+         │           └── rust-embed v8.12.0 (*)
+         └── sha3 v0.11.0
+             └── ml-kem v0.3.2
+                 └── ramz-backends-age v0.3.2 (*)
+
+error[rejected]: failed to satisfy license requirements
+   ┌─ /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/option-ext-0.2.0/Cargo.toml:21:12
+   │
+21 │ license = &quot;MPL-2.0&quot;
+   │            ━━━━━━━
+   │            │
+   │            rejected: license is not explicitly allowed
+   │
+   ├ MPL-2.0 - Mozilla Public License 2.0:
+   ├   - OSI approved
+   ├   - FSF Free/Libre
+   ├   - Copyleft
+   ├ option-ext v0.2.0
+     └── dirs-sys v0.4.1
+         └── dirs v5.0.1
+             └── ramz-cli v0.3.2
+
+warning[license-not-encountered]: license was not encountered
+  ┌─ /home/kali/ramz/deny.toml:2:48
+  │
+2 │ allow = [&quot;MIT&quot;, &quot;Apache-2.0&quot;, &quot;BSD-3-Clause&quot;, &quot;ISC&quot;, &quot;Unicode-DFS-2016&quot;]
+  │                                                ━━━ unmatched license allowance
+
+error[unmaintained]: `basic-toml` is unmaintained
+   ┌─ /home/kali/ramz/Cargo.lock:16:1
+   │
+16 │ basic-toml 0.1.10 registry+https://github.com/rust-lang/crates.io-index
+   │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmaintained advisory detected
+   │
+   ├ ID: RUSTSEC-2026-0374
+   ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0374
+   ├ The last release was on March 3, 2025, the day after the repository was archived and marked as unmaintained.
+     
+     ## Possible alternatives
+     
+     - [toml](https://crates.io/crates/toml)
+   ├ Announcement: https://github.com/dtolnay/basic-toml/commit/dd2ea1df197f255a402b8990cb852ade3e37ea34
+   ├ Solution: No safe upgrade is available!
+   ├ basic-toml v0.1.10
+     └── i18n-config v0.4.8
+         ├── i18n-embed-fl v0.7.0
+         │   └── age v0.10.1
+         │       └── ramz-backends-age v0.3.2
+         │           ├── ramz-cli v0.3.2
+         │           └── (dev) ramz-integration-tests v0.3.2
+         └── i18n-embed-impl v0.8.4
+             └── i18n-embed v0.14.1
+                 ├── age v0.10.1 (*)
+                 └── i18n-embed-fl v0.7.0 (*)
+
+error[vulnerability]: Non-constant-time mask generation and `u128` comparisons
+   ┌─ /home/kali/ramz/Cargo.lock:43:1
+   │
+43 │ ctutils 0.4.2 registry+https://github.com/rust-lang/crates.io-index
+   │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+   │
+   ├ ID: RUSTSEC-2026-0385
+   ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0385
+   ├ ## Summary
+     
+     The `ctutils::Choice` type has mask generation functions for each unsigned
+     integer size (`u8`, `u16`, `u32`, `u64`, `u128`). These are `const fn` and
+     therefore can&#x27;t reuse the `asm!`-backed mask generation in the `cmov` crate
+     that&#x27;s otherwise used to ensure constant-time.
+     
+     In releases prior to v0.4.4, the generated code from these functions could
+     include a branch on commonly used platforms. This has been corrected in this
+     release and now verified on several platforms using BINSEC.
+     
+     Additionally, `u128` comparison operations provided via `ctutils::Choice` and
+     intended to work in constant-time were generating branches on 32-bit targets.
+     This has been resolved via a special case implementation of these functions
+     for such targets.
+     
+     ## Impact
+     
+     Branch instructions on secret values can potentially leak such values via
+     covert channels. This can enable attackers to potentially recover such secrets.
+     
+     ## Resolution
+     
+     This has been resolved by calling `Choice::to_u8()` when generating the mask,
+     which in turn uses `black_box` as an optimization barrier. Verification that
+     this resulted in the desired change in the generated assembly across a variety
+     of target CPU architectures was performed by BINSEC, which now runs
+     automatically in CI using `cargo checkct`.
+   ├ Announcement: https://github.com/RustCrypto/utils/pull/1569
+   ├ Solution: Upgrade to &gt;=0.4.4 (try `cargo update -p ctutils`)
+   ├ ctutils v0.4.2
+     ├── hybrid-array v0.4.13
+     │   ├── block-buffer v0.12.1
+     │   │   └── digest v0.11.3
+     │   │       ├── sha2 v0.11.0
+     │   │       │   └── rust-embed-utils v8.12.0
+     │   │       │       ├── rust-embed v8.12.0
+     │   │       │       │   ├── age v0.10.1
+     │   │       │       │   │   └── ramz-backends-age v0.3.2
+     │   │       │       │   │       ├── ramz-cli v0.3.2
+     │   │       │       │   │       └── (dev) ramz-integration-tests v0.3.2
+     │   │       │       │   └── i18n-embed v0.14.1
+     │   │       │       │       ├── age v0.10.1 (*)
+     │   │       │       │       └── i18n-embed-fl v0.7.0
+     │   │       │       │           └── age v0.10.1 (*)
+     │   │       │       └── rust-embed-impl v8.12.0
+     │   │       │           └── rust-embed v8.12.0 (*)
+     │   │       └── sha3 v0.11.0
+     │   │           └── ml-kem v0.3.2
+     │   │               └── ramz-backends-age v0.3.2 (*)
+     │   ├── crypto-common v0.2.2
+     │   │   ├── digest v0.11.3 (*)
+     │   │   └── kem v0.3.0
+     │   │       └── ml-kem v0.3.2 (*)
+     │   ├── ml-kem v0.3.2 (*)
+     │   └── module-lattice v0.2.3
+     │       └── ml-kem v0.3.2 (*)
+     └── module-lattice v0.2.3 (*)
+</pre></details></details>
+<h2>Known issues</h2><ul><li>Security findings were reported by: cargo audit, cargo deny check. These are tool results, not proof that the project is exploitable.</li><li>Dependency policy checks failed in: cargo deny check (licenses, bans or sources). This is not a vulnerability.</li></ul>
+<h2>Failure classification</h2><table><tr><th>Tool</th><th>Group</th><th>Category</th><th>Cause</th><th>Subject</th><th>Evidence</th><th>Id</th></tr><tr><td>ruff check</td><td>quality</td><td>unknown_tool_failure</td><td>tool_not_found</td><td>Python source</td><td>tool_not_found</td><td>unknown_tool_failure:046173f351ac</td></tr><tr><td>cargo audit</td><td>security</td><td>security_finding_detected</td><td>exit_code</td><td>Rust dependency advisories</td><td>advisory-reported</td><td>security_finding_detected:24c9d7d1c316</td></tr><tr><td>cargo deny check</td><td>security</td><td>security_finding_detected</td><td>exit_code</td><td>dependency advisories</td><td>cargo-deny:unmaintained, cargo-deny:vulnerability</td><td>security_finding_detected:b950cb59ff4a</td></tr><tr><td>cargo deny check</td><td>security</td><td>dependency_policy_failure</td><td>exit_code</td><td>dependency licenses, bans and sources</td><td>cargo-deny:rejected</td><td>dependency_policy_failure:1ef0aa19fe5d</td></tr></table>
+<h2>Dependency advisories</h2><p>18 advisory(ies) reported by the security tools. These are tool results, not proof that this project is exploitable: no reachability analysis was done, so applicability is unknown for every row. Severity is shown only when the tool printed one.</p><p class="meta">Database: https://github.com/RustSec/advisory-db.git (1395 advisories loaded)</p><table><tr><th>ID</th><th>Package</th><th>Version</th><th>Kind</th><th>Severity</th><th>Fixed in</th><th>Reported by</th><th>Applicability</th></tr><tr><td>RUSTSEC-2026-0385</td><td>ctutils</td><td>0.4.2</td><td>vulnerability</td><td>-</td><td>&gt;=0.4.4</td><td>cargo audit, cargo deny check</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0391</td><td>zstd</td><td>0.13.3</td><td>vulnerability</td><td>-</td><td>&gt;=0.14.3</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0398</td><td>zstd-safe</td><td>7.2.4</td><td>vulnerability</td><td>-</td><td>&gt;=8.2.0</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0403</td><td>zstd-safe</td><td>7.2.4</td><td>vulnerability</td><td>-</td><td>&gt;=8.2.0</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0410</td><td>zstd-sys</td><td>2.0.16+zstd.1.5.7</td><td>vulnerability</td><td>-</td><td>&gt;=2.1.2</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0395</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0396</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0397</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0399</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0400</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0401</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0402</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0404</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0405</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0406</td><td>zstd-safe</td><td>7.2.4</td><td>unsound</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2024-0370</td><td>proc-macro-error</td><td>1.0.4</td><td>unmaintained</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2025-0119</td><td>number_prefix</td><td>0.4.0</td><td>unmaintained</td><td>-</td><td>-</td><td>cargo audit</td><td>unknown</td></tr><tr><td>RUSTSEC-2026-0374</td><td>basic-toml</td><td>0.1.10</td><td>unmaintained</td><td>-</td><td>-</td><td>cargo audit, cargo deny check</td><td>unknown</td></tr></table>
+<h2>Errors detected (2)</h2><table><tr><th>Source</th><th>Message</th></tr><tr><td>cargo audit</td><td><code>error: 5 vulnerabilities found!</code></td></tr><tr><td>cargo deny check</td><td><code>error[rejected]: failed to satisfy license requirements</code></td></tr></table>
+<h2>Warnings detected (3)</h2><table><tr><th>Source</th><th>Message</th></tr><tr><td>cargo audit</td><td><code>warning: 13 allowed warnings found</code></td></tr><tr><td>cargo deny check</td><td><code>warning[duplicate]: found 2 duplicate entries for crate &#x27;block-buffer&#x27;</code></td></tr><tr><td>cargo deny check</td><td><code>warning[license-not-encountered]: license was not encountered</code></td></tr></table>
+<p class="meta">15 tool line(s) that restate a dependency advisory are listed under Dependency advisories, not here.</p>
+<h2>Project tree</h2><pre>advisories-project/
+(empty)</pre>
+<h2>Included files (0 included / 0 skipped / 0 excluded)</h2>
+</body>
+</html>

@@ -11,6 +11,13 @@
         }
       },
       "results": [],
+      "properties": {
+        "sarand": {
+          "checkStates": [],
+          "failures": [],
+          "knownIssueIds": []
+        }
+      },
       "originalUriBaseIds": {
         "PROJECTROOT": {
           "uri": "<PROJECT_ROOT_URI>/"

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from sarand.core.architecture import build_architecture
+from sarand.core.check_states import check_state
 from sarand.core.finding_identity import failure_id
 from sarand.core.markers import category_counts, marker_category
 from sarand.core.package_summary import summarize_packages
@@ -27,16 +28,18 @@ from sarand.progress import status
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.5"
+JSON_SCHEMA_VERSION = "1.6"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
     """A result as a dict; the inconclusive field appears only when set.
 
-    Same convention as the other optional keys here: an ordinary run's JSON
-    does not gain a key just because the feature exists.
+    `state` (schema 1.6) is the shared reading of the check's state
+    (core/check_states.py), so a reader does not have to derive it from `skipped`,
+    `inconclusive_reason` and the exit code.
+    `state` (شمای ۱٫۶) برداشت مشترک از وضعیت چک است، تا خواننده خودش استنتاج نکند.
     """
-    payload = dict(result.__dict__)
+    payload = {**result.__dict__, "state": check_state(result)}
     if not payload.get("inconclusive_reason"):
         payload.pop("inconclusive_reason", None)
     return payload
@@ -46,8 +49,9 @@ def _health_payload(health: HealthScore | None) -> dict[str, Any] | None:
     if health is None:
         return None
     payload = dict(health.__dict__)
-    if not payload.get("checks_inconclusive"):
-        payload.pop("checks_inconclusive", None)
+    # `checks_inconclusive` is always present since schema 1.6 (an empty list means
+    # none was inconclusive); it used to be left out when empty.
+    # از شمای ۱٫۶ همیشه حاضر است (فهرست خالی یعنی هیچ‌کدام)؛ قبلاً خالی حذف می‌شد.
     # R13-F: finding ids of the critical failures (schema 1.5); absent when the
     # health score carries none.
     # R13-F: شناسه‌ی شکست‌های بحرانی؛ وقتی نیست غایب.

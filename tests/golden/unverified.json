@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.5",
+  "schema_version": "1.6",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "unverified-project",
@@ -151,7 +151,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "passed"
     },
     {
       "kind": "cargo test",
@@ -162,7 +163,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "unavailable"
     }
   ],
   "quality_results": [
@@ -175,7 +177,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "unavailable"
     },
     {
       "kind": "mypy",
@@ -186,7 +189,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "passed"
     }
   ],
   "security_results": [
@@ -199,7 +203,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "passed"
     },
     {
       "kind": "cargo audit",
@@ -210,7 +215,8 @@
       "errors": [],
       "duration_seconds": 0.0,
       "skipped": false,
-      "skip_reason": ""
+      "skip_reason": "",
+      "state": "unavailable"
     }
   ],
   "health": {
@@ -239,6 +245,7 @@
     "checks_run": 6,
     "checks_skipped": [],
     "confidence": 1.0,
+    "checks_inconclusive": [],
     "execution_coverage": 0.5,
     "checks_requested": 6,
     "checks_executed": 3,

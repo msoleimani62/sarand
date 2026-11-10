@@ -83,6 +83,7 @@ from dataclasses import dataclass, field
 
 from sarand.core.check_states import STATE_UNAVAILABLE, STATE_UNKNOWN, check_state
 from sarand.core.execution_coverage import coverage_headline
+from sarand.core.report_views import collect_issues
 from sarand.models.results import CommandResult, FrameworkEntry, ReportData
 
 _CLIP = 120
@@ -245,10 +246,19 @@ def _risks(data: ReportData, all_results: list[CommandResult]) -> list[str]:
             f"{len(unknown)} check(s) with a contradictory record, so the score "
             f"does not reflect them: {_name_list(unknown)}"
         )
-    errors = sum(len(r.errors) for r in all_results)
-    warnings = sum(len(r.warnings) for r in all_results)
+    # The same counts as every renderer (core/report_views.py, R13-G): a tool line
+    # that an advisory restates is counted under the advisories, not twice.
+    # همان شمارش رندرها؛ خطی که advisory بازگو می‌کند زیر advisoryها شمرده می‌شود.
+    issue_view = collect_issues(data)
+    errors = len(issue_view.errors)
+    warnings = len(issue_view.warnings)
     if errors or warnings:
         risks.append(f"tools reported {errors} error(s) and {warnings} warning(s)")
+    if data.advisories:
+        risks.append(
+            f"{len(data.advisories)} dependency advisory(ies) reported by the tools "
+            "(tool results; applicability unknown)"
+        )
     if data.secret_findings:
         risks.append(
             f"{len(data.secret_findings)} potential secret(s) found; "

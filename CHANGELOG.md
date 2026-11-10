@@ -8,6 +8,19 @@ version may include behaviour changes.
 
 ### Added
 
+- **Every format tells the same facts (R13-G).** The lists that Markdown, HTML,
+  SARIF and Quick Context each computed themselves now come from one place
+  (`core/report_views.py`). HTML gained Known issues, Failure classification
+  (with finding ids) and Dependency advisories; SARIF keeps the state of every
+  check, the execution coverage, the classified failures and the finding ids in a
+  `sarand` property bag and gives each advisory a stable
+  `partialFingerprints.sarandFindingId/v1`; JSON results gained `state` and
+  `health.checks_inconclusive` is always present (schema `1.6`); the text report
+  states the failure and advisory counts. A tool line that an advisory already
+  represents (`Warning:   unsound`, `error[vulnerability]`) is no longer listed
+  again as an error, a warning or a SARIF result. A check the runner could not
+  execute is no longer a known issue or a Quick Context critical finding: it gave
+  no verdict. See `docs/RENDERERS.md`.
 - **One problem, one identity (R13-F).** A finding now has a stable id built from
   structured fields, not from its sentence: `failures[].id`, `health.critical_ids`,
   `known_issue_ids` and `quick_context.critical_finding_ids` (JSON schema `1.5`).

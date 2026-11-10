@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.5",
+  "schema_version": "1.6",
   "project_root": "<PROJECT_ROOT>",
   "quick_context": {
     "project": "markers-project",
@@ -159,6 +159,7 @@
     "checks_run": 0,
     "checks_skipped": [],
     "confidence": 1.0,
+    "checks_inconclusive": [],
     "execution_coverage": null,
     "checks_requested": 0,
     "checks_executed": 0,

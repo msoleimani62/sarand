@@ -23,6 +23,16 @@ from sarand.core.check_states import (
 )
 from sarand.core.execution_coverage import coverage_lines
 from sarand.core.quick_context import build_quick_context, quick_context_lines
+from sarand.core.report_views import (
+    ADVISORY_COLUMNS,
+    FAILURE_COLUMNS,
+    advisory_databases,
+    advisory_intro,
+    advisory_line_note,
+    advisory_rows,
+    collect_issues,
+    failure_rows,
+)
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
 from sarand.utils.fs import human_size
@@ -130,6 +140,48 @@ def _issues_table(title: str, issues: list[Issue], *, full_output: bool = False)
         for i in shown
     )
     return f"<h2>{escape(title)} ({len(issues)})</h2><table><tr><th>Source</th><th>Message</th></tr>{rows}</table>"
+
+
+def _table(columns: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
+    head = "".join(f"<th>{escape(c)}</th>" for c in columns)
+    body = "".join(
+        "<tr>" + "".join(f"<td>{escape(cell)}</td>" for cell in row) + "</tr>"
+        for row in rows
+    )
+    return f"<table><tr>{head}</tr>{body}</table>"
+
+
+def _known_issues_html(data: ReportData) -> str:
+    if not data.known_issues:
+        return ""
+    items = "".join(f"<li>{escape(i)}</li>" for i in data.known_issues)
+    return f"<h2>Known issues</h2><ul>{items}</ul>"
+
+
+def _failures_html(data: ReportData) -> str:
+    """The classified failures (core/failures.py), the same rows as Markdown."""
+    if not data.failures:
+        return ""
+    return "<h2>Failure classification</h2>" + _table(
+        FAILURE_COLUMNS, failure_rows(data)
+    )
+
+
+def _advisories_html(data: ReportData) -> str:
+    """The dependency advisories (R13-C), the same rows and note as Markdown."""
+    if not data.advisories:
+        return ""
+    databases = advisory_databases(data)
+    db = (
+        f'<p class="meta">Database: {escape("; ".join(databases))}</p>'
+        if databases
+        else ""
+    )
+    return (
+        "<h2>Dependency advisories</h2>"
+        f"<p>{escape(advisory_intro(data))}</p>{db}"
+        + _table(ADVISORY_COLUMNS, advisory_rows(data))
+    )
 
 
 def render(
@@ -288,15 +340,19 @@ def render(
         )
     )
 
-    all_warnings: list[Issue] = []
-    all_errors: list[Issue] = []
-    for r in data.test_results + data.quality_results + data.security_results:
-        all_warnings.extend(r.warnings)
-        all_errors.extend(r.errors)
-    parts.append(_issues_table("Errors detected", all_errors, full_output=full_output))
+    parts.append(_known_issues_html(data))
+    parts.append(_failures_html(data))
+    parts.append(_advisories_html(data))
+
+    issue_view = collect_issues(data)
     parts.append(
-        _issues_table("Warnings detected", all_warnings, full_output=full_output)
+        _issues_table("Errors detected", issue_view.errors, full_output=full_output)
     )
+    parts.append(
+        _issues_table("Warnings detected", issue_view.warnings, full_output=full_output)
+    )
+    if note := advisory_line_note(issue_view):
+        parts.append(f'<p class="meta">{escape(note)}</p>')
 
     parts.append(f"<h2>Project tree</h2><pre>{escape(data.tree_text)}</pre>")
 

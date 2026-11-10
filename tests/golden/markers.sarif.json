@@ -175,6 +175,37 @@
           ]
         }
       ],
+      "properties": {
+        "sarand": {
+          "checkStates": [],
+          "failures": [],
+          "knownIssueIds": [],
+          "health": {
+            "score": 43.0,
+            "maxScore": 100.0,
+            "grade": "F",
+            "executionCoverage": null,
+            "checksRequested": 0,
+            "checksExecuted": 0,
+            "coverageByGroup": {
+              "tests": {
+                "requested": 0,
+                "executed": 0
+              },
+              "quality": {
+                "requested": 0,
+                "executed": 0
+              },
+              "security": {
+                "requested": 0,
+                "executed": 0
+              }
+            },
+            "coverageGaps": [],
+            "criticalFindingIds": []
+          }
+        }
+      },
       "originalUriBaseIds": {
         "PROJECTROOT": {
           "uri": "<PROJECT_ROOT_URI>/"

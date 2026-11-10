@@ -17,6 +17,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from _helpers import write
+from sarand.core.advisories import collect_advisories
+from sarand.core.failures import classify_failures, known_issue_entries
 from sarand.core.health import compute_health_score
 from sarand.models.results import (
     CommandResult,
@@ -33,6 +35,7 @@ from sarand.models.results import (
     SecretFinding,
     TodoItem,
 )
+from sarand.utils.command import make_command_result
 
 # Fixed instant so every render is byte-identical across machines/timezones.
 # لحظه‌ی ثابت تا هر رندر روی هر ماشین/منطقه‌زمانی بایت‌به‌بایت یکسان باشد.
@@ -453,7 +456,55 @@ def build_markers_fixture(root: Path) -> ReportData:
     return data
 
 
+def build_advisories_fixture(root: Path) -> ReportData:
+    """Real Ramz v0.3.2 cargo audit and cargo deny output beside a skipped, an
+    unavailable and a passing check (R13-G), everything derived by the real
+    pipeline (failures, known issues, advisories, health), nothing hand-written.
+
+    The snapshots pin that every format tells the same facts about it: 18
+    advisories with their ids, the classified failures with their ids, the state
+    of each check, the coverage, and no tool line counted twice.
+
+    خروجی واقعی cargo audit و cargo deny روی Ramz کنار چک رد شده و اجرانشده؛ همه‌چیز
+    از خود pipeline می‌آید تا همه‌ی قالب‌ها یک واقعیت را بگویند.
+    """
+    data = build_minimal_fixture(root)
+    folder = Path(__file__).parent / "data" / "ramz_v0_3_2"
+    audit = (folder / "cargo_audit.txt").read_text(encoding="utf-8")
+    deny = (folder / "cargo_deny_excerpt.txt").read_text(encoding="utf-8")
+    data.test_results = [CommandResult(kind="pytest", returncode=0, summary="3 passed")]
+    data.quality_results = [
+        CommandResult(
+            kind="cargo clippy",
+            returncode=0,
+            summary="",
+            skipped=True,
+            skip_reason="cargo not installed",
+        ),
+        CommandResult(
+            kind="ruff check",
+            returncode=127,
+            summary="Command not found: ruff",
+            raw_output="Command not found: ruff",
+        ),
+    ]
+    data.security_results = [
+        make_command_result("cargo audit", 1, audit, 1.0),
+        make_command_result("cargo deny check", 5, deny, 1.0),
+    ]
+    data.failures = classify_failures(
+        data.test_results, data.quality_results, data.security_results
+    )
+    entries = known_issue_entries(data.failures)
+    data.known_issues = [text for _, text in entries]
+    data.known_issue_ids = [fid for fid, _ in entries]
+    data.advisories = collect_advisories(data.security_results)
+    data.health = compute_health_score(data)
+    return data
+
+
 FIXTURES = {
+    "advisories": build_advisories_fixture,
     "hybrid": build_hybrid_fixture,
     "markers": build_markers_fixture,
     "minimal": build_minimal_fixture,

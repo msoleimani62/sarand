@@ -2394,6 +2394,104 @@
           }
         }
       ],
+      "properties": {
+        "sarand": {
+          "checkStates": [
+            {
+              "group": "tests",
+              "check": "pytest",
+              "state": "passed"
+            },
+            {
+              "group": "tests",
+              "check": "cargo test",
+              "state": "failed"
+            },
+            {
+              "group": "tests",
+              "check": "go test",
+              "state": "skipped"
+            },
+            {
+              "group": "quality",
+              "check": "ruff",
+              "state": "passed"
+            },
+            {
+              "group": "quality",
+              "check": "cargo clippy",
+              "state": "failed"
+            },
+            {
+              "group": "security",
+              "check": "bandit",
+              "state": "passed"
+            },
+            {
+              "group": "security",
+              "check": "gitleaks",
+              "state": "failed"
+            }
+          ],
+          "failures": [
+            {
+              "id": "test_failure:e6da02efe80d",
+              "tool": "cargo test",
+              "group": "test",
+              "category": "test_failure",
+              "cause": "exit_code",
+              "subject": "Rust tests"
+            },
+            {
+              "id": "lint_failure:986381caf840",
+              "tool": "cargo clippy",
+              "group": "quality",
+              "category": "lint_failure",
+              "cause": "exit_code",
+              "subject": "Rust lints"
+            },
+            {
+              "id": "security_finding_detected:b48a5277b74b",
+              "tool": "gitleaks",
+              "group": "security",
+              "category": "security_finding_detected",
+              "cause": "exit_code",
+              "subject": "secret scanning"
+            }
+          ],
+          "knownIssueIds": [],
+          "health": {
+            "score": 76.0,
+            "maxScore": 100.0,
+            "grade": "C",
+            "executionCoverage": 0.8571,
+            "checksRequested": 7,
+            "checksExecuted": 6,
+            "coverageByGroup": {
+              "tests": {
+                "requested": 3,
+                "executed": 2
+              },
+              "quality": {
+                "requested": 2,
+                "executed": 2
+              },
+              "security": {
+                "requested": 2,
+                "executed": 2
+              }
+            },
+            "coverageGaps": [
+              {
+                "check": "go test",
+                "state": "skipped",
+                "reason": "go not installed"
+              }
+            ],
+            "criticalFindingIds": []
+          }
+        }
+      },
       "originalUriBaseIds": {
         "PROJECTROOT": {
           "uri": "<PROJECT_ROOT_URI>/"

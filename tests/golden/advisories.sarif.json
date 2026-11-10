@@ -1,0 +1,711 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "sarand",
+          "informationUri": "https://github.com/msoleimani62/sarand",
+          "rules": [
+            {
+              "id": "RUSTSEC-2026-0385",
+              "shortDescription": {
+                "text": "Non-constant-time mask generation and `u128` comparisons"
+              },
+              "helpUri": "https://github.com/RustCrypto/utils/pull/1569"
+            },
+            {
+              "id": "RUSTSEC-2026-0391",
+              "shortDescription": {
+                "text": "Data from an abandoned stream leaks into the next stream on a reused context"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0391"
+            },
+            {
+              "id": "RUSTSEC-2026-0398",
+              "shortDescription": {
+                "text": "`Seekable::decompress` sets a `Vec` length beyond its capacity for offsets past the end"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0398"
+            },
+            {
+              "id": "RUSTSEC-2026-0403",
+              "shortDescription": {
+                "text": "Uninitialized memory exposed when streaming decompression of a legacy frame fails"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0403"
+            },
+            {
+              "id": "RUSTSEC-2026-0410",
+              "shortDescription": {
+                "text": "WebAssembly allocator shim corrupts memory on allocation failure"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0410"
+            },
+            {
+              "id": "RUSTSEC-2026-0395",
+              "shortDescription": {
+                "text": "Use-after-free with `CParameter::StableInBuffer`"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0395"
+            },
+            {
+              "id": "RUSTSEC-2026-0396",
+              "shortDescription": {
+                "text": "`Seekable` reads a NULL or out-of-bounds seek table"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0396"
+            },
+            {
+              "id": "RUSTSEC-2026-0397",
+              "shortDescription": {
+                "text": "`OutBuffer::around_pos` exposes uninitialized memory"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0397"
+            },
+            {
+              "id": "RUSTSEC-2026-0399",
+              "shortDescription": {
+                "text": "Use-after-free through `init_using_cdict` and `init_using_ddict`"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0399"
+            },
+            {
+              "id": "RUSTSEC-2026-0400",
+              "shortDescription": {
+                "text": "Use-after-free of a dictionary after a one-shot call on a context with an open stream"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0400"
+            },
+            {
+              "id": "RUSTSEC-2026-0401",
+              "shortDescription": {
+                "text": "Out-of-bounds read in `train_from_buffer` when sample sizes overflow"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0401"
+            },
+            {
+              "id": "RUSTSEC-2026-0402",
+              "shortDescription": {
+                "text": "Heap buffer overflow in `CCtx::try_clone` on a multithreaded context"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0402"
+            },
+            {
+              "id": "RUSTSEC-2026-0404",
+              "shortDescription": {
+                "text": "Double free in `DCtx::try_clone`"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0404"
+            },
+            {
+              "id": "RUSTSEC-2026-0405",
+              "shortDescription": {
+                "text": "Out-of-bounds read with an out-of-range `InBuffer::pos`"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0405"
+            },
+            {
+              "id": "RUSTSEC-2026-0406",
+              "shortDescription": {
+                "text": "Use-after-free when changing a multithreaded context with an unfinished frame"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0406"
+            },
+            {
+              "id": "RUSTSEC-2024-0370",
+              "shortDescription": {
+                "text": "proc-macro-error is unmaintained"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2024-0370"
+            },
+            {
+              "id": "RUSTSEC-2025-0119",
+              "shortDescription": {
+                "text": "number_prefix crate is unmaintained"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2025-0119"
+            },
+            {
+              "id": "RUSTSEC-2026-0374",
+              "shortDescription": {
+                "text": "`basic-toml` is unmaintained"
+              },
+              "helpUri": "https://rustsec.org/advisories/RUSTSEC-2026-0374"
+            },
+            {
+              "id": "tool-output/cargo-audit",
+              "shortDescription": {
+                "text": "Output from cargo audit"
+              }
+            },
+            {
+              "id": "tool-output/cargo-deny-check",
+              "shortDescription": {
+                "text": "Output from cargo deny check"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "RUSTSEC-2026-0385",
+          "level": "warning",
+          "message": {
+            "text": "vulnerability advisory RUSTSEC-2026-0385 in ctutils 0.4.2; fixed in >=0.4.4: Non-constant-time mask generation and `u128` comparisons (reported by cargo audit, cargo deny check; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:0969c72a36bb"
+          },
+          "properties": {
+            "package": "ctutils",
+            "version": "0.4.2",
+            "kind": "vulnerability",
+            "fixedVersions": [
+              ">=0.4.4"
+            ],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit",
+              "cargo deny check"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0391",
+          "level": "warning",
+          "message": {
+            "text": "vulnerability advisory RUSTSEC-2026-0391 in zstd 0.13.3; fixed in >=0.14.3: Data from an abandoned stream leaks into the next stream on a reused context (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:babf184dba8d"
+          },
+          "properties": {
+            "package": "zstd",
+            "version": "0.13.3",
+            "kind": "vulnerability",
+            "fixedVersions": [
+              ">=0.14.3"
+            ],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0398",
+          "level": "warning",
+          "message": {
+            "text": "vulnerability advisory RUSTSEC-2026-0398 in zstd-safe 7.2.4; fixed in >=8.2.0: `Seekable::decompress` sets a `Vec` length beyond its capacity for offsets past the end (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:982d08877256"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "vulnerability",
+            "fixedVersions": [
+              ">=8.2.0"
+            ],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0403",
+          "level": "warning",
+          "message": {
+            "text": "vulnerability advisory RUSTSEC-2026-0403 in zstd-safe 7.2.4; fixed in >=8.2.0: Uninitialized memory exposed when streaming decompression of a legacy frame fails (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:45c3e7279e09"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "vulnerability",
+            "fixedVersions": [
+              ">=8.2.0"
+            ],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0410",
+          "level": "warning",
+          "message": {
+            "text": "vulnerability advisory RUSTSEC-2026-0410 in zstd-sys 2.0.16+zstd.1.5.7; fixed in >=2.1.2: WebAssembly allocator shim corrupts memory on allocation failure (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:a24469d5b165"
+          },
+          "properties": {
+            "package": "zstd-sys",
+            "version": "2.0.16+zstd.1.5.7",
+            "kind": "vulnerability",
+            "fixedVersions": [
+              ">=2.1.2"
+            ],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0395",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0395 in zstd-safe 7.2.4: Use-after-free with `CParameter::StableInBuffer` (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:143e0751a323"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0396",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0396 in zstd-safe 7.2.4: `Seekable` reads a NULL or out-of-bounds seek table (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:d2134ce2df0e"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0397",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0397 in zstd-safe 7.2.4: `OutBuffer::around_pos` exposes uninitialized memory (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:f994d3b48969"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0399",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0399 in zstd-safe 7.2.4: Use-after-free through `init_using_cdict` and `init_using_ddict` (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:0d4f1b98a8e8"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0400",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0400 in zstd-safe 7.2.4: Use-after-free of a dictionary after a one-shot call on a context with an open stream (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:de44f856f2ed"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0401",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0401 in zstd-safe 7.2.4: Out-of-bounds read in `train_from_buffer` when sample sizes overflow (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:f33b13632c94"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0402",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0402 in zstd-safe 7.2.4: Heap buffer overflow in `CCtx::try_clone` on a multithreaded context (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:115d45c642da"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0404",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0404 in zstd-safe 7.2.4: Double free in `DCtx::try_clone` (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:d0acf7e2b9bf"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0405",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0405 in zstd-safe 7.2.4: Out-of-bounds read with an out-of-range `InBuffer::pos` (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:d99885bd69a2"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0406",
+          "level": "warning",
+          "message": {
+            "text": "unsound advisory RUSTSEC-2026-0406 in zstd-safe 7.2.4: Use-after-free when changing a multithreaded context with an unfinished frame (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:71997a1c2c28"
+          },
+          "properties": {
+            "package": "zstd-safe",
+            "version": "7.2.4",
+            "kind": "unsound",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2024-0370",
+          "level": "note",
+          "message": {
+            "text": "unmaintained advisory RUSTSEC-2024-0370 in proc-macro-error 1.0.4: proc-macro-error is unmaintained (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:c7f5f074051d"
+          },
+          "properties": {
+            "package": "proc-macro-error",
+            "version": "1.0.4",
+            "kind": "unmaintained",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2025-0119",
+          "level": "note",
+          "message": {
+            "text": "unmaintained advisory RUSTSEC-2025-0119 in number_prefix 0.4.0: number_prefix crate is unmaintained (reported by cargo audit; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:a3c3ff1f769b"
+          },
+          "properties": {
+            "package": "number_prefix",
+            "version": "0.4.0",
+            "kind": "unmaintained",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "RUSTSEC-2026-0374",
+          "level": "note",
+          "message": {
+            "text": "unmaintained advisory RUSTSEC-2026-0374 in basic-toml 0.1.10: `basic-toml` is unmaintained (reported by cargo audit, cargo deny check; applicability to this project: unknown)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "dependency_advisory:eb7b0ef5abd7"
+          },
+          "properties": {
+            "package": "basic-toml",
+            "version": "0.1.10",
+            "kind": "unmaintained",
+            "fixedVersions": [],
+            "severity": null,
+            "applicability": "unknown",
+            "reportedBy": [
+              "cargo audit",
+              "cargo deny check"
+            ],
+            "database": "https://github.com/RustSec/advisory-db.git (1395 advisories loaded)"
+          }
+        },
+        {
+          "ruleId": "tool-output/cargo-audit",
+          "level": "warning",
+          "message": {
+            "text": "warning: 13 allowed warnings found"
+          }
+        },
+        {
+          "ruleId": "tool-output/cargo-audit",
+          "level": "error",
+          "message": {
+            "text": "error: 5 vulnerabilities found!"
+          }
+        },
+        {
+          "ruleId": "tool-output/cargo-deny-check",
+          "level": "warning",
+          "message": {
+            "text": "warning[duplicate]: found 2 duplicate entries for crate 'block-buffer'"
+          }
+        },
+        {
+          "ruleId": "tool-output/cargo-deny-check",
+          "level": "warning",
+          "message": {
+            "text": "warning[license-not-encountered]: license was not encountered"
+          }
+        },
+        {
+          "ruleId": "tool-output/cargo-deny-check",
+          "level": "error",
+          "message": {
+            "text": "error[rejected]: failed to satisfy license requirements"
+          }
+        }
+      ],
+      "properties": {
+        "sarand": {
+          "checkStates": [
+            {
+              "group": "tests",
+              "check": "pytest",
+              "state": "passed"
+            },
+            {
+              "group": "quality",
+              "check": "cargo clippy",
+              "state": "skipped"
+            },
+            {
+              "group": "quality",
+              "check": "ruff check",
+              "state": "unavailable"
+            },
+            {
+              "group": "security",
+              "check": "cargo audit",
+              "state": "failed"
+            },
+            {
+              "group": "security",
+              "check": "cargo deny check",
+              "state": "failed"
+            }
+          ],
+          "failures": [
+            {
+              "id": "unknown_tool_failure:046173f351ac",
+              "tool": "ruff check",
+              "group": "quality",
+              "category": "unknown_tool_failure",
+              "cause": "tool_not_found",
+              "subject": "Python source"
+            },
+            {
+              "id": "security_finding_detected:24c9d7d1c316",
+              "tool": "cargo audit",
+              "group": "security",
+              "category": "security_finding_detected",
+              "cause": "exit_code",
+              "subject": "Rust dependency advisories"
+            },
+            {
+              "id": "security_finding_detected:b950cb59ff4a",
+              "tool": "cargo deny check",
+              "group": "security",
+              "category": "security_finding_detected",
+              "cause": "exit_code",
+              "subject": "dependency advisories"
+            },
+            {
+              "id": "dependency_policy_failure:1ef0aa19fe5d",
+              "tool": "cargo deny check",
+              "group": "security",
+              "category": "dependency_policy_failure",
+              "cause": "exit_code",
+              "subject": "dependency licenses, bans and sources"
+            }
+          ],
+          "knownIssueIds": [
+            "security_finding_detected:f66eb5860f84",
+            "dependency_policy_failure:6e7abb9237b5"
+          ],
+          "health": {
+            "score": 64.0,
+            "maxScore": 100.0,
+            "grade": "D",
+            "executionCoverage": 0.6,
+            "checksRequested": 5,
+            "checksExecuted": 3,
+            "coverageByGroup": {
+              "tests": {
+                "requested": 1,
+                "executed": 1
+              },
+              "quality": {
+                "requested": 2,
+                "executed": 0
+              },
+              "security": {
+                "requested": 2,
+                "executed": 2
+              }
+            },
+            "coverageGaps": [
+              {
+                "check": "cargo clippy",
+                "state": "skipped",
+                "reason": "cargo not installed"
+              },
+              {
+                "check": "ruff check",
+                "state": "unavailable",
+                "reason": "tool_not_found"
+              }
+            ],
+            "criticalFindingIds": [
+              "security_finding_detected:f66eb5860f84",
+              "dependency_policy_failure:6e7abb9237b5"
+            ]
+          }
+        }
+      },
+      "originalUriBaseIds": {
+        "PROJECTROOT": {
+          "uri": "<PROJECT_ROOT_URI>/"
+        }
+      }
+    }
+  ]
+}

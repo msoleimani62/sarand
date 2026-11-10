@@ -37,7 +37,7 @@ from sarand.constants import (
     CARGO_DENY_ADVISORY_CODES,
 )
 from sarand.core.failures import execution_cause
-from sarand.models.results import Advisory, CommandResult
+from sarand.models.results import Advisory, CommandResult, Issue
 
 _AUDIT_FIELD = re.compile(
     r"^(Crate|Version|Warning|Title|ID|URL|Severity|Solution):[ \t]+(\S.*?)[ \t]*$"
@@ -45,6 +45,11 @@ _AUDIT_FIELD = re.compile(
 _AUDIT_DB_URL = re.compile(r"Fetching advisory database from `([^`]+)`")
 _AUDIT_DB_COUNT = re.compile(r"Loaded (\d+) security advisories")
 _DENY_HEAD = re.compile(r"(?m)^(?:error|warning)\[([a-z0-9-]+)\]: (.*)$")
+# The generic line `cargo audit` prints per advisory ("Warning:   unsound"), and the
+# head of a `cargo deny` diagnostic ("error[unmaintained]: ...").
+# خط عمومی cargo audit برای هر advisory، و سر diagnostic در cargo deny.
+_AUDIT_KIND_LINE = re.compile(r"^Warning:\s+\w+$")
+_DENY_ISSUE = re.compile(r"^(?:error|warning)\[([a-z0-9-]+)\]:")
 _DENY_ID = re.compile(r"(?m)^\s*├ ID:[ \t]*(\S+)")
 _DENY_URL = re.compile(r"(?m)^\s*├ Advisory:[ \t]*(\S+)")
 _DENY_SOLUTION = re.compile(r"(?m)^\s*├ Solution:[ \t]*(.+?)[ \t]*$")
@@ -203,3 +208,25 @@ def collect_advisories(results: Iterable[CommandResult]) -> list[Advisory]:
         merged.values(),
         key=lambda a: (_kind_rank(a.kind), a.id, a.package, a.version),
     )
+
+
+def is_advisory_line(issue: Issue, advisories: Iterable[Advisory]) -> bool:
+    """True for a tool-output line that one of the parsed advisories already
+    represents (R13-G): the anonymous `Warning:   unsound` line of cargo audit, or
+    a cargo deny `error[vulnerability]` / `warning[unmaintained]` head.
+
+    The line must come from a check that produced at least one advisory, so an
+    advisory-shaped line is never dropped when nothing was parsed from its tool.
+    Other lines of the same tool (`error: 5 vulnerabilities found!`, a license
+    violation, a duplicate crate) are not advisory lines and stay.
+    خطی که یکی از advisoryهای پارس‌شده همان را نمایندگی می‌کند؛ بقیه‌ی خطوط می‌مانند.
+    """
+    if not any(issue.source in a.sources for a in advisories):
+        return False
+    tool = _tool_name(issue.source)
+    if tool == _TOOL_AUDIT:
+        return bool(_AUDIT_KIND_LINE.match(issue.message))
+    if tool.startswith(_TOOL_DENY):
+        match = _DENY_ISSUE.match(issue.message)
+        return bool(match and match.group(1) in CARGO_DENY_ADVISORY_CODES)
+    return False

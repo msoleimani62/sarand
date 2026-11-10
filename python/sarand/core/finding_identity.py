@@ -31,7 +31,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Iterable
 
-from sarand.models.results import Failure
+from sarand.models.results import Advisory, Failure
 
 ROLE_PRIMARY = "primary"
 ROLE_SUMMARY = "summary"
@@ -44,6 +44,7 @@ KIND_TEST_FAILED = "test_suite_failed"
 KIND_TEST_UNAVAILABLE = "test_check_unavailable"
 KIND_BROKEN_SYMLINKS = "broken_symlinks"
 KIND_SECRETS = "hardcoded_secrets"
+KIND_ADVISORY = "dependency_advisory"
 KIND_PYTHON_SYNTAX = "python_syntax_error"
 KIND_PYTHON_MISSING_MODULE = "python_missing_module"
 
@@ -78,6 +79,12 @@ def failure_id(failure: Failure) -> str:
         failure.cause,
         failure.subject,
     )
+
+
+def advisory_finding_id(advisory: Advisory) -> str:
+    """The id of one advisory: its advisory id, package and version. The checks
+    that reported it, the severity and the title are evidence, not identity."""
+    return finding_id(KIND_ADVISORY, advisory.id, advisory.package, advisory.version)
 
 
 def kind_of(fid: str) -> str:

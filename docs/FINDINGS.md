@@ -62,5 +62,6 @@ survive serialization. See `docs/JSON_SCHEMA.md`.
 
 An id identifies a condition, not a location: the same tool failing in two
 components under the same label has the same id, and the `failures` list is not
-collapsed. SARIF results carry their own identity (advisory id, rule); using
-these ids there belongs to the renderer-consistency work.
+collapsed. SARIF advisory results carry the advisory's own identity as
+`partialFingerprints.sarandFindingId/v1`; the failures and critical ids are in the
+`sarand` property bag (see `docs/RENDERERS.md`).

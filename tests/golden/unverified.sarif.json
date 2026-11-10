@@ -11,6 +11,86 @@
         }
       },
       "results": [],
+      "properties": {
+        "sarand": {
+          "checkStates": [
+            {
+              "group": "tests",
+              "check": "pytest",
+              "state": "passed"
+            },
+            {
+              "group": "tests",
+              "check": "cargo test",
+              "state": "unavailable"
+            },
+            {
+              "group": "quality",
+              "check": "ruff check",
+              "state": "unavailable"
+            },
+            {
+              "group": "quality",
+              "check": "mypy",
+              "state": "passed"
+            },
+            {
+              "group": "security",
+              "check": "pip-audit",
+              "state": "passed"
+            },
+            {
+              "group": "security",
+              "check": "cargo audit",
+              "state": "unavailable"
+            }
+          ],
+          "failures": [],
+          "knownIssueIds": [],
+          "health": {
+            "score": 63.0,
+            "maxScore": 100.0,
+            "grade": "D",
+            "executionCoverage": 0.5,
+            "checksRequested": 6,
+            "checksExecuted": 3,
+            "coverageByGroup": {
+              "tests": {
+                "requested": 2,
+                "executed": 1
+              },
+              "quality": {
+                "requested": 2,
+                "executed": 1
+              },
+              "security": {
+                "requested": 2,
+                "executed": 1
+              }
+            },
+            "coverageGaps": [
+              {
+                "check": "cargo test",
+                "state": "unavailable",
+                "reason": "timeout"
+              },
+              {
+                "check": "ruff check",
+                "state": "unavailable",
+                "reason": "tool_not_found"
+              },
+              {
+                "check": "cargo audit",
+                "state": "unavailable",
+                "reason": "timeout"
+              }
+            ],
+            "criticalFindingIds": [
+              "test_check_unavailable:978d4c63b3cc"
+            ]
+          }
+        }
+      },
       "originalUriBaseIds": {
         "PROJECTROOT": {
           "uri": "<PROJECT_ROOT_URI>/"

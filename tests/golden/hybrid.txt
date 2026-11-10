@@ -48,4 +48,5 @@ Architecture and Risks
     - DUPLICATE-FILES: Identical content among the files the scan hashed (its size cap applies).
     - GIT-STATE: Says nothing about security or quality.
 Health: 76.0/100 (C) -- execution coverage 86% (6 of 7 requested checks ran to a verdict); not run: go test (skipped: go not installed)
+Failures: 3 classified -- see full report
 Secrets: 2 potential finding(s) -- see full report

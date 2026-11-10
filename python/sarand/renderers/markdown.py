@@ -26,6 +26,16 @@ from sarand.core.quick_context import (
     build_quick_context,
     format_framework,
 )
+from sarand.core.report_views import (
+    ADVISORY_COLUMNS,
+    FAILURE_COLUMNS,
+    advisory_databases,
+    advisory_intro,
+    advisory_line_note,
+    advisory_rows,
+    collect_issues,
+    failure_rows,
+)
 from sarand.core.risks import evaluate_risks
 from sarand.models.results import CommandResult, HealthScore, Issue, ReportData
 from sarand.progress import status
@@ -462,20 +472,20 @@ def _coverage_markdown(h: HealthScore) -> list[str]:
 
 def _render_failures(data: ReportData) -> list[str]:
     """The classified failures of the checks (core/failures.py, R13-A): which
-    tool, in which category, why it failed, and the evidence labels that decided
-    it. A category says WHAT kind of failure it is; it is not a verdict on the
-    project (a security finding is a tool result, not proof of exploitability)."""
+    tool, in which category, why it failed, the evidence labels that decided it
+    and the finding id (R13-F). A category says WHAT kind of failure it is; it is
+    not a verdict on the project (a security finding is a tool result, not proof
+    of exploitability). The rows come from core/report_views.py (R13-G)."""
     lines = [
         "## Failure classification",
         "",
-        "| Tool | Group | Category | Cause | Subject | Evidence |",
-        "|---|---|---|---|---|---|",
+        "| " + " | ".join(FAILURE_COLUMNS) + " |",
+        "|" + "---|" * len(FAILURE_COLUMNS),
     ]
-    for f in data.failures:
-        evidence = ", ".join(f.signals) or "-"
+    for tool, group, category, cause, subject, evidence, fid in failure_rows(data):
         lines.append(
-            f"| {_cell(f.tool)} | {f.group or '-'} | `{f.category}` | {f.cause} "
-            f"| {_cell(f.subject) or '-'} | {_cell(evidence)} |"
+            f"| {_cell(tool)} | {group} | `{category}` | {cause} "
+            f"| {_cell(subject)} | {_cell(evidence)} | `{fid}` |"
         )
     lines.append("")
     return lines
@@ -487,38 +497,37 @@ def _render_advisories(data: ReportData) -> list[str]:
     The rows are tool results, not proof that the project is exploitable:
     `Applicability` says whether anyone checked that the project reaches the
     affected code (today always `unknown`), and `Severity` is the upstream value
-    when the tool printed one (`-` when it did not; none is guessed).
+    when the tool printed one (`-` when it did not; none is guessed). The rows
+    come from core/report_views.py (R13-G).
     هر ردیف یک advisory گزارش‌شده‌ی ابزار است، نه اثبات آسیب‌پذیری پروژه.
     """
     if not data.advisories:
         return []
-    databases = sorted({a.database for a in data.advisories if a.database})
-    lines = [
-        "## Dependency advisories",
-        "",
-        (
-            f"{len(data.advisories)} advisory(ies) reported by the security tools. "
-            "These are tool results, not proof that this project is exploitable: "
-            "no reachability analysis was done, so applicability is unknown for "
-            "every row. Severity is shown only when the tool printed one."
-        ),
-        "",
-    ]
+    databases = advisory_databases(data)
+    lines = ["## Dependency advisories", "", advisory_intro(data), ""]
     if databases:
         lines.append(f"Database: {_cell('; '.join(databases))}")
         lines.append("")
     lines.extend(
         [
-            "| ID | Package | Version | Kind | Severity | Fixed in | Reported by | Applicability |",
-            "|---|---|---|---|---|---|---|---|",
+            "| " + " | ".join(ADVISORY_COLUMNS) + " |",
+            "|" + "---|" * len(ADVISORY_COLUMNS),
         ]
     )
-    for a in data.advisories:
-        fixed = ", ".join(a.fixed_versions) or "-"
+    for (
+        adv_id,
+        package,
+        version,
+        kind,
+        severity,
+        fixed,
+        sources,
+        applic,
+    ) in advisory_rows(data):
         lines.append(
-            f"| {_cell(a.id)} | {_cell(a.package)} | {_cell(a.version)} | {a.kind} "
-            f"| {_cell(a.severity or '-')} | {_cell(fixed)} "
-            f"| {_cell(', '.join(a.sources))} | {a.applicability} |"
+            f"| {_cell(adv_id)} | {_cell(package)} | {_cell(version)} | {kind} "
+            f"| {_cell(severity)} | {_cell(fixed)} "
+            f"| {_cell(sources)} | {applic} |"
         )
     lines.append("")
     return lines
@@ -827,15 +836,17 @@ def render(
     # advisory بدون چک شکست‌خورده هم می‌شود (cargo audit با فقط warning کد ۰ می‌دهد).
     parts.extend(_render_advisories(data))
 
-    all_warnings: list[Issue] = []
-    all_errors: list[Issue] = []
-    for r in data.test_results + data.quality_results + data.security_results:
-        all_warnings.extend(r.warnings)
-        all_errors.extend(r.errors)
+    issue_view = collect_issues(data)
     parts.extend(
-        _render_issues("Warnings detected", all_warnings, full_output=full_output)
+        _render_issues(
+            "Warnings detected", issue_view.warnings, full_output=full_output
+        )
     )
-    parts.extend(_render_issues("Errors detected", all_errors, full_output=full_output))
+    parts.extend(
+        _render_issues("Errors detected", issue_view.errors, full_output=full_output)
+    )
+    if note := advisory_line_note(issue_view):
+        parts.extend([note, ""])
 
     parts.extend(
         [

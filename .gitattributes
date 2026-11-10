@@ -20,3 +20,7 @@ tests/golden/unverified.md -whitespace
 # Preserve Markdown hard line breaks in the R13-E golden snapshot.
 # شکست خط‌های عمدی Markdown در Golden Fixture نسخه R13-E حفظ شود.
 tests/golden/markers.md -whitespace
+
+# Real Ramz tool output kept byte for byte in the R13-G golden snapshots.
+# خروجی واقعی ابزار Ramz در snapshotهای golden نسخه R13-G بایت به بایت حفظ شود.
+tests/golden/advisories.* -whitespace
