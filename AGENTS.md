@@ -90,7 +90,9 @@ sarand/
 │   │   ├── base.py                 LanguageAnalyzer Protocol
 │   │   ├── registry.py             built-in list + entry_points plugin loading
 │   │   └── {python,rust,go,node,cpp,java,android}_analyzer.py
-│   ├── core/                      health.py, ai_summary.py, issues.py, secrets.py, doctor.py
+│   ├── core/                      health.py, ai_summary.py, issues.py, secrets.py, doctor.py,
+│   │                                  failures.py, check_states.py, execution_coverage.py, advisories.py,
+│   │                                  markers.py, finding_identity.py, report_views.py (R13, see §4.14)
 │   ├── renderers/                 one file per output format (§4.4)
 │   ├── userconfig.py              persisted config (~/.config/sarand/config.json)
 │   ├── config.py                  CLI-argument → runtime config resolution
@@ -380,6 +382,37 @@ uninstalled and announced before installing the current source tree —
 this also fixes a real staleness bug: pipx installs are not editable by
 default, so re-running a plain `pipx install` after pulling new sarand
 code does not actually pick up the changes without an uninstall first).
+
+### 4.14 A report states only what the evidence supports (R13)
+
+The rules below came out of round 5.91 and are pinned by tests; the evidence is in
+`docs/R13_COMPLETION_REPORT.md`.
+
+- **One fact, one place.** A fact that several report sections or formats show
+  (the error and warning lists, the failure rows, the advisory rows, the state of
+  a check) is decided once, in `core/report_views.py` or the module that owns it.
+  A renderer chooses how to draw it and never recomputes it.
+- **One reading of a check's state** (`core/check_states.py`): passed, failed,
+  skipped, inconclusive, unavailable, unknown. Health, risks, Quick Context and
+  every renderer ask it; none reads `skipped` or the exit code itself.
+- **No classification inflation.** A check that could not run is not a finding; a
+  security finding, a dependency policy violation and a tool failure are three
+  things; an advisory is a tool result and its applicability stays `unknown`
+  without evidence; a skipped, inconclusive or unavailable check is never a pass;
+  a lint failure is never a compilation failure; only a TODO or FIXME written as a
+  task is debt.
+- **A number states what it measures.** Execution coverage is `executed /
+  requested` and says so in every report; nothing requested gives "not available",
+  never 100%. The legacy `confidence` field is deprecated and not shown.
+- **Identity comes from structured fields**, never from rendered text
+  (`core/finding_identity.py`); findings that read alike but differ stay separate.
+- **No score change without measured evidence.** A change to a weight, a maximum
+  or a threshold needs the current and proposed formula, the justification, the
+  expected behaviour change and before and after numbers on synthetic and real
+  fixtures.
+- **Real tool output kept as a fixture** (`tests/data/ramz_v0_3_2`, the `advisories`
+  golden) keeps its trailing whitespace: add a `-whitespace` rule for it to
+  `.gitattributes` in the same change.
 
 ---
 

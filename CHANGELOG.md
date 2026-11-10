@@ -8,6 +8,13 @@ version may include behaviour changes.
 
 ### Added
 
+- **R13 completion report and real-fixture tests (R13-H).**
+  `docs/R13_COMPLETION_REPORT.md` (and `.fa.md`) records the whole of R13: what
+  changed, the spec decisions, the test evidence per stage, the before and after on
+  a real project (Ramz) and the weight decision (original weights retained).
+  `tests/test_ramz_real_fixture.py` pins the real-fixture criteria in CI. `AGENTS.md`
+  gains section 4.14 and the architecture list, and both READMEs link the new
+  documents.
 - **Every format tells the same facts (R13-G).** The lists that Markdown, HTML,
   SARIF and Quick Context each computed themselves now come from one place
   (`core/report_views.py`). HTML gained Known issues, Failure classification

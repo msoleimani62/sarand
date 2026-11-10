@@ -438,6 +438,8 @@ A score is only as trustworthy as the checks behind it, so every report states i
 
 A security tool that fails can mean it could not run, it found an advisory, or a dependency broke a policy; sarand keeps these apart, lists every cargo audit / cargo deny advisory by id with its severity only when the tool printed one, and marks its applicability as unknown: an advisory is a tool result, not proof of exploitability. See [docs/SECURITY_EVIDENCE.md](https://github.com/msoleimani62/sarand/blob/main/docs/SECURITY_EVIDENCE.md).
 
+Every finding has a stable id, so one problem told in several places is counted once ([docs/FINDINGS.md](https://github.com/msoleimani62/sarand/blob/main/docs/FINDINGS.md)); only a TODO or FIXME written as a task counts as debt and the other markers are shown by category ([docs/MARKERS.md](https://github.com/msoleimani62/sarand/blob/main/docs/MARKERS.md)); every check has exactly one state ([docs/CHECK_STATES.md](https://github.com/msoleimani62/sarand/blob/main/docs/CHECK_STATES.md)); and Markdown, HTML, JSON, SARIF and text carry the same facts ([docs/RENDERERS.md](https://github.com/msoleimani62/sarand/blob/main/docs/RENDERERS.md)). The evidence behind these rules, with a before and after on a real project, is in [docs/R13_COMPLETION_REPORT.md](https://github.com/msoleimani62/sarand/blob/main/docs/R13_COMPLETION_REPORT.md).
+
 ## Configuration
 
 The report folder is chosen in this order:

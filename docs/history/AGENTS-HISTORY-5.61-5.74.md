@@ -1368,3 +1368,30 @@ omission). A default run is byte-identical: no golden changed.
 header, the subset property, the planted secret in four renderers, determinism,
 the duplicate-versus-unique case, a spy proving at most 20 files are read, a link
 that leaves the project, binary and huge files, Persian text counted in bytes.
+
+### 5.91 — Round R13: evidence-calibrated reporting (A to H) (2026-11-10)
+
+Scope, the stage order and the acceptance criteria were fixed by the R13 master
+prompt; the result, the real-fixture comparison on Ramz (`7252b1c` with its
+`Cargo.lock` change), the weight decision and the residual risks are in
+`docs/R13_COMPLETION_REPORT.md`. The rules that came out of it are `AGENTS.md`
+section 4.14.
+
+**What changed.** Stage A classifies failures by tool and evidence
+(`core/failures.py`) and retires the generic "Compilation or lint errors" sentence;
+B replaces the confidence figure with execution coverage and adds
+`core/check_states.py` and `core/execution_coverage.py`; C keeps dependency
+advisories as evidence (`core/advisories.py`) and stops counting a check that could
+not run as a finding; D makes health, risks and every report read a check's state
+from one place, with `docs/CHECK_STATES.md`; E classifies every marker
+(`core/markers.py`) so only a TODO or FIXME written as a task is debt; F gives each
+finding a stable id (`core/finding_identity.py`); G moves the lists every renderer
+needs into `core/report_views.py` and makes the five formats carry the same facts;
+H adds the real-fixture tests and the documentation. JSON schema 1.0 to 1.6.
+
+**Verification.** Each stage ran on the owner's terminal and in CI before the next
+began (counts and run ids in the report, section F). The real run on Ramz kept the
+score at 76.0 (C) and removed the false sentence, the 100% claim and the double
+counts. Lessons kept: real tool output needs a `-whitespace` rule in
+`.gitattributes` with the change that adds it; a key written as `payload["x"] =` in
+`json_renderer.py` is read as a top-level key by `tests/test_json_schema.py`.

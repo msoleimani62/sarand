@@ -578,6 +578,8 @@ reason  = "Used only as a build tool and never shipped"
 
 شکست یک ابزار امنیتی می‌تواند یعنی اجرا نشده، advisory پیدا کرده یا وابستگی سیاستی را نقض کرده؛ سرند این‌ها را جدا نگه می‌دارد، هر advisory از cargo audit و cargo deny را با شناسه فهرست می‌کند، شدت را فقط وقتی ابزار چاپ کرده نشان می‌دهد و applicability را نامعلوم علامت می‌زند: advisory نتیجه‌ی ابزار است، نه اثبات سوءاستفاده‌پذیری. جزئیات در [docs/SECURITY_EVIDENCE.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/SECURITY_EVIDENCE.fa.md).
 
+هر یافته شناسه‌ی پایدار دارد، پس مشکلی که در چند جا گفته شده یک بار شمرده می‌شود ([docs/FINDINGS.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/FINDINGS.fa.md))؛ فقط TODO یا FIXME نوشته‌شده به‌شکل کار بدهی حساب می‌شود و بقیه‌ی markerها با دسته نشان داده می‌شوند ([docs/MARKERS.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/MARKERS.fa.md))؛ هر چک دقیقاً یک وضعیت دارد ([docs/CHECK_STATES.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/CHECK_STATES.fa.md))؛ و Markdown، HTML، JSON، SARIF و text همان واقعیت‌ها را می‌گویند ([docs/RENDERERS.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/RENDERERS.fa.md)). شواهد پشت این قواعد، با مقایسه‌ی قبل و بعد روی یک پروژه‌ی واقعی، در [docs/R13_COMPLETION_REPORT.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/R13_COMPLETION_REPORT.fa.md) است.
+
 <a id="configuration"></a>
 
 ## پیکربندی
