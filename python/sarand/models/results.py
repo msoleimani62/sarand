@@ -14,7 +14,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sarand.structure.model import StructureData
 
 
 @dataclass
@@ -601,6 +604,10 @@ class ReportData:
     # one entry per (id, package, version); empty when none was reported.
     # R13-C: advisoryهای وابستگی از خروجی cargo audit / cargo deny.
     advisories: list[Advisory] = field(default_factory=list)
+    # R14-A: the repository structure (imports and cycles); None unless `--structure`
+    # was given, so a default run is byte-identical.
+    # R14-A: ساختار مخزن (importها و چرخه‌ها)؛ بدون `--structure` برابر None است.
+    structure: StructureData | None = None
     ai_summary: str = ""
     suggested_reading_order: list[str] = field(default_factory=list)
     workspace: WorkspaceInfo | None = None

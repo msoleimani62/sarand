@@ -324,6 +324,7 @@ Running sarand again on the same project replaces its previous report at that pa
 | `--no-health` | Skip the health score |
 | `--relevant-source[=TOKENS]` | Add a small selection of source snippets to read first, at most TOKENS × 3 bytes (default 6000 tokens, allowed 200 to 200000). Off by default |
 | `--focus TEXT` | With `--relevant-source`: prefer files whose path contains these words |
+| `--structure` | Read the project's Python source with `ast` (nothing is executed) and add its structure: modules, what they import, unresolved and dynamic imports, and import cycles. Off by default. See [docs/STRUCTURE.md](https://github.com/msoleimani62/sarand/blob/main/docs/STRUCTURE.md) |
 | `--cache` | Skip re-scanning TODOs and secrets in files unchanged since the last `--cache` run |
 | `--clear-cache` | Delete this project's scan cache and exit |
 | `--doctor` | Diagnose the environment and exit |

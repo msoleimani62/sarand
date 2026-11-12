@@ -52,6 +52,9 @@ maintenance notice a `note`, and neither is raised or lowered to look cleaner.
 
 ## Not covered
 
+The repository structure (`--structure`, `docs/STRUCTURE.md`) is carried by JSON,
+Markdown, HTML and text; it is not in SARIF.
+
 HTML does not draw the per-component tables of a workspace report differently
 from Markdown, and the text format is a summary by design (it points to the full
 report for the lists). The Ramz before/after comparison belongs to the R13

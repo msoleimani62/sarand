@@ -256,7 +256,7 @@ def test_health_critical_counts_distinct_ids_not_entries() -> None:
 def test_ids_survive_json_and_are_the_same_on_every_run() -> None:
     first = json.loads(json_renderer.render(_data([_audit()]), include_source=False))
     second = json.loads(json_renderer.render(_data([_audit()]), include_source=False))
-    assert first["schema_version"] == "1.6"
+    assert first["schema_version"] == "1.7"
     assert first["health"]["critical_ids"] == second["health"]["critical_ids"]
     assert first["known_issue_ids"] == second["known_issue_ids"]
     assert (

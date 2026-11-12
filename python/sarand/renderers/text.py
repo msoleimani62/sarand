@@ -45,6 +45,14 @@ def render(
         )
     # The same facts the other formats list in full (counts only, R13-G).
     # همان واقعیت‌هایی که قالب‌های دیگر کامل می‌آورند (اینجا فقط شمارش).
+    if data.structure is not None:
+        from sarand.structure.serialize import summary
+
+        info = summary(data.structure)
+        lines.append(
+            f"Structure: {info['modules']} modules, {info['imports']} imports, "
+            f"{info['cycles']} cycle(s) ({info['eager_cycles']} eager) -- see full report"
+        )
     if data.failures:
         lines.append(f"Failures: {len(data.failures)} classified -- see full report")
     if data.advisories:

@@ -9,6 +9,7 @@ print-friendly for that reason.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from html import escape
 
 from sarand.core.architecture import l3_lines
@@ -26,12 +27,19 @@ from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.core.report_views import (
     ADVISORY_COLUMNS,
     FAILURE_COLUMNS,
+    STRUCTURE_ATTENTION_COLUMNS,
+    STRUCTURE_EXTERNAL_COLUMNS,
+    STRUCTURE_NOTE,
     advisory_databases,
     advisory_intro,
     advisory_line_note,
     advisory_rows,
     collect_issues,
     failure_rows,
+    structure_attention_rows,
+    structure_cycle_lines,
+    structure_external_rows,
+    structure_lines,
 )
 from sarand.models.results import CommandResult, Issue, ReportData
 from sarand.progress import status
@@ -142,7 +150,7 @@ def _issues_table(title: str, issues: list[Issue], *, full_output: bool = False)
     return f"<h2>{escape(title)} ({len(issues)})</h2><table><tr><th>Source</th><th>Message</th></tr>{rows}</table>"
 
 
-def _table(columns: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
+def _table(columns: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
     head = "".join(f"<th>{escape(c)}</th>" for c in columns)
     body = "".join(
         "<tr>" + "".join(f"<td>{escape(cell)}</td>" for cell in row) + "</tr>"
@@ -182,6 +190,53 @@ def _advisories_html(data: ReportData) -> str:
         f"<p>{escape(advisory_intro(data))}</p>{db}"
         + _table(ADVISORY_COLUMNS, advisory_rows(data))
     )
+
+
+def _structure_html(data: ReportData) -> str:
+    """The repository structure (`--structure`), the same lists as Markdown."""
+    if data.structure is None:
+        return ""
+    out = [
+        "<h2>Repository structure</h2>",
+        f'<p class="meta">{escape(STRUCTURE_NOTE)}</p>',
+    ]
+    out.append(
+        "<ul>"
+        + "".join(f"<li>{escape(x)}</li>" for x in structure_lines(data))
+        + "</ul>"
+    )
+    cycle_lines, cycle_total = structure_cycle_lines(data)
+    if cycle_lines:
+        more = (
+            f"<li>... and {cycle_total - len(cycle_lines)} more (see the JSON report)</li>"
+            if cycle_total > len(cycle_lines)
+            else ""
+        )
+        out.append(
+            "<h3>Import cycles</h3><ul>"
+            + "".join(f"<li>{escape(x)}</li>" for x in cycle_lines)
+            + more
+            + "</ul>"
+        )
+    attention, attention_total = structure_attention_rows(data)
+    if attention:
+        out.append("<h3>Imports that could not be resolved</h3>")
+        out.append(_table(STRUCTURE_ATTENTION_COLUMNS, attention))
+        if attention_total > len(attention):
+            out.append(
+                f'<p class="meta">{attention_total - len(attention)} more not shown '
+                "(see the JSON report).</p>"
+            )
+    externals, external_total = structure_external_rows(data)
+    if externals:
+        out.append("<h3>External packages imported</h3>")
+        out.append(_table(STRUCTURE_EXTERNAL_COLUMNS, externals))
+        if external_total > len(externals):
+            out.append(
+                f'<p class="meta">{external_total - len(externals)} more not shown '
+                "(see the JSON report).</p>"
+            )
+    return "".join(out)
 
 
 def render(
@@ -326,6 +381,8 @@ def render(
     if data.ai_summary:
         parts.append(f"<h2>AI Summary</h2><pre>{escape(data.ai_summary)}</pre>")
 
+    if structure_section := _structure_html(data):
+        parts.append(structure_section)
     parts.append(
         _command_section("Test results", data.test_results, full_output=full_output)
     )

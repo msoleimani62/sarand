@@ -68,6 +68,9 @@ class SarandConfig:
     # L4: برابر None یعنی خاموش (پیش‌فرض).
     relevant_source_tokens: int | None = None
     focus: str = ""
+    # R14-A: build the repository structure (imports, cycles); off by default.
+    # R14-A: ساخت ساختار مخزن؛ به‌طور پیش‌فرض خاموش.
+    structure: bool = False
 
     @classmethod
     def from_args(cls, args: Any) -> SarandConfig:
@@ -125,6 +128,7 @@ class SarandConfig:
             use_cache=bool(getattr(args, "cache", False)),
             relevant_source_tokens=getattr(args, "relevant_source", None),
             focus=str(getattr(args, "focus", None) or ""),
+            structure=bool(getattr(args, "structure", False)),
             # Stored (not just used locally above) because renderers need
             # it too: --full's "nothing is skipped or cut short" promise
             # (its own --help text) has to reach the *rendering* layer,

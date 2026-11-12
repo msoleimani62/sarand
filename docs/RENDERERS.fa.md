@@ -51,6 +51,9 @@ advisory از نوع vulnerability یا unsound که ابزار گزارش کر�
 
 ## پوشش داده نشده
 
+ساختار مخزن (`--structure`، `docs/STRUCTURE.fa.md`) در JSON، Markdown، HTML و text می‌آید؛
+در SARIF نیست.
+
 HTML جدول‌های هر component در گزارش workspace را متفاوت از Markdown رسم نمی‌کند، و
 قالب text عمداً خلاصه است (برای فهرست‌ها به گزارش کامل ارجاع می‌دهد). مقایسه‌ی
 قبل/بعد روی Ramz به گزارش نهایی R13 مربوط است.

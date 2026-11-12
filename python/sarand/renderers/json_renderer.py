@@ -22,13 +22,14 @@ from sarand.models.results import (
     WorkspaceInfo,
 )
 from sarand.progress import status
+from sarand.structure.serialize import structure_payload
 
 # Version of the JSON schema (docs/JSON_SCHEMA.md), `MAJOR.MINOR`, independent of
 # the program's version. Adding a key or field bumps MINOR; removing, renaming,
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.6"
+JSON_SCHEMA_VERSION = "1.7"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
@@ -147,6 +148,10 @@ def render(
     # R13-F: شناسه‌ی هر known issue، به همان ترتیب.
     if data.known_issue_ids:
         payload["known_issue_ids"] = data.known_issue_ids
+    # R14-A (schema 1.7): the repository structure, only with `--structure`.
+    # R14-A (شمای ۱٫۷): ساختار مخزن، فقط با `--structure`.
+    if data.structure is not None:
+        payload["structure"] = structure_payload(data.structure)
     # R13-C: the dependency advisories the security tools reported (schema 1.3),
     # absent when none was reported. Tool results; applicability is "unknown".
     # R13-C: advisoryهای گزارش‌شده توسط ابزارهای امنیتی (شمای ۱٫۳)؛ وقتی نیست غایب.

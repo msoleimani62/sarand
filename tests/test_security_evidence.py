@@ -263,7 +263,7 @@ def test_the_security_risk_fires_for_a_real_failure() -> None:
 
 def test_json_carries_the_advisories_since_schema_1_3() -> None:
     payload = json.loads(json_renderer.render(_data([_audit(), _deny()])))
-    assert payload["schema_version"] == "1.6"
+    assert payload["schema_version"] == "1.7"
     assert len(payload["advisories"]) == 18
     first = payload["advisories"][0]
     assert first["severity"] is None

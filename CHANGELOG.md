@@ -6,6 +6,20 @@ version may include behaviour changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Repository structure, first part (R14-A1).** `--structure` reads the project's
+  Python source with `ast` (nothing is executed) and adds modules, imports and
+  import cycles to the report: every import carries its target class (repository,
+  standard library, declared external, unmatched external, unresolved, dynamic), a
+  confidence (definite, probable, unknown) from a documented rule, flags (conditional,
+  type-only, lazy, relative, star), its evidence and its location; a file that
+  cannot be parsed stays in the output with the reason. Declared dependencies,
+  installed packages and real imports are kept apart. JSON schema `1.7` (the new
+  `structure` object appears only with the flag; a default report is otherwise
+  unchanged). Symbols, entry points and stable structural identity follow in R14-A2
+  and R14-A3. See `docs/STRUCTURE.md`.
+
 ## [0.8.0] - 2026-11-10
 
 Reports now state only what the evidence supports (R13). The main changes: an

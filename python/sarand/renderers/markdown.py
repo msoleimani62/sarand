@@ -29,12 +29,19 @@ from sarand.core.quick_context import (
 from sarand.core.report_views import (
     ADVISORY_COLUMNS,
     FAILURE_COLUMNS,
+    STRUCTURE_ATTENTION_COLUMNS,
+    STRUCTURE_EXTERNAL_COLUMNS,
+    STRUCTURE_NOTE,
     advisory_databases,
     advisory_intro,
     advisory_line_note,
     advisory_rows,
     collect_issues,
     failure_rows,
+    structure_attention_rows,
+    structure_cycle_lines,
+    structure_external_rows,
+    structure_lines,
 )
 from sarand.core.risks import evaluate_risks
 from sarand.models.results import CommandResult, HealthScore, Issue, ReportData
@@ -470,6 +477,68 @@ def _coverage_markdown(h: HealthScore) -> list[str]:
     return out
 
 
+def _render_structure(data: ReportData) -> list[str]:
+    """The repository structure (`--structure`, R14-A): counts, import cycles,
+    imports that could not be resolved and the external packages imported. The full
+    graph is in the JSON report. The rows come from core/report_views.py."""
+    if data.structure is None:
+        return []
+    lines = ["## Repository structure", "", STRUCTURE_NOTE, ""]
+    lines.extend(f"- {line}" for line in structure_lines(data))
+    lines.append(
+        f"- Interpreter used to read the source: {data.structure.meta['interpreter']}"
+    )
+    lines.append("")
+    cycle_lines, cycle_total = structure_cycle_lines(data)
+    if cycle_lines:
+        lines.extend(["### Import cycles", ""])
+        lines.extend(f"- {text}" for text in cycle_lines)
+        if cycle_total > len(cycle_lines):
+            lines.append(
+                f"- ... and {cycle_total - len(cycle_lines)} more (see the JSON report)"
+            )
+        lines.append("")
+    attention, attention_total = structure_attention_rows(data)
+    if attention:
+        lines.extend(
+            [
+                "### Imports that could not be resolved",
+                "",
+                "| " + " | ".join(STRUCTURE_ATTENTION_COLUMNS) + " |",
+                "|" + "---|" * len(STRUCTURE_ATTENTION_COLUMNS),
+            ]
+        )
+        for module, statement, why, where in attention:
+            lines.append(
+                f"| {_cell(module)} | `{_cell(statement)}` | {why} | {where} |"
+            )
+        if attention_total > len(attention):
+            lines.append("")
+            lines.append(
+                f"{attention_total - len(attention)} more not shown (see the JSON report)."
+            )
+        lines.append("")
+    externals, external_total = structure_external_rows(data)
+    if externals:
+        lines.extend(
+            [
+                "### External packages imported",
+                "",
+                "| " + " | ".join(STRUCTURE_EXTERNAL_COLUMNS) + " |",
+                "|" + "---|" * len(STRUCTURE_EXTERNAL_COLUMNS),
+            ]
+        )
+        for name, klass, declared, count in externals:
+            lines.append(f"| {_cell(name)} | {klass} | {_cell(declared)} | {count} |")
+        if external_total > len(externals):
+            lines.append("")
+            lines.append(
+                f"{external_total - len(externals)} more not shown (see the JSON report)."
+            )
+        lines.append("")
+    return lines
+
+
 def _render_failures(data: ReportData) -> list[str]:
     """The classified failures of the checks (core/failures.py, R13-A): which
     tool, in which category, why it failed, the evidence labels that decided it
@@ -804,6 +873,7 @@ def render(
             )
         parts.append("")
 
+    parts.extend(_render_structure(data))
     parts.extend(_render_package_results(data))
     parts.extend(["## Test results", ""])
     if not data.test_results:

@@ -79,6 +79,7 @@ from sarand.scanners.essential_files import collect_essential_files
 from sarand.scanners.git import collect_git_snapshot
 from sarand.scanners.stats import collect_project_stats
 from sarand.scanners.todos import filter_todos, scan_todos
+from sarand.structure import build_structure
 from sarand.userconfig import save_persisted_config
 from sarand.utils.command import set_max_concurrent_commands
 from sarand.utils.fs import human_size
@@ -296,6 +297,16 @@ Trust model:
         metavar="TEXT",
         default=None,
         help="With --relevant-source: prefer files whose path contains these words",
+    )
+    parser.add_argument(
+        "--structure",
+        action="store_true",
+        help=(
+            "Read the project's Python source with `ast` (nothing is executed) and "
+            "add its structure: modules, what they import (repository, standard "
+            "library, declared and unmatched external packages), unresolved and "
+            "dynamic imports, and import cycles. Off by default"
+        ),
     )
     return parser
 
@@ -708,6 +719,14 @@ async def run(config: SarandConfig) -> int:
     known = [text for _, text in known_entries]
     advisories = collect_advisories(security_results)
 
+    # R14-A: the repository structure reads only files the report may read (nothing
+    # flagged as a secret) and never executes them.
+    # R14-A: ساختار مخزن فقط فایل‌های مجاز گزارش را می‌خواند و هرگز اجرا نمی‌کند.
+    structure = None
+    if config.structure:
+        status("Building the repository structure...")
+        structure = build_structure(root, included, skipped)
+
     data = ReportData(
         project_root=root,
         generated_at=datetime.now(UTC),
@@ -726,6 +745,7 @@ async def run(config: SarandConfig) -> int:
         tree_text=tree_text,
         included_files=included,
         skipped_files=skipped,
+        structure=structure,
         excluded_secret_files=excluded_secrets,
         secret_findings=secret_findings,
         known_issues=known,

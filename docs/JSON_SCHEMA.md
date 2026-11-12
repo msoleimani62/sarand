@@ -2,7 +2,7 @@
 
 `sarand --format json` writes one JSON object. This page lists every top-level key, the fields of its nested objects, and what a script may rely on. The current version is below; a test keeps this page and the code in step, so a key that exists but is not listed here fails the build.
 
-Current version: **1.6**
+Current version: **1.7**
 
 ## Compatibility policy
 
@@ -35,6 +35,7 @@ Current version: **1.6**
 | `health` | object or null | always | The health score (fields below); `null` with `--no-health`. |
 | `known_issues` | array of strings | always | Problems the scan itself noticed. |
 | `known_issue_ids` | array of strings | only when `known_issues` was built from classified failures | The stable finding id of each known issue, in the same order (R13-F). See `docs/FINDINGS.md`. |
+| `structure` | object | only with `--structure` | The repository structure (R14-A): files with their provenance, modules, imports with target class, confidence and evidence, external packages, and import cycles. Described in `docs/STRUCTURE.md`. |
 | `ai_summary` | string | always | A plain-language summary meant for an AI reader. |
 | `suggested_reading_order` | array of strings | always | Every included file, most important first. Quick Context shows the first ten. |
 | `included_files` | array of strings | always | Project-relative paths whose content may be shown. |
@@ -78,6 +79,7 @@ The fields of the objects named above, in the order they are written.
 
 ## Version history
 
+- **1.7** (R14-A1): added the `structure` object, present only with `--structure`: `schema`, `language`, `meta` (interpreter, standard-library source, source roots), `summary` (counts), `files` (each with provenance and completeness), `modules`, `externals`, `edges` (an import with `target_class`, `confidence`, `resolution_method`, `flags`, `evidence`, `location`) and `cycles`. A default report is unchanged apart from the version number. See `docs/STRUCTURE.md`.
 - **1.6** (R13-G): each entry of `test_results`, `quality_results` and `security_results` gained `state`, and `health.checks_inconclusive` is now always present (it used to be left out when empty, although this page listed it). Tool lines that restate a dependency advisory are no longer counted twice in the Quick Context error and warning counts. See `docs/RENDERERS.md`.
 - **1.5** (R13-F): added `known_issue_ids`, `health.critical_ids`, `quick_context.critical_finding_ids` and `id` in each entry of `failures`: a stable finding id (`<kind>:<12 hex>`) built from structured fields, never from the sentence. The same condition told by a health critical failure and by a known issue has one id, and Quick Context shows it once (the known issue stays in `known_issues`). `health.critical_failures` no longer repeats one condition twice. See `docs/FINDINGS.md`.
 - **1.4** (R13-E): each entry of `todos` gained `category`, and the optional key `todo_categories` was added. The scanner now reports every marker on a line (it used to report the first only), so counts can rise. Only `actionable` markers (TODO or FIXME written as a task) count toward the health score and the `TODO-CLUSTER` risk; BUG, SAFETY, HACK, XXX and a mere mention are discovered and shown but not scored. SARIF marker results carry the category in `properties.category`. See `docs/MARKERS.md`.
