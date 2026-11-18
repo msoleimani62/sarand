@@ -51,7 +51,9 @@ def render(
         info = summary(data.structure)
         lines.append(
             f"Structure: {info['modules']} modules, {info['imports']} imports, "
-            f"{info['cycles']} cycle(s) ({info['eager_cycles']} eager) -- see full report"
+            f"{info['cycles']} cycle(s) ({info['eager_cycles']} eager), "
+            f"{info['symbols']} symbols, {info['relations']} relations "
+            "-- see full report"
         )
     if data.failures:
         lines.append(f"Failures: {len(data.failures)} classified -- see full report")

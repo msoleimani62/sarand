@@ -34,6 +34,22 @@ version may include behaviour changes.
   producers used, the unresolved section is named for what it lists and every
   cell of it is escaped. See `docs/STRUCTURE.md` and `docs/R14A1_AUDIT_REMEDIATION.md`.
 
+- **Symbols, relations and entry points (R14-A2).** `--structure` now also lists the
+  symbols the source defines (class, function, method, property, variable, constant,
+  each with a stable `sym:` id that holds no line number) and the relations between
+  them: calls, inheritance and references, each with a confidence from a documented rule
+  (`definite` for a name that binds once by Python's own rules, `probable` where an
+  assumption is needed such as `self.m()`, a base-class member, a star import with a
+  static `__all__`, a non-transparent decorator or a patched attribute, `unknown` for
+  `getattr` with a computed name, a star import without `__all__`, a module `__getattr__`
+  or a name bound two ways). No types are inferred. Every usage site is either stored or
+  counted by a named reason (`structure.sites`), uses of outside code are aggregated in
+  `external_use`, and entry points (`__main__` blocks and files, `pyproject` scripts and
+  entry-point groups resolved to symbols, pytest test roots, probable framework
+  objects) carry their rule, confidence and evidence. JSON schema `1.8`, structure
+  schema `2`; the default report is unchanged apart from the version number. See
+  `docs/STRUCTURE.md`.
+
 ## [0.8.0] - 2026-11-10
 
 Reports now state only what the evidence supports (R13). The main changes: an

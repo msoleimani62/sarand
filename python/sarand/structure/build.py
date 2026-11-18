@@ -26,11 +26,17 @@ from pathlib import Path, PurePosixPath
 
 from sarand.core.components import declared_dependencies
 from sarand.structure.cycles import find_cycles
+from sarand.structure.entry_points import find_entry_points
+from sarand.structure.facts import FileFacts, extract_facts
 from sarand.structure.imports import ModuleIndex, normalise_distribution, resolve_record
 from sarand.structure.model import (
     COMPLETENESS_FAILED,
+    COMPLETENESS_PARTIAL,
     COMPLETENESS_SKIPPED_SIZE,
     LANGUAGE_PYTHON,
+    LIM_NODE_CAP,
+    LIM_RECURSION,
+    LIM_RESOURCE,
     LIM_TOO_LARGE,
     LIM_UNREADABLE,
     PARSER_PYTHON_AST,
@@ -40,6 +46,7 @@ from sarand.structure.model import (
     TARGET_STDLIB,
     Edge,
     ExternalRef,
+    ExternalUsage,
     FileEntity,
     ModuleEntity,
     Provenance,
@@ -47,6 +54,7 @@ from sarand.structure.model import (
     edge_sort_key,
 )
 from sarand.structure.python_extract import extract_imports
+from sarand.structure.resolve import Resolver
 from sarand.structure.roots import (
     DeclaredRoot,
     declared_roots,
@@ -104,12 +112,15 @@ def build_structure(
     *,
     stdlib: frozenset[str] | None = None,
     reader: Callable[[Path, str], bytes | None] = _read,
+    untracked: list[tuple[str, str, str]] | None = None,
 ) -> StructureData:
     """Build the structure of the project under `root`.
 
     `included` is every file of the project the report may read (relative paths, any
     extension: manifests are needed too); `skipped` the files over the size limit as
-    (path, size). `stdlib` and `reader` can be replaced in tests.
+    (path, size). `stdlib` and `reader` can be replaced in tests. `untracked`, when a
+    list is given, receives one `(reason, location, evidence)` for every usage site that
+    was counted and not stored (used by the evaluation; not part of the output).
     """
     interpreter = platform.python_version()
     stdlib_names = stdlib if stdlib is not None else frozenset(sys.stdlib_module_names)
@@ -182,6 +193,7 @@ def build_structure(
 
     files: list[FileEntity] = []
     edges: list[Edge] = []
+    all_facts: list[FileFacts] = []
     for rel in py_paths:
         importer = by_path.get(rel)
         label = importer.name if importer is not None else ""
@@ -223,6 +235,16 @@ def build_structure(
             )
             continue
         result = extract_imports(rel, data, interpreter)
+        provenance = result.provenance
+        extensions = dict(result.extensions)
+        if result.tree is not None:
+            facts = extract_facts(rel, data, result.tree, label, importer)
+            all_facts.append(facts)
+            provenance = _merge_provenance(provenance, facts.limits)
+            if facts.dunder_all is not None:
+                extensions["dunder_all"] = ",".join(facts.dunder_all)
+            if facts.has_module_getattr:
+                extensions["has_module_getattr"] = True
         files.append(
             FileEntity(
                 path=rel,
@@ -230,9 +252,9 @@ def build_structure(
                 size=result.size,
                 sha256=result.sha256,
                 module=label,
-                provenance=result.provenance,
+                provenance=provenance,
                 error=result.error,
-                extensions=dict(result.extensions),
+                extensions=extensions,
             )
         )
         source = label or rel
@@ -242,6 +264,29 @@ def build_structure(
     edges.sort(key=edge_sort_key)
     externals = _externals(edges, index)
     cycles = find_cycles(edges)
+    resolver = Resolver(all_facts, index)
+    resolved = resolver.resolve_all(all_facts, untracked)
+    manifests = [
+        (rel, text.decode("utf-8", errors="replace"))
+        for rel in included_posix
+        if rel.rsplit("/", 1)[-1] == manifest_name()
+        and (text := reader(root, rel)) is not None
+    ]
+    entry_points = find_entry_points(manifests, included_posix, all_facts, resolver)
+    symbols = sorted(
+        (info.symbol for facts in all_facts for info in facts.symbols),
+        key=lambda s: (s.path, s.location.line, s.location.col, s.qualname, s.id),
+    )
+    external_use = tuple(
+        ExternalUsage(
+            name=name,
+            target_class=use.target_class,
+            calls=use.calls,
+            inherits=use.inherits,
+            references=use.references,
+        )
+        for name, use in sorted(resolved.external_use.items())
+    )
     all_modules = sorted(
         [*entities, *namespace_entities], key=lambda m: (m.name, m.root, m.path)
     )
@@ -265,6 +310,28 @@ def build_structure(
         externals=externals,
         edges=tuple(edges),
         cycles=cycles,
+        symbols=tuple(symbols),
+        relations=tuple(resolved.relations),
+        entry_points=entry_points,
+        external_use=external_use,
+        sites=resolved.sites,
+    )
+
+
+def _merge_provenance(base: Provenance, extra: set[str]) -> Provenance:
+    """The file's provenance after the symbol pass: the limits it hit are added, and a
+    guard that cut the walk short (recursion, node cap, memory) makes it `partial`."""
+    if not extra:
+        return base
+    completeness = base.completeness
+    if extra & {LIM_RECURSION, LIM_NODE_CAP, LIM_RESOURCE} and completeness == "full":
+        completeness = COMPLETENESS_PARTIAL
+    return Provenance(
+        base.parser,
+        base.parser_version,
+        base.rules,
+        completeness,
+        tuple(sorted({*base.limitations, *extra})),
     )
 
 

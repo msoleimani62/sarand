@@ -174,6 +174,10 @@ def structure_lines(data: ReportData) -> list[str]:
     by_file = s["files_by_completeness"]
     by_class = s["imports_by_class"]
     by_conf = s["imports_by_confidence"]
+    kinds = s["symbols_by_kind"]
+    rel = s["relations_by_kind"]
+    rconf = s["relations_by_confidence"]
+    sites = data.structure.sites
     return [
         (
             f"Python files: {s['files']} (parsed fully {by_file['full']}, partly "
@@ -199,6 +203,23 @@ def structure_lines(data: ReportData) -> list[str]:
             f"Import cycles: {s['cycles']} ({s['eager_cycles']} eager, that is able to "
             "fail at import time)"
         ),
+        (
+            f"Symbols: {s['symbols']} (classes {kinds['class']}, functions "
+            f"{kinds['function']}, methods {kinds['method']}, properties "
+            f"{kinds['property']}, variables {kinds['variable']}, constants "
+            f"{kinds['constant']})"
+        ),
+        (
+            f"Relations between symbols: {s['relations']} (calls {rel['calls']}, "
+            f"inherits {rel['inherits']}, references {rel['references']}); confidence "
+            f"definite {rconf['definite']}, probable {rconf['probable']}, unknown "
+            f"{rconf['unknown']}"
+        ),
+        (
+            f"Usage sites read: {sites.get('total', 0)}; stored as relations or "
+            "counted by reason (see the JSON report), never dropped silently"
+        ),
+        f"Entry points: {s['entry_points']}",
     ]
 
 

@@ -148,6 +148,10 @@ class ExtractResult:
     imports: tuple[ImportRecord, ...] = ()
     error: SourceLocation | None = None
     extensions: dict[str, str | int | bool] = field(default_factory=dict)
+    # The parsed tree, kept only so the caller can read symbols from the same parse
+    # without parsing twice; it is not part of the result's identity.
+    # درخت تجزیه‌شده؛ برای جلوگیری از تجزیه‌ی دوباره، بخشی از هویت نتیجه نیست.
+    tree: ast.Module | None = field(default=None, repr=False, compare=False)
 
 
 def _provenance(
@@ -177,6 +181,30 @@ def byte_column(lines: Sequence[str], line: int, char_offset: int | None) -> int
     if not char_offset or char_offset < 1 or not 1 <= line <= len(lines):
         return 0
     return len(lines[line - 1][: char_offset - 1].encode("utf-8", "replace"))
+
+
+def evidence_of(lines: Sequence[str], node: ast.AST) -> str:
+    """The node's own text: from its start column to its end column (a trailing
+    comment is not part of it), lines joined by single spaces, bounded by
+    `MAX_EVIDENCE_CHARS`. Columns are UTF-8 byte offsets, as `ast` gives them.
+
+    متن خود گره: از ستون شروع تا ستون پایان، خطوط با فاصله‌ی تکی، با سقف طول."""
+    start = int(getattr(node, "lineno", 0) or 0)
+    end = int(getattr(node, "end_lineno", None) or start)
+    if not 1 <= start <= len(lines):
+        return ""
+    end = min(end, len(lines))
+    col = int(getattr(node, "col_offset", 0) or 0)
+    end_col = getattr(node, "end_col_offset", None)
+    raw = [line.encode("utf-8") for line in lines[start - 1 : end]]
+    if end_col is not None:
+        raw[-1] = raw[-1][: int(end_col)]
+    raw[0] = raw[0][col:]
+    parts = [p.decode("utf-8", "replace").strip() for p in raw]
+    text = " ".join(p for p in parts if p)
+    if len(text) <= MAX_EVIDENCE_CHARS:
+        return text
+    return text[: MAX_EVIDENCE_CHARS - 3] + "..."
 
 
 # --- scope tables ---------------------------------------------------------------------
@@ -399,25 +427,8 @@ class _Walker:
         )
 
     def evidence(self, node: ast.AST) -> str:
-        """The statement's own text: from its start column to its end column (a
-        trailing comment is not part of it), lines joined by single spaces, bounded
-        by `MAX_EVIDENCE_CHARS`. Columns are UTF-8 byte offsets, as `ast` gives them."""
-        start = int(getattr(node, "lineno", 0) or 0)
-        end = int(getattr(node, "end_lineno", None) or start)
-        if not 1 <= start <= len(self.source_lines):
-            return ""
-        end = min(end, len(self.source_lines))
-        col = int(getattr(node, "col_offset", 0) or 0)
-        end_col = getattr(node, "end_col_offset", None)
-        raw = [line.encode("utf-8") for line in self.source_lines[start - 1 : end]]
-        if end_col is not None:
-            raw[-1] = raw[-1][: int(end_col)]
-        raw[0] = raw[0][col:]
-        parts = [p.decode("utf-8", "replace").strip() for p in raw]
-        text = " ".join(p for p in parts if p)
-        if len(text) <= MAX_EVIDENCE_CHARS:
-            return text
-        return text[: MAX_EVIDENCE_CHARS - 3] + "..."
+        """The statement's own text (see `evidence_of`)."""
+        return evidence_of(self.source_lines, node)
 
     def flags(self, extra: tuple[str, ...] = ()) -> tuple[str, ...]:
         found = set(extra)
@@ -850,4 +861,5 @@ def extract_imports(path: str, data: bytes, interpreter_version: str) -> Extract
         size,
         _provenance(interpreter_version, completeness, limits),
         imports=tuple(ordered),
+        tree=tree,
     )

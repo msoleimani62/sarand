@@ -528,3 +528,9 @@ def _submodule_edges(
             )
         )
     return edges
+
+
+# Public names for the symbol resolver (R14-A2): the same rules, one implementation.
+# نام‌های عمومی برای حل‌کننده‌ی نماد؛ همان قواعد، یک پیاده‌سازی.
+pick_module = _pick
+relative_base = _relative_base

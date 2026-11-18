@@ -1,8 +1,9 @@
 # Repository structure (`--structure`)
 
-Status: **R14-A1 is implemented**: modules, imports, import classification, cycles.
-Symbols and calls, entry points and stable structural identity are **not
-implemented yet** (R14-A2 and R14-A3, see `docs/R14A_PLAN.md`).
+Status: **R14-A1 and R14-A2 are implemented**: modules, imports, import classification,
+cycles, symbols, relations between symbols and entry points. Stable structural identity
+(fingerprints, match classes) and the real-repository evaluation are **not implemented
+yet** (R14-A3, see `docs/R14A_PLAN.md`).
 
 `sarand --structure` reads the project's Python source with the standard `ast`
 module and adds a structure to the report. It never executes repository code and
@@ -142,9 +143,9 @@ eager (they run on some path). Otherwise it is listed as "lazy or type-only".
 
 ## Model contract
 
-- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.7"`) is
+- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.8"`) is
   versioned with the JSON report (`docs/JSON_SCHEMA.md`). The **structure model** schema is
-  `structure.schema`, an integer, `1` today. They change independently.
+  `structure.schema`, an integer, `2` today (`1` was imports only). They change independently.
 - **Coordinates.** `line` is 1-based (0 = unknown). `col` and `end_col` are 0-based
   **UTF-8 byte offsets** in the line, exactly as `ast` reports them (`end_col` 0 =
   unknown). A `SyntaxError` reports characters; sarand converts them to bytes so the whole
@@ -194,16 +195,105 @@ Two environment inputs are named in `meta`, never hidden: the interpreter versio
 (the `ast` grammar and the standard-library name list depend on it, so a file with
 newer syntax is `failed` on an older interpreter) and the standard-library source.
 
+## Symbols, relations and entry points (R14-A2)
+
+`--structure` also lists the **symbols** the source defines and the **relations** between
+them. Everything is read from `ast`; nothing is executed and **no types are inferred**: a
+usage is resolved only by name binding inside the repository (lexical scopes, import
+bindings, class bodies, base classes).
+
+### Symbols
+
+Kinds: `class`, `function`, `method`, `property`, `variable`, `constant` (an assignment
+at module or class level whose name is `UPPER_CASE`). Instance attributes
+(`self.x = ...`) and local variables are not symbols. Each symbol has an `id`
+(`sym:` plus 12 hex digits over language, kind, path, qualified name and a `#n` for a
+duplicate), its `qualname` (`Outer.method`, `outer.<locals>.inner`), `module`, `path`,
+`parent` (the enclosing class or function, empty at module level: this is the plan's
+`defines` relationship, stored once), `location`, the written `decorators` and `bases`
+in source order, `flags` (`nested`, `conditional`, `dynamic`) and `extensions`
+(`is_async`, `is_generator`, `has_star_args`, `has_metaclass`, `alias_of`,
+`declared_only`, `overload`). A property is recognised by the written decorator
+(`property`, `cached_property`, `x.setter`/`getter`/`deleter`); the accessor defs of one
+property are one binding. `@overload` stubs are symbols but do not bind the name. The id
+contains no line number, so it survives formatting and unrelated edits.
+
+### Relations
+
+Kinds: `calls`, `inherits`, `references` (a name or attribute used but not called, a
+decorator, an annotation). `original_type` says which: `call`, `name`, `attribute`,
+`decorator`, `base`, `dynamic_attribute`. Each relation has a source (a symbol, or the
+module for module-level code), a target (a symbol, a module, `unresolved` or `dynamic`),
+`confidence`, `resolution_method`, `evidence`, `location`, `flags` (`conditional`,
+`type_only`, `lazy`, `annotation`) and `note`. Equal relations are **merged**: `count` says
+how many sites, `location` and `evidence` are the first one. `depends_on` is not stored: it
+is derived from relations and imports in R14-B.
+
+### Confidence rules
+
+The lowest level on the way wins. Conditionality is a flag, never a level.
+
+| Level | Rule |
+|---|---|
+| `definite` | a name defined once in its module by `def`/`class`; `from m import f` where `m` defines `f` once (also through a chain of re-exports, at most 8 deep); `mod.f` through `import mod`; `Cls.member` where that class defines the member once; a base class bound by one of these |
+| `probable` | `self.m()` and `cls.m()` (a subclass may override); a member found in a base class (the walk is depth-first, not the exact MRO); `super().m()`; a name from `from m import *` where `m` has a static `__all__`; a definition whose decorator is not in the table of transparent decorators (`resolve.py`: `staticmethod`, `classmethod`, `property`, `functools.lru_cache`/`cache`/`wraps`/`cached_property`, `dataclasses.dataclass`, `abc.abstractmethod`, `typing.overload`/`final`/`override`, `contextlib.contextmanager`, ...); an alias (`Foo = Bar`); a module or class attribute that something assigns (`mod.f = g`, `setattr(mod, "f", g)`); a name that is both an attribute and a submodule; `cls()` |
+| `unknown` | `getattr`/`setattr`/`delattr` with a name that is not a string constant; a star import whose source has no static `__all__` (or two sources list the name); a module-level `__getattr__`; two bindings of one name (including a `global` rebinding); an unresolved base class; a class `__getattr__`; a name the module does not define |
+
+`self.m()` is deliberately never promoted to `definite`: an instance may belong to a
+subclass outside the repository.
+
+### What is stored and what is counted
+
+A usage site is **stored** as a relation only when it resolves to the repository
+(any confidence) or is one of the specific `unknown` forms above. Every other site is
+**counted**, never dropped: `structure.sites` has `total` and how each site ended:
+`internal`, `external_stdlib`, `external_declared`, `external_unmatched`, `builtin`,
+`unresolved`, `dynamic`, `untracked` (with `untracked_by_reason`). The reasons are a
+closed list: `local_binding` (a call of a parameter or local), `expression_without_a_name`
+(`f().g()`), `instance_attribute` (not found in the class or its bases), `attribute_of_value`
+(`logger.info`), `call_of_variable`, `call_of_module`, `base_not_a_class`, `unbound_name`,
+`attribute_by_constant_name`, `self_reference`, `module_not_analysed`, `reexport_depth`,
+`ambiguous_binding_without_repository_candidate`. Reading a local variable, a bare module
+name or a bare `self` is not a usage site and is not counted. Uses of things outside the
+repository are aggregated in `external_use` (name, class, calls, inherits, references).
+`sites.total == internal + external_* + builtin + unresolved + dynamic + untracked`.
+
+### Entry points
+
+Each has `type`, `name`, `target`, `resolved`, `confidence`, `method`, `evidence`, `note`:
+`main_block` (`if __name__ == "__main__":` at module level, definite), `package_main` (a
+`__main__.py`, definite), `console_script` (`[project.scripts]`, `[project.gui-scripts]`,
+`[tool.poetry.scripts]`) and `entry_point_group` (`[project.entry-points.<group>]`): the
+target `module:attr` resolves to a symbol with that resolution's confidence, or stays
+`unknown` with a note (a module outside the repository, in two roots, a missing name);
+`test_root` (`[tool.pytest.ini_options] testpaths`, definite when an included file lies
+under it); `framework_app` (probable only: `click.command`/`click.group` with `click`
+declared, `typer.Typer()` with `typer` declared, `argparse.ArgumentParser()`). A plain
+function is never an entry point. The list of Quick Context entry points is unchanged.
+
+### Limits (not detected does not mean nonexistent)
+
+String annotations and forward references are not read. `:=` binds when the walk reaches
+it. Instance attributes, attributes of values of unknown type, descriptors, metaclass and
+decorator-generated behaviour, dependency injection by registry or entry-point group
+(sarand loads its own analyzer plugins that way), `exec`/`eval`, `globals()` mutation and
+`__init_subclass__` are not followed; where the file shows such a construct it carries the
+limitation `dynamic_construct_seen`. A symbol pass that hits the node, recursion or memory
+guard keeps what it read and makes the file `partial`. `implements` and `overrides` do not
+exist in Python and are not produced.
+
 ## Where it appears
 
-- **JSON** (`structure`, outer schema 1.7): everything, including each edge with its
-  evidence, note and location. See `docs/JSON_SCHEMA.md`.
+- **JSON** (`structure`, outer schema 1.8, structure schema 2): everything, including each edge,
+  symbol, relation and entry point with its evidence, note and location. See `docs/JSON_SCHEMA.md`.
 - **Markdown and HTML**: counts; import cycles (first 10); **unresolved and dynamic imports**
   (first 20): the imports whose target class is `internal_unresolved` or `dynamic`, with the
   reason; and the **external packages imported** (first 30, the `external_declared` and
   `external_unmatched` ones, with how many modules import each). The totals are always shown,
   and a cut list says how many are not shown. An empty section is not drawn. Every cell is
   escaped (HTML entities in HTML; pipes and line breaks in Markdown tables).
+- **Markdown and HTML** also show the symbol, relation and entry-point counts; the symbols and
+  relations themselves are in the JSON only.
 - **Text**: one line.
 - **SARIF**: not included.
 
@@ -212,7 +302,6 @@ All counts come from one place (`structure/serialize.py` and
 
 ## Not implemented yet
 
-Symbols, calls, inheritance, references and entry points (R14-A2); stable structural
-identity and fingerprints, the real-repository evaluation and the stage gate
-(R14-A3). Other languages are not started. Python import constructs that remain unsupported
+Stable structural identity beyond the symbol `id` (fingerprints, match classes between two
+states), the real-repository evaluation and the stage gate (R14-A3). Other languages are not started. Python import constructs that remain unsupported
 are listed under "Recognised forms and their limits".

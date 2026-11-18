@@ -1,8 +1,8 @@
 # ساختار مخزن (`--structure`)
 
-وضعیت: **R14-A1 پیاده‌سازی شده است**: ماژول‌ها، importها، طبقه‌بندی importها و
-چرخه‌ها. نمادها و فراخوانی‌ها، entry pointها و شناسه‌ی ساختاری پایدار **هنوز
-پیاده‌سازی نشده‌اند** (R14-A2 و R14-A3، به `docs/R14A_PLAN.md` نگاه کنید).
+وضعیت: **R14-A1 و R14-A2 پیاده‌سازی شده‌اند**: ماژول‌ها، importها، طبقه‌بندی importها، چرخه‌ها،
+نمادها، روابط بین نمادها و entry pointها. شناسه‌ی ساختاری پایدار (fingerprint و کلاس‌های تطبیق) و
+ارزیابی روی مخزن واقعی **هنوز پیاده‌سازی نشده‌اند** (R14-A3، به `docs/R14A_PLAN.md` نگاه کنید).
 
 `sarand --structure` سورس پایتون پروژه را با ماژول استاندارد `ast` می‌خواند و ساختار
 را به گزارش اضافه می‌کند. هرگز کد مخزن را اجرا نمی‌کند و فقط فایل‌هایی را می‌خواند که
@@ -137,9 +137,9 @@ type-only، هرکدام با پرچم خودش. مجموعه‌ی کمینه‌
 
 ## قرارداد مدل
 
-- **دو نسخه‌ی شما.** شمای **گزارش** بیرونی (`schema_version`، `"1.7"`) همراه گزارش JSON نسخه
+- **دو نسخه‌ی شما.** شمای **گزارش** بیرونی (`schema_version`، `"1.8"`) همراه گزارش JSON نسخه
   می‌شود (`docs/JSON_SCHEMA.fa.md`). شمای **مدل ساختار** همان `structure.schema` است، یک عدد
-  صحیح، امروز `1`. این دو مستقل تغییر می‌کنند.
+  صحیح، امروز `2` (`1` فقط importها بود). این دو مستقل تغییر می‌کنند.
 - **مختصات.** `line` از ۱ شروع می‌شود (۰ = نامعلوم). `col` و `end_col` **offset بایتی UTF-8**
   از ۰ در همان خط‌اند، دقیقاً همان‌طور که `ast` می‌دهد (`end_col` برابر ۰ = نامعلوم).
   `SyntaxError` کاراکتر گزارش می‌کند؛ سرند آن را به بایت تبدیل می‌کند تا کل مدل یک واحد داشته
@@ -184,9 +184,81 @@ monkey-patching، بارگذاری پلاگین با entry-point و کد تول�
 و فهرست stdlib به آن بستگی دارند، پس فایل با نحو جدیدتر روی مفسر قدیمی‌تر `failed` است) و
 منبع فهرست stdlib.
 
+## نمادها، روابط و نقاط ورود (R14-A2)
+
+`--structure` حالا **نمادهایی** را که سورس تعریف می‌کند و **روابط** بینشان را هم فهرست می‌کند.
+همه چیز از `ast` خوانده می‌شود؛ چیزی اجرا نمی‌شود و **هیچ نوعی استنتاج نمی‌شود**: هر استفاده فقط با
+انقیاد نام درون مخزن حل می‌شود (scope لغوی، import، بدنه‌ی کلاس و کلاس‌های پایه).
+
+### نمادها
+
+انواع: `class`، `function`، `method`، `property`، `variable`، `constant` (انتساب سطح ماژول یا کلاس
+با نام `UPPER_CASE`). صفت‌های نمونه (`self.x = ...`) و متغیرهای محلی نماد نیستند. هر نماد یک `id`
+دارد (`sym:` و ۱۲ رقم hex از زبان، نوع، مسیر، نام کامل و `#n` برای تکراری)، `qualname`
+(`Outer.method` و `outer.<locals>.inner`)، `module`، `path`، `parent` (کلاس یا تابع دربرگیرنده؛
+در سطح ماژول خالی: همان رابطه‌ی `defines` طرح که یک بار ذخیره می‌شود)، `location`، `decorators` و
+`bases` به همان متن نوشته‌شده و به ترتیب سورس، `flags` (`nested`، `conditional`، `dynamic`) و
+`extensions`. property از روی دکوراتور نوشته‌شده شناخته می‌شود و accessorهای یک property یک انقیادند.
+stubهای `@overload` نماد هستند اما نام را مقید نمی‌کنند. `id` شماره‌ی خط ندارد، پس با قالب‌بندی و
+ویرایش نامرتبط ثابت می‌ماند.
+
+### روابط
+
+انواع: `calls`، `inherits`، `references` (نام یا صفتِ به‌کاررفته ولی فراخوانی‌نشده، دکوراتور، annotation).
+هر رابطه منبع (نماد، یا ماژول برای کد سطح ماژول)، هدف (نماد، ماژول، `unresolved` یا `dynamic`)،
+`confidence`، `resolution_method`، `evidence`، `location`، `flags` (`conditional`، `type_only`، `lazy`،
+`annotation`) و `note` دارد. روابط یکسان **ادغام** می‌شوند: `count` تعداد محل‌هاست و `location` و
+`evidence` از اولین محل است. `depends_on` ذخیره نمی‌شود: در R14-B از روابط و importها مشتق می‌شود.
+
+### قواعد اعتماد
+
+پایین‌ترین سطح مسیر حاکم است. شرطی‌بودن پرچم است، نه سطح.
+
+| سطح | قاعده |
+|---|---|
+| `definite` | نامی که در ماژولش یک بار با `def`/`class` تعریف شده؛ `from m import f` وقتی `m` یک بار `f` را تعریف می‌کند (از زنجیره‌ی re-export تا عمق ۸ هم)؛ `mod.f` از راه `import mod`؛ `Cls.member` وقتی همان کلاس عضو را یک بار تعریف می‌کند؛ کلاس پایه‌ای که با یکی از این‌ها مقید است |
+| `probable` | `self.m()` و `cls.m()` (زیرکلاس ممکن است override کند)؛ عضوی که در کلاس پایه پیدا شود (پیمایش depth-first است، نه MRO دقیق)؛ `super().m()`؛ نامی از `from m import *` وقتی `m` یک `__all__` ایستا دارد؛ تعریفی که دکوراتورش در جدول دکوراتورهای شفاف نیست؛ alias (`Foo = Bar`)؛ صفت ماژول یا کلاسی که جایی انتسابش می‌دهند (`mod.f = g` و `setattr(mod, "f", g)`)؛ نامی که هم صفت است و هم زیرماژول؛ `cls()` |
+| `unknown` | `getattr`/`setattr`/`delattr` با نامی که ثابت رشته‌ای نیست؛ star import که منبعش `__all__` ایستا ندارد (یا دو منبع نام را فهرست می‌کنند)؛ `__getattr__` سطح ماژول؛ دو انقیاد برای یک نام (از جمله بازانتساب با `global`)؛ کلاس پایه‌ی حل‌نشده؛ `__getattr__` کلاس؛ نامی که ماژول تعریف نمی‌کند |
+
+`self.m()` عمداً هرگز `definite` نمی‌شود: نمونه ممکن است به زیرکلاسی بیرون مخزن تعلق داشته باشد.
+
+### چه ذخیره می‌شود و چه شمرده می‌شود
+
+یک محل استفاده فقط وقتی به‌صورت رابطه **ذخیره** می‌شود که به مخزن حل شود (با هر اعتمادی) یا یکی از
+شکل‌های مشخص `unknown` بالا باشد. هر محل دیگر **شمرده** می‌شود و هرگز بی‌صدا حذف نمی‌شود:
+`structure.sites` مقدار `total` و فرجام هر محل را دارد: `internal`، `external_stdlib`،
+`external_declared`، `external_unmatched`، `builtin`، `unresolved`، `dynamic`، `untracked` (با
+`untracked_by_reason`). دلایل فهرستی بسته‌اند: `local_binding`، `expression_without_a_name`،
+`instance_attribute`، `attribute_of_value`، `call_of_variable`، `call_of_module`، `base_not_a_class`،
+`unbound_name`، `attribute_by_constant_name`، `self_reference`، `module_not_analysed`،
+`reexport_depth`، `ambiguous_binding_without_repository_candidate`. خواندن متغیر محلی، نام خالی ماژول
+یا `self` خالی محل استفاده نیست و شمرده نمی‌شود. استفاده از چیزهای بیرون مخزن در `external_use`
+جمع می‌شود. `sites.total == internal + external_* + builtin + unresolved + dynamic + untracked`.
+
+### نقاط ورود
+
+هرکدام `type`، `name`، `target`، `resolved`، `confidence`، `method`، `evidence` و `note` دارد:
+`main_block` (`if __name__ == "__main__":` سطح ماژول، definite)، `package_main` (فایل `__main__.py`،
+definite)، `console_script` (`[project.scripts]`، `[project.gui-scripts]`، `[tool.poetry.scripts]`) و
+`entry_point_group` (`[project.entry-points.<group>]`): هدف `module:attr` با اعتماد همان حل به نماد
+می‌رسد یا با یادداشت `unknown` می‌ماند؛ `test_root` (`testpaths` در `[tool.pytest.ini_options]`؛
+وقتی فایلی زیر آن باشد definite)؛ `framework_app` (فقط probable: `click.command`/`click.group` با
+اعلام `click`، `typer.Typer()` با اعلام `typer`، `argparse.ArgumentParser()`). تابع ساده هرگز نقطه‌ی
+ورود نیست. فهرست entry pointهای Quick Context تغییری نکرده است.
+
+### حدها (تشخیص‌داده‌نشده یعنی نبودنش ثابت نشده)
+
+annotationهای رشته‌ای و forward reference خوانده نمی‌شوند. `:=` هنگام رسیدن پیمایش مقید می‌کند.
+صفت نمونه، صفت مقدار با نوع ناشناخته، descriptor، رفتار ساخته‌شده با metaclass و دکوراتور، تزریق
+با registry یا entry-point group (sarand افزونه‌های تحلیلگر خودش را این‌گونه بار می‌کند)،
+`exec`/`eval`، تغییر `globals()` و `__init_subclass__` دنبال نمی‌شوند؛ جایی که فایل چنین ساختاری
+را نشان دهد محدودیت `dynamic_construct_seen` را دارد. اگر پیمایش نماد به سقف گره، بازگشت یا حافظه
+برسد، آنچه خوانده نگه داشته می‌شود و فایل `partial` می‌شود. `implements` و `overrides` در پایتون
+وجود ندارند و تولید نمی‌شوند.
+
 ## کجا دیده می‌شود
 
-- **JSON** (`structure`، شمای بیرونی ۱٫۷): همه‌چیز، از جمله هر یال با شاهد، note و مکانش. به
+- **JSON** (`structure`، شمای بیرونی ۱٫۸، شمای ساختار ۲): همه‌چیز، از جمله هر یال با شاهد، note و مکانش. به
   `docs/JSON_SCHEMA.fa.md` نگاه کنید.
 - **Markdown و HTML**: شمارش‌ها؛ چرخه‌های import (۱۰ مورد اول)؛ **importهای حل‌نشده و پویا**
   (۲۰ مورد اول): importهایی که کلاس هدفشان `internal_unresolved` یا `dynamic` است، با دلیل؛
@@ -202,6 +274,5 @@ monkey-patching، بارگذاری پلاگین با entry-point و کد تول�
 
 ## هنوز پیاده‌سازی نشده
 
-نمادها، فراخوانی‌ها، وراثت، ارجاع‌ها و entry pointها (R14-A2)؛ شناسه‌ی ساختاری پایدار و
-fingerprint، ارزیابی روی مخزن واقعی و گیت مرحله (R14-A3). زبان‌های دیگر شروع نشده‌اند. ساختارهای
+شناسه‌ی ساختاری پایدار فراتر از `id` نماد (fingerprint و کلاس‌های تطبیق بین دو حالت)، ارزیابی روی مخزن واقعی و گیت مرحله (R14-A3). زبان‌های دیگر شروع نشده‌اند. ساختارهای
 import پایتون که هنوز پشتیبانی نمی‌شوند زیر «شکل‌های شناخته‌شده و حدشان» فهرست شده‌اند.

@@ -12,8 +12,9 @@ after construction, including the nested `meta` and `extensions` values.
 Two schema versions exist and must not be confused:
 
 - `SCHEMA_VERSION` here is the version of the **structure model** and of the
-  `structure.schema` field of the JSON payload (an integer, 1 today);
-- the outer **report** schema (`schema_version`, `"1.7"`) is versioned by
+  `structure.schema` field of the JSON payload (an integer, 2 today: 1 was imports
+  only, 2 adds symbols, relations and entry points);
+- the outer **report** schema (`schema_version`, `"1.8"`) is versioned by
   `renderers/json_renderer.py` and `docs/JSON_SCHEMA.md`.
 
 Coordinates (`SourceLocation`): `line` is 1-based (0 means unknown), `col` and
@@ -32,7 +33,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 LANGUAGE_PYTHON = "python"
 PARSER_PYTHON_AST = "python-ast"
 
@@ -121,6 +122,93 @@ ORIGINAL_TYPES: tuple[str, ...] = (
     ORIGINAL_IMPORT,
     ORIGINAL_FROM_IMPORT,
     ORIGINAL_DYNAMIC_CALL,
+)
+
+
+# --- symbols (R14-A2) --------------------------------------------------------------
+SYM_CLASS = "class"
+SYM_FUNCTION = "function"
+SYM_METHOD = "method"
+SYM_VARIABLE = "variable"
+SYM_CONSTANT = "constant"
+SYM_PROPERTY = "property"
+SYMBOL_KINDS: tuple[str, ...] = (
+    SYM_CLASS,
+    SYM_FUNCTION,
+    SYM_METHOD,
+    SYM_VARIABLE,
+    SYM_CONSTANT,
+    SYM_PROPERTY,
+)
+SYM_FLAG_NESTED = "nested"
+SYM_FLAG_CONDITIONAL = "conditional"
+SYM_FLAG_DYNAMIC = "dynamic"
+SYMBOL_FLAGS: tuple[str, ...] = (
+    SYM_FLAG_NESTED,
+    SYM_FLAG_CONDITIONAL,
+    SYM_FLAG_DYNAMIC,
+)
+
+# --- relations between symbols (R14-A2) ---------------------------------------------
+REL_CALLS = "calls"
+REL_INHERITS = "inherits"
+REL_REFERENCES = "references"
+RELATION_KINDS: tuple[str, ...] = (REL_CALLS, REL_INHERITS, REL_REFERENCES)
+
+REL_ORIG_CALL = "call"
+REL_ORIG_NAME = "name"
+REL_ORIG_ATTRIBUTE = "attribute"
+REL_ORIG_DECORATOR = "decorator"
+REL_ORIG_BASE = "base"
+REL_ORIG_DYNAMIC = "dynamic_attribute"
+RELATION_ORIGINAL_TYPES: tuple[str, ...] = (
+    REL_ORIG_CALL,
+    REL_ORIG_NAME,
+    REL_ORIG_ATTRIBUTE,
+    REL_ORIG_DECORATOR,
+    REL_ORIG_BASE,
+    REL_ORIG_DYNAMIC,
+)
+
+# What a relation's source or target is.
+# منبع یا هدف رابطه چیست.
+ENDPOINT_SYMBOL = "symbol"
+ENDPOINT_MODULE = "module"
+ENDPOINT_UNRESOLVED = "unresolved"
+ENDPOINT_DYNAMIC = "dynamic"
+SOURCE_KINDS: tuple[str, ...] = (ENDPOINT_SYMBOL, ENDPOINT_MODULE)
+TARGET_KINDS: tuple[str, ...] = (
+    ENDPOINT_SYMBOL,
+    ENDPOINT_MODULE,
+    ENDPOINT_UNRESOLVED,
+    ENDPOINT_DYNAMIC,
+)
+
+REL_FLAG_CONDITIONAL = "conditional"
+REL_FLAG_TYPE_ONLY = "type_only"
+REL_FLAG_LAZY = "lazy"
+REL_FLAG_ANNOTATION = "annotation"
+RELATION_FLAGS: tuple[str, ...] = (
+    REL_FLAG_CONDITIONAL,
+    REL_FLAG_TYPE_ONLY,
+    REL_FLAG_LAZY,
+    REL_FLAG_ANNOTATION,
+)
+
+# --- entry points (R14-A2) ----------------------------------------------------------
+EP_MAIN_BLOCK = "main_block"
+EP_PACKAGE_MAIN = "package_main"
+EP_CONSOLE_SCRIPT = "console_script"
+EP_ENTRY_POINT_GROUP = "entry_point_group"
+EP_TEST_ROOT = "test_root"
+EP_FRAMEWORK_APP = "framework_app"
+ENTRY_POINT_TYPES: tuple[str, ...] = (
+    EP_MAIN_BLOCK,
+    EP_PACKAGE_MAIN,
+    EP_CONSOLE_SCRIPT,
+    EP_ENTRY_POINT_GROUP,
+    EP_TEST_ROOT,
+    EP_FRAMEWORK_APP,
 )
 
 ScalarValue = str | int | bool
@@ -374,6 +462,161 @@ class Cycle:
 
 
 @dataclass(frozen=True)
+class Symbol:
+    """A named definition of the repository: a class, function, method, property,
+    variable or constant. `id` is `sym:` plus 12 hex digits of a SHA-256 over the
+    language, kind, repo-relative path, qualified name and a `#n` disambiguator for
+    a duplicate (a conditional redefinition): none of them is a line number, so the
+    id survives formatting and unrelated edits.
+
+    `qualname` follows Python's own convention (`Outer.method`, `outer.<locals>.inner`).
+    `parent` is the id of the enclosing class or function, empty at module level (this
+    is where the plan's `defines` relationship lives; it is not stored twice).
+    `decorators` and `bases` are the written texts of those expressions, in source
+    order (not sorted: order is meaning). `module` is empty when the file has no module
+    name. `extensions` holds language facts (`is_async`, `is_generator`,
+    `has_star_args`, `has_metaclass`, `alias_of`, ...).
+    """
+
+    id: str
+    kind: str
+    name: str
+    qualname: str
+    module: str
+    path: str
+    parent: str
+    location: SourceLocation
+    decorators: tuple[str, ...] = ()
+    bases: tuple[str, ...] = ()
+    flags: tuple[str, ...] = ()
+    extensions: Mapping[str, ScalarValue] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.id.startswith("sym:") or len(self.id) != 16:
+            raise ModelError(
+                f"Symbol.id must be 'sym:' + 12 hex digits, got {self.id!r}"
+            )
+        _choice("Symbol", "kind", self.kind, SYMBOL_KINDS)
+        if not self.name or not self.qualname:
+            raise ModelError("Symbol.name and Symbol.qualname must not be empty")
+        _relative_posix("Symbol", "path", self.path, allow_empty=False)
+        object.__setattr__(
+            self, "flags", _sorted_unique("Symbol", "flags", self.flags, SYMBOL_FLAGS)
+        )
+        object.__setattr__(self, "decorators", tuple(self.decorators))
+        object.__setattr__(self, "bases", tuple(self.bases))
+        object.__setattr__(self, "extensions", freeze(dict(self.extensions)))
+
+
+@dataclass(frozen=True)
+class Relation:
+    """One relationship between two things of the repository, with the evidence.
+
+    `source` is a symbol id (`source_kind` symbol) or a module name (`source_kind`
+    module: code at module level). `target` is a symbol id, a module name, or empty
+    for `unresolved` and `dynamic`; `target_name` is the name as best known (the
+    qualified name of the symbol, the module, or the text that could not be
+    resolved). `resolution_method` names the rule that produced the target and `note`
+    (sarand's own text) says why a target is unresolved or dynamic.
+
+    Equal relations (same kind, source, target, confidence, method, original type and
+    flags) are **merged**: `count` is how many sites said it, `location` and
+    `evidence` are those of the first site in source order.
+    """
+
+    kind: str
+    source: str
+    source_kind: str
+    target: str
+    target_kind: str
+    target_name: str
+    confidence: str
+    resolution_method: str
+    original_type: str
+    location: SourceLocation
+    evidence: str
+    count: int = 1
+    flags: tuple[str, ...] = ()
+    note: str = ""
+
+    def __post_init__(self) -> None:
+        _choice("Relation", "kind", self.kind, RELATION_KINDS)
+        _choice("Relation", "source_kind", self.source_kind, SOURCE_KINDS)
+        _choice("Relation", "target_kind", self.target_kind, TARGET_KINDS)
+        _choice("Relation", "confidence", self.confidence, CONFIDENCE_LEVELS)
+        _choice(
+            "Relation", "original_type", self.original_type, RELATION_ORIGINAL_TYPES
+        )
+        if not self.source:
+            raise ModelError("Relation.source must not be empty")
+        if not self.resolution_method:
+            raise ModelError("Relation.resolution_method must not be empty")
+        if not self.target and self.target_kind in (ENDPOINT_SYMBOL, ENDPOINT_MODULE):
+            raise ModelError(
+                f"Relation.target must not be empty for {self.target_kind}"
+            )
+        if self.target and self.target_kind in (ENDPOINT_UNRESOLVED, ENDPOINT_DYNAMIC):
+            raise ModelError(f"Relation.target must be empty for {self.target_kind}")
+        _non_negative("Relation", "count", self.count)
+        if self.count < 1:
+            raise ModelError("Relation.count must be at least 1")
+        object.__setattr__(
+            self,
+            "flags",
+            _sorted_unique("Relation", "flags", self.flags, RELATION_FLAGS),
+        )
+
+
+@dataclass(frozen=True)
+class EntryPoint:
+    """A place execution can start, with the rule that found it and its confidence.
+
+    `type` is one of `ENTRY_POINT_TYPES`; `name` the script, group entry or test path
+    (empty for a main block); `target` what was declared (`pkg.mod:func`, a module or
+    a path); `resolved` the symbol id or module name it resolved to, empty when it did
+    not resolve (then the confidence is `unknown` and `note` says why). `location` is
+    where it is written (a manifest line is not tracked: it is the manifest's path with
+    line 0).
+    """
+
+    type: str
+    name: str
+    target: str
+    resolved: str
+    confidence: str
+    method: str
+    evidence: str
+    location: SourceLocation
+    note: str = ""
+
+    def __post_init__(self) -> None:
+        _choice("EntryPoint", "type", self.type, ENTRY_POINT_TYPES)
+        _choice("EntryPoint", "confidence", self.confidence, CONFIDENCE_LEVELS)
+        if not self.method:
+            raise ModelError("EntryPoint.method must not be empty")
+
+
+@dataclass(frozen=True)
+class ExternalUsage:
+    """How the repository's code uses one thing from outside it (`subprocess.run`,
+    `click.command`): counts of calls, subclassings and other references. Such uses are
+    counted here, not stored one by one (docs/STRUCTURE.md, "What is stored")."""
+
+    name: str
+    target_class: str
+    calls: int = 0
+    inherits: int = 0
+    references: int = 0
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ModelError("ExternalUsage.name must not be empty")
+        _choice("ExternalUsage", "target_class", self.target_class, EXTERNAL_CLASSES)
+        for name in ("calls", "inherits", "references"):
+            _non_negative("ExternalUsage", name, getattr(self, name))
+
+
+@dataclass(frozen=True)
 class StructureData:
     """The whole structural model of one project (`--structure`).
 
@@ -388,6 +631,14 @@ class StructureData:
     externals: tuple[ExternalRef, ...]
     edges: tuple[Edge, ...]
     cycles: tuple[Cycle, ...]
+    symbols: tuple[Symbol, ...] = ()
+    relations: tuple[Relation, ...] = ()
+    entry_points: tuple[EntryPoint, ...] = ()
+    external_use: tuple[ExternalUsage, ...] = ()
+    # Counts of every usage site by outcome, kept so that what was not stored is
+    # still accounted for (docs/STRUCTURE.md, "What is stored").
+    # شمارش همه‌ی محل‌های استفاده بر حسب نتیجه؛ آنچه ذخیره نشده هم حسابش هست.
+    sites: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if isinstance(self.schema_version, bool) or self.schema_version < 1:
@@ -397,6 +648,27 @@ class StructureData:
         if not self.language:
             raise ModelError("StructureData.language must not be empty")
         object.__setattr__(self, "meta", freeze(dict(self.meta)))
+        object.__setattr__(self, "sites", freeze(dict(self.sites)))
+
+
+def relation_sort_key(relation: Relation) -> tuple[Any, ...]:
+    """The one total order of relations (source, place, then what they say)."""
+    loc = relation.location
+    return (
+        relation.source,
+        loc.path,
+        loc.line,
+        loc.col,
+        relation.kind,
+        relation.target,
+        relation.target_name,
+        relation.target_kind,
+        relation.confidence,
+        relation.resolution_method,
+        relation.original_type,
+        relation.flags,
+        relation.note,
+    )
 
 
 def edge_sort_key(edge: Edge) -> tuple[Any, ...]:

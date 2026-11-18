@@ -152,8 +152,8 @@ def test_the_inner_and_outer_schema_versions_are_independent(tmp_path: Path) -> 
         root, write_tree(root, {"a.py": "import os\n"}), stdlib=STDLIB
     )
     payload = json.loads(json_renderer.render(data, include_source=False))
-    assert payload["schema_version"] == "1.7"
-    assert payload["structure"]["schema"] == SCHEMA_VERSION == 1
+    assert payload["schema_version"] == "1.8"
+    assert payload["structure"]["schema"] == SCHEMA_VERSION == 2
     assert isinstance(payload["structure"]["schema"], int)
 
 
@@ -936,6 +936,11 @@ def _shuffled_equal_model(data: StructureData, seed: int) -> StructureData:
         cycles=tuple(
             Cycle(c.modules, c.eager, shuffled(c.edges)) for c in shuffled(data.cycles)
         ),
+        symbols=shuffled(data.symbols),
+        relations=shuffled(data.relations),
+        entry_points=shuffled(data.entry_points),
+        external_use=shuffled(data.external_use),
+        sites=dict(reversed(list(data.sites.items()))),
     )
 
 
