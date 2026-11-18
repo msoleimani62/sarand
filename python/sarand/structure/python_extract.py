@@ -745,7 +745,8 @@ class _Walker:
                 self.visit(condition)
         if isinstance(node, ast.DictComp):
             self.visit(node.key)
-            self.visit(node.value)
+            if node.value is not None:
+                self.visit(node.value)
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
             self.visit(node.elt)
         self.pop(True)
