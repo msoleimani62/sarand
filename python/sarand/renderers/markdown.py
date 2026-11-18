@@ -502,7 +502,7 @@ def _render_structure(data: ReportData) -> list[str]:
     if attention:
         lines.extend(
             [
-                "### Imports that could not be resolved",
+                "### Unresolved and dynamic imports",
                 "",
                 "| " + " | ".join(STRUCTURE_ATTENTION_COLUMNS) + " |",
                 "|" + "---|" * len(STRUCTURE_ATTENTION_COLUMNS),
@@ -510,7 +510,7 @@ def _render_structure(data: ReportData) -> list[str]:
         )
         for module, statement, why, where in attention:
             lines.append(
-                f"| {_cell(module)} | `{_cell(statement)}` | {why} | {where} |"
+                f"| {_cell(module)} | `{_cell(statement)}` | {_cell(why)} | {_cell(where)} |"
             )
         if attention_total > len(attention):
             lines.append("")

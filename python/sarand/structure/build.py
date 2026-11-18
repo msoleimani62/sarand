@@ -9,6 +9,11 @@ Two environment inputs are named and recorded in `meta`, never hidden: the
 interpreter version (the `ast` grammar and the standard-library name list depend on
 it) and the standard-library names themselves.
 
+Path contract: `included` and `skipped` hold **relative** paths, inside the project,
+without `..`; an absolute path or a parent traversal raises `ValueError` (the CLI
+never produces one). Unknown data stays unknown: a file that cannot be read has
+`size=None`, an empty hash and the limitation `unreadable`, never a made-up size.
+
 ساخت مدل ساختاری پروژه؛ قطعی، بدون اجرای کد، و ورودی‌های محیطی در meta ثبت می‌شوند.
 """
 
@@ -39,14 +44,26 @@ from sarand.structure.model import (
     ModuleEntity,
     Provenance,
     StructureData,
+    edge_sort_key,
 )
 from sarand.structure.python_extract import extract_imports
-from sarand.structure.roots import declared_roots, file_root, manifest_name, module_name
+from sarand.structure.roots import (
+    DeclaredRoot,
+    declared_roots,
+    file_root,
+    manifest_name,
+    module_name,
+)
 
 _PYTHON_MANIFESTS = frozenset({"pyproject.toml", "requirements.txt"})
 
 
 def _posix(path: Path) -> str:
+    """A project-relative path as POSIX text; anything else is a caller bug."""
+    if path.is_absolute() or ".." in path.parts or not path.parts:
+        raise ValueError(
+            f"structure paths must be relative and inside the project, got {path}"
+        )
     return PurePosixPath(*path.parts).as_posix()
 
 
@@ -103,17 +120,20 @@ def build_structure(
         | {p for p in skipped_map if p.endswith(".py")}
     )
 
-    declared: list[str] = []
+    declared: set[DeclaredRoot] = set()
+    rejected: set[str] = set()
     for rel in included_posix:
         if rel.rsplit("/", 1)[-1] == manifest_name():
             text_bytes = reader(root, rel)
             if text_bytes is None:
                 continue
             parent = rel.rpartition("/")[0]
-            declared.extend(
-                declared_roots(parent, text_bytes.decode("utf-8", errors="replace"))
+            found, refused = declared_roots(
+                parent, text_bytes.decode("utf-8", errors="replace")
             )
-    declared_sorted = sorted(set(declared))
+            declared.update(found)
+            rejected.update(refused)
+    declared_sorted = sorted(declared, key=lambda r: (r.path, r.prefix))
     package_dirs = frozenset(
         p.rpartition("/")[0] for p in py_paths if p.rsplit("/", 1)[-1] == "__init__.py"
     )
@@ -121,8 +141,8 @@ def build_structure(
     by_path: dict[str, ModuleEntity] = {}
     entities: list[ModuleEntity] = []
     for rel in py_paths:
-        source_root = file_root(rel, declared_sorted, package_dirs)
-        name, is_package = module_name(rel, source_root)
+        source_root, package_prefix = file_root(rel, declared_sorted, package_dirs)
+        name, is_package = module_name(rel, source_root, package_prefix)
         if not name:
             continue
         entity = ModuleEntity(
@@ -139,14 +159,18 @@ def build_structure(
         by_name.setdefault(entity.name, []).append(entity)
     # Implicit namespace packages: a dotted prefix with no file of its own.
     # بسته‌ی namespace ضمنی: پیشوندی که فایل خودش را ندارد.
-    prefix_roots: dict[str, str] = {}
+    # A namespace package can have a portion in several roots (PEP 420): keep every
+    # root, one entity per (name, root).
+    # بسته‌ی namespace می‌تواند در چند ریشه سهم داشته باشد؛ همه‌ی ریشه‌ها نگه داشته می‌شوند.
+    prefix_roots: dict[str, set[str]] = {}
     for entity in entities:
         parts = entity.name.split(".")
         for size in range(1, len(parts)):
-            prefix_roots.setdefault(".".join(parts[:size]), entity.root)
+            prefix_roots.setdefault(".".join(parts[:size]), set()).add(entity.root)
     namespace_entities = [
         ModuleEntity(name=n, path="", is_package=True, is_namespace=True, root=r)
-        for n, r in sorted(prefix_roots.items())
+        for n, roots_of in sorted(prefix_roots.items())
+        for r in sorted(roots_of)
         if n not in by_name
     ]
     index = ModuleIndex(
@@ -185,7 +209,7 @@ def build_structure(
                 FileEntity(
                     path=rel,
                     language=LANGUAGE_PYTHON,
-                    size=0,
+                    size=None,
                     sha256="",
                     module=label,
                     provenance=Provenance(
@@ -215,27 +239,21 @@ def build_structure(
         for record in result.imports:
             edges.extend(resolve_record(record, importer, source, index))
 
-    edges.sort(
-        key=lambda e: (
-            e.source,
-            e.location.line,
-            e.location.col,
-            e.requested,
-            e.target,
-            e.original_type,
-        )
-    )
+    edges.sort(key=edge_sort_key)
     externals = _externals(edges, index)
     cycles = find_cycles(edges)
     all_modules = sorted(
         [*entities, *namespace_entities], key=lambda m: (m.name, m.root, m.path)
     )
-    meta: dict[str, str | int | bool | list[str]] = {
+    meta: dict[str, str | int | bool | tuple[str, ...]] = {
         "interpreter": interpreter,
         "stdlib_source": "sys.stdlib_module_names" if stdlib is None else "injected",
         "stdlib_count": len(stdlib_names),
-        "source_roots": sorted({m.root for m in entities}),
-        "declared_roots": declared_sorted,
+        "source_roots": tuple(sorted({m.root for m in entities})),
+        "declared_roots": tuple(
+            f"{r.prefix}={r.path}" if r.prefix else r.path for r in declared_sorted
+        ),
+        "rejected_roots": tuple(sorted(rejected)),
         "parser": PARSER_PYTHON_AST,
     }
     return StructureData(

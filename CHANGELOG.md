@@ -19,6 +19,20 @@ version may include behaviour changes.
   `structure` object appears only with the flag; a default report is otherwise
   unchanged). Symbols, entry points and stable structural identity follow in R14-A2
   and R14-A3. See `docs/STRUCTURE.md`.
+- **Audit remediation of the repository structure (R14-A1).** Names are bound by scope:
+  `TYPE_CHECKING` is recognised only as the `typing` sentinel (or `TYPE_CHECKING = False`),
+  `importlib` and `__import__` under their aliases, an alias no longer leaks into another
+  scope or survives a rebinding, builtin `__import__` reads its `level` from the right
+  argument, `importlib.import_module(".x", package=...)` resolves against its package, a
+  `try` only makes its protected body optional (not `else` or `finally`), and `except`
+  handlers are recognised by binding. Columns are UTF-8 byte offsets everywhere
+  (syntax errors included); evidence is the statement's own text, bounded; an
+  unreadable file has an unknown size instead of 0. Setuptools named `package-dir`
+  mappings and namespace packages spread over several roots are understood, and a
+  declared root that leaves the project is rejected and reported. Model objects validate
+  themselves and are deeply immutable, output is canonical whatever order the
+  producers used, the unresolved section is named for what it lists and every
+  cell of it is escaped. See `docs/STRUCTURE.md` and `docs/R14A1_AUDIT_REMEDIATION.md`.
 
 ## [0.8.0] - 2026-11-10
 

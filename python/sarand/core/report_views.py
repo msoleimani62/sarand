@@ -205,7 +205,7 @@ def structure_lines(data: ReportData) -> list[str]:
 STRUCTURE_ATTENTION_COLUMNS: tuple[str, ...] = (
     "Importing module",
     "Statement",
-    "Why it is not resolved",
+    "Reason",
     "Location",
 )
 STRUCTURE_ATTENTION_LIMIT = 20
@@ -224,10 +224,8 @@ def structure_attention_rows(
     rows = [
         (
             e.source,
-            e.evidence.split("  # ")[0],
-            e.evidence.split("  # ", 1)[1]
-            if "  # " in e.evidence
-            else e.resolution_method,
+            e.evidence,
+            e.note or e.resolution_method,
             f"{e.location.path}:{e.location.line}",
         )
         for e in data.structure.edges

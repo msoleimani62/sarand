@@ -96,7 +96,6 @@ def _edge(
     original_type: str | None = None,
     note: str = "",
 ) -> Edge:
-    evidence = record.evidence if not note else f"{record.evidence}  # {note}"
     return Edge(
         kind=EDGE_IMPORTS,
         source=source,
@@ -105,10 +104,11 @@ def _edge(
         target_class=target_class,
         confidence=confidence,
         resolution_method=method,
-        evidence=evidence,
+        evidence=record.evidence,
         location=record.location,
         original_type=original_type or record.original_type,
         flags=record.flags,
+        note=note,
     )
 
 
@@ -231,6 +231,166 @@ def _relative_base(importer: ModuleEntity | None, level: int) -> str | None:
     return ".".join(parts[: len(parts) - drop])
 
 
+def _resolve_dynamic(
+    record: ImportRecord,
+    importer: ModuleEntity | None,
+    source: str,
+    index: ModuleIndex,
+) -> list[Edge]:
+    """A call that imports by name: `importlib.import_module(name, package=None)` and
+    the builtin `__import__(name, globals, locals, fromlist, level)`.
+
+    A computed name is `dynamic` (unknown). A literal name resolves like an import but
+    is only `probable`. A relative `import_module` name is resolved against its
+    `package=` argument (as `importlib.util.resolve_name` does); a `__import__` level
+    is resolved against the importing module only when `globals` is the plain
+    `globals()` call. The `fromlist` argument is not followed (a name it lists is not
+    turned into an extra edge)."""
+    importer_root = importer.root if importer is not None else ""
+    if not record.literal or not record.module:
+        return [
+            _edge(
+                source,
+                record,
+                "",
+                "",
+                TARGET_DYNAMIC,
+                CONF_UNKNOWN,
+                "non-literal-argument",
+                None,
+                "the module name is computed at run time",
+            )
+        ]
+    if record.module.startswith("."):
+        if not record.package_literal:
+            return [
+                _edge(
+                    source,
+                    record,
+                    record.module,
+                    "",
+                    TARGET_DYNAMIC,
+                    CONF_UNKNOWN,
+                    "non-literal-package",
+                    None,
+                    "the package argument is computed at run time",
+                )
+            ]
+        if not record.package:
+            return [
+                _edge(
+                    source,
+                    record,
+                    record.module,
+                    "",
+                    TARGET_INTERNAL_UNRESOLVED,
+                    CONF_UNKNOWN,
+                    "relative-name-without-package",
+                    None,
+                    "a relative module name needs a package= argument",
+                )
+            ]
+        dots = len(record.module) - len(record.module.lstrip("."))
+        rest = record.module.lstrip(".")
+        bits = record.package.rsplit(".", dots - 1) if dots > 1 else [record.package]
+        if len(bits) < dots:
+            return [
+                _edge(
+                    source,
+                    record,
+                    record.module,
+                    "",
+                    TARGET_INTERNAL_UNRESOLVED,
+                    CONF_UNKNOWN,
+                    "relative-beyond-top-level",
+                    None,
+                    "the name goes above the top-level package",
+                )
+            ]
+        full = f"{bits[0]}.{rest}" if rest else bits[0]
+        return [
+            _resolve_absolute(
+                full, importer_root, index, source, record, literal_dynamic=True
+            )
+        ]
+    if record.level:
+        if not record.relative_anchor_known:
+            return [
+                _edge(
+                    source,
+                    record,
+                    record.module,
+                    "",
+                    TARGET_INTERNAL_UNRESOLVED,
+                    CONF_UNKNOWN,
+                    "relative-dynamic-import",
+                    None,
+                    "the level refers to a package that globals() does not show",
+                )
+            ]
+        base = _relative_base(importer, record.level)
+        if base is None:
+            return [
+                _edge(
+                    source,
+                    record,
+                    record.module,
+                    "",
+                    TARGET_INTERNAL_UNRESOLVED,
+                    CONF_UNKNOWN,
+                    "relative-no-parent-package",
+                    None,
+                    "no parent package at this level",
+                )
+            ]
+        full = f"{base}.{record.module}"
+        found, _how = _pick(index.by_name.get(full, []), importer_root, only_root=True)
+        if found is not None:
+            return [
+                _edge(
+                    source,
+                    record,
+                    full,
+                    found.name,
+                    TARGET_INTERNAL,
+                    CONF_PROBABLE,
+                    "dunder-import-relative",
+                    None,
+                )
+            ]
+        if full in index.prefixes:
+            return [
+                _edge(
+                    source,
+                    record,
+                    full,
+                    full,
+                    TARGET_INTERNAL,
+                    CONF_PROBABLE,
+                    "namespace-package",
+                    None,
+                )
+            ]
+        return [
+            _edge(
+                source,
+                record,
+                full,
+                "",
+                TARGET_INTERNAL_UNRESOLVED,
+                CONF_UNKNOWN,
+                "relative-target-missing",
+                None,
+                f"{full} not found in this source root",
+            )
+        ]
+    return [
+        _resolve_absolute(
+            record.module, importer_root, index, source, record, literal_dynamic=True
+        )
+    ]
+
+
 def resolve_record(
     record: ImportRecord,
     importer: ModuleEntity | None,
@@ -240,44 +400,7 @@ def resolve_record(
     """All edges produced by one import record (a `from` import may produce several)."""
     importer_root = importer.root if importer is not None else ""
     if record.original_type == ORIGINAL_DYNAMIC_CALL:
-        if not record.literal or not record.module:
-            return [
-                _edge(
-                    source,
-                    record,
-                    "",
-                    "",
-                    TARGET_DYNAMIC,
-                    CONF_UNKNOWN,
-                    "non-literal-argument",
-                    None,
-                    "the module name is computed at run time",
-                )
-            ]
-        if record.level:
-            return [
-                _edge(
-                    source,
-                    record,
-                    record.module,
-                    "",
-                    TARGET_INTERNAL_UNRESOLVED,
-                    CONF_UNKNOWN,
-                    "dynamic-relative-import",
-                    None,
-                    "relative dynamic import is not resolved",
-                )
-            ]
-        return [
-            _resolve_absolute(
-                record.module,
-                importer_root,
-                index,
-                source,
-                record,
-                literal_dynamic=True,
-            )
-        ]
+        return _resolve_dynamic(record, importer, source, index)
     if record.level == 0:
         edges = [_resolve_absolute(record.module, importer_root, index, source, record)]
         if record.original_type == ORIGINAL_FROM_IMPORT:

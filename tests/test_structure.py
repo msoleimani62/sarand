@@ -182,7 +182,7 @@ def test_a_declared_root_makes_a_namespace_layout_importable(tmp_path: Path) -> 
             "py/ns/user.py": "import ns.mod\n",
         },
     )
-    assert data.meta["declared_roots"] == ["py"]
+    assert data.meta["declared_roots"] == ("py",)
     assert _edge(data, "ns.user", "ns.mod").target == "ns.mod"
 
 
@@ -190,7 +190,7 @@ def test_an_unreadable_pyproject_never_breaks_the_run(tmp_path: Path) -> None:
     data = _build(
         tmp_path, {"pyproject.toml": "this is = not [valid", "a.py": "import os\n"}
     )
-    assert data.meta["declared_roots"] == []
+    assert data.meta["declared_roots"] == ()
     assert _edge(data, "a", "os").target_class == TARGET_STDLIB
 
 

@@ -220,7 +220,7 @@ def _structure_html(data: ReportData) -> str:
         )
     attention, attention_total = structure_attention_rows(data)
     if attention:
-        out.append("<h3>Imports that could not be resolved</h3>")
+        out.append("<h3>Unresolved and dynamic imports</h3>")
         out.append(_table(STRUCTURE_ATTENTION_COLUMNS, attention))
         if attention_total > len(attention):
             out.append(
