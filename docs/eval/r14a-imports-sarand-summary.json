@@ -1,0 +1,36 @@
+{
+  "classes": {
+    "external_unmatched": 1,
+    "internal": 19,
+    "stdlib": 30
+  },
+  "independent_agrees": 50,
+  "independent_disagrees": [],
+  "rows": 50,
+  "seed": 14,
+  "tally": {
+    "ambiguous": 1,
+    "correct": 49,
+    "undecidable": 0,
+    "unreviewed": 0,
+    "wrong": 0
+  },
+  "unmatched_audit": {
+    "declared_somewhere_in_pyproject": 53,
+    "external_unmatched_edges": 53,
+    "packages": {
+      "pytest": {
+        "declared_in": [
+          "optional:dev"
+        ],
+        "edges": 37
+      },
+      "yaml": {
+        "declared_in": [
+          "runtime"
+        ],
+        "edges": 16
+      }
+    }
+  }
+}

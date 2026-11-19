@@ -1,0 +1,51 @@
+row	location	verdict	note	class	target	method	flags	auto	indep_class	indep_flags	declared_in	evidence
+1	src/click/_compat.py:5:0	correct		stdlib	io	stdlib-name		agree	stdlib			import io
+2	tests/test_utils/test__detect_program_name.py:1:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			import pathlib
+3	tests/test_utils/test_sentinel.py:1:0	correct		stdlib	copy	stdlib-name		agree	stdlib			import copy
+4	tests/test_shell_completion.py:3:0	correct		stdlib	warnings	stdlib-name		agree	stdlib			import warnings
+5	src/click/core.py:2538:8	correct		stdlib	keyword	stdlib-name	lazy	agree	stdlib	lazy		import keyword
+6	src/click/exceptions.py:8:0	correct		internal	click._compat	relative-module	relative	agree	internal	relative		from ._compat import get_text_stderr
+7	src/click/decorators.py:5:0	correct		stdlib	functools	stdlib-name		agree	stdlib			from functools import update_wrapper
+8	src/click/parser.py:25:0	correct		stdlib	__future__	stdlib-name		agree	stdlib			from __future__ import annotations
+9	src/click/__init__.py:49:0	correct		internal	click.termui	relative-module	relative	agree	internal	relative		from .termui import launch as launch
+10	tests/test_utils/test_sentinel.py:10:0	correct		internal	click._utils	absolute-module		agree	internal			from click._utils import UNSET
+11	tests/test_basic.py:916:4	correct		stdlib	importlib	stdlib-name	lazy	agree	stdlib	lazy		import importlib.metadata
+12	src/click/parser.py:41:4	correct		internal	click._utils	relative-module	conditional,relative,type_only	agree	internal	conditional,relative,type_only		from ._utils import T_FLAG_NEEDS_VALUE
+13	tests/test_compat.py:11:0	correct		internal	click._compat	absolute-module		agree	internal			from click._compat import term_len
+14	tests/typing/typing_progressbar.py:5:0	correct		internal	click	absolute-module		agree	internal			from click import progressbar
+15	src/click/types.py:25:4	correct		internal	click.core	relative-module	conditional,relative,type_only	agree	internal	conditional,relative,type_only		from .core import Context
+16	src/click/types.py:19:0	correct		internal	click.utils	relative-module	relative	agree	internal	relative		from .utils import _safecall
+17	src/click/_termui_impl.py:9:0	correct		stdlib	collections	stdlib-name		agree	stdlib			import collections.abc as cabc
+18	src/click/decorators.py:14:0	correct		internal	click.globals	relative-module	relative	agree	internal	relative		from .globals import get_current_context
+19	src/click/core.py:36:0	correct		internal	click.formatting	relative-module	relative	agree	internal	relative		from .formatting import join_options
+20	src/click/shell_completion.py:7:0	correct		stdlib	gettext	stdlib-name		agree	stdlib			from gettext import gettext as _
+21	src/click/termui.py:988:4	correct		internal	click._termui_impl	relative-module	lazy,relative	agree	internal	lazy,relative		from ._termui_impl import raw_terminal as f
+22	src/click/decorators.py:11:0	correct		internal	click.core	relative-module	relative	agree	internal	relative		from .core import Group
+23	src/click/testing.py:4:0	correct		stdlib	contextlib	stdlib-name		agree	stdlib			import contextlib
+24	tests/test_utils/test_echo_via_pager.py:5:0	correct		stdlib	contextlib	stdlib-name		agree	stdlib			from contextlib import nullcontext
+25	tests/test_utils/test_echo_via_pager.py:4:0	correct		stdlib	collections	stdlib-name		agree	stdlib			from collections import namedtuple
+26	tests/test_options.py:14:0	correct		internal	click	absolute-module		agree	internal			from click import Option
+27	src/click/_termui_impl.py:801:8	correct		stdlib	urllib	stdlib-name	lazy	agree	stdlib	lazy		from urllib.parse import unquote
+28	src/click/_utils.py:3:0	correct		stdlib	enum	stdlib-name		agree	stdlib			import enum
+29	tests/test_stream_lifecycle.py:55:0	correct		internal	click	absolute-module		agree	internal			import click
+30	tests/typing/typing_confirmation_option.py:5:0	correct		internal	click	absolute-module		agree	internal			import click
+31	tests/typing/typing_aliased_group.py:7:0	correct		internal	click	absolute-module		agree	internal			import click
+32	src/click/exceptions.py:14:4	correct		internal	click.core	relative-module	conditional,relative,type_only	agree	internal	conditional,relative,type_only		from .core import Command
+33	src/click/_winconsole.py:12:0	correct		stdlib	io	stdlib-name		agree	stdlib			import io
+34	examples/complex/complex/cli.py:2:0	correct		stdlib	sys	stdlib-name		agree	stdlib			import sys
+35	src/click/__init__.py:46:0	correct		internal	click.termui	relative-module	relative	agree	internal	relative		from .termui import edit as edit
+36	src/click/_termui_impl.py:13:0	correct		stdlib	shlex	stdlib-name		agree	stdlib			import shlex
+37	tests/test_types/test_FuncParamType.py:1:0	wrong	pytest is declared in [dependency-groups] of pyproject.toml (tests, tests-random, typing) which are not read; reported external_unmatched. Boundary external is right	external_unmatched	pytest	external-by-elimination		agree	external		group:tests,group:tests-random,group:typing	import pytest
+38	src/click/termui.py:11:0	correct		stdlib	contextlib	stdlib-name		agree	stdlib			from contextlib import AbstractContextManager
+39	examples/termui/termui.py:1:0	correct		stdlib	math	stdlib-name		agree	stdlib			import math
+40	src/click/__init__.py:60:0	correct		internal	click.types	relative-module	relative	agree	internal	relative		from .types import FLOAT as FLOAT
+41	src/click/exceptions.py:11:0	correct		internal	click.utils	relative-module	relative	agree	internal	relative		from .utils import format_filename
+42	src/click/core.py:16:0	correct		stdlib	contextlib	stdlib-name		agree	stdlib			from contextlib import ExitStack
+43	src/click/types.py:6:0	correct		stdlib	os	stdlib-name		agree	stdlib			import os
+44	src/click/utils.py:1:0	correct		stdlib	__future__	stdlib-name		agree	stdlib			from __future__ import annotations
+45	tests/test_testing.py:10:0	correct		internal	click	absolute-module		agree	internal			import click
+46	tests/test_arguments.py:8:0	correct		internal	test_options	absolute-module		agree	internal			from test_options import ENV_NAMES_ARE_CASE_INSENSITIVE
+47	tests/test_types/test_Path.py:9:0	wrong	pytest is declared in [dependency-groups] of pyproject.toml (tests, tests-random, typing) which are not read; reported external_unmatched. Boundary external is right	external_unmatched	pytest	external-by-elimination		agree	external		group:tests,group:tests-random,group:typing	import pytest
+48	src/click/__init__.py:71:0	correct		internal	click.utils	relative-module	relative	agree	internal	relative		from .utils import format_filename as format_filename
+49	tests/test_utils/test_open_file.py:1:0	correct		stdlib	os	stdlib-name		agree	stdlib			import os
+50	tests/typing/typing_prompt.py:3:0	correct		internal	click	absolute-module		agree	internal			import click

@@ -1,0 +1,50 @@
+{
+  "classes": {
+    "external_unmatched": 2,
+    "internal": 24,
+    "stdlib": 24
+  },
+  "independent_agrees": 50,
+  "independent_disagrees": [],
+  "rows": 50,
+  "seed": 14,
+  "tally": {
+    "ambiguous": 0,
+    "correct": 48,
+    "undecidable": 0,
+    "unreviewed": 0,
+    "wrong": 2
+  },
+  "unmatched_audit": {
+    "declared_somewhere_in_pyproject": 35,
+    "external_unmatched_edges": 42,
+    "packages": {
+      "PIL": {
+        "declared_in": [],
+        "edges": 3
+      },
+      "_typeshed": {
+        "declared_in": [],
+        "edges": 1
+      },
+      "pallets_sphinx_themes": {
+        "declared_in": [
+          "group:docs"
+        ],
+        "edges": 2
+      },
+      "pytest": {
+        "declared_in": [
+          "group:tests",
+          "group:tests-random",
+          "group:typing"
+        ],
+        "edges": 33
+      },
+      "typing_extensions": {
+        "declared_in": [],
+        "edges": 3
+      }
+    }
+  }
+}

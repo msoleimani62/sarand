@@ -1,0 +1,51 @@
+row	location	verdict	note	class	target	method	flags	auto	indep_class	indep_flags	declared_in	evidence
+1	python/sarand/config.py:17:0	correct		internal	sarand.utils.fs	absolute-module		agree	internal			from sarand.utils.fs import default_output_name
+2	tests/test_relevant_source.py:475:4	correct		internal	sarand.cli	from-import-submodule	lazy	agree	internal	lazy		from sarand import cli
+3	python/sarand/structure/python_extract.py:41:0	correct		stdlib	collections	stdlib-name		agree	stdlib			from collections.abc import Iterable, Sequence
+4	scripts/pin_actions.py:32:0	correct		stdlib	collections	stdlib-name		agree	stdlib			from collections.abc import Callable
+5	python/sarand/utils/command.py:15:0	correct		stdlib	subprocess	stdlib-name		agree	stdlib			import subprocess
+6	tests/test_analyzers.py:372:4	correct		internal	sarand.analyzers.python_analyzer	absolute-module	lazy	agree	internal	lazy		import sarand.analyzers.python_analyzer as python_analyzer_module
+7	python/sarand/analyzers/rust_analyzer.py:10:0	correct		internal	sarand.constants	absolute-module		agree	internal			from sarand.constants import LONG_CMD_TIMEOUT
+8	tests/test_nested_packages.py:5:0	correct		stdlib	__future__	stdlib-name		agree	stdlib			from __future__ import annotations
+9	tests/test_cache.py:6:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			from pathlib import Path
+10	tests/test_node_workspace.py:9:0	correct		stdlib	asyncio	stdlib-name		agree	stdlib			import asyncio
+11	tests/test_issue_extraction.py:241:4	correct		stdlib	json	stdlib-name	lazy	agree	stdlib	lazy		import json
+12	tests/test_issue_extraction.py:13:0	correct		internal	sarand.core.health	absolute-module		agree	internal			from sarand.core.health import compute_health_score
+13	python/sarand/core/concurrency.py:23:0	correct		stdlib	argparse	stdlib-name		agree	stdlib			import argparse
+14	scripts/bench_scan.py:41:0	correct		stdlib	hashlib	stdlib-name		agree	stdlib			import hashlib
+15	python/sarand/scanners/essential_files.py:14:0	correct		internal	sarand.progress	absolute-module		agree	internal			from sarand.progress import status
+16	tests/test_command.py:5:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			from pathlib import Path
+17	tests/test_distribution_name.py:13:0	correct		stdlib	re	stdlib-name		agree	stdlib			import re
+18	python/sarand/utils/installation.py:31:0	correct		internal	sarand.utils.command	absolute-module		agree	internal			from sarand.utils.command import run_cmd
+19	tests/test_doctor_v2.py:5:0	correct		internal	sarand.core.doctor	absolute-module		agree	internal			from sarand.core.doctor import _CATEGORY_ORDER, collect_checks
+20	tests/test_rc_state.py:6:0	correct		stdlib	__future__	stdlib-name		agree	stdlib			from __future__ import annotations
+21	python/sarand/core/node_workspace.py:63:0	ambiguous	label follows the documented contract (import name yaml, distribution PyYAML) but PyYAML is a declared runtime dependency in pyproject.toml	external_unmatched	yaml	external-by-elimination		agree	external		runtime (distribution pyyaml)	import yaml as _yaml
+22	python/sarand/core/risks.py:34:0	correct		stdlib	__future__	stdlib-name		agree	stdlib			from __future__ import annotations
+23	tests/test_scan_problems.py:12:0	correct		stdlib	stat	stdlib-name		agree	stdlib			import stat
+24	scripts/structure_eval.py:30:0	correct		stdlib	argparse	stdlib-name		agree	stdlib			import argparse
+25	python/sarand/core/sbom.py:44:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			from pathlib import Path
+26	python/sarand/analyzers/cpp_analyzer.py:18:0	correct		internal	sarand.models.results	absolute-module		agree	internal			from sarand.models.results import CommandResult
+27	python/sarand/analyzers/ruby_analyzer.py:20:0	correct		stdlib	shutil	stdlib-name		agree	stdlib			import shutil
+28	python/sarand/core/doctor.py:15:0	correct		stdlib	typing	stdlib-name		agree	stdlib			from typing import TYPE_CHECKING
+29	tests/test_toml_analyzer.py:5:0	correct		stdlib	asyncio	stdlib-name		agree	stdlib			import asyncio
+30	tests/test_cpp_java_analyzers.py:13:0	correct		internal	sarand.analyzers.cpp_analyzer	absolute-module		agree	internal			from sarand.analyzers.cpp_analyzer import CppAnalyzer
+31	python/sarand/analyzers/json_analyzer.py:35:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			from pathlib import Path
+32	python/sarand/analyzers/typescript_analyzer.py:36:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			from pathlib import Path
+33	scripts/smoke_install.py:29:0	correct		stdlib	sys	stdlib-name		agree	stdlib			import sys
+34	python/sarand/renderers/json_renderer.py:14:0	correct		internal	sarand.core.markers	absolute-module		agree	internal			from sarand.core.markers import category_counts, marker_category
+35	tests/test_golden_reports.py:44:0	correct		internal	_golden_fixtures	absolute-module		agree	internal			from _golden_fixtures import FIXTURES
+36	tests/test_julia_analyzer.py:14:0	correct		internal	_helpers	absolute-module		agree	internal			from _helpers import write
+37	tests/test_structure_eval.py:11:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			from pathlib import Path
+38	tests/test_monorepo_real.py:27:0	correct		stdlib	pathlib	stdlib-name		agree	stdlib			from pathlib import Path
+39	tests/test_zig_analyzer.py:8:0	correct		stdlib	__future__	stdlib-name		agree	stdlib			from __future__ import annotations
+40	python/sarand/cli.py:38:0	correct		internal	sarand.core.estimate	absolute-module		agree	internal			from sarand.core.estimate import estimate_source_bytes, size_advice
+41	python/sarand/core/cache.py:34:0	correct		stdlib	collections	stdlib-name		agree	stdlib			from collections import defaultdict
+42	tests/test_structure_audit.py:21:0	correct		internal	sarand.structure.python_extract	from-import-submodule		agree	internal			from sarand.structure import build_structure, python_extract
+43	tests/test_swift_analyzer.py:15:0	correct		stdlib	asyncio	stdlib-name		agree	stdlib			import asyncio
+44	tests/test_execution_coverage.py:28:0	correct		internal	sarand.models.results	absolute-module		agree	internal			from sarand.models.results import CommandResult, HealthScore, ReportData
+45	python/sarand/device_report/walking.py:27:0	correct		stdlib	hashlib	stdlib-name		agree	stdlib			import hashlib
+46	python/sarand/cli.py:39:0	correct		internal	sarand.core.execution_coverage	absolute-module		agree	internal			from sarand.core.execution_coverage import coverage_oneline
+47	tests/test_perl_analyzer.py:14:0	correct		internal	_helpers	absolute-module		agree	internal			from _helpers import write
+48	tests/test_ramz_real_fixture.py:23:0	correct		internal	sarand.core.health	absolute-module		agree	internal			from sarand.core.health import compute_health_score
+49	python/sarand/rc/session.py:20:0	correct		stdlib	uuid	stdlib-name		agree	stdlib			import uuid
+50	scripts/pin_actions.py:31:0	correct		stdlib	urllib	stdlib-name		agree	stdlib			import urllib.request
