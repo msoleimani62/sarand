@@ -2,7 +2,7 @@
 
 `sarand --format json` writes one JSON object. This page lists every top-level key, the fields of its nested objects, and what a script may rely on. The current version is below; a test keeps this page and the code in step, so a key that exists but is not listed here fails the build.
 
-Current version: **1.8**
+Current version: **1.9**
 
 ## Compatibility policy
 
@@ -79,6 +79,7 @@ The fields of the objects named above, in the order they are written.
 
 ## Version history
 
+- **1.9** (R14-A3): each entry of `structure.symbols` gained `fingerprint` (the versioned `fp1:` hash of the definition's content, stable across formatting, comments, docstrings and line shifts) and `structure.meta` gained `fingerprint_basis` (`fp1/python-<minor>`: fingerprints are comparable only between outputs with the same basis). The structure `schema` is now `3`. A default report is unchanged apart from the version number. See `docs/STRUCTURE.md`.
 - **1.8** (R14-A2): the `structure` object (still only with `--structure`) gained `symbols` (classes, functions, methods, properties, variables and constants with a stable `id`, qualified name, location, decorators, bases, flags), `relations` (calls, inherits and references between symbols, each with `confidence`, `resolution_method`, `evidence`, `count` and `location`), `entry_points`, `external_use` (counts of what the code uses from outside the repository) and `sites` (how every usage site was stored or counted). Its own `schema` is now `2`; `summary` gained the symbol, relation and entry-point counts. A default report is unchanged apart from the version number. See `docs/STRUCTURE.md`.
 - **1.7** (R14-A1): added the `structure` object, present only with `--structure`: `schema` (the integer version of the structure model, independent of this report's `schema_version`), `language`, `meta` (interpreter, standard-library source, source and declared roots, rejected roots), `summary` (counts), `files` (each with provenance and completeness; `size` is `null` when the file could not be read), `modules`, `externals`, `edges` (an import with `target_class`, `confidence`, `resolution_method`, `flags`, `evidence`, `note`, `location`) and `cycles`. A default report is unchanged apart from the version number. See `docs/STRUCTURE.md`.
 - **1.6** (R13-G): each entry of `test_results`, `quality_results` and `security_results` gained `state`, and `health.checks_inconclusive` is now always present (it used to be left out when empty, although this page listed it). Tool lines that restate a dependency advisory are no longer counted twice in the Quick Context error and warning counts. See `docs/RENDERERS.md`.

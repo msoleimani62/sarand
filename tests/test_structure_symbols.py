@@ -711,7 +711,7 @@ def test_summary_and_payload_agree_and_are_plain_json(tmp_path: Path) -> None:
     assert sum(info["relations_by_confidence"].values()) == info["relations"]
     assert sum(info["relations_by_kind"].values()) == info["relations"]
     assert info["entry_points"] == len(payload["entry_points"])
-    assert payload["schema"] == 2
+    assert payload["schema"] == 3
     ids = [s["id"] for s in payload["symbols"]]
     assert len(ids) == len(set(ids))
     known = set(ids)

@@ -19,6 +19,20 @@ version may include behaviour changes.
   `structure` object appears only with the flag; a default report is otherwise
   unchanged). Symbols, entry points and stable structural identity follow in R14-A2
   and R14-A3. See `docs/STRUCTURE.md`.
+- **Stable structural identity and the evaluation of the repository structure (R14-A3).**
+  Each symbol of `--structure` carries a `fingerprint` (`fp1:` plus 12 hex digits, a
+  hash of the definition's content that ignores formatting, comments, docstrings and
+  line shifts) and `structure.meta` names the `fingerprint_basis` (`fp1/python-<minor>`;
+  fingerprints are comparable only under the same basis). `structure/identity.py`
+  matches two lists of symbols into `exact`, `probable` (a move), `ambiguous` (all
+  candidates listed, none chosen) and `unmatched`; renames are not guessed. Nothing
+  compares two runs yet (a baseline is R14-D). JSON schema `1.9` (structure schema `3`),
+  additive. `scripts/structure_eval.py` measures time and memory and draws seeded
+  samples for manual review; the evaluation on sarand and click, with the reviewed
+  rows, is in `docs/R14A_GATE_REPORT.md` and `docs/eval/`; the decision is in
+  `docs/R14A_ADR_STRUCTURAL_IDENTITY.md`. The evaluation found two precision limits
+  that are documented, not changed: no local type inference for method calls on local
+  variables, and a class `__getattr__` making instance attributes `unknown`.
 - **Audit remediation of the repository structure (R14-A1).** Names are bound by scope:
   `TYPE_CHECKING` is recognised only as the `typing` sentinel (or `TYPE_CHECKING = False`),
   `importlib` and `__import__` under their aliases, an alias no longer leaks into another

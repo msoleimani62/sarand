@@ -1,9 +1,10 @@
 # Repository structure (`--structure`)
 
-Status: **R14-A1 and R14-A2 are implemented**: modules, imports, import classification,
-cycles, symbols, relations between symbols and entry points. Stable structural identity
-(fingerprints, match classes) and the real-repository evaluation are **not implemented
-yet** (R14-A3, see `docs/R14A_PLAN.md`).
+Status: **R14-A1, R14-A2 and R14-A3 are implemented**: modules, imports, import
+classification, cycles, symbols, relations between symbols, entry points, versioned
+content fingerprints and the match classes between two states, evaluated on two real
+repositories (`docs/R14A_GATE_REPORT.md`). Using identity to compare two runs (a
+baseline) is R14-D and is **not implemented yet**; other languages are not started.
 
 `sarand --structure` reads the project's Python source with the standard `ast`
 module and adds a structure to the report. It never executes repository code and
@@ -143,9 +144,11 @@ eager (they run on some path). Otherwise it is listed as "lazy or type-only".
 
 ## Model contract
 
-- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.8"`) is
+- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.9"`) is
   versioned with the JSON report (`docs/JSON_SCHEMA.md`). The **structure model** schema is
-  `structure.schema`, an integer, `2` today (`1` was imports only). They change independently.
+  `structure.schema`, an integer, `3` today (`1` was imports only, `2` added symbols,
+  relations and entry points, `3` adds the symbol `fingerprint` and
+  `meta.fingerprint_basis`). They change independently.
 - **Coordinates.** `line` is 1-based (0 = unknown). `col` and `end_col` are 0-based
   **UTF-8 byte offsets** in the line, exactly as `ast` reports them (`end_col` 0 =
   unknown). A `SyntaxError` reports characters; sarand converts them to bytes so the whole
@@ -213,7 +216,7 @@ duplicate), its `qualname` (`Outer.method`, `outer.<locals>.inner`), `module`, `
 `defines` relationship, stored once), `location`, the written `decorators` and `bases`
 in source order, `flags` (`nested`, `conditional`, `dynamic`) and `extensions`
 (`is_async`, `is_generator`, `has_star_args`, `has_metaclass`, `alias_of`,
-`declared_only`, `overload`). A property is recognised by the written decorator
+`declared_only`, `overload`) and a `fingerprint` (see "Identity and fingerprints"). A property is recognised by the written decorator
 (`property`, `cached_property`, `x.setter`/`getter`/`deleter`); the accessor defs of one
 property are one binding. `@overload` stubs are symbols but do not bind the name. The id
 contains no line number, so it survives formatting and unrelated edits.
@@ -282,9 +285,57 @@ limitation `dynamic_construct_seen`. A symbol pass that hits the node, recursion
 guard keeps what it read and makes the file `partial`. `implements` and `overrides` do not
 exist in Python and are not produced.
 
+## Identity and fingerprints (R14-A3)
+
+A later comparison of two runs (a baseline, R14-D) needs to know which symbol of the new
+state *is* which symbol of the old one. R14-A defines the identity and tests it; it does
+not compare runs yet.
+
+- **The symbol `id`** is the identity: `sym:` plus 12 hex digits over language, kind,
+  repository-relative path, qualified name and a `#n` ordinal for a duplicated name. It
+  has no line number and no content, so it survives formatting, comments, docstrings
+  and unrelated edits, and it changes when a symbol is renamed or its file is moved.
+- **The `fingerprint`** (`fp1:` plus 12 hex digits) answers a different question: *did
+  the content of this definition change?* It is a SHA-256 over a canonical walk of the
+  definition's syntax tree. It ignores positions, whitespace, parentheses, quote style,
+  trailing commas, comments and the docstring of a function or class; it includes every
+  statement and expression, nested definitions, decorators, defaults and annotations.
+  A class fingerprint therefore includes its methods. A variable is fingerprinted from
+  its annotation and value only, so another target of the same statement does not
+  change it. The algorithm is `structure/fingerprint.py`; a change of it bumps `fp1`.
+- **The basis** (`meta.fingerprint_basis`, `fp1/python-3.12`) names the algorithm version
+  and the interpreter's minor version, because the syntax tree differs between Python
+  versions. Fingerprints are compared only between outputs with the same basis; across
+  bases only ids can match.
+- **Match classes** (`structure/identity.py`, `match_symbols`) between an old and a new
+  list of symbols. Every symbol appears in exactly one row, and the result does not
+  depend on input order.
+
+| Class | Meaning |
+|---|---|
+| `exact` | the same id, with nothing doubtful about it; `content_changed` says whether the fingerprint differs (`null` when it cannot be compared) |
+| `probable` | the same kind, qualified name and fingerprint at a different path (a move), exactly one candidate on each side |
+| `ambiguous` | several candidates on at least one side: a duplicated qualified name whose duplicates cannot be paired by content, or several equally good move candidates; every candidate id is listed and none is chosen |
+| `unmatched` | nothing on the other side (`removed` or `added`); a renamed symbol is an unmatched pair on purpose, because R14-A does not guess renames |
+
+Limits: a fingerprint is not a security hash and never decides alone (it can only make a
+match `probable`); a symbol that moved *and* changed has no counterpart; a method moved
+with its class is matched per symbol; two outputs from different Python minor versions
+match by id only. The match is defined on symbols; relations and entry points are not
+matched yet.
+
+## Evaluation on real repositories
+
+`scripts/structure_eval.py` measures time and memory, checks that repeated runs
+serialise to the same bytes and draws seeded samples (50 each of `Definite`,
+`Probable` and `Unknown` relations, and of usage sites that were counted but not
+stored) for manual review. The results for sarand and click, the rule used to judge a
+row and the reviewed rows themselves are in `docs/R14A_GATE_REPORT.md` and
+`docs/eval/`. The numbers are **estimates from small samples**, not accuracy.
+
 ## Where it appears
 
-- **JSON** (`structure`, outer schema 1.8, structure schema 2): everything, including each edge,
+- **JSON** (`structure`, outer schema 1.9, structure schema 3): everything, including each edge,
   symbol, relation and entry point with its evidence, note and location. See `docs/JSON_SCHEMA.md`.
 - **Markdown and HTML**: counts; import cycles (first 10); **unresolved and dynamic imports**
   (first 20): the imports whose target class is `internal_unresolved` or `dynamic`, with the
@@ -302,6 +353,10 @@ All counts come from one place (`structure/serialize.py` and
 
 ## Not implemented yet
 
-Stable structural identity beyond the symbol `id` (fingerprints, match classes between two
-states), the real-repository evaluation and the stage gate (R14-A3). Other languages are not started. Python import constructs that remain unsupported
+Comparing two runs (a baseline, R14-D), matching relations and entry points, and other
+languages. Known precision limits found by the evaluation: a method called on a local
+variable or parameter whose class is known only from a constructor call or an annotation
+is not resolved (no local type inference), and a class that defines `__getattr__` makes
+every attribute that is not found as a class member `unknown`, including instance
+attributes the class assigns itself. Python import constructs that remain unsupported
 are listed under "Recognised forms and their limits".

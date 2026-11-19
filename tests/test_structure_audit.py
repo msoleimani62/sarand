@@ -152,8 +152,8 @@ def test_the_inner_and_outer_schema_versions_are_independent(tmp_path: Path) -> 
         root, write_tree(root, {"a.py": "import os\n"}), stdlib=STDLIB
     )
     payload = json.loads(json_renderer.render(data, include_source=False))
-    assert payload["schema_version"] == "1.8"
-    assert payload["structure"]["schema"] == SCHEMA_VERSION == 2
+    assert payload["schema_version"] == "1.9"
+    assert payload["structure"]["schema"] == SCHEMA_VERSION == 3
     assert isinstance(payload["structure"]["schema"], int)
 
 
@@ -911,7 +911,7 @@ def test_metadata_is_deterministic_and_names_its_environment(tmp_path: Path) -> 
     assert dict(one.meta) == dict(two.meta)
     assert set(one.meta) == {
         "interpreter", "stdlib_source", "stdlib_count", "source_roots", "declared_roots",
-        "rejected_roots", "parser",
+        "rejected_roots", "parser", "fingerprint_basis",
     }  # fmt: skip
     assert one.meta["source_roots"] == ("a", "b")
     assert one.meta["stdlib_count"] == len(STDLIB)

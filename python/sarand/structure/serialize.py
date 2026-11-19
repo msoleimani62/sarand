@@ -2,10 +2,10 @@
 
 Two schema versions are involved and are different things:
 
-- the **outer report** schema (`schema_version`, `"1.8"` at the time of writing) is
+- the **outer report** schema (`schema_version`, `"1.9"` at the time of writing) is
   versioned in `renderers/json_renderer.py` and `docs/JSON_SCHEMA.md`;
 - the **structure model** schema is `SCHEMA_VERSION` of `structure/model.py` (an
-  integer, 2) and appears here as `structure.schema`.
+  integer, 3) and appears here as `structure.schema`.
 
 Output is canonical: every collection is sorted here by an explicit key (so two equal
 models serialize to the same bytes whatever order their producers used), mappings are
@@ -127,6 +127,7 @@ def _symbol(symbol: Symbol) -> dict[str, Any]:
         "parent": symbol.parent,
         "location": _location(symbol.location),
         "flags": sorted(symbol.flags),
+        "fingerprint": symbol.fingerprint,
     }
     if symbol.decorators:
         out["decorators"] = list(symbol.decorators)

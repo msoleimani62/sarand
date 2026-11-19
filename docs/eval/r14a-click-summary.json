@@ -1,0 +1,124 @@
+{
+  "files_listed": 179,
+  "interpreter": "3.12.3",
+  "process_peak_rss_kb": 94848,
+  "runs": 5,
+  "runs_identical": true,
+  "sample_sizes": {
+    "definite": 50,
+    "probable": 50,
+    "unknown": 50,
+    "untracked": 50
+  },
+  "seconds_max": 1.437,
+  "seconds_median": 1.318,
+  "seconds_min": 1.288,
+  "seed": 14,
+  "sha256": "299d6a41d1e2a1490f8c21190b88ae7742c691929bd2f2febd29b08e5a557fd5",
+  "sites": {
+    "builtin": 2802,
+    "dynamic": 11,
+    "external_declared": 0,
+    "external_stdlib": 1804,
+    "external_unmatched": 689,
+    "internal": 5485,
+    "total": 13226,
+    "unresolved": 90,
+    "untracked": 2345,
+    "untracked_by_reason": {
+      "ambiguous_binding_without_repository_candidate": 3,
+      "attribute_by_constant_name": 16,
+      "attribute_of_value": 229,
+      "call_of_variable": 22,
+      "expression_without_a_name": 251,
+      "instance_attribute": 222,
+      "local_binding": 1602
+    }
+  },
+  "structure_json_bytes": 3513613,
+  "summary": {
+    "cycles": 2,
+    "eager_cycles": 1,
+    "entry_points": 11,
+    "entry_points_by_type": {
+      "console_script": 10,
+      "entry_point_group": 0,
+      "framework_app": 0,
+      "main_block": 0,
+      "package_main": 0,
+      "test_root": 1
+    },
+    "externals": 66,
+    "files": 91,
+    "files_by_completeness": {
+      "failed": 0,
+      "full": 91,
+      "partial": 0,
+      "skipped_size": 0
+    },
+    "imports": 708,
+    "imports_by_class": {
+      "dynamic": 1,
+      "external_declared": 0,
+      "external_unmatched": 42,
+      "internal": 334,
+      "internal_unresolved": 0,
+      "stdlib": 331
+    },
+    "imports_by_confidence": {
+      "definite": 665,
+      "probable": 42,
+      "unknown": 1
+    },
+    "modules": 91,
+    "namespace_packages": 0,
+    "packages": 6,
+    "relations": 4347,
+    "relations_by_confidence": {
+      "definite": 3177,
+      "probable": 1076,
+      "unknown": 94
+    },
+    "relations_by_kind": {
+      "calls": 1633,
+      "inherits": 101,
+      "references": 2613
+    },
+    "symbols": 2546,
+    "symbols_by_kind": {
+      "class": 178,
+      "constant": 90,
+      "function": 1429,
+      "method": 462,
+      "property": 24,
+      "variable": 363
+    }
+  },
+  "tally": {
+    "definite": {
+      "correct": 50,
+      "undecidable": 0,
+      "unreviewed": 0,
+      "wrong": 0
+    },
+    "probable": {
+      "correct": 50,
+      "undecidable": 0,
+      "unreviewed": 0,
+      "wrong": 0
+    },
+    "unknown": {
+      "correct": 50,
+      "undecidable": 0,
+      "unreviewed": 0,
+      "wrong": 0
+    },
+    "untracked": {
+      "missed": 19,
+      "outside": 25,
+      "undecidable": 6,
+      "unreviewed": 0
+    }
+  },
+  "tracemalloc_peak_kb": 23304
+}

@@ -597,7 +597,7 @@ def test_every_format_tells_the_same_counts(tmp_path: Path) -> None:
     md = markdown.render(data, include_source=False)
     page = html.render(data, include_source=False)
     payload = json.loads(json_renderer.render(data, include_source=False))
-    assert payload["schema_version"] == "1.8"
+    assert payload["schema_version"] == "1.9"
     assert payload["structure"]["summary"] == info
     for line in structure_lines(data):
         assert f"- {line}" in md

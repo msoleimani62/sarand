@@ -28,6 +28,7 @@ from sarand.core.components import declared_dependencies
 from sarand.structure.cycles import find_cycles
 from sarand.structure.entry_points import find_entry_points
 from sarand.structure.facts import FileFacts, extract_facts
+from sarand.structure.fingerprint import fingerprint_basis
 from sarand.structure.imports import ModuleIndex, normalise_distribution, resolve_record
 from sarand.structure.model import (
     COMPLETENESS_FAILED,
@@ -300,6 +301,7 @@ def build_structure(
         ),
         "rejected_roots": tuple(sorted(rejected)),
         "parser": PARSER_PYTHON_AST,
+        "fingerprint_basis": fingerprint_basis(interpreter),
     }
     return StructureData(
         schema_version=SCHEMA_VERSION,

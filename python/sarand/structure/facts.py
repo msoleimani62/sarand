@@ -30,8 +30,9 @@ import ast
 import hashlib
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
+from sarand.structure.fingerprint import fingerprint
 from sarand.structure.model import (
     LANGUAGE_PYTHON,
     LIM_DYNAMIC,
@@ -398,6 +399,7 @@ class _FactsWalker:
         bases: tuple[str, ...] = (),
         extensions: dict[str, str | int | bool] | None = None,
         dynamic: bool = False,
+        content: tuple[ast.AST | None, ...] | None = None,
     ) -> SymbolInfo:
         qualname = f"{qual_prefix}{name}"
         key = (kind, qualname)
@@ -423,6 +425,7 @@ class _FactsWalker:
             bases=bases,
             flags=tuple(flags),
             extensions=extensions or {},
+            fingerprint=fingerprint(content if content is not None else (node,)),
         )
         info = SymbolInfo(symbol=symbol, scope=scope.id)
         self.symbols.append(info)
@@ -615,6 +618,10 @@ class _FactsWalker:
             target,
             conditional=conditional,
             extensions=extensions,
+            content=(
+                node.annotation if isinstance(node, ast.AnnAssign) else None,
+                value,
+            ),
         )
         if isinstance(value, ast.Call):
             info.value_call = chain_of(value.func)
@@ -1148,20 +1155,7 @@ class _FactsWalker:
         symbol = info.symbol
         extensions = dict(symbol.extensions)
         extensions["is_generator"] = True
-        info.symbol = Symbol(
-            id=symbol.id,
-            kind=symbol.kind,
-            name=symbol.name,
-            qualname=symbol.qualname,
-            module=symbol.module,
-            path=symbol.path,
-            parent=symbol.parent,
-            location=symbol.location,
-            decorators=symbol.decorators,
-            bases=symbol.bases,
-            flags=symbol.flags,
-            extensions=extensions,
-        )
+        info.symbol = replace(symbol, extensions=extensions)
 
     def call(self, node: ast.Call, scope: Scope) -> None:
         func = node.func

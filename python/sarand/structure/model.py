@@ -12,9 +12,10 @@ after construction, including the nested `meta` and `extensions` values.
 Two schema versions exist and must not be confused:
 
 - `SCHEMA_VERSION` here is the version of the **structure model** and of the
-  `structure.schema` field of the JSON payload (an integer, 2 today: 1 was imports
-  only, 2 adds symbols, relations and entry points);
-- the outer **report** schema (`schema_version`, `"1.8"`) is versioned by
+  `structure.schema` field of the JSON payload (an integer, 3 today: 1 was imports
+  only, 2 added symbols, relations and entry points, 3 adds the symbol `fingerprint`
+  and `meta.fingerprint_basis`);
+- the outer **report** schema (`schema_version`, `"1.9"`) is versioned by
   `renderers/json_renderer.py` and `docs/JSON_SCHEMA.md`.
 
 Coordinates (`SourceLocation`): `line` is 1-based (0 means unknown), `col` and
@@ -33,7 +34,9 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
 
-SCHEMA_VERSION = 2
+from sarand.structure.fingerprint import FINGERPRINT_PATTERN
+
+SCHEMA_VERSION = 3
 LANGUAGE_PYTHON = "python"
 PARSER_PYTHON_AST = "python-ast"
 
@@ -475,7 +478,11 @@ class Symbol:
     `decorators` and `bases` are the written texts of those expressions, in source
     order (not sorted: order is meaning). `module` is empty when the file has no module
     name. `extensions` holds language facts (`is_async`, `is_generator`,
-    `has_star_args`, `has_metaclass`, `alias_of`, ...).
+    `has_star_args`, `has_metaclass`, `alias_of`, ...). `fingerprint` is the versioned
+    `fp1:` hash of the definition's content (`structure/fingerprint.py`): it changes
+    when the content changes and not for formatting, comments, docstrings or line
+    shifts; it is only comparable between outputs with the same
+    `meta.fingerprint_basis`.
     """
 
     id: str
@@ -490,8 +497,14 @@ class Symbol:
     bases: tuple[str, ...] = ()
     flags: tuple[str, ...] = ()
     extensions: Mapping[str, ScalarValue] = field(default_factory=dict)
+    fingerprint: str = ""
 
     def __post_init__(self) -> None:
+        if self.fingerprint and not FINGERPRINT_PATTERN.match(self.fingerprint):
+            raise ModelError(
+                f"Symbol.fingerprint must be empty or 'fp1:' + 12 hex digits, "
+                f"got {self.fingerprint!r}"
+            )
         if not self.id.startswith("sym:") or len(self.id) != 16:
             raise ModelError(
                 f"Symbol.id must be 'sym:' + 12 hex digits, got {self.id!r}"
