@@ -265,41 +265,123 @@ def _node_dependencies(directory: Path) -> list[DeclaredDependency]:
     return found
 
 
-def _python_dependencies(directory: Path, files: set[str]) -> list[DeclaredDependency]:
-    found: list[DeclaredDependency] = []
-    if "pyproject.toml" in files:
-        text = _read_limited(directory / "pyproject.toml")
+class PythonDeclaration(NamedTuple):
+    """One Python dependency name and the section of the manifest that declares it.
+
+    `section` names where the manifest declared it, so a reader can tell a runtime
+    dependency from an optional extra or a development group: `project.dependencies`,
+    `project.optional-dependencies.<extra>`, `dependency-groups.<group>`,
+    `build-system.requires`, `tool.poetry.dependencies`,
+    `tool.poetry.dev-dependencies`, `tool.poetry.group.<group>.dependencies`, or
+    `requirements.txt`. `name` is the PEP 503 normalised distribution name.
+    یک نام وابستگی پایتون و بخشی از مانیفست که آن را اعلام کرده است.
+    """
+
+    name: str
+    section: str
+    manifest: str
+
+
+_PYPROJECT = "pyproject.toml"
+_REQUIREMENTS = "requirements.txt"
+# The sections whose names `declared_dependencies` has always reported, with the scope
+# it gives them (Quick Context reads those names; the other sections stay out of it).
+# بخش‌هایی که `declared_dependencies` همیشه گزارش کرده است.
+_LEGACY_PYTHON_SECTIONS: dict[str, str] = {
+    "project.dependencies": "runtime",
+    "tool.poetry.dependencies": "runtime",
+    _REQUIREMENTS: "",
+}
+
+
+def _requirement_names(items: object) -> list[str]:
+    """Normalised names of the PEP 508 requirement strings in `items`. Anything else
+    (for example the `{include-group = ...}` tables of PEP 735) is not a package and
+    is skipped."""
+    names: list[str] = []
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, str):
+                match = _PY_DEP_NAME.match(item)
+                if match:
+                    names.append(_normalise_py(match.group(1)))
+    return names
+
+
+def _poetry_names(table: object) -> list[str]:
+    """Names in a Poetry dependency table. `python` is the interpreter constraint, not
+    a package."""
+    if not isinstance(table, dict):
+        return []
+    return [
+        _normalise_py(str(name))
+        for name in table
+        if _normalise_py(str(name)) != "python"
+    ]
+
+
+def _pyproject_declarations(data: dict[str, object]) -> list[PythonDeclaration]:
+    found: list[PythonDeclaration] = []
+
+    def add(names: list[str], section: str) -> None:
+        found.extend(PythonDeclaration(name, section, _PYPROJECT) for name in names)
+
+    project = data.get("project")
+    if isinstance(project, dict):
+        add(_requirement_names(project.get("dependencies")), "project.dependencies")
+        extras = project.get("optional-dependencies")
+        if isinstance(extras, dict):
+            for extra in sorted(extras, key=str):
+                add(
+                    _requirement_names(extras[extra]),
+                    f"project.optional-dependencies.{extra}",
+                )
+    groups = data.get("dependency-groups")
+    if isinstance(groups, dict):
+        for group in sorted(groups, key=str):
+            add(_requirement_names(groups[group]), f"dependency-groups.{group}")
+    build = data.get("build-system")
+    if isinstance(build, dict):
+        add(_requirement_names(build.get("requires")), "build-system.requires")
+    tool = data.get("tool")
+    poetry = tool.get("poetry") if isinstance(tool, dict) else None
+    if isinstance(poetry, dict):
+        add(_poetry_names(poetry.get("dependencies")), "tool.poetry.dependencies")
+        add(
+            _poetry_names(poetry.get("dev-dependencies")),
+            "tool.poetry.dev-dependencies",
+        )
+        poetry_groups = poetry.get("group")
+        if isinstance(poetry_groups, dict):
+            for group in sorted(poetry_groups, key=str):
+                body = poetry_groups[group]
+                if isinstance(body, dict):
+                    add(
+                        _poetry_names(body.get("dependencies")),
+                        f"tool.poetry.group.{group}.dependencies",
+                    )
+    return found
+
+
+def python_declarations(directory: Path, files: set[str]) -> list[PythonDeclaration]:
+    """Every Python dependency name declared in `directory`, with its section.
+
+    Reads `pyproject.toml` (PEP 621 dependencies and optional dependencies, PEP 735
+    dependency groups, `build-system.requires`, the Poetry tables) and
+    `requirements.txt`. It reads declarations only: it never reads installed
+    packages, so an import name is not mapped to a distribution name here.
+    """
+    found: list[PythonDeclaration] = []
+    if _PYPROJECT in files:
+        text = _read_limited(directory / _PYPROJECT)
         if text is not None:
             try:
                 data = tomllib.loads(text)
             except tomllib.TOMLDecodeError:
                 data = {}
-            project = data.get("project")
-            if isinstance(project, dict):
-                deps = project.get("dependencies")
-                if isinstance(deps, list):
-                    for dep in deps:
-                        match = _PY_DEP_NAME.match(str(dep))
-                        if match:
-                            found.append(
-                                DeclaredDependency(
-                                    _normalise_py(match.group(1)),
-                                    "runtime",
-                                    "pyproject.toml",
-                                )
-                            )
-            poetry = data.get("tool", {}).get("poetry", {})
-            if isinstance(poetry, dict) and isinstance(
-                poetry.get("dependencies"), dict
-            ):
-                found.extend(
-                    DeclaredDependency(
-                        _normalise_py(str(name)), "runtime", "pyproject.toml"
-                    )
-                    for name in poetry["dependencies"]
-                )
-    if "requirements.txt" in files:
-        text = _read_limited(directory / "requirements.txt")
+            found.extend(_pyproject_declarations(data))
+    if _REQUIREMENTS in files:
+        text = _read_limited(directory / _REQUIREMENTS)
         for line in (text or "").splitlines():
             line = line.strip()
             if not line or line.startswith(("#", "-")):
@@ -307,11 +389,22 @@ def _python_dependencies(directory: Path, files: set[str]) -> list[DeclaredDepen
             match = _PY_DEP_NAME.match(line)
             if match:
                 found.append(
-                    DeclaredDependency(
-                        _normalise_py(match.group(1)), "", "requirements.txt"
+                    PythonDeclaration(
+                        _normalise_py(match.group(1)), _REQUIREMENTS, _REQUIREMENTS
                     )
                 )
     return found
+
+
+def _python_dependencies(directory: Path, files: set[str]) -> list[DeclaredDependency]:
+    """The names `declared_dependencies` reports for Python: runtime dependencies, the
+    Poetry table and `requirements.txt`, as before. The other sections are read by
+    `python_declarations` for the structure only."""
+    return [
+        DeclaredDependency(d.name, _LEGACY_PYTHON_SECTIONS[d.section], d.manifest)
+        for d in python_declarations(directory, files)
+        if d.section in _LEGACY_PYTHON_SECTIONS
+    ]
 
 
 _CARGO_SECTIONS: tuple[tuple[str, str], ...] = (

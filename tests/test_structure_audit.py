@@ -152,8 +152,8 @@ def test_the_inner_and_outer_schema_versions_are_independent(tmp_path: Path) -> 
         root, write_tree(root, {"a.py": "import os\n"}), stdlib=STDLIB
     )
     payload = json.loads(json_renderer.render(data, include_source=False))
-    assert payload["schema_version"] == "1.9"
-    assert payload["structure"]["schema"] == SCHEMA_VERSION == 3
+    assert payload["schema_version"] == "1.10"
+    assert payload["structure"]["schema"] == SCHEMA_VERSION == 4
     assert isinstance(payload["structure"]["schema"], int)
 
 

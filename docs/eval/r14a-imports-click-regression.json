@@ -1,0 +1,115 @@
+{
+  "changed_parts": [],
+  "edge_counts": [
+    708,
+    708
+  ],
+  "edge_fields_changed": {
+    "confidence": 35,
+    "note": 38,
+    "resolution_method": 38,
+    "target_class": 38
+  },
+  "edges_changed": 38,
+  "externals_changed": [
+    {
+      "class": [
+        "external_unmatched",
+        "external_declared"
+      ],
+      "declared_in": [
+        [],
+        [
+          "examples/imagepipe/pyproject.toml#project.dependencies"
+        ]
+      ],
+      "name": "PIL"
+    },
+    {
+      "class": [
+        "external_unmatched",
+        "external_declared"
+      ],
+      "declared_in": [
+        [],
+        [
+          "pyproject.toml#dependency-groups.docs"
+        ]
+      ],
+      "name": "pallets_sphinx_themes"
+    },
+    {
+      "class": [
+        "external_unmatched",
+        "external_declared"
+      ],
+      "declared_in": [
+        [],
+        [
+          "pyproject.toml#dependency-groups.tests",
+          "pyproject.toml#dependency-groups.tests-random",
+          "pyproject.toml#dependency-groups.typing"
+        ]
+      ],
+      "name": "pytest"
+    }
+  ],
+  "externals_same_names": true,
+  "identical_parts": [
+    "cycles",
+    "entry_points",
+    "files",
+    "language",
+    "modules",
+    "relations",
+    "symbols"
+  ],
+  "meta_changed": {},
+  "only_external_edges_changed": true,
+  "schema": [
+    3,
+    4
+  ],
+  "sites_changed": {
+    "external_declared": [
+      0,
+      684
+    ],
+    "external_unmatched": [
+      689,
+      5
+    ]
+  },
+  "summary_changed": {
+    "imports_by_class": [
+      {
+        "dynamic": 1,
+        "external_declared": 0,
+        "external_unmatched": 42,
+        "internal": 334,
+        "internal_unresolved": 0,
+        "stdlib": 331
+      },
+      {
+        "dynamic": 1,
+        "external_declared": 38,
+        "external_unmatched": 4,
+        "internal": 334,
+        "internal_unresolved": 0,
+        "stdlib": 331
+      }
+    ],
+    "imports_by_confidence": [
+      {
+        "definite": 665,
+        "probable": 42,
+        "unknown": 1
+      },
+      {
+        "definite": 700,
+        "probable": 7,
+        "unknown": 1
+      }
+    ]
+  }
+}

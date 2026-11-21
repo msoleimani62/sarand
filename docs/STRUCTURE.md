@@ -16,7 +16,7 @@ default, and a default report is unchanged.
 
 | Thing | Where it comes from | What sarand does with it |
 |---|---|---|
-| A dependency **declared** | `pyproject.toml`, `requirements.txt` | recorded as evidence on an external package; never an import by itself |
+| A dependency **declared** | `pyproject.toml` (every section listed under "Declared dependencies"), `requirements.txt` | recorded as evidence, with the section, on an external package; never an import by itself |
 | A package **installed** | the environment | never read |
 | An import **found in source** | `import` statements and `importlib`/`__import__` calls | an edge |
 | A **resolved** repository relationship | an edge whose target is a repository module | the import graph and the cycles |
@@ -27,10 +27,56 @@ default, and a default report is unchanged.
 |---|---|
 | `internal` | a module of this repository (or an implicit namespace package) |
 | `stdlib` | a standard-library name; the list is `sys.stdlib_module_names` of the interpreter that ran sarand and is recorded in `meta` |
-| `external_declared` | not a repository module and its normalised name equals a declared dependency |
-| `external_unmatched` | not a repository module, not standard library, no matching declaration. An import name can differ from its distribution name (`yaml` and `pyyaml`) and sarand reads no installed metadata, so it does not guess; this is the "unresolved external" list |
+| `external_declared` | not a repository module and not standard library, and a manifest declares a distribution that provides the import: one with the same normalised name (`definite`) or one that the table of `sarand/structure/distributions.py` says ships the import name (`probable`). `declared_in` lists every declaration with its section |
+| `external_unmatched` | not a repository module, not standard library, and no declaration that sarand reads provides it. This is the "unresolved external" list: it means *no readable declaration matched*, which is not the same as *undeclared* (see "Declared dependencies" for what is not read) |
 | `internal_unresolved` | the name starts in a repository package but no target was found: a missing submodule, an ambiguous name (several modules match), a relative import beyond the top package |
 | `dynamic` | the module name is computed at run time (`importlib.import_module(name)`) |
+
+## Declared dependencies
+
+An external import is matched against what the project's manifests **declare**. Five
+terms are kept apart:
+
+| Term | Meaning |
+|---|---|
+| **import name** | the top-level name written in the source: `yaml`, `PIL`, `pytest` |
+| **distribution name** | the name a manifest uses for a package: `PyYAML`, `Pillow`, `pytest`; compared after PEP 503 normalisation (case folded, runs of `-`, `_` and `.` become one `-`) |
+| **dependency declaration** | one distribution name listed in one section of one manifest |
+| **section** | where the manifest lists it; the dependency group (`tests`, `docs`, ...) or extra is part of the name |
+| `external_declared` / `external_unmatched` | at least one readable declaration provides the import / none does |
+
+**What is read** (Python, in every directory that has the manifest). The `declared_in` label
+is `<directory>/pyproject.toml#<section>` or `<directory>/requirements.txt`:
+
+| Section label | Source |
+|---|---|
+| `project.dependencies` | PEP 621 runtime dependencies |
+| `project.optional-dependencies.<extra>` | PEP 621 extras |
+| `dependency-groups.<group>` | PEP 735 groups (`{include-group = ...}` entries are not packages and are skipped) |
+| `build-system.requires` | build requirements |
+| `tool.poetry.dependencies`, `tool.poetry.dev-dependencies`, `tool.poetry.group.<group>.dependencies` | Poetry (`python` is the interpreter constraint, not a package) |
+| `requirements.txt` | one requirement per line; options and comments are skipped |
+
+**Matching.** The distribution with the same normalised name as the import is tried
+first (`definite`). The import name can differ from the distribution name, so a short
+**explicit table** (`sarand/structure/distributions.py`) lists, for a few well-established
+import names, every distribution known to ship them (`yaml` is shipped by `pyyaml`,
+`PIL` by `pillow` and `pillow-simd`, `cv2` by four `opencv-*` distributions). If any of
+those is declared, the import is `external_declared` with confidence `probable` (the
+pair comes from the table, not from the text of the project), resolution method
+`declared-distribution`, and `declared_in` lists every declaration found. A name that
+is not in the table is not guessed from similarity and stays `external_unmatched`; the
+table is not complete.
+
+**What is not read:** installed packages (never; no `top_level.txt`), `setup.py`,
+`setup.cfg`, `Pipfile`, `requirements-*.txt` variants, `uv`, `pdm` and `hatch` tables,
+Cargo and npm manifests for Python imports. A package declared only there is
+`external_unmatched`.
+
+**Scope.** A declaration anywhere in the scanned project counts for the whole project;
+it is not limited to the directory of its manifest. The evaluation script reports how
+many declared edges have no declaring manifest above the importing file
+(`scripts/structure_eval_imports.py --audit-external`).
 
 ## Confidence
 
@@ -40,7 +86,7 @@ confidence level.
 | Level | Rule | Examples |
 |---|---|---|
 | `definite` | The name binds to exactly one repository module (or standard-library or declared name) by Python's own rules | `import a.b` where `a/b.py` exists; a relative import that lands on a file; a standard-library name; a name equal to a declaration |
-| `probable` | One candidate, but an assumption was needed | the same module name exists in two source roots and the importer's own root is preferred; a repository module shadows a standard-library name; `importlib.import_module("literal")`; an external package matched only by elimination |
+| `probable` | One candidate, but an assumption was needed | the same module name exists in two source roots and the importer's own root is preferred; a repository module shadows a standard-library name; `importlib.import_module("literal")`; an external package matched only by elimination; an external package declared only through a distribution that ships the import name (`import yaml` with `PyYAML` declared) |
 | `unknown` | The evidence cannot name a target | a computed module name; an ambiguous name; a missing submodule; a relative import with no parent package |
 
 An `unknown` edge is never a dependency: it never makes a cycle.
@@ -144,11 +190,12 @@ eager (they run on some path). Otherwise it is listed as "lazy or type-only".
 
 ## Model contract
 
-- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.9"`) is
+- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.10"`) is
   versioned with the JSON report (`docs/JSON_SCHEMA.md`). The **structure model** schema is
-  `structure.schema`, an integer, `3` today (`1` was imports only, `2` added symbols,
-  relations and entry points, `3` adds the symbol `fingerprint` and
-  `meta.fingerprint_basis`). They change independently.
+  `structure.schema`, an integer, `4` today (`1` was imports only, `2` added symbols,
+  relations and entry points, `3` added the symbol `fingerprint` and
+  `meta.fingerprint_basis`, `4` makes `declared_in` name the manifest section and adds the
+  `declared-distribution` resolution method). They change independently.
 - **Coordinates.** `line` is 1-based (0 = unknown). `col` and `end_col` are 0-based
   **UTF-8 byte offsets** in the line, exactly as `ast` reports them (`end_col` 0 =
   unknown). A `SyntaxError` reports characters; sarand converts them to bytes so the whole
@@ -335,7 +382,7 @@ row and the reviewed rows themselves are in `docs/R14A_GATE_REPORT.md` and
 
 ## Where it appears
 
-- **JSON** (`structure`, outer schema 1.9, structure schema 3): everything, including each edge,
+- **JSON** (`structure`, outer schema 1.10, structure schema 4): everything, including each edge,
   symbol, relation and entry point with its evidence, note and location. See `docs/JSON_SCHEMA.md`.
 - **Markdown and HTML**: counts; import cycles (first 10); **unresolved and dynamic imports**
   (first 20): the imports whose target class is `internal_unresolved` or `dynamic`, with the

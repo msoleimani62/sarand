@@ -210,11 +210,15 @@ def test_stdlib_declared_and_unmatched_are_three_different_classes(
     classes = {e.requested: (e.target_class, e.confidence) for e in data.edges}
     assert classes["os"] == (TARGET_STDLIB, CONF_DEFINITE)
     assert classes["requests"] == (TARGET_EXTERNAL_DECLARED, CONF_DEFINITE)
-    # `yaml` is not `pyyaml`: sarand reads no installed metadata, so it does not guess
-    assert classes["yaml"] == (TARGET_EXTERNAL_UNMATCHED, CONF_PROBABLE)
+    # `yaml` is shipped by `PyYAML`: the explicit table of distributions.py says so, and
+    # the match is `probable` (the pair comes from the table, not from the text).
+    # No installed metadata is read, and a name that is not in the table is not guessed.
+    assert classes["yaml"] == (TARGET_EXTERNAL_DECLARED, CONF_PROBABLE)
     assert classes["numpy"] == (TARGET_EXTERNAL_UNMATCHED, CONF_PROBABLE)
     declared = next(x for x in data.externals if x.name == "requests")
-    assert declared.declared_in == ("pyproject.toml",)
+    assert declared.declared_in == ("pyproject.toml#project.dependencies",)
+    shipped = next(x for x in data.externals if x.name == "yaml")
+    assert shipped.declared_in == ("pyproject.toml#project.dependencies",)
 
 
 def test_a_declared_dependency_alone_makes_no_edge(tmp_path: Path) -> None:
@@ -597,7 +601,7 @@ def test_every_format_tells_the_same_counts(tmp_path: Path) -> None:
     md = markdown.render(data, include_source=False)
     page = html.render(data, include_source=False)
     payload = json.loads(json_renderer.render(data, include_source=False))
-    assert payload["schema_version"] == "1.9"
+    assert payload["schema_version"] == "1.10"
     assert payload["structure"]["summary"] == info
     for line in structure_lines(data):
         assert f"- {line}" in md

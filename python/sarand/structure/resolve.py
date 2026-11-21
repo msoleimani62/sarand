@@ -56,7 +56,7 @@ from sarand.structure.facts import (
     SymbolInfo,
     Usage,
 )
-from sarand.structure.imports import ModuleIndex, normalise_distribution, pick_module
+from sarand.structure.imports import ModuleIndex, declared_match, pick_module
 from sarand.structure.imports import relative_base as _relative_base
 from sarand.structure.model import (
     CONF_DEFINITE,
@@ -266,7 +266,9 @@ class Resolver:
     def classify_external(self, top: str) -> str:
         if top in self.index.stdlib:
             return TARGET_STDLIB
-        if normalise_distribution(top) in self.index.declared:
+        # The same rule as the import edge (imports.declared_match): the distribution of
+        # the same name, or one that the table of distributions.py says ships `top`.
+        if declared_match(self.index, top) is not None:
             return TARGET_EXTERNAL_DECLARED
         return TARGET_EXTERNAL_UNMATCHED
 

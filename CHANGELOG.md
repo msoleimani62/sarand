@@ -19,6 +19,20 @@ version may include behaviour changes.
   `structure` object appears only with the flag; a default report is otherwise
   unchanged). Symbols, entry points and stable structural identity follow in R14-A2
   and R14-A3. See `docs/STRUCTURE.md`.
+- **Declared dependencies of external imports (R14-A3, criterion 4).** `--structure`
+  now reads every Python declaration with its section (`project.dependencies`,
+  `project.optional-dependencies.<extra>`, `dependency-groups.<group>`,
+  `build-system.requires`, the Poetry tables, `requirements.txt`) and `declared_in` names
+  the section (`pyproject.toml#dependency-groups.tests`). An import name that differs from
+  its distribution name is matched through a short explicit table
+  (`structure/distributions.py`, `yaml` and `PyYAML`, `PIL` and `Pillow`, ...): the match
+  is `probable`, nothing is guessed and installed packages are never read. Usage sites
+  follow the same rule as import edges. JSON schema `1.10` (structure schema `4`). Before,
+  `external_unmatched` mostly meant "declared in a section that was not read": on sarand
+  all 53 such edges and on click 38 of 42 were declared. Nothing else in the structure
+  changed (`scripts/structure_diff.py`). Quick Context still reads the same three
+  sections. The review of 100 sampled imports was repeated with the new code
+  (`docs/R14A_IMPORT_REREVIEW.md`; the first review is kept).
 - **Stable structural identity and the evaluation of the repository structure (R14-A3).**
   Each symbol of `--structure` carries a `fingerprint` (`fp1:` plus 12 hex digits, a
   hash of the definition's content that ignores formatting, comments, docstrings and

@@ -2,7 +2,7 @@
 
 `sarand --format json` یک شیء JSON می‌نویسد. این صفحه همه‌ی کلیدهای سطح بالا، فیلدهای شیءهای تو در تو و آنچه یک اسکریپت می‌تواند به آن تکیه کند را فهرست می‌کند. نسخه‌ی فعلی پایین است؛ یک تست این صفحه و کد را هم‌گام نگه می‌دارد، پس کلیدی که در کد هست ولی اینجا نیست build را می‌شکند.
 
-نسخه‌ی فعلی: **1.9**
+نسخه‌ی فعلی: **1.10**
 
 ## سیاست سازگاری
 
@@ -79,6 +79,7 @@
 
 ## تاریخچه‌ی نسخه
 
+- **1.10** (R14-A3، معیار ۴): در `structure.externals` فیلد `declared_in` یک بسته‌ی `external_declared` حالا نام **بخش** manifest اعلام‌کننده را می‌گوید (`pyproject.toml#dependency-groups.tests`، `pyproject.toml#project.optional-dependencies.dev`، `pyproject.toml#project.dependencies`، `requirements.txt`، ...؛ manifest در زیرپوشه پوشه‌اش را نگه می‌دارد) و همه‌ی اعلام‌ها را فهرست می‌کند، در حالی که قبلاً فقط فایل manifest را می‌آورد؛ بسته‌ای که نام import آن با نام distributionش فرق دارد حالا می‌تواند با یک جدول صریح `external_declared` شود (`edges[].resolution_method` برابر `declared-distribution`، اعتماد `probable`، با یادداشت). وابستگی‌های اختیاری، گروه‌های وابستگی PEP 735، `build-system.requires` و جدول‌های گروه و توسعه‌ی Poetry به‌عنوان اعلام خوانده می‌شوند. `schema` ساختار حالا `4` است. گزارش پیش‌فرض جز شماره‌ی نسخه تغییر نمی‌کند. به `docs/STRUCTURE.fa.md` نگاه کنید.
 - **1.9** (R14-A3): هر عضو `structure.symbols` فیلد `fingerprint` را گرفت (بصمت نسخه‌دار `fp1:` از محتوای تعریف؛ پایدار در برابر فرمت‌بندی، کامنت، docstring و جابه‌جایی خط) و `structure.meta` کلید `fingerprint_basis` را (`fp1/python-<minor>`: بصمت‌ها فقط بین خروجی‌هایی با پایه‌ی یکسان قابل مقایسه‌اند). `schema` ساختار حالا `3` است. گزارش پیش‌فرض جز شماره‌ی نسخه تغییر نمی‌کند. به `docs/STRUCTURE.fa.md` نگاه کنید.
 - **1.8** (R14-A2): شیء `structure` (هنوز فقط با `--structure`) این کلیدها را گرفت: `symbols` (کلاس، تابع، متد، property، متغیر و ثابت با `id` پایدار، نام کامل، مکان، دکوراتورها، پایه‌ها و پرچم‌ها)، `relations` (فراخوانی، وراثت و ارجاع بین نمادها، هرکدام با `confidence`، `resolution_method`، `evidence`، `count` و `location`)، `entry_points`، `external_use` (شمارش آنچه کد از بیرون مخزن به کار می‌برد) و `sites` (هر محل استفاده چگونه ذخیره یا شمرده شد). `schema` خودِ آن حالا `2` است و `summary` شمارش نماد، رابطه و نقطه‌ی ورود را گرفت. گزارش پیش‌فرض جز شماره‌ی نسخه تغییر نمی‌کند. به `docs/STRUCTURE.fa.md` نگاه کنید.
 - **1.7** (R14-A1): شیء `structure` اضافه شد که فقط با `--structure` حاضر است: `schema` (نسخه‌ی صحیح مدل ساختار، مستقل از `schema_version` ی این گزارش)، `language`، `meta` (مفسر، منبع فهرست stdlib، ریشه‌های سورس و اعلام‌شده، ریشه‌های ردشده)، `summary` (شمارش‌ها)، `files` (هرکدام با منشأ و کامل‌بودن؛ `size` وقتی فایل خوانده نشده `null` است)، `modules`، `externals`، `edges` (یک import با `target_class`، `confidence`، `resolution_method`، `flags`، `evidence`، `note` و `location`) و `cycles`. گزارش پیش‌فرض جز شماره‌ی نسخه تغییر نمی‌کند. به `docs/STRUCTURE.fa.md` نگاه کنید.

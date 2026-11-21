@@ -1,0 +1,98 @@
+{
+  "class_changed": [
+    "37",
+    "47"
+  ],
+  "external_audit": {
+    "declared_edges_without_a_declaring_manifest_above_the_importer": 0,
+    "edges_by_class": {
+      "external_declared": 38,
+      "external_unmatched": 4
+    },
+    "external_edges": 42,
+    "packages": {
+      "PIL": {
+        "classes": {
+          "external_declared": 3
+        },
+        "edges": 3,
+        "indep_declared_in": [
+          "examples/imagepipe/pyproject.toml#project.dependencies"
+        ],
+        "tool_declared_in": [
+          "examples/imagepipe/pyproject.toml#project.dependencies"
+        ]
+      },
+      "_typeshed": {
+        "classes": {
+          "external_unmatched": 1
+        },
+        "edges": 1,
+        "indep_declared_in": [],
+        "tool_declared_in": []
+      },
+      "pallets_sphinx_themes": {
+        "classes": {
+          "external_declared": 2
+        },
+        "edges": 2,
+        "indep_declared_in": [
+          "pyproject.toml#dependency-groups.docs"
+        ],
+        "tool_declared_in": [
+          "pyproject.toml#dependency-groups.docs"
+        ]
+      },
+      "pytest": {
+        "classes": {
+          "external_declared": 33
+        },
+        "edges": 33,
+        "indep_declared_in": [
+          "pyproject.toml#dependency-groups.tests",
+          "pyproject.toml#dependency-groups.tests-random",
+          "pyproject.toml#dependency-groups.typing"
+        ],
+        "tool_declared_in": [
+          "pyproject.toml#dependency-groups.tests",
+          "pyproject.toml#dependency-groups.tests-random",
+          "pyproject.toml#dependency-groups.typing"
+        ]
+      },
+      "typing_extensions": {
+        "classes": {
+          "external_unmatched": 3
+        },
+        "edges": 3,
+        "indep_declared_in": [],
+        "tool_declared_in": []
+      }
+    },
+    "packages_where_structure_and_manifests_differ": []
+  },
+  "independent_agrees": 50,
+  "independent_disagrees": [],
+  "new_classes": {
+    "external_declared": 2,
+    "internal": 24,
+    "stdlib": 24
+  },
+  "old_classes": {
+    "external_unmatched": 2,
+    "internal": 24,
+    "stdlib": 24
+  },
+  "rows": 50,
+  "seed": 14,
+  "tally": {
+    "ambiguous": 0,
+    "correct": 50,
+    "undecidable": 0,
+    "unreviewed": 0,
+    "wrong": 0
+  },
+  "verdict_changed": [
+    "37",
+    "47"
+  ]
+}

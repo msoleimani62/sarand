@@ -24,12 +24,17 @@ import sys
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path, PurePosixPath
 
-from sarand.core.components import declared_dependencies
+from sarand.core.components import python_declarations
 from sarand.structure.cycles import find_cycles
 from sarand.structure.entry_points import find_entry_points
 from sarand.structure.facts import FileFacts, extract_facts
 from sarand.structure.fingerprint import fingerprint_basis
-from sarand.structure.imports import ModuleIndex, normalise_distribution, resolve_record
+from sarand.structure.imports import (
+    ModuleIndex,
+    declared_match,
+    normalise_distribution,
+    resolve_record,
+)
 from sarand.structure.model import (
     COMPLETENESS_FAILED,
     COMPLETENESS_PARTIAL,
@@ -84,9 +89,10 @@ def _read(root: Path, rel: str) -> bytes | None:
 
 
 def _declarations(root: Path, files: Iterable[str]) -> dict[str, tuple[str, ...]]:
-    """Declared Python dependencies keyed by normalised name, each with the
-    manifests that declare it (`dir/manifest`). Reuses the one manifest reader of
-    core/components.py, so this module cannot disagree with Quick Context."""
+    """Declared Python dependencies keyed by normalised name, each with the places
+    that declare it: `dir/pyproject.toml#<section>` (for example
+    `pyproject.toml#dependency-groups.tests`) or `dir/requirements.txt`. Reuses the one
+    manifest reader of core/components.py, so this module cannot disagree with it."""
     by_dir: dict[str, set[str]] = {}
     for rel in files:
         parent, _, name = rel.rpartition("/")
@@ -96,12 +102,13 @@ def _declarations(root: Path, files: Iterable[str]) -> dict[str, tuple[str, ...]
         names = by_dir[directory]
         if not names & _PYTHON_MANIFESTS:
             continue
-        for dep in declared_dependencies(
-            root / directory if directory else root, names
-        ):
-            if dep.manifest not in _PYTHON_MANIFESTS:
-                continue
-            label = f"{directory}/{dep.manifest}" if directory else dep.manifest
+        for dep in python_declarations(root / directory if directory else root, names):
+            prefix = f"{directory}/" if directory else ""
+            label = (
+                f"{prefix}{dep.manifest}#{dep.section}"
+                if dep.manifest != dep.section
+                else f"{prefix}{dep.manifest}"
+            )
             found.setdefault(normalise_distribution(dep.name), set()).add(label)
     return {name: tuple(sorted(labels)) for name, labels in sorted(found.items())}
 
@@ -351,8 +358,7 @@ def _externals(edges: Sequence[Edge], index: ModuleIndex) -> tuple[ExternalRef, 
             continue
         declared_in: tuple[str, ...] = ()
         if edge.target_class == TARGET_EXTERNAL_DECLARED:
-            declared_in = index.declared.get(normalise_distribution(edge.target), ())
-        seen[edge.target] = ExternalRef(
-            edge.target, edge.target_class, tuple(declared_in)
-        )
+            match = declared_match(index, edge.target)
+            declared_in = match.labels if match is not None else ()
+        seen[edge.target] = ExternalRef(edge.target, edge.target_class, declared_in)
     return tuple(seen[name] for name in sorted(seen))

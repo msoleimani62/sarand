@@ -1,0 +1,87 @@
+{
+  "class_changed": [
+    "21"
+  ],
+  "external_audit": {
+    "declared_edges_without_a_declaring_manifest_above_the_importer": 0,
+    "edges_by_class": {
+      "external_declared": 63
+    },
+    "external_edges": 63,
+    "packages": {
+      "filelock": {
+        "classes": {
+          "external_declared": 1
+        },
+        "edges": 1,
+        "indep_declared_in": [
+          "pyproject.toml#project.dependencies"
+        ],
+        "tool_declared_in": [
+          "pyproject.toml#project.dependencies"
+        ]
+      },
+      "pytest": {
+        "classes": {
+          "external_declared": 37
+        },
+        "edges": 37,
+        "indep_declared_in": [
+          "pyproject.toml#project.optional-dependencies.dev"
+        ],
+        "tool_declared_in": [
+          "pyproject.toml#project.optional-dependencies.dev"
+        ]
+      },
+      "rich": {
+        "classes": {
+          "external_declared": 9
+        },
+        "edges": 9,
+        "indep_declared_in": [
+          "pyproject.toml#project.dependencies"
+        ],
+        "tool_declared_in": [
+          "pyproject.toml#project.dependencies"
+        ]
+      },
+      "yaml": {
+        "classes": {
+          "external_declared": 16
+        },
+        "edges": 16,
+        "indep_declared_in": [
+          "pyproject.toml#project.dependencies"
+        ],
+        "tool_declared_in": [
+          "pyproject.toml#project.dependencies"
+        ]
+      }
+    },
+    "packages_where_structure_and_manifests_differ": []
+  },
+  "independent_agrees": 50,
+  "independent_disagrees": [],
+  "new_classes": {
+    "external_declared": 1,
+    "internal": 19,
+    "stdlib": 30
+  },
+  "old_classes": {
+    "external_unmatched": 1,
+    "internal": 19,
+    "stdlib": 30
+  },
+  "rows": 50,
+  "seed": 14,
+  "tally": {
+    "ambiguous": 0,
+    "correct": 50,
+    "undecidable": 0,
+    "unreviewed": 0,
+    "wrong": 0
+  },
+  "verdict_changed": [
+    "21"
+  ]
+}

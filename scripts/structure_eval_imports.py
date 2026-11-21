@@ -14,13 +14,20 @@ A verdict file has one `<row> <verdict> [note...]` per line; the verdicts are
 `correct`, `wrong`, `ambiguous` and `undecidable`. Lines that start with `#` are
 ignored.
 
-With `--audit-unmatched` it also lists, for the whole project (not a sample), every
-`external_unmatched` package with the `pyproject.toml` sections that declare it, which
-shows how much of that list is really declared elsewhere.
+With `--audit-external` it also checks, for the whole project (not a sample), every
+external package: what the structure says, what the manifests say, and where the two
+differ.
+
+With `--rereview OLD.tsv` it does not draw a sample: it takes the rows of an earlier
+review (matched by location and evidence), computes the answer of the *current*
+structure code for each, and writes both side by side. The earlier file is only read;
+the verdict column of the new file is filled from `--verdicts`, with the reason.
 
 Usage:
     python scripts/structure_eval_imports.py PROJECT --out FILE.tsv [--seed 14]
-        [--sample 50] [--verdicts FILE] [--audit-unmatched]
+        [--sample 50] [--verdicts FILE] [--audit-external]
+    python scripts/structure_eval_imports.py PROJECT --out NEW.tsv --rereview OLD.tsv
+        [--verdicts FILE] [--audit-external]
 
 نمونه‌ی بازبینی importها با seed ثابت و بازمحاسبه‌ی مستقل هر ردیف (معیارهای ۲ و ۴ گیت).
 """
@@ -58,23 +65,52 @@ HEADER = (
     "class",
     "target",
     "method",
+    "confidence",
     "flags",
     "auto",
     "indep_class",
     "indep_flags",
     "declared_in",
+    "indep_declared_in",
     "evidence",
 )
 VERDICT_COLUMN = 2
 NOTE_COLUMN = 3
-# Import names that differ from their distribution names; a reviewer aid only.
-IMPORT_TO_DIST = {
-    "yaml": "pyyaml",
-    "PIL": "pillow",
-    "bs4": "beautifulsoup4",
-    "cv2": "opencv-python",
-    "dateutil": "python-dateutil",
-    "sklearn": "scikit-learn",
+# The side-by-side file of a re-review: the earlier verdict, the new verdict and why.
+REREVIEW_HEADER = (
+    "row",
+    "location",
+    "old_verdict",
+    "verdict",
+    "reason",
+    "old_class",
+    "class",
+    "confidence",
+    "method",
+    "flags",
+    "auto",
+    "declared_in",
+    "indep_declared_in",
+    "old_declared_in",
+    "evidence",
+)
+REREVIEW_VERDICT_COLUMN = 3
+REREVIEW_NOTE_COLUMN = 4
+# Import names that differ from their distribution names: the reviewer's own short
+# list, kept apart from the table in `sarand/structure/distributions.py` on purpose.
+# A row that depends on a pair missing here is reported as a disagreement to read.
+IMPORT_TO_DIST: dict[str, tuple[str, ...]] = {
+    "yaml": ("pyyaml",),
+    "PIL": ("pillow", "pillow-simd"),
+    "bs4": ("beautifulsoup4",),
+    "cv2": (
+        "opencv-contrib-python",
+        "opencv-contrib-python-headless",
+        "opencv-python",
+        "opencv-python-headless",
+    ),
+    "dateutil": ("python-dateutil",),
+    "sklearn": ("scikit-learn",),
 }
 GUARDING = frozenset(
     {"ImportError", "ModuleNotFoundError", "Exception", "BaseException"}
@@ -165,34 +201,90 @@ def import_contexts(tree: ast.AST) -> dict[int, tuple[ast.stmt, frozenset[str]]]
     return found
 
 
-def declared_sections(root: Path) -> dict[str, list[str]]:
-    """Normalised distribution name -> the `pyproject.toml` sections that declare it."""
-    path = root / "pyproject.toml"
-    if not path.is_file():
-        return {}
-    try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, UnicodeDecodeError):
-        return {}
-    found: dict[str, list[str]] = {}
-
-    def add(items: object, section: str) -> None:
-        if not isinstance(items, list):
-            return
+def _names(items: object) -> list[str]:
+    """Normalised names of the requirement strings in a list (other items skipped)."""
+    out: list[str] = []
+    if isinstance(items, list):
         for item in items:
-            match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", str(item))
-            if match:
-                name = re.sub(r"[-_.]+", "-", match.group(1)).lower()
-                found.setdefault(name, [])
-                if section not in found[name]:
-                    found[name].append(section)
+            if isinstance(item, str):
+                match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", item)
+                if match:
+                    out.append(re.sub(r"[-_.]+", "-", match.group(1)).lower())
+    return out
 
-    project = data.get("project", {})
-    add(project.get("dependencies"), "runtime")
-    for group, items in (project.get("optional-dependencies") or {}).items():
-        add(items, f"optional:{group}")
-    for group, items in (data.get("dependency-groups") or {}).items():
-        add(items, f"group:{group}")
+
+def _poetry(table: object) -> list[str]:
+    if not isinstance(table, dict):
+        return []
+    names = (re.sub(r"[-_.]+", "-", str(k)).lower() for k in table)
+    return [n for n in names if n != "python"]
+
+
+def _directory_declarations(
+    directory: Path, prefix: str, found: dict[str, list[str]]
+) -> None:
+    """Add the declarations of the manifests directly in `directory` to `found`."""
+
+    def add(names: list[str], label: str) -> None:
+        for name in names:
+            labels = found.setdefault(name, [])
+            if label not in labels:
+                labels.append(label)
+
+    path = directory / "pyproject.toml"
+    if path.is_file():
+        try:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+            data = {}
+        head = f"{prefix}pyproject.toml#"
+        project = data.get("project") or {}
+        add(_names(project.get("dependencies")), f"{head}project.dependencies")
+        for extra, items in (project.get("optional-dependencies") or {}).items():
+            add(_names(items), f"{head}project.optional-dependencies.{extra}")
+        for group, items in (data.get("dependency-groups") or {}).items():
+            add(_names(items), f"{head}dependency-groups.{group}")
+        add(
+            _names((data.get("build-system") or {}).get("requires")),
+            f"{head}build-system.requires",
+        )
+        poetry = (data.get("tool") or {}).get("poetry") or {}
+        add(_poetry(poetry.get("dependencies")), f"{head}tool.poetry.dependencies")
+        add(
+            _poetry(poetry.get("dev-dependencies")),
+            f"{head}tool.poetry.dev-dependencies",
+        )
+        for group, body in (poetry.get("group") or {}).items():
+            if isinstance(body, dict):
+                add(
+                    _poetry(body.get("dependencies")),
+                    f"{head}tool.poetry.group.{group}.dependencies",
+                )
+    requirements = directory / "requirements.txt"
+    if requirements.is_file():
+        text = requirements.read_text(encoding="utf-8", errors="replace")
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith(("#", "-")):
+                add(_names([line]), f"{prefix}requirements.txt")
+
+
+def declared_sections(root: Path) -> dict[str, list[str]]:
+    """Normalised distribution name -> where the manifests of the project declare it.
+
+    Written without the structure code: `<dir>/pyproject.toml#<section>` for the
+    sections the documentation lists and `<dir>/requirements.txt`, for the manifests of
+    every directory of the project (like the structure, a declaration anywhere counts
+    for the whole project; the audit reports how many are outside the importer's tree).
+    """
+    found: dict[str, list[str]] = {}
+    for current, dirs, _names_ in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIPPED_DIRS)
+        directory = Path(current)
+        relative = directory.relative_to(root).as_posix()
+        _directory_declarations(
+            directory, "" if relative == "." else f"{relative}/", found
+        )
     return found
 
 
@@ -212,41 +304,39 @@ def independent(
     flags: frozenset[str],
     requested: str,
     declared: dict[str, list[str]],
-) -> tuple[str, set[str], str]:
-    """(boundary class, flags, declared-in) recomputed without the structure code."""
+) -> tuple[str, set[str], list[str]]:
+    """(boundary class, flags, declared-in labels) recomputed without the structure
+    code. The labels are empty unless the boundary class is `external`."""
     if node is None:
-        return "NO-NODE", set(), ""
+        return "NO-NODE", set(), []
     out = set(flags)
     if isinstance(node, ast.ImportFrom) and node.level:
         out.add("relative")
     if isinstance(node, ast.ImportFrom) and any(a.name == "*" for a in node.names):
         out.add("star")
     if isinstance(node, ast.ImportFrom) and node.level:
-        return "internal", out, ""
+        return "internal", out, []
     parts = requested.split(".")
     top = parts[0]
     if top in sys.stdlib_module_names:
-        return "stdlib", out, ""
+        return "stdlib", out, []
     if repository_has(root, importer, parts) or repository_has(
         root, importer, parts[:-1]
     ):
-        return "internal", out, ""
-    dist = IMPORT_TO_DIST.get(top, top)
-    key = re.sub(r"[-_.]+", "-", dist).lower()
-    where = declared.get(key, [])
-    note = ",".join(where) if where else "none"
-    if top in IMPORT_TO_DIST and where:
-        note = f"{note} (distribution {dist})"
-    return "external", out, note
+        return "internal", out, []
+    labels: set[str] = set(declared.get(re.sub(r"[-_.]+", "-", top).lower(), []))
+    for dist in IMPORT_TO_DIST.get(top, ()):
+        labels.update(declared.get(dist, []))
+    return "external", out, sorted(labels)
 
 
-def load_edges(root: Path) -> list[dict[str, Any]]:
-    """Every import edge of the project, sorted by location and requested name."""
+def load(root: Path) -> tuple[list[dict[str, Any]], dict[str, list[str]]]:
+    """The import edges of the project, sorted by location and requested name, and the
+    `declared_in` the structure gives each external package."""
     included, skipped = collect(root)
     payload = structure_payload(build_structure(root, included, skipped))
-    edges: list[dict[str, Any]] = payload["edges"]
-    return sorted(
-        edges,
+    edges: list[dict[str, Any]] = sorted(
+        payload["edges"],
         key=lambda e: (
             e["location"]["path"],
             e["location"]["line"],
@@ -254,85 +344,221 @@ def load_edges(root: Path) -> list[dict[str, Any]]:
             e["requested"],
         ),
     )
+    externals = {x["name"]: list(x["declared_in"]) for x in payload["externals"]}
+    return edges, externals
 
 
-def audit_unmatched(root: Path, edges: list[dict[str, Any]]) -> dict[str, object]:
-    """Every `external_unmatched` package with the sections that declare it."""
-    declared = declared_sections(root)
-    packages: dict[str, dict[str, object]] = {}
-    for edge in edges:
-        if edge["target_class"] != "external_unmatched":
-            continue
-        top = str(edge["requested"]).split(".")[0]
-        dist = IMPORT_TO_DIST.get(top, top)
-        where = declared.get(re.sub(r"[-_.]+", "-", dist).lower(), [])
-        entry = packages.setdefault(top, {"edges": 0, "declared_in": where})
-        entry["edges"] = int(str(entry["edges"])) + 1
-    total = sum(int(str(v["edges"])) for v in packages.values())
-    inside = sum(int(str(v["edges"])) for v in packages.values() if v["declared_in"])
-    return {
-        "external_unmatched_edges": total,
-        "declared_somewhere_in_pyproject": inside,
-        "packages": packages,
-    }
+class Reviewer:
+    """Recomputes one edge independently and compares it with the structure's answer."""
+
+    def __init__(self, root: Path, externals: dict[str, list[str]]) -> None:
+        self.root = root
+        self.externals = externals
+        self.declared = declared_sections(root)
+        self.contexts: dict[str, dict[int, tuple[ast.stmt, frozenset[str]]]] = {}
+
+    def _context(self, rel: str, line: int) -> tuple[ast.stmt | None, frozenset[str]]:
+        if rel not in self.contexts:
+            try:
+                tree = ast.parse((self.root / rel).read_text(encoding="utf-8"))
+                self.contexts[rel] = import_contexts(tree)
+            except (OSError, SyntaxError, UnicodeDecodeError):
+                self.contexts[rel] = {}
+        found = self.contexts[rel].get(line)
+        return (found[0], found[1]) if found else (None, frozenset())
+
+    def check(self, edge: dict[str, Any]) -> dict[str, str]:
+        """The comparison columns of one edge."""
+        rel = edge["location"]["path"]
+        node, flags = self._context(rel, edge["location"]["line"])
+        boundary, expected, labels = independent(
+            self.root, rel, node, flags, edge["requested"], self.declared
+        )
+        got = str(edge["target_class"])
+        got_boundary = "external" if got.startswith("external") else got
+        tool_labels = sorted(self.externals.get(str(edge["target"]), []))
+        agree = got_boundary == boundary and set(edge["flags"]) == expected
+        if boundary == "external" and got_boundary == "external":
+            declared_state = "external_declared" if labels else "external_unmatched"
+            agree = agree and got == declared_state and tool_labels == labels
+        return {
+            "class": got,
+            "target": str(edge["target"]),
+            "method": str(edge["resolution_method"]),
+            "confidence": str(edge["confidence"]),
+            "flags": ",".join(sorted(edge["flags"])),
+            "auto": "agree" if agree else "DISAGREE",
+            "indep_class": boundary,
+            "indep_flags": ",".join(sorted(expected)),
+            "declared_in": ",".join(tool_labels),
+            "indep_declared_in": ",".join(labels),
+            "evidence": str(edge["evidence"]).strip(),
+        }
 
 
 def build_rows(
-    root: Path, edges: list[dict[str, Any]], seed: int, count: int
+    root: Path,
+    edges: list[dict[str, Any]],
+    externals: dict[str, list[str]],
+    seed: int,
+    count: int,
 ) -> list[list[str]]:
     # A seeded generator on purpose: a reproducible review sample, not a secret.
     generator = random.Random(seed)  # nosec B311
     chosen = generator.sample(edges, min(count, len(edges)))
-    declared = declared_sections(root)
-    contexts: dict[str, dict[int, tuple[ast.stmt, frozenset[str]]]] = {}
+    reviewer = Reviewer(root, externals)
     rows: list[list[str]] = []
     for index, edge in enumerate(chosen, 1):
-        rel = edge["location"]["path"]
-        line = edge["location"]["line"]
-        if rel not in contexts:
-            try:
-                tree = ast.parse((root / rel).read_text(encoding="utf-8"))
-                contexts[rel] = import_contexts(tree)
-            except (OSError, SyntaxError, UnicodeDecodeError):
-                contexts[rel] = {}
-        node, flags = contexts[rel].get(line, (None, frozenset()))
-        boundary, expected, where = independent(
-            root, rel, node, flags, edge["requested"], declared
-        )
-        got = str(edge["target_class"])
-        got_boundary = "external" if got.startswith("external") else got
-        agree = got_boundary == boundary and set(edge["flags"]) == expected
+        loc = edge["location"]
+        cols = reviewer.check(edge)
         rows.append(
             [
                 str(index),
-                f"{rel}:{line}:{edge['location']['col']}",
+                f"{loc['path']}:{loc['line']}:{loc['col']}",
                 "",
                 "",
-                got,
-                str(edge["target"]),
-                str(edge["resolution_method"]),
-                ",".join(sorted(edge["flags"])),
-                "agree" if agree else "DISAGREE",
-                boundary,
-                ",".join(sorted(expected)),
-                where,
-                str(edge["evidence"]).strip(),
+                *(cols[name] for name in HEADER[4:]),
             ]
         )
     return rows
+
+
+def read_review(path: Path) -> list[dict[str, str]]:
+    """The rows of an earlier review file, by column name (the file is not changed)."""
+    lines = path.read_text(encoding="utf-8").split("\n")
+    names = lines[0].split("\t")
+    return [
+        dict(zip(names, line.split("\t"), strict=False)) for line in lines[1:] if line
+    ]
+
+
+def rereview_rows(
+    root: Path,
+    edges: list[dict[str, Any]],
+    externals: dict[str, list[str]],
+    old: list[dict[str, str]],
+) -> list[list[str]]:
+    """The earlier rows with the current structure's answer beside the old one."""
+    reviewer = Reviewer(root, externals)
+    by_key = {
+        (
+            f"{e['location']['path']}:{e['location']['line']}:{e['location']['col']}",
+            str(e["evidence"]).strip(),
+        ): e
+        for e in edges
+    }
+    rows: list[list[str]] = []
+    for item in old:
+        edge = by_key.get((item["location"], item["evidence"]))
+        if edge is None:
+            raise SystemExit(f"row {item['row']} not found in the current edges")
+        cols = reviewer.check(edge)
+        rows.append(
+            [
+                item["row"],
+                item["location"],
+                item["verdict"],
+                "",
+                "",
+                item["class"],
+                cols["class"],
+                cols["confidence"],
+                cols["method"],
+                cols["flags"],
+                cols["auto"],
+                cols["declared_in"],
+                cols["indep_declared_in"],
+                item.get("declared_in", ""),
+                cols["evidence"],
+            ]
+        )
+    return rows
+
+
+def _unscoped_edges(
+    edges: list[dict[str, Any]], externals: dict[str, list[str]]
+) -> int:
+    """External edges the structure calls declared whose declarations all sit in
+    directories that are not above the importing file: the declaration is matched
+    project-wide, so such an edge is declared only by a manifest of another part of
+    the project."""
+    count = 0
+    for edge in edges:
+        if edge["target_class"] != "external_declared":
+            continue
+        path = str(edge["location"]["path"])
+        folder = path.rsplit("/", 1)[0] + "/" if "/" in path else ""
+        above = False
+        for label in externals.get(str(edge["target"]), []):
+            manifest_dir = label.split("#", 1)[0].rsplit("/", 1)
+            owner = manifest_dir[0] + "/" if len(manifest_dir) == 2 else ""
+            if folder.startswith(owner):
+                above = True
+                break
+        if not above:
+            count += 1
+    return count
+
+
+def audit_external(
+    root: Path, edges: list[dict[str, Any]], externals: dict[str, list[str]]
+) -> dict[str, object]:
+    """Every external package of the whole project: the structure's class and
+    declarations against the manifests, and every package where they differ."""
+    declared = declared_sections(root)
+    packages: dict[str, dict[str, Any]] = {}
+    for edge in edges:
+        if not str(edge["target_class"]).startswith("external"):
+            continue
+        top = str(edge["requested"]).split(".")[0]
+        labels: set[str] = set(declared.get(re.sub(r"[-_.]+", "-", top).lower(), []))
+        for dist in IMPORT_TO_DIST.get(top, ()):
+            labels.update(declared.get(dist, []))
+        entry = packages.setdefault(
+            top,
+            {
+                "edges": 0,
+                "classes": Counter(),
+                "tool_declared_in": sorted(externals.get(str(edge["target"]), [])),
+                "indep_declared_in": sorted(labels),
+            },
+        )
+        entry["edges"] += 1
+        entry["classes"][str(edge["target_class"])] += 1
+    unscoped = _unscoped_edges(edges, externals)
+    by_class: Counter[str] = Counter()
+    different: list[str] = []
+    for top, entry in sorted(packages.items()):
+        entry["classes"] = dict(entry["classes"])
+        for name, count in entry["classes"].items():
+            by_class[name] += count
+        if entry["tool_declared_in"] != entry["indep_declared_in"]:
+            different.append(top)
+    return {
+        "external_edges": sum(p["edges"] for p in packages.values()),
+        "edges_by_class": dict(by_class),
+        "packages": packages,
+        "packages_where_structure_and_manifests_differ": different,
+        "declared_edges_without_a_declaring_manifest_above_the_importer": unscoped,
+    }
 
 
 def clean(text: str) -> str:
     return text.replace("\t", " ").replace("\n", " ").replace("\r", " ")
 
 
-def write_rows(path: Path, rows: list[list[str]]) -> None:
-    lines = ["\t".join(HEADER), *("\t".join(clean(c) for c in row) for row in rows)]
+def write_rows(path: Path, header: tuple[str, ...], rows: list[list[str]]) -> None:
+    lines = ["\t".join(header), *("\t".join(clean(c) for c in row) for row in rows)]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def apply_verdicts(path: Path, verdict_file: Path) -> dict[str, int]:
+def apply_verdicts(
+    path: Path,
+    verdict_file: Path,
+    verdict_column: int = VERDICT_COLUMN,
+    note_column: int = NOTE_COLUMN,
+) -> dict[str, int]:
     given: dict[int, tuple[str, str]] = {}
     for raw in verdict_file.read_text(encoding="utf-8").splitlines():
         if not raw.strip() or raw.lstrip().startswith("#"):
@@ -352,7 +578,7 @@ def apply_verdicts(path: Path, verdict_file: Path) -> dict[str, int]:
         if found is None:
             counts["unreviewed"] += 1
             continue
-        cells[VERDICT_COLUMN], cells[NOTE_COLUMN] = found[0], clean(found[1])
+        cells[verdict_column], cells[note_column] = found[0], clean(found[1])
         counts[found[0]] += 1
         lines[number] = "\t".join(cells)
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -366,23 +592,48 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=14)
     parser.add_argument("--sample", type=int, default=50)
     parser.add_argument("--verdicts", type=Path)
-    parser.add_argument("--audit-unmatched", action="store_true")
+    parser.add_argument("--rereview", type=Path)
+    parser.add_argument("--audit-external", action="store_true")
     args = parser.parse_args(argv)
     root = args.project.resolve()
-    edges = load_edges(root)
-    rows = build_rows(root, edges, args.seed, args.sample)
-    write_rows(args.out, rows)
-    report: dict[str, object] = {
-        "rows": len(rows),
-        "seed": args.seed,
-        "classes": dict(Counter(row[4] for row in rows)),
-        "independent_agrees": sum(1 for row in rows if row[8] == "agree"),
-        "independent_disagrees": [row[0] for row in rows if row[8] != "agree"],
-    }
-    if args.verdicts is not None:
-        report["tally"] = apply_verdicts(args.out, args.verdicts)
-    if args.audit_unmatched:
-        report["unmatched_audit"] = audit_unmatched(root, edges)
+    edges, externals = load(root)
+    report: dict[str, object] = {"seed": args.seed}
+    if args.rereview is not None:
+        old = read_review(args.rereview)
+        rows = rereview_rows(root, edges, externals, old)
+        write_rows(args.out, REREVIEW_HEADER, rows)
+        report["rows"] = len(rows)
+        report["old_classes"] = dict(Counter(row[5] for row in rows))
+        report["new_classes"] = dict(Counter(row[6] for row in rows))
+        report["class_changed"] = [row[0] for row in rows if row[5] != row[6]]
+        report["independent_agrees"] = sum(1 for row in rows if row[10] == "agree")
+        report["independent_disagrees"] = [row[0] for row in rows if row[10] != "agree"]
+        if args.verdicts is not None:
+            report["tally"] = apply_verdicts(
+                args.out, args.verdicts, REREVIEW_VERDICT_COLUMN, REREVIEW_NOTE_COLUMN
+            )
+            changed = [
+                row[0]
+                for row in (
+                    line.split("\t")
+                    for line in args.out.read_text(encoding="utf-8").split("\n")[1:]
+                    if line
+                )
+                if row[2] != row[3]
+            ]
+            report["verdict_changed"] = changed
+    else:
+        rows = build_rows(root, edges, externals, args.seed, args.sample)
+        write_rows(args.out, HEADER, rows)
+        report["rows"] = len(rows)
+        report["edges_in_project"] = len(edges)
+        report["classes"] = dict(Counter(row[4] for row in rows))
+        report["independent_agrees"] = sum(1 for row in rows if row[9] == "agree")
+        report["independent_disagrees"] = [row[0] for row in rows if row[9] != "agree"]
+        if args.verdicts is not None:
+            report["tally"] = apply_verdicts(args.out, args.verdicts)
+    if args.audit_external:
+        report["external_audit"] = audit_external(root, edges, externals)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 

@@ -12,10 +12,11 @@ after construction, including the nested `meta` and `extensions` values.
 Two schema versions exist and must not be confused:
 
 - `SCHEMA_VERSION` here is the version of the **structure model** and of the
-  `structure.schema` field of the JSON payload (an integer, 3 today: 1 was imports
-  only, 2 added symbols, relations and entry points, 3 adds the symbol `fingerprint`
-  and `meta.fingerprint_basis`);
-- the outer **report** schema (`schema_version`, `"1.9"`) is versioned by
+  `structure.schema` field of the JSON payload (an integer, 4 today: 1 was imports
+  only, 2 added symbols, relations and entry points, 3 added the symbol `fingerprint`
+  and `meta.fingerprint_basis`, 4 makes `declared_in` name the manifest section and
+  adds the `declared-distribution` resolution method);
+- the outer **report** schema (`schema_version`, `"1.10"`) is versioned by
   `renderers/json_renderer.py` and `docs/JSON_SCHEMA.md`.
 
 Coordinates (`SourceLocation`): `line` is 1-based (0 means unknown), `col` and
@@ -36,7 +37,7 @@ from typing import Any
 
 from sarand.structure.fingerprint import FINGERPRINT_PATTERN
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 LANGUAGE_PYTHON = "python"
 PARSER_PYTHON_AST = "python-ast"
 

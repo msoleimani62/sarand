@@ -1,0 +1,130 @@
+{
+  "changed_parts": [],
+  "edge_counts": [
+    2498,
+    2498
+  ],
+  "edge_fields_changed": {
+    "confidence": 37,
+    "note": 53,
+    "resolution_method": 53,
+    "target_class": 53
+  },
+  "edges_changed": 53,
+  "externals_changed": [
+    {
+      "class": [
+        "external_declared",
+        "external_declared"
+      ],
+      "declared_in": [
+        [
+          "pyproject.toml"
+        ],
+        [
+          "pyproject.toml#project.dependencies"
+        ]
+      ],
+      "name": "filelock"
+    },
+    {
+      "class": [
+        "external_unmatched",
+        "external_declared"
+      ],
+      "declared_in": [
+        [],
+        [
+          "pyproject.toml#project.optional-dependencies.dev"
+        ]
+      ],
+      "name": "pytest"
+    },
+    {
+      "class": [
+        "external_declared",
+        "external_declared"
+      ],
+      "declared_in": [
+        [
+          "pyproject.toml"
+        ],
+        [
+          "pyproject.toml#project.dependencies"
+        ]
+      ],
+      "name": "rich"
+    },
+    {
+      "class": [
+        "external_unmatched",
+        "external_declared"
+      ],
+      "declared_in": [
+        [],
+        [
+          "pyproject.toml#project.dependencies"
+        ]
+      ],
+      "name": "yaml"
+    }
+  ],
+  "externals_same_names": true,
+  "identical_parts": [
+    "cycles",
+    "entry_points",
+    "files",
+    "language",
+    "modules",
+    "relations",
+    "symbols"
+  ],
+  "meta_changed": {},
+  "only_external_edges_changed": true,
+  "schema": [
+    3,
+    4
+  ],
+  "sites_changed": {
+    "external_declared": [
+      28,
+      246
+    ],
+    "external_unmatched": [
+      218,
+      0
+    ]
+  },
+  "summary_changed": {
+    "imports_by_class": [
+      {
+        "dynamic": 0,
+        "external_declared": 10,
+        "external_unmatched": 53,
+        "internal": 1183,
+        "internal_unresolved": 0,
+        "stdlib": 1252
+      },
+      {
+        "dynamic": 0,
+        "external_declared": 63,
+        "external_unmatched": 0,
+        "internal": 1183,
+        "internal_unresolved": 0,
+        "stdlib": 1252
+      }
+    ],
+    "imports_by_confidence": [
+      {
+        "definite": 2444,
+        "probable": 54,
+        "unknown": 0
+      },
+      {
+        "definite": 2481,
+        "probable": 17,
+        "unknown": 0
+      }
+    ]
+  }
+}

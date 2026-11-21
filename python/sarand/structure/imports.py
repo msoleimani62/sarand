@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from sarand.structure.distributions import providers
 from sarand.structure.model import (
     CONF_DEFINITE,
     CONF_PROBABLE,
@@ -51,6 +52,37 @@ class ModuleIndex:
     prefixes: frozenset[str] = frozenset()
     stdlib: frozenset[str] = frozenset()
     declared: dict[str, tuple[str, ...]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class DeclaredMatch:
+    """The declarations behind an external import name: the labels of every
+    declaration found (`dir/manifest#section`, or `dir/requirements.txt`) and whether
+    one of them has the same name as the import (`exact`), as opposed to being found
+    only through a distribution that ships the import name (`distributions.py`)."""
+
+    labels: tuple[str, ...]
+    exact: bool
+
+
+def declared_match(index: ModuleIndex, top: str) -> DeclaredMatch | None:
+    """Where `top`, the top-level name of an external import, is declared, or None.
+
+    The distribution of the same name is tried first. The distributions in the table
+    of `distributions.py` that ship `top` are tried next, and every one that is
+    declared adds its declarations; no provider is chosen over another.
+    """
+    labels: set[str] = set()
+    exact = index.declared.get(normalise_distribution(top))
+    if exact is not None:
+        labels.update(exact)
+    for provider in providers(top):
+        found = index.declared.get(provider)
+        if found is not None:
+            labels.update(found)
+    if not labels:
+        return None
+    return DeclaredMatch(tuple(sorted(labels)), exact is not None)
 
 
 def normalise_distribution(name: str) -> str:
@@ -192,17 +224,26 @@ def _resolve_absolute(
             "importlib-literal" if literal_dynamic else "stdlib-name",
             original_type,
         )
-    declared = index.declared.get(normalise_distribution(top))
+    declared = declared_match(index, top)
     if declared is not None:
+        if declared.exact:
+            confidence = CONF_PROBABLE if literal_dynamic else CONF_DEFINITE
+            method = "importlib-literal" if literal_dynamic else "declared-dependency"
+            note = ""
+        else:
+            confidence = CONF_PROBABLE
+            method = "importlib-literal" if literal_dynamic else "declared-distribution"
+            note = f"{top} is shipped by a declared distribution (distributions.py)"
         return _edge(
             source,
             record,
             name,
             top,
             TARGET_EXTERNAL_DECLARED,
-            CONF_PROBABLE if literal_dynamic else CONF_DEFINITE,
-            "importlib-literal" if literal_dynamic else "declared-dependency",
+            confidence,
+            method,
             original_type,
+            note,
         )
     return _edge(
         source,

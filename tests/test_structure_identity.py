@@ -176,7 +176,7 @@ def test_every_built_symbol_carries_a_fingerprint_and_the_meta_a_basis(
     assert all(FINGERPRINT_PATTERN.match(s.fingerprint) for s in data.symbols)
     assert str(data.meta["fingerprint_basis"]).startswith("fp1/python-")
     payload = structure_payload(data)
-    assert payload["schema"] == 3
+    assert payload["schema"] == 4
     assert all("fingerprint" in s for s in payload["symbols"])
 
 
