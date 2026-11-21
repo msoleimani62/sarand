@@ -1,0 +1,214 @@
+"""The benchmark script of the structure feature (`scripts/structure_bench.py`, R14-D1).
+
+Its numbers are only worth something if the method is right: the statistics must be
+what they say they are, the code versions must be interleaved and checked, every run
+must be hashed, and nothing of the measured project may be executed.
+
+محک ساختار: آمار درست، نسخه‌های کد به‌نوبت و راستی‌آزمایی‌شده، هش هر اجرا، و اجرا نشدن کد پروژه.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+
+_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "structure_bench", _ROOT / "scripts" / "structure_bench.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _project(root: Path) -> Path:
+    project = root / "proj"
+    (project / "pkg").mkdir(parents=True)
+    (project / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    (project / "pkg" / "core.py").write_text(
+        "def helper(x):\n    return x + 1\n\n\nclass Box:\n"
+        "    def run(self):\n        return helper(1)\n",
+        encoding="utf-8",
+    )
+    # A file the benchmark must never import or run.
+    # فایلی که محک نباید import یا اجرا کند.
+    (project / "pkg" / "never.py").write_text(
+        "raise SystemExit('the benchmark ran repository code')\n", encoding="utf-8"
+    )
+    return project
+
+
+def test_percentile_is_nearest_rank() -> None:
+    bench = _load()
+    values = [float(n) for n in range(1, 11)]
+    assert bench.percentile(values, 50) == 5.0
+    assert bench.percentile(values, 95) == 10.0
+    assert bench.percentile([7.0], 95) == 7.0
+    assert bench.percentile([3.0, 1.0, 2.0], 0) == 1.0
+
+
+def test_percentile_of_nothing_is_an_error() -> None:
+    bench = _load()
+    with pytest.raises(ValueError):
+        bench.percentile([], 95)
+
+
+def test_summarize_reports_spread_and_says_when_p95_is_the_maximum() -> None:
+    bench = _load()
+    summary = bench.summarize([1.0, 2.0, 3.0, 4.0, 100.0])
+    assert summary["n"] == 5
+    assert summary["median"] == 3.0
+    assert summary["min"] == 1.0
+    assert summary["max"] == 100.0
+    assert summary["p95"] == 100.0
+    assert summary["p95_is_max"] is True
+    assert summary["spread_percent"] == 3300.0
+    many = bench.summarize([float(n) for n in range(1, 41)])
+    assert many["p95_is_max"] is False
+    assert many["p95"] == 38.0
+    assert bench.summarize([2.0])["stdev"] == 0.0
+
+
+def test_change_and_overlap() -> None:
+    bench = _load()
+    assert bench.change_percent(10.0, 11.0) == 10.0
+    assert bench.change_percent(0.0, 5.0) == 0.0
+    first = {"min": 1.0, "max": 2.0}
+    assert bench.ranges_overlap(first, {"min": 1.5, "max": 3.0}) is True
+    assert bench.ranges_overlap(first, {"min": 2.5, "max": 3.0}) is False
+
+
+def test_parse_labeled_checks_every_item(tmp_path: Path) -> None:
+    bench = _load()
+    parsed = bench.parse_labeled([f"a={tmp_path}", f"b={tmp_path}"], "input")
+    assert [label for label, _ in parsed] == ["a", "b"]
+    for bad in (["a"], ["=x"], [f"a={tmp_path}", f"a={tmp_path}"], ["a=/nope/x"], []):
+        with pytest.raises(ValueError):
+            bench.parse_labeled(bad, "input")
+
+
+def test_collect_skips_tool_directories_and_sets_oversize_files_apart(
+    tmp_path: Path,
+) -> None:
+    bench = _load()
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "node_modules" / "b.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "big.py").write_text("#" * (bench.SIZE_LIMIT + 1), encoding="utf-8")
+    included, skipped = bench.collect(tmp_path)
+    assert [p.as_posix() for p in included] == ["a.py"]
+    assert [(p.as_posix(), size) for p, size in skipped] == [
+        ("big.py", bench.SIZE_LIMIT + 1)
+    ]
+
+
+def test_run_interleaves_codes_hashes_runs_and_executes_nothing(tmp_path: Path) -> None:
+    bench = _load()
+    project = _project(tmp_path)
+    code = _ROOT / "python"
+    log: list[str] = []
+    report = bench.run(
+        [("tiny", project)],
+        [("A", code), ("B", code)],
+        rounds=2,
+        warmup=1,
+        hashseed="0",
+        cli=False,
+        log=log.append,
+    )
+    # The order of the codes flips every round (A B, then B A, then A B).
+    # ترتیب نسخه‌ها در هر دور برعکس می‌شود.
+    assert [m.rsplit(" ", 1)[1] for m in log] == ["A", "B", "B", "A", "A", "B"]
+    assert [r["code"] for r in report["results"]] == ["A", "B"]
+    for entry in report["results"]:
+        assert entry["runs_identical"] is True
+        assert entry["seconds"]["n"] == 2
+        assert entry["files"] == 3
+        assert entry["basis"].startswith("fp1/python-")
+        assert "fingerprint" in entry["phases"]
+        assert "other" in entry["phases"]
+    assert len(report["loads"]) == 3
+    assert [item["warmup"] for item in report["loads"]] == [True, False, False]
+    (comparison,) = report["comparisons"]
+    assert comparison["same_output_hash"] is True
+    assert comparison["same_python_minor"] is True
+    text = bench.markdown(report)
+    assert "## Comparisons" in text
+    assert "tiny / A" in text
+    assert "| seconds | median |" in text
+
+
+def test_three_codes_give_every_pair_and_the_control_is_one_of_them(
+    tmp_path: Path,
+) -> None:
+    bench = _load()
+    project = _project(tmp_path)
+    code = _ROOT / "python"
+    report = bench.run(
+        [("tiny", project)],
+        [("A", code), ("B", code), ("C", code)],
+        rounds=1,
+        warmup=0,
+        hashseed="0",
+        cli=False,
+    )
+    pairs = [(c["base"], c["other"]) for c in report["comparisons"]]
+    assert pairs == [("A", "B"), ("A", "C"), ("B", "C")]
+    assert all(c["same_rust_core"] for c in report["comparisons"])
+    codes_info = report["environment"]["codes"]
+    assert all(isinstance(info["rust_core"], bool) for info in codes_info.values())
+
+
+def test_a_worker_from_the_wrong_code_directory_is_refused(tmp_path: Path) -> None:
+    bench = _load()
+    project = _project(tmp_path)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(RuntimeError):
+        bench.spawn_worker(empty, project, "0")
+
+
+def test_main_writes_both_reports_and_rejects_bad_arguments(tmp_path: Path) -> None:
+    bench = _load()
+    project = _project(tmp_path)
+    out = tmp_path / "out"
+    code = _ROOT / "python"
+    argv = [
+        "run",
+        "--out",
+        str(out),
+        "--input",
+        f"tiny={project}",
+        "--code",
+        f"A={code}",
+        "--rounds",
+        "1",
+        "--warmup",
+        "0",
+    ]
+    assert bench.main(argv) == 0
+    data = json.loads((out / "results.json").read_text(encoding="utf-8"))
+    assert data["schema"] == 1
+    assert data["environment"]["hashseed"] == "0"
+    assert data["comparisons"] == []
+    assert "One code version only" in (out / "results.md").read_text(encoding="utf-8")
+    with pytest.raises(SystemExit):
+        bench.main(["run", "--out", str(out), "--code", f"A={code}"])
+
+
+def test_the_whole_command_can_be_timed(tmp_path: Path) -> None:
+    if importlib.util.find_spec("rich") is None:
+        pytest.skip("the sarand command needs rich")
+    bench = _load()
+    project = _project(tmp_path)
+    result = bench.spawn_cli(_ROOT / "python", project, "0")
+    assert result["exit_code"] == 0
+    assert result["seconds"] > 0
