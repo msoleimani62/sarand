@@ -1,7 +1,8 @@
 # ADR: structural identity and content fingerprints (R14-A3)
 
-Status: proposed for the R14-A gate (implemented and tested in R14-A3; not yet used by a
-baseline). It becomes accepted when the owner accepts the gate. Date: 2026-11-19.
+Status: accepted. The owner accepted the R14-A3 gate on 2026-11-21 (see
+`docs/R14A_GATE_ACCEPTANCE.md`). Implemented and tested in R14-A3; not yet used by a
+baseline. Date: 2026-11-19. Accepted: 2026-11-21.
 
 ## Context
 
@@ -73,3 +74,9 @@ edits change fingerprints; a moved file is `probable`; a renamed symbol is unmat
 duplicates and equal-quality move candidates are `ambiguous`; different bases match by
 id only; order independence; stored JSON payloads; deep nesting without recursion
 errors) and the evaluation in `docs/R14A_GATE_REPORT.md`.
+
+## Acceptance
+
+Accepted on 2026-11-21 together with the R14-A3 gate. The acceptance fixes the current
+decision. It does not forbid a review later if new evidence shows that a change is
+needed. The cost of the fingerprints is measured again in D1 and in later changes.
