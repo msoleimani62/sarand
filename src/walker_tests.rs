@@ -391,7 +391,6 @@ fn does_not_apply_the_users_global_gitignore() {
     remove_tree(&root);
 }
 
-
 #[test]
 fn hash_limit_selects_the_same_lexicographic_paths_independent_of_creation_order() {
     let first = temp_dir("walker-hash-order-first");
@@ -399,12 +398,10 @@ fn hash_limit_selects_the_same_lexicographic_paths_independent_of_creation_order
     let names = ["zeta.txt", "alpha.txt", "middle.txt"];
 
     for name in names {
-        fs::write(first.join(name), format!("{name}\\n"))
-            .expect("source file must be writable");
+        fs::write(first.join(name), format!("{name}\\n")).expect("source file must be writable");
     }
     for name in names.into_iter().rev() {
-        fs::write(second.join(name), format!("{name}\\n"))
-            .expect("source file must be writable");
+        fs::write(second.join(name), format!("{name}\\n")).expect("source file must be writable");
     }
 
     let first_records = scan(&first, &[], 524_288, 2);
@@ -417,7 +414,8 @@ fn hash_limit_selects_the_same_lexicographic_paths_independent_of_creation_order
             .collect::<std::collections::BTreeSet<_>>()
     };
 
-    let expected = std::collections::BTreeSet::from([String::from("alpha.txt"), String::from("middle.txt")]);
+    let expected =
+        std::collections::BTreeSet::from([String::from("alpha.txt"), String::from("middle.txt")]);
     assert_eq!(hashed(&first_records), expected);
     assert_eq!(hashed(&second_records), expected);
 
@@ -425,19 +423,13 @@ fn hash_limit_selects_the_same_lexicographic_paths_independent_of_creation_order
     remove_tree(&second);
 }
 
-
-
 #[test]
 fn applies_nested_gitignore_and_ignore_patterns_with_negation() {
     let root = temp_dir("walker-ignore-parity");
 
-    fs::write(
-        root.join(".gitignore"),
-        "*.log\n!keep.log\nbuild/\n*.tmp\n",
-    )
-    .expect("root gitignore must be writable");
-    fs::write(root.join(".ignore"), "private.txt\n")
-        .expect("root ignore file must be writable");
+    fs::write(root.join(".gitignore"), "*.log\n!keep.log\nbuild/\n*.tmp\n")
+        .expect("root gitignore must be writable");
+    fs::write(root.join(".ignore"), "private.txt\n").expect("root ignore file must be writable");
     fs::create_dir_all(root.join("src")).expect("source directory must be creatable");
     fs::write(root.join("src").join(".ignore"), "!keep.tmp\n")
         .expect("nested ignore file must be writable");

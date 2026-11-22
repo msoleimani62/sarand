@@ -178,9 +178,7 @@ pub fn scan_report(
 
     let hashes: Vec<(usize, Option<String>)> = hash_indices
         .par_iter()
-        .map(|&index| {
-            (index, hash_file(&record_paths[index]))
-        })
+        .map(|&index| (index, hash_file(&record_paths[index])))
         .collect();
 
     for (index, digest) in hashes {

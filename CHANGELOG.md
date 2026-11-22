@@ -18,7 +18,6 @@ version may include behaviour changes.
   `pathspec`. See `docs/AUDIT_REMEDIATION_H01_H05.md` for contracts and
   verification limits.
 
-
 ### Added
 
 - **Repository structure, first part (R14-A1).** `--structure` reads the project's
