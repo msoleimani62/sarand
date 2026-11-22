@@ -6,6 +6,11 @@ This file records the evidence of the final check. It adds to `docs/R14A_GATE_RE
 (`docs/R14A_ADR_STRUCTURAL_IDENTITY.md`) stays `Proposed` until the owner formally accepts
 the gate after reviewing this file.
 
+> Update, 2026-11-21: the owner accepted the gate and the ADR; the decision is in
+> `docs/R14A_GATE_ACCEPTANCE.md` (commit `2118c89`, CI run `44914439029`). The
+> statuses in this file are the proposals as they were reviewed; they stay as
+> evidence and are not rewritten.
+
 The reviewer of every sampled row is the engineer who built the tool; rates from samples
 of 50 rows are estimates, not accuracy.
 

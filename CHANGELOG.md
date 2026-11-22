@@ -18,6 +18,22 @@ version may include behaviour changes.
   `pathspec`. See `docs/AUDIT_REMEDIATION_H01_H05.md` for contracts and
   verification limits.
 
+### Changed
+
+- `--output-name` (and `output_name` in the configuration) must now be one plain
+  filename: a path, a separator, `.` / `..`, a drive, a control character or a
+  non-portable Windows name is rejected before the scan starts.
+- `pathspec` is now a runtime dependency (pure-Python scanner ignore rules);
+  manual installs from the source tree need `pip install rich PyYAML filelock
+  pathspec`.
+- An existing report is no longer deleted before the new one is ready: it is
+  replaced only after the new report and its checksum are staged. New report and
+  checksum files keep the permissions of the report they replace, or the umask
+  default (not the private `0600` of a temporary file).
+- The release gate requires only the newest `CI` run for the exact commit
+  (`REQUIRED_CI_WORKFLOWS` in `scripts/release.py`); optional workflows no longer
+  block a release.
+
 ### Added
 
 - **Repository structure, first part (R14-A1).** `--structure` reads the project's

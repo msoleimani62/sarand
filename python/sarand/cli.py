@@ -7,6 +7,7 @@ import asyncio
 import hashlib
 import os
 import shutil
+import stat
 import sys
 import tempfile
 import time
@@ -94,6 +95,9 @@ logger = get_logger("cli")
 
 
 def _output_name_argument(value: str) -> str:
+    """argparse `type`: reject an unsafe --output-name before anything runs.
+    نوع argparse: --output-name ناامن را پیش از هر کاری رد می‌کند.
+    """
     try:
         validate_output_name(value)
     except ValueError as exc:
@@ -324,11 +328,19 @@ Trust model:
 
 
 def _fsync_file(path: Path) -> None:
+    """Flush a finished file to disk before it is renamed into place.
+    فایل تمام‌شده را پیش از جایگزینی روی دیسک می‌نویسد.
+    """
     with path.open("r+b") as stream:
         os.fsync(stream.fileno())
 
 
 def _fsync_directory(path: Path) -> None:
+    """Flush the directory entry so the rename itself survives a crash.
+    خودِ ورودیِ دایرکتوری را هم می‌نویسد تا جایگزینی از کرش جان به در ببرد.
+    """
+    # Windows cannot open a directory for fsync; the rename is still atomic there.
+    # Windows دایرکتوری را برای fsync باز نمی‌کند؛ جایگزینی آنجا هم اتمی است.
     if os.name == "nt":
         return
     descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
@@ -343,7 +355,34 @@ def _sha256_file(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def _report_file_mode(previous: Path) -> int:
+    """Permission bits for a new report: the previous report's, else the umask's.
+
+    `tempfile.mkstemp` makes private (0600) files; a report written with
+    `write_text` before was 0666 minus the umask, and a replacement must not
+    silently change who can read it.
+    `mkstemp` فایل خصوصی (۰۶۰۰) می‌سازد؛ گزارشی که قبلاً با `write_text` نوشته می‌شد
+    ۰۶۶۶ منهای umask بود و جایگزینی نباید بی‌صدا تعیین کند چه کسی می‌تواند بخواندش.
+    """
+    try:
+        return stat.S_IMODE(previous.stat().st_mode)
+    except OSError:
+        # umask can only be read by setting it; sarand runs one scan at a time here.
+        # umask فقط با تنظیم‌کردن خوانده می‌شود؛ اینجا هر بار یک اسکن اجرا می‌شود.
+        current = os.umask(0)
+        os.umask(current)
+        return 0o666 & ~current
+
+
+def _apply_mode(path: Path, mode: int) -> None:
+    if os.name != "nt":
+        path.chmod(mode)
+
+
 def announce_report_replacement(output_path: Path) -> None:
+    """Say that an existing report will be replaced, and when. Deletes nothing.
+    اعلام می‌کند که گزارش موجود جایگزین می‌شود و کی؛ چیزی را حذف نمی‌کند.
+    """
     if output_path.exists():
         status(
             f"Found an existing report at {output_path}; it will be replaced "
@@ -352,11 +391,32 @@ def announce_report_replacement(output_path: Path) -> None:
 
 
 class _PdfRenderFailure(Exception):
-    """A recoverable PDF rendering failure that permits Markdown fallback."""
+    """A recoverable PDF rendering failure that permits Markdown fallback.
+
+    Only an explicit `RenderOutcome(ok=False)` raises it; a failure while
+    committing or rolling back must never be taken for a missing PDF engine.
+    فقط `RenderOutcome(ok=False)` صریح آن را برمی‌انگیزد؛ شکست حین commit یا rollback
+    را نباید با نبودِ موتور PDF اشتباه گرفت.
+    """
 
 
 def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> str:
-    """Render and checksum a report before atomically replacing its destination."""
+    """Render and checksum a report before atomically replacing its destination.
+
+    The order is the contract: render into a temporary file in the destination
+    directory, fsync it, hash it, stage the checksum, keep a backup of the previous
+    report, then `os.replace` the report and the checksum. A failure before the
+    first replace leaves the previous report and checksum untouched; a failure of
+    the checksum replace restores the previous report (or removes the new one).
+    The two renames cannot be one atomic step: a crash between them leaves a
+    detectable checksum mismatch, which this function does not claim to prevent.
+    ترتیب خودش قرارداد است: رندر در فایل موقتِ همان دایرکتوری، fsync، هش، آماده‌سازی
+    checksum، نگه‌داشتن پشتیبان گزارش قبلی، سپس `os.replace` گزارش و checksum. شکست
+    پیش از اولین replace گزارش و checksum قبلی را دست‌نخورده می‌گذارد؛ شکست replace
+    مربوط به checksum گزارش قبلی را برمی‌گرداند (یا گزارش تازه را حذف می‌کند). این دو
+    rename یک گامِ اتمی نمی‌شوند: کرش میانشان ناهمخوانیِ قابل‌تشخیص checksum می‌گذارد
+    که این تابع ادعای جلوگیری از آن را ندارد.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     checksum_path = output_path.with_suffix(output_path.suffix + ".sha256")
     report_fd, report_name = tempfile.mkstemp(
@@ -366,6 +426,8 @@ def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> st
     )
     os.close(report_fd)
     staged_report = Path(report_name)
+    mode = _report_file_mode(output_path)
+    _apply_mode(staged_report, mode)
     staged_checksum: Path | None = None
     backup_path: Path | None = None
     preserve_backup = False
@@ -378,6 +440,7 @@ def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> st
         )
         os.close(checksum_fd)
         staged_checksum = Path(checksum_name)
+        _apply_mode(staged_checksum, mode)
         previous_report_exists = output_path.exists()
 
         writer(staged_report)
@@ -388,6 +451,8 @@ def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> st
         staged_checksum.write_text(f"{digest}  {output_path.name}\n", encoding="utf-8")
         _fsync_file(staged_checksum)
 
+        # The backup is what makes a failed checksum commit recoverable.
+        # پشتیبان همان چیزی است که شکست commit مربوط به checksum را قابل‌بازیابی می‌کند.
         if previous_report_exists:
             backup_fd, backup_name = tempfile.mkstemp(
                 prefix=f".{output_path.name}.backup.",
@@ -402,6 +467,8 @@ def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> st
         try:
             os.replace(staged_checksum, checksum_path)
         except OSError as commit_error:
+            # Roll back: the report and its checksum must not disagree in-process.
+            # برگشت: گزارش و checksum نباید در همین فرایند با هم ناهمخوان بمانند.
             try:
                 if backup_path is not None:
                     os.replace(backup_path, output_path)
@@ -409,6 +476,8 @@ def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> st
                 else:
                     output_path.unlink(missing_ok=True)
             except OSError as rollback_error:
+                # Keep the backup and name it: manual recovery stays possible.
+                # پشتیبان را نگه می‌دارد و نامش را می‌آورد تا بازیابی دستی ممکن بماند.
                 preserve_backup = backup_path is not None
                 backup_detail = (
                     f"; previous report backup preserved at {backup_path}"
@@ -430,6 +499,9 @@ def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> st
             )
         return digest
     finally:
+        # Never leave temporary files behind, except a backup kept after a failed
+        # rollback.
+        # هرگز فایل موقت باقی نگذار، جز پشتیبانی که پس از rollbackِ ناموفق نگه داشته شد.
         staged_report.unlink(missing_ok=True)
         if staged_checksum is not None:
             staged_checksum.unlink(missing_ok=True)
@@ -440,6 +512,16 @@ def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> st
 def _write_pdf_fallback(
     data: ReportData, output_path: Path, detail: str, config: SarandConfig
 ) -> Path:
+    """The PDF could not be made: say why, and keep the scan.
+
+    Writes the same report as Markdown next to the intended PDF path, through the
+    same staged replacement, so the minutes the scan took are not lost. A previous
+    PDF is left as it was. The caller still exits non-zero, because the requested
+    artifact does not exist.
+    PDF ساخته نشد: دلیل را بگو و نتیجه‌ی اسکن را نگه دار. همان گزارش را به‌صورت
+    Markdown کنار مسیر PDF و با همان جایگزینیِ مرحله‌ای می‌نویسد؛ PDF قبلی دست‌نخورده
+    می‌ماند. فراخواننده همچنان با کد غیرصفر خارج می‌شود، چون مصنوع خواسته‌شده وجود ندارد.
+    """
     error(f"PDF rendering failed: {detail}")
     fallback = resolve_report_path(
         output_path.parent, output_path.with_suffix(".md").name
@@ -473,10 +555,10 @@ async def run(config: SarandConfig) -> int:
     config.output_dir.mkdir(parents=True, exist_ok=True)
     try:
         output_path = resolve_report_path(config.output_dir, config.output_name)
-    except (OSError, RuntimeError, ValueError):
+    except (OSError, RuntimeError, ValueError) as exc:
         error(
             "The report output path is invalid or resolves outside the "
-            "configured output directory."
+            f"configured output directory: {exc}"
         )
         return 1
 
@@ -882,6 +964,12 @@ async def run(config: SarandConfig) -> int:
 
     pdf_failed = False
     if config.output_format == "pdf":
+        # PDF is binary and rendered through an external tool (renderers/pdf.py),
+        # so it writes the staged file itself; `ok=False` selects the Markdown
+        # fallback and never crashes on a missing engine.
+        # PDF باینری است و با ابزار خارجی رندر می‌شود (renderers/pdf.py)، پس خودش فایلِ
+        # مرحله‌ای را می‌نویسد؛ `ok=False` جایگزین Markdown را برمی‌گزیند و هرگز به‌خاطر
+        # نبودِ موتور کرش نمی‌کند.
         from sarand.renderers import pdf as pdf_renderer
 
         def render_pdf(staged_path: Path) -> None:

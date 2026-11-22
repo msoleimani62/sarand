@@ -172,12 +172,14 @@ The implementation is in the current working tree and its contracts are
 recorded in `docs/AUDIT_REMEDIATION_H01_H05.md`. It covers deterministic hash
 selection, output-name and destination validation, staged report replacement,
 a newest-required-workflow release gate, and local ignore-rule parity for the
-Python fallback. The full Python suite passed (**1,873 passed, 13 skipped**);
-the focused remediation suite passed (**94 passed, 1 skipped**). The Rust
-walker changes and Rust/Python compiled-core parity remain **Not verified
-locally** until the maintainer runs the pinned Rust toolchain and the compiled
-extension on a supported environment; the current review environment has no
-`cargo` or `rustc`.
+Python fallback. At commit `1e9e59a` the maintainer's validation passed: the full Python suite
+(**1,882 passed, 10 skipped**), `mypy`, `ruff`, `cargo test` (**32 passed**),
+`cargo clippy`, Markdown lint and `git diff --check`, and the exact-commit CI run
+`44991819799` succeeded (it builds the wheel and runs the suite against the
+compiled core). The earlier figures of the review environment (1,873 passed,
+13 skipped; no `cargo`) are superseded by this record. The review that followed
+added the report-file permission fix and the documentation and comment
+corrections; its own validation is recorded where it is committed.
 
 ### Out of scope, with reasons
 

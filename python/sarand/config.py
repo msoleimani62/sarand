@@ -41,7 +41,16 @@ def resolve_output_dir(cli_value: str | None) -> Path:
 
 
 def validate_output_name(value: str) -> None:
-    """Require a portable, non-empty filename component, never a path."""
+    """Require a portable, non-empty filename component, never a path.
+
+    The name is joined to the output directory, so a separator, a drive or an
+    absolute path would let the join leave that directory. The Windows rules
+    (device names, a trailing dot or space, `:` and friends) keep the same
+    report name valid on every platform.
+    نام به دایرکتوری خروجی چسبانده می‌شود؛ جداکننده، درایو یا مسیر مطلق می‌گذارد
+    این چسباندن از دایرکتوری بیرون برود. قواعد Windows (نام دستگاه‌ها، نقطه یا
+    فاصله‌ی آخر، `:` و مانند آن) همان نام را روی همه‌ی پلتفرم‌ها معتبر نگه می‌دارد.
+    """
     if not isinstance(value, str) or not value:
         raise ValueError("output_name must be a non-empty filename")
     if value in {".", ".."}:
@@ -68,7 +77,15 @@ def validate_output_name(value: str) -> None:
 
 
 def resolve_report_path(output_dir: Path, output_name: str) -> Path:
-    """Resolve a report destination and reject symlink escapes from output_dir."""
+    """Resolve a report destination and reject symlink escapes from output_dir.
+
+    Both the report and its `.sha256` companion must stay inside the resolved
+    output directory and neither may be a symlink. This is a path check, not a
+    sandbox against a process that renames parent directories concurrently.
+    گزارش و فایل `.sha256` همراهش باید داخل دایرکتوری خروجیِ resolveشده بمانند و
+    هیچ‌کدام symlink نباشند. این یک بررسی مسیر است، نه sandbox در برابر فرایندی که
+    هم‌زمان دایرکتوری‌های والد را تغییر نام می‌دهد.
+    """
     validate_output_name(output_name)
     resolved_dir = output_dir.resolve()
     report_path = resolved_dir / output_name
@@ -115,6 +132,8 @@ class SarandConfig:
     structure: bool = False
 
     def __post_init__(self) -> None:
+        # A config built directly (not from CLI args) still gets the default name.
+        # پیکربندیِ ساخته‌شده مستقیم (نه از آرگومان‌های CLI) هم نام پیش‌فرض می‌گیرد.
         if not self.output_name:
             self.output_name = default_output_name(
                 self.project_root, self.output_format

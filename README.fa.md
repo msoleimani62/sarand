@@ -355,7 +355,7 @@ maturin develop --release
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install rich PyYAML filelock
+python -m pip install rich PyYAML filelock pathspec
 PYTHONPATH=python python -m sarand --help
 ```
 
@@ -429,7 +429,7 @@ PYTHONPATH=/path/to/sarand/python python -m sarand -p .
 |---|---|
 | `-p, --project PATH` | مسیر ریشه‌ی پروژه؛ پیش‌فرض، پوشه‌ی فعلی است |
 | `-d, --output-dir PATH` | پوشه‌ای که گزارش در آن ذخیره می‌شود |
-| `-o, --output-name NAME` | نام فایل گزارش؛ پیش‌فرض `sarand-<project>-report.<ext>` است |
+| `-o, --output-name NAME` | نام فایل گزارش؛ فقط یک نام ساده (بدون مسیر و جداکننده)؛ پیش‌فرض `sarand-<project>-report.<ext>` است |
 | `--set-output-dir PATH` | ذخیره‌ی مسیر به‌عنوان پوشه‌ی پیش‌فرض گزارش و سپس خروج |
 | `-f, --format FORMAT` | قالب خروجی: `markdown`، `json`، `text`، `html`، `pdf` یا `sarif` |
 | `--skip-tests` | اجرا نکردن آزمون‌ها |

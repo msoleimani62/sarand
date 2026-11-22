@@ -42,7 +42,7 @@ sarand scans a project, works out what it is, runs its tests, linters and securi
     <td width="50%" valign="top"><b>Written for AI</b><br>Includes an AI summary and a suggested reading order, so a model knows where to look first.</td>
   </tr>
   <tr>
-    <td valign="top"><b>41 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, Haskell, Elixir, Erlang, Scala, shell, SQL, Nix, assembly (with its dialect) and more, plus Dockerfile, Kubernetes (Helm and Kustomize), GitHub Actions, Terraform, Protobuf, YAML, JSON, TOML, XML and Markdown. See the <a href="https://github.com/msoleimani62/sarand/blob/main/docs/COVERAGE.md">coverage matrix</a>.</td>
+    <td valign="top"><b>42 language and format analyzers</b><br>Python, Rust, Go, Node.js, TypeScript, C/C++, Java, Kotlin, Android, C#, Swift, PHP, Ruby, Lua, Dart, Zig, Haskell, Elixir, Erlang, Scala, shell, SQL, Nix, assembly (with its dialect) and more, plus Dockerfile, Kubernetes (Helm and Kustomize), GitHub Actions, Terraform, Protobuf, YAML, JSON, TOML, XML and Markdown. See the <a href="https://github.com/msoleimani62/sarand/blob/main/docs/COVERAGE.md">coverage matrix</a>.</td>
     <td valign="top"><b>Safe by default</b><br>Files that contain secrets, and credential-shaped files, are left out of the report. With <code>--security</code> the git history is scanned too.</td>
   </tr>
   <tr>
@@ -256,7 +256,7 @@ Building the package needs a Rust toolchain: the build backend is maturin, and `
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install rich PyYAML filelock
+pip install rich PyYAML filelock pathspec
 PYTHONPATH=python python -m sarand --help
 ```
 
@@ -308,7 +308,7 @@ Running sarand again on the same project replaces its previous report at that pa
 |---|---|
 | `-p, --project PATH` | Project root (default: current directory) |
 | `-d, --output-dir PATH` | Folder for the report |
-| `-o, --output-name NAME` | Report file name (default: `sarand-<project>-report.<ext>`) |
+| `-o, --output-name NAME` | Report file name, one plain filename (no path, no separators; default: `sarand-<project>-report.<ext>`) |
 | `--set-output-dir PATH` | Save PATH as the default output folder and exit |
 | `-f, --format FORMAT` | `markdown` (default), `json`, `text`, `html`, `pdf` or `sarif` |
 | `--skip-tests` | Do not run tests |

@@ -156,6 +156,13 @@ def _describe_walk_error(root: Path, error: OSError) -> str:
 
 
 def _git_directory(root: Path) -> tuple[Path, Path] | None:
+    """The repository metadata directory and work-tree root above `root`, if any.
+
+    A linked worktree or submodule has a `.git` *file* (`gitdir: ...`); its shared
+    `commondir` holds `info/exclude`, exactly as git itself reads it.
+    worktree پیوندی یا submodule به‌جای پوشه یک *فایل* `.git` دارد (`gitdir: ...`)؛
+    `info/exclude` در `commondir` مشترک است، همان‌طور که خود git می‌خواند.
+    """
     for parent in (root, *root.parents):
         marker = parent / ".git"
         if marker.is_dir():
@@ -190,6 +197,11 @@ def _git_directory(root: Path) -> tuple[Path, Path] | None:
 def _read_ignore_spec(
     directory: Path, filename: str, problems: ScanProblems | None
 ) -> GitIgnoreSpec | None:
+    """One ignore file as a `GitIgnoreSpec`, or None (absent, empty or unusable).
+    A read error or invalid pattern becomes a scan problem, never a crash.
+    یک فایل ignore به‌صورت `GitIgnoreSpec` یا None. خطای خواندن یا الگوی نامعتبر
+    به مشکل اسکن تبدیل می‌شود، نه کرش.
+    """
     path = directory / filename
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -214,6 +226,15 @@ def _is_ignored_by_rules(
     is_directory: bool,
     rules: list[tuple[Path, GitIgnoreSpec]],
 ) -> bool:
+    """Whether the rules ignore `path`; the last matching rule decides.
+
+    Rules are ordered weakest first, so a later negation can re-include what an
+    earlier rule ignored. A directory is checked with a trailing slash so that
+    directory-only patterns (`build/`) match it.
+    قواعد از ضعیف به قوی مرتب‌اند؛ آخرین قاعده‌ی منطبق تصمیم می‌گیرد و negation
+    می‌تواند چیزی را که قاعده‌ی قبلی نادیده گرفته بازگرداند. دایرکتوری با اسلشِ پایانی
+    بررسی می‌شود تا الگوهای ویژه‌ی دایرکتوری (`build/`) بخورند.
+    """
     ignored = False
     for base, spec in rules:
         try:
@@ -231,6 +252,15 @@ def _is_ignored_by_rules(
 def _ancestor_ignore_rules(
     root: Path, problems: ScanProblems | None
 ) -> tuple[list[tuple[Path, GitIgnoreSpec]], list[tuple[Path, GitIgnoreSpec]]]:
+    """Ignore rules inherited from above the scan root, weakest first.
+
+    Same sources and precedence as the Rust walker: `.git/info/exclude`, then
+    ancestor `.gitignore` files (outermost first); `.ignore` files form a second
+    list that overrides the first. The user's global ignore file is never read.
+    همان منابع و اولویتِ walker در Rust: `.git/info/exclude`، سپس `.gitignore`ِ
+    والدها (از بیرونی‌ترین)؛ فایل‌های `.ignore` فهرست دومی می‌سازند که فهرست اول را
+    نادیده می‌گیرد. فایل ignore سراسریِ کاربر هرگز خوانده نمی‌شود.
+    """
     git_rules: list[tuple[Path, GitIgnoreSpec]] = []
     ignore_rules: list[tuple[Path, GitIgnoreSpec]] = []
     git_metadata = _git_directory(root)
@@ -300,6 +330,8 @@ def _pure_python_scan(
     import hashlib
 
     records: list[FileRecord] = []
+    # Resolve once so every relative path and every inherited rule uses one base.
+    # یک بار resolve می‌شود تا هر مسیر نسبی و هر قاعده‌ی ارث‌رسیده یک مبنا داشته باشد.
     root = root.resolve()
     inherited_git_rules, inherited_ignore_rules = _ancestor_ignore_rules(root, problems)
     rules_by_directory: dict[
@@ -332,6 +364,10 @@ def _pure_python_scan(
         rules_by_directory[directory] = (git_rules, ignore_rules)
         rules = [*git_rules, *ignore_rules]
 
+        # Sorted walk, then prune by rule and by the fixed directory-name list (same
+        # contract as the Rust walker). `.git` is in IGNORE_DIRS; `.github` stays.
+        # پیمایش مرتب، سپس هرس با قاعده و با فهرست ثابت نام دایرکتوری (همان قرارداد
+        # walker در Rust). `.git` در IGNORE_DIRS هست؛ `.github` می‌ماند.
         dirnames.sort()
         filenames.sort()
         retained_directories: list[str] = []
@@ -346,6 +382,8 @@ def _pure_python_scan(
             path = directory / name
             if _is_ignored_by_rules(path, False, rules):
                 continue
+            # POSIX separators on every platform, like the Rust core.
+            # جداکننده‌ی POSIX روی همه‌ی پلتفرم‌ها، مثل هسته‌ی Rust.
             rel = safe_relative(path, root).as_posix()
 
             if path.is_symlink():
@@ -400,6 +438,12 @@ def _pure_python_scan(
                 )
             )
 
+    # Hash selection happens after the walk, on the sorted records: the first
+    # `max_hash_files` eligible paths get a hash, whatever order the OS listed them
+    # in. A failed read still uses one slot (same rule as the Rust core).
+    # انتخاب فایل برای هش پس از پیمایش و روی رکوردهای مرتب انجام می‌شود: اولین
+    # `max_hash_files` مسیرِ واجد شرایط هش می‌گیرند، با هر ترتیبی که OS فهرست کرده؛
+    # خواندنِ ناموفق هم یک سهمیه مصرف می‌کند (همان قاعده‌ی هسته‌ی Rust).
     records.sort(key=lambda record: record["rel_path"])
     hashed = 0
     for record in records:

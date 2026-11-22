@@ -136,6 +136,10 @@ pub fn scan_report(
         }
     }
 
+    // Sort first: which files get a hash must not depend on thread timing, so the
+    // cap is applied to this fixed, path-ordered list.
+    // اول مرتب کن: اینکه کدام فایل‌ها هش می‌گیرند نباید به زمان‌بندی threadها
+    // وابسته باشد؛ پس سقف روی همین فهرستِ ثابتِ مرتب‌شده با مسیر اعمال می‌شود.
     candidates.sort_by_key(|path| {
         path.strip_prefix(root)
             .unwrap_or(path)
@@ -163,6 +167,10 @@ pub fn scan_report(
         }
     }
 
+    // The first `max_hash_files` eligible records, in path order, are chosen before
+    // any hashing; a hash that fails later still used its slot.
+    // اولین `max_hash_files` رکوردِ واجد شرایط، به ترتیب مسیر، پیش از هر هش‌کردن
+    // انتخاب می‌شوند؛ هشی که بعداً شکست بخورد هم سهمیه‌اش را مصرف کرده است.
     let hash_indices: Vec<usize> = records
         .iter()
         .enumerate()
@@ -176,6 +184,8 @@ pub fn scan_report(
         .take(max_hash_files)
         .collect();
 
+    // Only the hashing of the already chosen set runs in parallel.
+    // فقط هش‌کردنِ مجموعه‌ی از پیش انتخاب‌شده موازی اجرا می‌شود.
     let hashes: Vec<(usize, Option<String>)> = hash_indices
         .par_iter()
         .map(|&index| (index, hash_file(&record_paths[index])))

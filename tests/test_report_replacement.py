@@ -164,3 +164,32 @@ def test_checksum_commit_failure_without_previous_report_removes_new_report(
     assert not output.exists()
     assert not _checksum_path(output).exists()
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits")
+def test_new_files_follow_the_umask_not_the_private_temp_default(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "report.md"
+    previous_umask = os.umask(0o022)
+    try:
+        cli.atomic_write_report(output, lambda staged: _write(staged, "new report"))
+    finally:
+        os.umask(previous_umask)
+
+    assert output.stat().st_mode & 0o777 == 0o644
+    assert _checksum_path(output).stat().st_mode & 0o777 == 0o644
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits")
+def test_a_replacement_keeps_the_permissions_of_the_previous_report(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "report.md"
+    _write(output, "old report")
+    output.chmod(0o640)
+
+    cli.atomic_write_report(output, lambda staged: _write(staged, "new report"))
+
+    assert output.stat().st_mode & 0o777 == 0o640
+    assert _checksum_path(output).stat().st_mode & 0o777 == 0o640
