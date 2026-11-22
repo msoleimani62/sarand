@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from _golden_fixtures import FIXTURES
 from sarand import cli
 from sarand.models.results import ReportData
@@ -247,6 +248,66 @@ def test_pdf_failure_keeps_the_full_report_as_markdown_and_exits_nonzero() -> No
             p.name.startswith("report.md") and p.suffix == ".sha256"
             for p in reports.iterdir()
         )
+
+
+def test_pdf_rollback_failure_preserves_backup_and_skips_fallback() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        project = base / "proj"
+        project.mkdir()
+        (project / "app.py").write_text("print('hi')\n", encoding="utf-8")
+
+        reports = base / "reports"
+        reports.mkdir()
+
+        output = reports / "report.pdf"
+        checksum = reports / "report.pdf.sha256"
+        output.write_bytes(b"%PDF-1.4 old report")
+        checksum.write_text("old checksum\n", encoding="utf-8")
+
+        real_replace = os.replace
+        calls = 0
+
+        def fail_commit_and_rollback(
+            source: os.PathLike[str], destination: os.PathLike[str]
+        ) -> None:
+            nonlocal calls
+            calls += 1
+            if calls in {2, 3}:
+                raise OSError(f"simulated replace failure {calls}")
+            real_replace(source, destination)
+
+        def fake_render(
+            data: ReportData, output_path: Path, **kwargs: object
+        ) -> RenderOutcome:
+            output_path.write_bytes(b"%PDF-1.7 new report")
+            return RenderOutcome(True, "rendered via fake")
+
+        with (
+            mock.patch.object(pdf, "render_to_file", side_effect=fake_render),
+            mock.patch.object(cli.os, "replace", side_effect=fail_commit_and_rollback),
+            pytest.raises(RuntimeError, match="report rollback failed"),
+        ):
+            cli.main(
+                [
+                    "-p",
+                    str(project),
+                    "-d",
+                    str(reports),
+                    "--skip-tests",
+                    "--format",
+                    "pdf",
+                    "-o",
+                    "report.pdf",
+                ]
+            )
+
+        backups = list(reports.glob(".report.pdf.backup.*"))
+        assert len(backups) == 1
+        assert backups[0].read_bytes() == b"%PDF-1.4 old report"
+        assert output.read_bytes() == b"%PDF-1.7 new report"
+        assert checksum.read_text(encoding="utf-8") == "old checksum\n"
+        assert not (reports / "report.md").exists()
 
 
 def test_pdf_success_still_returns_zero_and_writes_only_the_pdf() -> None:

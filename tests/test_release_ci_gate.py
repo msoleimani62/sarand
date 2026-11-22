@@ -33,11 +33,12 @@ def _run(
     run_id: int, status: str, conclusion: str | None, name: str = "CI", sha: str = SHA
 ) -> dict[str, object]:
     return {
+        "attempt": 1,
         "databaseId": run_id,
         "headSha": sha,
         "status": status,
         "conclusion": conclusion,
-        "name": name,
+        "workflowName": name,
     }
 
 
@@ -50,7 +51,7 @@ def test_no_run_for_this_commit_is_not_green() -> None:
     ok, detail = release.ci_verdict(
         [_run(1, "completed", "success", sha="b" * 40)], SHA
     )
-    assert not ok and "no CI run" in detail
+    assert not ok and "no run for required workflow" in detail
     assert release.ci_verdict([], SHA)[0] is False
 
 
@@ -73,13 +74,30 @@ def test_the_newest_run_of_a_workflow_wins_over_an_older_one() -> None:
     assert release.ci_verdict(green_then_red, SHA)[0] is False
 
 
-def test_every_workflow_must_be_green_not_just_one() -> None:
+def test_every_configured_required_workflow_must_be_green() -> None:
     runs = [
         _run(1, "completed", "success", "CI"),
-        _run(2, "completed", "failure", "Lint"),
+        _run(2, "completed", "failure", "Audit"),
     ]
-    ok, detail = release.ci_verdict(runs, SHA)
-    assert not ok and "Lint" in detail
+    ok, detail = release.ci_verdict(runs, SHA, frozenset({"CI", "Audit"}))
+    assert not ok and "Audit" in detail
+
+
+def test_non_required_workflows_do_not_change_the_release_verdict() -> None:
+    runs = [
+        _run(1, "completed", "success", "CI"),
+        _run(2, "completed", "failure", "Optional audit"),
+    ]
+    assert release.ci_verdict(runs, SHA)[0] is True
+
+
+def test_a_missing_required_workflow_fails_closed() -> None:
+    ok, detail = release.ci_verdict(
+        [_run(1, "completed", "success", "CI")],
+        SHA,
+        frozenset({"CI", "Audit"}),
+    )
+    assert not ok and "Audit" in detail
 
 
 def test_runs_for_other_commits_are_ignored() -> None:
@@ -97,12 +115,14 @@ def _gh(
 
 
 def test_fetch_runs_parses_the_gh_json() -> None:
-    payload = json.dumps([_run(1, "completed", "success"), "junk", 3])
+    payload = json.dumps([_run(1, "completed", "success")])
     with mock.patch.object(release.subprocess, "run", return_value=_gh(payload)) as run:
-        rows = release.fetch_runs()
+        rows = release.fetch_runs(SHA)
     assert rows == [_run(1, "completed", "success")]
     argv = run.call_args.args[0]
-    assert argv[:3] == ["gh", "run", "list"] and "headSha" in argv[-1]
+    assert argv[:3] == ["gh", "run", "list"]
+    assert "--commit" in argv and SHA in argv
+    assert "attempt" in argv[-1] and "workflowName" in argv[-1]
 
 
 def test_fetch_runs_explains_every_way_gh_can_fail() -> None:
@@ -124,19 +144,19 @@ def test_fetch_runs_explains_every_way_gh_can_fail() -> None:
             )
         with patch:
             try:
-                release.fetch_runs()
+                release.fetch_runs(SHA)
             except RuntimeError as exc:
                 assert expected in str(exc)
             else:
                 raise AssertionError(f"no error for {expected!r}")
     with mock.patch.object(release.subprocess, "run", return_value=_gh("not json")):
         try:
-            release.fetch_runs()
+            release.fetch_runs(SHA)
         except RuntimeError as exc:
             assert "invalid JSON" in str(exc)
     with mock.patch.object(release.subprocess, "run", return_value=_gh('{"a": 1}')):
         try:
-            release.fetch_runs()
+            release.fetch_runs(SHA)
         except RuntimeError as exc:
             assert "unexpected shape" in str(exc)
 
@@ -181,3 +201,54 @@ def test_the_flag_is_wired_through_main() -> None:
         release.main(["tag"])
         release.main(["tag", "--skip-ci-check", "--dry-run"])
     assert tag.call_args_list == [mock.call(False, False), mock.call(True, True)]
+
+
+def test_malformed_newest_run_fails_closed() -> None:
+    malformed = _run(2, "completed", "success")
+    malformed["databaseId"] = "not-an-id"
+    ok, detail = release.ci_verdict([_run(1, "completed", "success"), malformed], SHA)
+    assert not ok and "databaseId" in detail
+
+
+def test_fetch_runs_rejects_malformed_rows() -> None:
+    payload = json.dumps([_run(1, "completed", "success"), "junk"])
+    with mock.patch.object(release.subprocess, "run", return_value=_gh(payload)):
+        try:
+            release.fetch_runs(SHA)
+        except TypeError as exc:
+            assert "malformed workflow row" in str(exc)
+        else:
+            raise AssertionError("malformed workflow row was silently ignored")
+
+
+def test_fetch_runs_rejects_non_dict_rows_with_type_error() -> None:
+    payload = json.dumps(["junk"])
+    with mock.patch.object(release.subprocess, "run", return_value=_gh(payload)):
+        try:
+            release.fetch_runs(SHA)
+        except TypeError as exc:
+            assert "malformed workflow row" in str(exc)
+        else:
+            raise AssertionError("non-dict workflow row was silently accepted")
+
+
+def test_malformed_single_required_run_fails_closed() -> None:
+    malformed = _run(1, "completed", "success")
+    malformed["databaseId"] = None
+    ok, detail = release.ci_verdict([malformed], SHA)
+    assert not ok and "databaseId" in detail
+
+
+def test_newer_attempt_of_the_same_workflow_run_decides() -> None:
+    first_attempt = _run(9, "completed", "success")
+    second_attempt = _run(9, "completed", "failure")
+    second_attempt["attempt"] = 2
+    ok, detail = release.ci_verdict([first_attempt, second_attempt], SHA)
+    assert not ok and "failure" in detail
+
+
+def test_malformed_attempt_fails_closed() -> None:
+    malformed = _run(1, "completed", "success")
+    malformed["attempt"] = 0
+    ok, detail = release.ci_verdict([malformed], SHA)
+    assert not ok and "attempt" in detail

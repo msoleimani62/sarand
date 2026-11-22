@@ -204,8 +204,12 @@ def test_run_uses_cache_hits_for_todos_and_secrets(
         "suggest_reading_order",
         lambda root, included: [],
     )
-    monkeypatch.setattr(cli, "remove_previous_report", lambda path: None)
-    monkeypatch.setattr(cli, "write_sha256", lambda path: "test-digest")
+    monkeypatch.setattr(cli, "announce_report_replacement", lambda path: None)
+    monkeypatch.setattr(
+        cli,
+        "atomic_write_report",
+        lambda path, writer: (writer(path), "test-digest")[1],
+    )
     monkeypatch.setattr(
         cli,
         "_RENDERERS",
@@ -320,8 +324,12 @@ def test_run_scans_changed_files_with_cache_enabled(
         "suggest_reading_order",
         lambda root, included: [],
     )
-    monkeypatch.setattr(cli, "remove_previous_report", lambda path: None)
-    monkeypatch.setattr(cli, "write_sha256", lambda path: "test-digest")
+    monkeypatch.setattr(cli, "announce_report_replacement", lambda path: None)
+    monkeypatch.setattr(
+        cli,
+        "atomic_write_report",
+        lambda path, writer: (writer(path), "test-digest")[1],
+    )
     monkeypatch.setattr(
         cli,
         "_RENDERERS",

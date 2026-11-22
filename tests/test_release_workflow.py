@@ -132,3 +132,20 @@ def test_every_step_runs_in_bash_so_the_wheel_glob_works_on_windows() -> None:
     # The first real run failed on windows-latest: PowerShell does not expand
     # `dist/*.whl`. ci.yml forces bash for the same reason.
     assert _workflow()["defaults"]["run"]["shell"] == "bash"
+
+
+def test_ci_gate_uses_the_newest_run_for_the_exact_tagged_commit() -> None:
+    gate = _jobs()["ci-gate"]
+    script = gate["steps"][0]["run"]
+    assert "--workflow CI" in script
+    assert '--commit "$GITHUB_SHA"' in script
+    assert "--json attempt,databaseId,headSha,status,conclusion" in script
+    assert "python3 -c" in script
+    assert 'type(row.get("databaseId")) is int' in script
+    assert 'type(row.get("attempt")) is int' in script
+    assert 'row["databaseId"] > 0' in script
+    assert 'row["attempt"] > 0' in script
+    assert "sort_by([.databaseId, .attempt]) | last" in script
+    assert '"$status" != "completed"' in script
+    assert '"$conclusion" != "success"' in script
+    assert '"$run_sha" != "$GITHUB_SHA"' in script

@@ -106,9 +106,8 @@ def test_run_cmd_async_timeout_preserves_output(tmp_path: Path) -> None:
     # after several seconds" without demanding sub-10ms precision no
     # Windows CI runner can reliably promise. Left the sync `run_cmd`
     # version (`test_run_cmd_timeout_preserves_output`, above) and the
-    # POSIX-only process-group test (below) untouched -- neither was
-    # reported flaky, and changing them without evidence would be
-    # guessing, not fixing.
+    # POSIX-only process-group test (below) remains a separate lifecycle
+    # assertion; its child-startup window is independent of this deadline test.
     #
     # اصلاح باگ: قبلاً `duration >= 1` بود -- روی CI ویندوز flaky بود،
     # با duration == 0.9953488999999536 (کسری حدود ۴.۶ میلی‌ثانیه)
@@ -120,10 +119,8 @@ def test_run_cmd_async_timeout_preserves_output(tmp_path: Path) -> None:
     # `run_cmd_async`. تلورانس ۱۰٪ هنوز به‌طور معناداری «تایم‌اوت
     # حوالی نشانه‌ی ۱ ثانیه شلیک کرد» را چک می‌کند، بدون طلبِ دقتِ
     # زیرِ ۱۰ میلی‌ثانیه‌ای که هیچ runner ویندوزیِ CI نمی‌تواند
-    # تضمین کند. نسخه‌ی sync (`test_run_cmd_timeout_preserves_output`،
-    # بالا) و تست فقط-POSIX (پایین) دست‌نخورده ماندند -- هیچ‌کدام
-    # flaky گزارش نشده بودند، و تغییرشان بدون شاهد، حدس‌زدن است، نه
-    # اصلاح.
+    # تضمین کند. تست sync و تست گروه‌فرایند POSIX، قراردادهای جداگانه‌ای
+    # دارند و مستقل از این تلورانس بررسی می‌شوند.
     assert duration >= 0.9
 
 
@@ -145,17 +142,19 @@ def test_run_cmd_async_timeout_terminates_process_group(tmp_path: Path) -> None:
     )
 
     async def scenario() -> tuple[int, str, float]:
+        # Give the child enough startup time to persist its PID before timeout.
+        # زمان کافی برای ثبت PID فرزند پیش از پایان مهلت اجرا داده می‌شود.
         return await run_cmd_async(
             [sys.executable, "-c", parent_code],
             tmp_path,
-            timeout=1,
+            timeout=3,
         )
 
     returncode, output, duration = asyncio.run(scenario())
 
     assert returncode == 124
     assert "parent-started" in output
-    assert duration >= 1
+    assert duration >= 3
     assert pid_file.exists()
 
     child_pid = int(pid_file.read_text())

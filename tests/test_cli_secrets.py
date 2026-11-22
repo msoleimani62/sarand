@@ -83,8 +83,10 @@ def _run_pipeline(
     monkeypatch.setattr(cli, "discover_analyzers", list)
     monkeypatch.setattr(cli, "matching_analyzers", lambda root, analyzers: [])
     monkeypatch.setattr(cli, "generate_ai_summary", lambda data: None)
-    monkeypatch.setattr(cli, "remove_previous_report", lambda path: None)
-    monkeypatch.setattr(cli, "write_sha256", lambda path: "digest")
+    monkeypatch.setattr(cli, "announce_report_replacement", lambda path: None)
+    monkeypatch.setattr(
+        cli, "atomic_write_report", lambda path, writer: (writer(path), "digest")[1]
+    )
     monkeypatch.setattr(cli, "run_security_concurrently", _no_results)
     monkeypatch.setattr(cli, "run_component_security", _no_results)
     monkeypatch.setattr(cli, "run_gitleaks", gitleaks)
@@ -139,13 +141,14 @@ def test_the_allowlist_marks_exactly_the_listed_files(
 
 
 def test_an_invalid_secrets_table_warns_and_counts_every_finding(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    warnings: list[str] = []
+    monkeypatch.setattr(cli, "warning", warnings.append)
     _make_project(tmp_path, "[secrets]\nbogus = 1\n")
     data = _run_pipeline(tmp_path, monkeypatch, [])
     assert _fixture_flags(data) == {"leak.py": False, "tests/test_fx.py": False}
-    captured = capsys.readouterr()
-    assert "unknown key" in captured.out + captured.err
+    assert any("unknown key" in message for message in warnings)
 
 
 def test_gitleaks_flagged_files_are_kept_out_of_the_report(

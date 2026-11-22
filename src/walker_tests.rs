@@ -102,6 +102,26 @@ fn does_not_hash_files_above_size_limit() {
 }
 
 #[test]
+fn hashes_only_non_empty_files_within_size_limit() {
+    let root = temp_dir("walker-hash-boundaries");
+
+    fs::write(root.join("empty.txt"), b"").expect("file must be writable");
+    fs::write(root.join("exact.txt"), b"abcd").expect("file must be writable");
+    fs::write(root.join("above.txt"), b"abcde").expect("file must be writable");
+
+    let records = scan(&root, &[], 4, 5000);
+
+    assert!(find_record(&records, "empty.txt").content_hash.is_none());
+    assert_eq!(
+        find_record(&records, "exact.txt").content_hash.as_deref(),
+        Some("88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031589")
+    );
+    assert!(find_record(&records, "above.txt").content_hash.is_none());
+
+    remove_tree(&root);
+}
+
+#[test]
 fn respects_hash_file_limit() {
     let root = temp_dir("walker-hash-count");
 
@@ -119,7 +139,7 @@ fn respects_hash_file_limit() {
         .filter(|record| record.content_hash.is_some())
         .count();
 
-    assert!(hashed <= 2);
+    assert_eq!(hashed, 2);
 
     remove_tree(&root);
 }
@@ -368,5 +388,94 @@ fn does_not_apply_the_users_global_gitignore() {
         .any(|record| record.rel_path == "notes.machine-local"));
 
     remove_tree(&config_home);
+    remove_tree(&root);
+}
+
+
+#[test]
+fn hash_limit_selects_the_same_lexicographic_paths_independent_of_creation_order() {
+    let first = temp_dir("walker-hash-order-first");
+    let second = temp_dir("walker-hash-order-second");
+    let names = ["zeta.txt", "alpha.txt", "middle.txt"];
+
+    for name in names {
+        fs::write(first.join(name), format!("{name}\\n"))
+            .expect("source file must be writable");
+    }
+    for name in names.into_iter().rev() {
+        fs::write(second.join(name), format!("{name}\\n"))
+            .expect("source file must be writable");
+    }
+
+    let first_records = scan(&first, &[], 524_288, 2);
+    let second_records = scan(&second, &[], 524_288, 2);
+    let hashed = |records: &[super::FileRecord]| {
+        records
+            .iter()
+            .filter(|record| record.content_hash.is_some())
+            .map(|record| record.rel_path.clone())
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+
+    let expected = std::collections::BTreeSet::from([String::from("alpha.txt"), String::from("middle.txt")]);
+    assert_eq!(hashed(&first_records), expected);
+    assert_eq!(hashed(&second_records), expected);
+
+    remove_tree(&first);
+    remove_tree(&second);
+}
+
+
+
+#[test]
+fn applies_nested_gitignore_and_ignore_patterns_with_negation() {
+    let root = temp_dir("walker-ignore-parity");
+
+    fs::write(
+        root.join(".gitignore"),
+        "*.log\n!keep.log\nbuild/\n*.tmp\n",
+    )
+    .expect("root gitignore must be writable");
+    fs::write(root.join(".ignore"), "private.txt\n")
+        .expect("root ignore file must be writable");
+    fs::create_dir_all(root.join("src")).expect("source directory must be creatable");
+    fs::write(root.join("src").join(".ignore"), "!keep.tmp\n")
+        .expect("nested ignore file must be writable");
+
+    for relative in [
+        "drop.log",
+        "keep.log",
+        "build/generated.rs",
+        "private.txt",
+        "drop.tmp",
+        "src/drop.tmp",
+        "src/keep.tmp",
+        "src/main.rs",
+    ] {
+        let path = root.join(relative);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("parent directory must be creatable");
+        }
+        fs::write(path, "content\n").expect("fixture file must be writable");
+    }
+
+    let records = scan(&root, &[], 524_288, 5000);
+    let paths = records
+        .iter()
+        .map(|record| record.rel_path.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+
+    assert!(paths.contains(".gitignore"));
+    assert!(paths.contains(".ignore"));
+    assert!(paths.contains("src/.ignore"));
+    assert!(paths.contains("keep.log"));
+    assert!(paths.contains("src/keep.tmp"));
+    assert!(paths.contains("src/main.rs"));
+    assert!(!paths.contains("drop.log"));
+    assert!(!paths.contains("private.txt"));
+    assert!(!paths.contains("drop.tmp"));
+    assert!(!paths.contains("src/drop.tmp"));
+    assert!(!paths.iter().any(|path| path.starts_with("build/")));
+
     remove_tree(&root);
 }

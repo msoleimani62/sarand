@@ -9,8 +9,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from _helpers import assert_raises
-from sarand.config import SarandConfig, resolve_output_dir, resolve_project_path
+from sarand.config import (
+    SarandConfig,
+    resolve_output_dir,
+    resolve_project_path,
+    resolve_report_path,
+)
 from sarand.constants import DEFAULT_OUTPUT_DIR
 
 
@@ -200,3 +206,78 @@ def test_without_full_flag_limits_stay_at_normal_defaults() -> None:
         assert cfg.run_quality is False
         assert cfg.run_security is False
         assert cfg.max_tree_depth < 10_000
+
+
+def test_validate_rejects_output_names_that_are_not_single_filename_components(
+    tmp_path: Path,
+) -> None:
+    invalid = (
+        "",
+        ".",
+        "..",
+        "../escape.md",
+        "nested/report.md",
+        "nested\\\\report.md",
+        "/absolute/report.md",
+        "C:report.md",
+        "C:\\\\report.md",
+        "report:stream.md",
+        "report.md.",
+        "NUL.txt",
+        "COM1.log",
+        "CON.backup.txt",
+        "PRN.backup.log",
+        "AUX.data.json",
+        "NUL.backup.txt",
+        "COM1.backup.log",
+        "LPT1.backup.txt",
+        "COM9.backup.txt",
+        "LPT9.backup.log",
+        "report\\0.md",
+    )
+    for name in invalid:
+        if name == "":
+            with pytest.raises(ValueError):
+                SarandConfig.from_args(_args(project=str(tmp_path), output_name=name))
+            continue
+        cfg = SarandConfig(project_root=tmp_path, output_name=name)
+        with pytest.raises(ValueError):
+            cfg.validate()
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows symlink creation may require elevated privileges",
+)
+def test_resolve_report_path_rejects_report_symlink_escape(tmp_path: Path) -> None:
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text("keep", encoding="utf-8")
+    (output_dir / "report.md").symlink_to(outside)
+
+    try:
+        resolve_report_path(output_dir, "report.md")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("accepted a report symlink that escapes output_dir")
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows symlink creation may require elevated privileges",
+)
+def test_resolve_report_path_rejects_checksum_symlink_escape(tmp_path: Path) -> None:
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    outside = tmp_path / "outside.sha256"
+    outside.write_text("keep", encoding="utf-8")
+    (output_dir / "report.md.sha256").symlink_to(outside)
+
+    try:
+        resolve_report_path(output_dir, "report.md")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("accepted a checksum symlink that escapes output_dir")

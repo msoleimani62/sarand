@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Release helper: keeps every place that carries the version in sync.
 
-Two steps, on purpose (a tag must only be created after CI is green on
-the pushed commit -- see AGENTS.md):
+Two steps, on purpose (a tag must only be created after the required CI
+workflow is green on the pushed commit -- see AGENTS.md):
 
     python3 scripts/release.py bump 0.6.11   # edit files + commit
     git push                                 # then wait for CI
@@ -12,18 +12,17 @@ the pushed commit -- see AGENTS.md):
 Cargo.lock and `pkgver` in pkgs/aur/PKGBUILD, and refuses to run unless
 CHANGELOG.md already has a `## [X.Y.Z]` heading, the tree is clean and
 the version really is new. `tag` checks that the files at HEAD carry the
-version it is about to tag AND that every GitHub Actions run for HEAD has
-finished successfully (asked of the `gh` CLI); it refuses when there is no
-run yet, one is still going, or one failed -- tagging a commit before CI
-finished is how v0.6.10 landed on a red Windows job. `--skip-ci-check`
+version it is about to tag AND that the newest run of every explicitly
+required workflow (currently `CI`) for that exact SHA has completed
+successfully; older successful runs cannot mask a newer failure.
+`--skip-ci-check`
 overrides the gate (offline, or `gh` unavailable) and says so loudly.
 Nothing is pushed. `--dry-run` only prints.
 
 اسکریپت release: همه‌ی جاهایی که نسخه دارند را هماهنگ نگه می‌دارد.
-دو گام عمداً جداست (تگ فقط بعد از سبز شدن CI روی commit ی push‌شده):
-`bump X.Y.Z` فایل‌ها را ویرایش و commit می‌کند؛ `tag` تگ annotated
-می‌سازد و فقط وقتی که همه‌ی runهای CI برای HEAD (با `gh`) تمام و موفق
-باشند؛ `--skip-ci-check` این بررسی را رد می‌کند. چیزی push نمی‌شود.
+دو گام عمداً جداست؛ تگ فقط پس از موفقیت جدیدترین اجرای workflowهای الزامی
+روی همان SHA ساخته می‌شود. در حال حاضر workflow الزامی `CI` است؛ اجرای
+موفق قدیمی نمی‌تواند شکست اجرای جدیدتر را بپوشاند.
 """
 
 from __future__ import annotations
@@ -93,45 +92,70 @@ def _git(*args: str) -> str:
     return done.stdout.strip()
 
 
-def ci_verdict(runs: list[dict[str, object]], sha: str) -> tuple[bool, str]:
-    """Decide from `gh run list` rows whether CI is green for `sha`.
+REQUIRED_CI_WORKFLOWS = frozenset({"CI"})
 
-    Only runs for exactly this commit count. When a workflow ran more than
-    once for it (a re-run), the newest run of that workflow decides.
-    Pure function: no network, no subprocess.
-    فقط runهای همین commit؛ برای هر workflow جدیدترین run تصمیم می‌گیرد.
-    """
-    mine = [r for r in runs if r.get("headSha") == sha]
-    if not mine:
-        return False, "no CI run for this commit yet (not pushed, or CI not started)"
+
+def ci_verdict(
+    runs: list[dict[str, object]],
+    sha: str,
+    required_workflows: frozenset[str] = REQUIRED_CI_WORKFLOWS,
+) -> tuple[bool, str]:
+    """Require the newest run of every required workflow for the exact commit."""
+    if not required_workflows:
+        return False, "no required workflows are configured"
+    mine = [run for run in runs if run.get("headSha") == sha]
     newest: dict[str, dict[str, object]] = {}
     for run in mine:
-        key = str(run.get("name", ""))
-        current = newest.get(key)
-        if current is None or _run_id(run) > _run_id(current):
-            newest[key] = run
-    pending = [k for k, r in newest.items() if r.get("status") != "completed"]
+        name = run.get("workflowName")
+        if not isinstance(name, str) or name not in required_workflows:
+            continue
+        current = newest.get(name)
+        try:
+            run_key = _run_key(run)
+            if current is None or run_key > _run_key(current):
+                newest[name] = run
+        except ValueError as exc:
+            return False, str(exc)
+
+    missing = sorted(required_workflows - newest.keys())
+    if missing:
+        return False, "no run for required workflow(s): " + ", ".join(missing)
+
+    pending = sorted(
+        name for name, run in newest.items() if run.get("status") != "completed"
+    )
     if pending:
-        return False, "still running: " + ", ".join(sorted(pending))
+        return False, "still running: " + ", ".join(pending)
+
     bad = {
-        k: r.get("conclusion")
-        for k, r in newest.items()
-        if r.get("conclusion") != "success"
+        name: run.get("conclusion")
+        for name, run in newest.items()
+        if run.get("conclusion") != "success"
     }
     if bad:
-        detail = ", ".join(f"{k} ({c})" for k, c in sorted(bad.items()))
+        detail = ", ".join(f"{name} ({value})" for name, value in sorted(bad.items()))
         return False, "not green: " + detail
-    return True, f"{len(newest)} workflow run(s) succeeded"
+    return True, f"{len(required_workflows)} required workflow(s) succeeded"
 
 
-def _run_id(run: dict[str, object]) -> int:
-    value = run.get("databaseId", 0)
-    return value if isinstance(value, int) else 0
+def _run_key(run: dict[str, object]) -> tuple[int, int]:
+    database_id = run.get("databaseId")
+    attempt = run.get("attempt")
+    if (
+        isinstance(database_id, bool)
+        or not isinstance(database_id, int)
+        or database_id < 1
+    ):
+        raise ValueError(
+            "malformed workflow run: databaseId must be a positive integer"
+        )
+    if isinstance(attempt, bool) or not isinstance(attempt, int) or attempt < 1:
+        raise ValueError("malformed workflow run: attempt must be a positive integer")
+    return database_id, attempt
 
 
-def fetch_runs() -> list[dict[str, object]]:
-    """Recent workflow runs from the GitHub CLI. Raises `RuntimeError` with
-    a human-readable reason when `gh` is missing, fails or answers garbage."""
+def fetch_runs(sha: str) -> list[dict[str, object]]:
+    """Fetch runs for one commit; malformed responses fail closed."""
     try:
         # fixed argv, no shell; `git` and `gh` are looked up by name on purpose
         done = subprocess.run(  # nosec B603 B607
@@ -139,10 +163,12 @@ def fetch_runs() -> list[dict[str, object]]:
                 "gh",
                 "run",
                 "list",
+                "--commit",
+                sha,
                 "--limit",
-                "30",
+                "1000",
                 "--json",
-                "databaseId,headSha,status,conclusion,name",
+                "attempt,databaseId,headSha,status,conclusion,workflowName",
             ],
             cwd=ROOT,
             capture_output=True,
@@ -154,6 +180,8 @@ def fetch_runs() -> list[dict[str, object]]:
         raise RuntimeError("the GitHub CLI (`gh`) is not installed") from exc
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError("`gh run list` timed out") from exc
+    except OSError as exc:
+        raise RuntimeError(f"could not execute `gh run list`: {exc}") from exc
     if done.returncode != 0:
         reason = " ".join(done.stderr.split())[:200] or f"exit {done.returncode}"
         raise RuntimeError(f"`gh run list` failed: {reason}")
@@ -164,7 +192,28 @@ def fetch_runs() -> list[dict[str, object]]:
     rows = data if isinstance(data, list) else None
     if rows is None:
         raise RuntimeError("`gh run list` returned an unexpected shape")
-    return [row for row in rows if isinstance(row, dict)]
+    parsed: list[dict[str, object]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise TypeError("`gh run list` returned a malformed workflow row")
+        database_id = row.get("databaseId")
+        attempt = row.get("attempt")
+        if (
+            isinstance(database_id, bool)
+            or not isinstance(database_id, int)
+            or database_id < 1
+            or isinstance(attempt, bool)
+            or not isinstance(attempt, int)
+            or attempt < 1
+            or not isinstance(row.get("headSha"), str)
+            or not isinstance(row.get("status"), str)
+            or not isinstance(row.get("workflowName"), str)
+            or row.get("conclusion") is not None
+            and not isinstance(row.get("conclusion"), str)
+        ):
+            raise RuntimeError("`gh run list` returned a malformed workflow row")
+        parsed.append(row)
+    return parsed
 
 
 def require_green_ci(sha: str, skip: bool) -> None:
@@ -173,7 +222,7 @@ def require_green_ci(sha: str, skip: bool) -> None:
         print("WARNING: --skip-ci-check given; CI status is NOT verified.")
         return
     try:
-        ok, detail = ci_verdict(fetch_runs(), sha)
+        ok, detail = ci_verdict(fetch_runs(sha), sha)
     except RuntimeError as exc:
         raise SystemExit(
             f"Cannot verify CI: {exc}. Check the Actions page yourself, then "

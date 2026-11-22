@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from sarand.constants import (
@@ -40,6 +40,48 @@ def resolve_output_dir(cli_value: str | None) -> Path:
     return DEFAULT_OUTPUT_DIR
 
 
+def validate_output_name(value: str) -> None:
+    """Require a portable, non-empty filename component, never a path."""
+    if not isinstance(value, str) or not value:
+        raise ValueError("output_name must be a non-empty filename")
+    if value in {".", ".."}:
+        raise ValueError("output_name must not be '.' or '..'")
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise ValueError("output_name must not contain control characters")
+    if "/" in value or "\\" in value:
+        raise ValueError("output_name must be a filename, not a path")
+    if any(char in value for char in '<>:"|?*') or value.endswith((" ", ".")):
+        raise ValueError("output_name contains a non-portable filename character")
+    windows_path = PureWindowsPath(value)
+    reserved_stem = windows_path.name.split(".", 1)[0].rstrip(" .").upper()
+    reserved_names = {"CON", "PRN", "AUX", "NUL"}
+    if reserved_stem in reserved_names or (
+        len(reserved_stem) == 4
+        and reserved_stem[:3] in {"COM", "LPT"}
+        and reserved_stem[3] in "123456789¹²³"
+    ):
+        raise ValueError("output_name uses a reserved Windows device name")
+    if windows_path.is_absolute() or windows_path.drive:
+        raise ValueError("output_name must not be an absolute or drive-qualified path")
+    if Path(value).name != value:
+        raise ValueError("output_name must be a single filename component")
+
+
+def resolve_report_path(output_dir: Path, output_name: str) -> Path:
+    """Resolve a report destination and reject symlink escapes from output_dir."""
+    validate_output_name(output_name)
+    resolved_dir = output_dir.resolve()
+    report_path = resolved_dir / output_name
+    checksum_path = report_path.with_suffix(report_path.suffix + ".sha256")
+    for candidate in (report_path, checksum_path):
+        if candidate.is_symlink():
+            raise ValueError(
+                f"report destination must not be a symlink: {candidate.name}"
+            )
+        candidate.resolve(strict=False).relative_to(resolved_dir)
+    return report_path
+
+
 @dataclass
 class SarandConfig:
     """Runtime configuration for one sarand run."""
@@ -72,13 +114,23 @@ class SarandConfig:
     # R14-A: ساخت ساختار مخزن؛ به‌طور پیش‌فرض خاموش.
     structure: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.output_name:
+            self.output_name = default_output_name(
+                self.project_root, self.output_format
+            )
+
     @classmethod
     def from_args(cls, args: Any) -> SarandConfig:
         project = resolve_project_path(getattr(args, "project", None))
         output_format = str(getattr(args, "format", "markdown")).lower()
         out_dir = resolve_output_dir(getattr(args, "output_dir", None))
         explicit_name = getattr(args, "output_name", None)
-        output_name = explicit_name or default_output_name(project, output_format)
+        if explicit_name is None:
+            output_name = default_output_name(project, output_format)
+        else:
+            output_name = str(explicit_name)
+            validate_output_name(output_name)
 
         def _int_or(value: Any, default: int) -> int:
             return default if value is None else int(value)
@@ -148,6 +200,7 @@ class SarandConfig:
         )
 
     def validate(self) -> None:
+        validate_output_name(self.output_name)
         if not self.project_root.is_dir():
             raise ValueError(
                 f"Project root does not exist or is not a directory: {self.project_root}"

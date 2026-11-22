@@ -9,6 +9,7 @@ license=('MIT')
 depends=(
     'python'
     'python-filelock'
+    'python-pathspec'
     'python-rich'
     'python-yaml'
 )

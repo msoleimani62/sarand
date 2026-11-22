@@ -68,10 +68,40 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          conclusions="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" --json conclusion --jq '.[].conclusion')"
-          echo "CI conclusions for $GITHUB_SHA: ${conclusions:-none}"
-          if ! grep -qx success <<< "$conclusions"; then
-            echo "No successful CI run for $GITHUB_SHA; refusing to publish." >&2
+          runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" --limit 1000 --json attempt,databaseId,headSha,status,conclusion)"
+          if ! python3 -c '
+          import json
+          import sys
+
+          rows = json.load(sys.stdin)
+          valid = isinstance(rows, list) and all(
+              isinstance(row, dict)
+              and type(row.get("databaseId")) is int
+              and row["databaseId"] > 0
+              and type(row.get("attempt")) is int
+              and row["attempt"] > 0
+              and isinstance(row.get("headSha"), str)
+              and isinstance(row.get("status"), str)
+              and (
+                  row.get("conclusion") is None
+                  or isinstance(row.get("conclusion"), str)
+              )
+              for row in rows
+          )
+          sys.exit(0 if valid else 1)
+          ' <<< "$runs"; then
+            echo "GitHub returned malformed CI run data; refusing to publish." >&2
+            exit 1
+          fi
+          latest="$(jq -c 'sort_by([.databaseId, .attempt]) | last // empty' <<< "$runs")"
+          if [[ -z "$latest" ]]; then
+            echo "No CI run exists for $GITHUB_SHA; refusing to publish." >&2
+            exit 1
+          fi
+          read -r run_sha status conclusion < <(jq -r '[.headSha, .status, (.conclusion // "")] | @tsv' <<< "$latest")
+          echo "Newest CI run for $GITHUB_SHA: sha=$run_sha status=$status conclusion=$conclusion"
+          if [[ "$run_sha" != "$GITHUB_SHA" || "$status" != "completed" || "$conclusion" != "success" ]]; then
+            echo "The newest CI run is not a successful completed run for $GITHUB_SHA; refusing to publish." >&2
             exit 1
           fi
 

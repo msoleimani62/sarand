@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypedDict
 
+from pathspec import GitIgnoreSpec
+
 from sarand.constants import (
     HASH_MAX_BYTES,
     IGNORE_DIRS,
@@ -153,6 +155,102 @@ def _describe_walk_error(root: Path, error: OSError) -> str:
     return f"{where}: {error.strerror or error}"
 
 
+def _git_directory(root: Path) -> tuple[Path, Path] | None:
+    for parent in (root, *root.parents):
+        marker = parent / ".git"
+        if marker.is_dir():
+            return marker, parent
+        if marker.is_file():
+            try:
+                first_line = marker.read_text(encoding="utf-8").strip()
+            except OSError:
+                return None
+            if not first_line.startswith("gitdir:"):
+                return None
+            target = Path(first_line.partition(":")[2].strip())
+            git_dir = (
+                (parent / target).resolve() if not target.is_absolute() else target
+            )
+            common_dir_file = git_dir / "commondir"
+            if common_dir_file.is_file():
+                try:
+                    common_value = common_dir_file.read_text(encoding="utf-8").strip()
+                except OSError:
+                    return None
+                common_dir = Path(common_value)
+                git_dir = (
+                    (git_dir / common_dir).resolve()
+                    if not common_dir.is_absolute()
+                    else common_dir
+                )
+            return git_dir, parent
+    return None
+
+
+def _read_ignore_spec(
+    directory: Path, filename: str, problems: ScanProblems | None
+) -> GitIgnoreSpec | None:
+    path = directory / filename
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        if problems is not None:
+            problems.add(_describe_walk_error(directory, error))
+        return None
+    if not lines:
+        return None
+    try:
+        return GitIgnoreSpec.from_lines(lines)
+    except ValueError as error:
+        if problems is not None:
+            problems.add(f"{filename}: invalid ignore pattern: {error}")
+        return None
+
+
+def _is_ignored_by_rules(
+    path: Path,
+    is_directory: bool,
+    rules: list[tuple[Path, GitIgnoreSpec]],
+) -> bool:
+    ignored = False
+    for base, spec in rules:
+        try:
+            relative = path.relative_to(base).as_posix()
+        except ValueError:
+            continue
+        if is_directory:
+            relative += "/"
+        result = spec.check_file(relative)
+        if result.include is not None:
+            ignored = result.include
+    return ignored
+
+
+def _ancestor_ignore_rules(
+    root: Path, problems: ScanProblems | None
+) -> tuple[list[tuple[Path, GitIgnoreSpec]], list[tuple[Path, GitIgnoreSpec]]]:
+    git_rules: list[tuple[Path, GitIgnoreSpec]] = []
+    ignore_rules: list[tuple[Path, GitIgnoreSpec]] = []
+    git_metadata = _git_directory(root)
+    if git_metadata is not None:
+        git_dir, repository_root = git_metadata
+        exclude = _read_ignore_spec(git_dir / "info", "exclude", problems)
+        if exclude is not None:
+            git_rules.append((repository_root, exclude))
+
+    for directory in reversed(root.parents):
+        spec = _read_ignore_spec(directory, ".gitignore", problems)
+        if spec is not None:
+            git_rules.append((directory, spec))
+    for directory in reversed(root.parents):
+        spec = _read_ignore_spec(directory, ".ignore", problems)
+        if spec is not None:
+            ignore_rules.append((directory, spec))
+    return git_rules, ignore_rules
+
+
 def build_tree_text(
     root: Path,
     *,
@@ -202,22 +300,52 @@ def _pure_python_scan(
     import hashlib
 
     records: list[FileRecord] = []
-    hashed = 0
+    root = root.resolve()
+    inherited_git_rules, inherited_ignore_rules = _ancestor_ignore_rules(root, problems)
+    rules_by_directory: dict[
+        Path,
+        tuple[list[tuple[Path, GitIgnoreSpec]], list[tuple[Path, GitIgnoreSpec]]],
+    ] = {}
 
     def on_error(error: OSError) -> None:
         if problems is not None:
             problems.add(_describe_walk_error(root, error))
 
-    for dirpath, dirnames, filenames in os.walk(root, onerror=on_error):
-        # Prune exactly the ignore list, by directory name (same contract as the
-        # Rust walker). `.git` is in IGNORE_DIRS; `.github`, `.gitlab` are kept.
-        # دقیقاً فهرست نادیده را با نام دایرکتوری هرس کن (همان قرارداد walker
-        # در Rust). `.git` در IGNORE_DIRS هست؛ `.github` و `.gitlab` می‌مانند.
-        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True, onerror=on_error):
+        directory = Path(dirpath)
+        if directory == root:
+            git_rules = list(inherited_git_rules)
+            ignore_rules = list(inherited_ignore_rules)
+        else:
+            parent_rules = rules_by_directory.get(
+                directory.parent, (inherited_git_rules, inherited_ignore_rules)
+            )
+            git_rules = list(parent_rules[0])
+            ignore_rules = list(parent_rules[1])
+
+        git_spec = _read_ignore_spec(directory, ".gitignore", problems)
+        if git_spec is not None:
+            git_rules.append((directory, git_spec))
+        ignore_spec = _read_ignore_spec(directory, ".ignore", problems)
+        if ignore_spec is not None:
+            ignore_rules.append((directory, ignore_spec))
+        rules_by_directory[directory] = (git_rules, ignore_rules)
+        rules = [*git_rules, *ignore_rules]
+
+        dirnames.sort()
+        filenames.sort()
+        retained_directories: list[str] = []
+        for name in dirnames:
+            child = directory / name
+            if name in ignore_dirs or _is_ignored_by_rules(child, True, rules):
+                continue
+            retained_directories.append(name)
+        dirnames[:] = retained_directories
+
         for name in filenames:
-            path = Path(dirpath) / name
-            # POSIX separators on every platform, like the Rust core.
-            # جداکننده‌ی POSIX روی همه‌ی پلتفرم‌ها، مثل هسته‌ی Rust.
+            path = directory / name
+            if _is_ignored_by_rules(path, False, rules):
+                continue
             rel = safe_relative(path, root).as_posix()
 
             if path.is_symlink():
@@ -254,18 +382,6 @@ def _pure_python_scan(
             else:
                 total, code, comment, blank = _count_lines(path)
 
-            content_hash = None
-            if (
-                not binary
-                and 0 < st.st_size <= hash_max_bytes
-                and hashed < max_hash_files
-            ):
-                try:
-                    content_hash = hashlib.sha256(path.read_bytes()).hexdigest()
-                    hashed += 1
-                except OSError:
-                    pass
-
             records.append(
                 FileRecord(
                     rel_path=rel,
@@ -280,10 +396,27 @@ def _pure_python_scan(
                     code_lines=code,
                     comment_lines=comment,
                     blank_lines=blank,
-                    content_hash=content_hash,
+                    content_hash=None,
                 )
             )
 
+    records.sort(key=lambda record: record["rel_path"])
+    hashed = 0
+    for record in records:
+        if (
+            hashed >= max_hash_files
+            or record["is_symlink"]
+            or record["is_binary"]
+            or not 0 < record["size"] <= hash_max_bytes
+        ):
+            continue
+        path = root / record["rel_path"]
+        hashed += 1
+        try:
+            record["content_hash"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as error:
+            if problems is not None:
+                problems.add(f"{record['rel_path']}: {error.strerror or error}")
     return records
 
 

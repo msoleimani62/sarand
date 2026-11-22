@@ -1,57 +1,166 @@
-"""Tests for cli.remove_previous_report -- explicit check/remove/replace
-of an existing report at the exact output path before writing a new one."""
+"""Atomic report replacement and checksum consistency tests."""
 
 from __future__ import annotations
 
-import tempfile
+import hashlib
+import os
 from pathlib import Path
 
-from sarand.cli import remove_previous_report
+import pytest
+from sarand import cli
 
 
-def test_removes_existing_report_and_its_checksum() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        output_path = Path(tmp) / "sarand-demo-report.md"
-        checksum_path = Path(tmp) / "sarand-demo-report.md.sha256"
-        output_path.write_text("old report content")
-        checksum_path.write_text("old checksum")
-
-        remove_previous_report(output_path)
-
-        assert not output_path.exists()
-        assert not checksum_path.exists()
+def _write(path: Path, content: str) -> None:
+    path.write_text(content, encoding="utf-8")
 
 
-def test_is_a_noop_when_nothing_exists_yet() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        output_path = Path(tmp) / "sarand-demo-report.md"
-
-        remove_previous_report(output_path)  # must not raise
-
-        assert not output_path.exists()
+def _checksum_path(path: Path) -> Path:
+    return path.with_suffix(path.suffix + ".sha256")
 
 
-def test_removes_report_even_without_a_checksum_file() -> None:
-    """An old report from a version that predates the .sha256 companion
-    (or one where it was deleted separately) must still be handled."""
-    with tempfile.TemporaryDirectory() as tmp:
-        output_path = Path(tmp) / "sarand-demo-report.md"
-        output_path.write_text("old report content")
+def test_success_replaces_report_and_checksum_as_a_consistent_pair(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "report.md"
+    checksum = _checksum_path(output)
+    _write(output, "old report")
+    _write(checksum, "old checksum")
 
-        remove_previous_report(output_path)
+    digest = cli.atomic_write_report(
+        output, lambda staged: _write(staged, "new report")
+    )
 
-        assert not output_path.exists()
+    assert output.read_text(encoding="utf-8") == "new report"
+    assert digest == hashlib.sha256(b"new report").hexdigest()
+    assert checksum.read_text(encoding="utf-8") == f"{digest}  report.md\n"
+    assert not list(tmp_path.glob(".report.md.*"))
 
 
-def test_does_not_touch_unrelated_files_in_the_same_directory() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        output_path = Path(tmp) / "sarand-demo-report.md"
-        unrelated = Path(tmp) / "sarand-other-project-report.md"
-        output_path.write_text("old")
-        unrelated.write_text("keep me")
+def test_renderer_failure_preserves_the_previous_report_and_checksum(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "report.md"
+    checksum = _checksum_path(output)
+    _write(output, "old report")
+    _write(checksum, "old checksum")
 
-        remove_previous_report(output_path)
+    def fail(staged: Path) -> None:
+        _write(staged, "partial output")
+        raise RuntimeError("renderer failed")
 
-        assert not output_path.exists()
-        assert unrelated.exists()
-        assert unrelated.read_text() == "keep me"
+    with pytest.raises(RuntimeError, match="renderer failed"):
+        cli.atomic_write_report(output, fail)
+
+    assert output.read_text(encoding="utf-8") == "old report"
+    assert checksum.read_text(encoding="utf-8") == "old checksum"
+    assert not list(tmp_path.glob(".report.md.*"))
+
+
+def test_checksum_replace_failure_rolls_back_the_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "report.md"
+    checksum = _checksum_path(output)
+    _write(output, "old report")
+    _write(checksum, "old checksum")
+
+    real_replace = os.replace
+    calls = 0
+
+    def fail_second_replace(
+        source: os.PathLike[str], destination: os.PathLike[str]
+    ) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("simulated checksum commit failure")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(cli.os, "replace", fail_second_replace)
+
+    with pytest.raises(OSError, match="simulated checksum commit failure"):
+        cli.atomic_write_report(output, lambda staged: _write(staged, "new report"))
+
+    assert output.read_text(encoding="utf-8") == "old report"
+    assert checksum.read_text(encoding="utf-8") == "old checksum"
+    assert not list(tmp_path.glob(".report.md.*"))
+
+
+def test_failed_first_write_does_not_create_a_report_or_checksum(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "report.md"
+
+    def fail(staged: Path) -> None:
+        raise OSError("simulated staging failure")
+
+    with pytest.raises(OSError, match="simulated staging failure"):
+        cli.atomic_write_report(output, fail)
+
+    assert not output.exists()
+    assert not _checksum_path(output).exists()
+    assert not list(tmp_path.iterdir())
+
+
+def test_announcement_does_not_delete_the_previous_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "report.md"
+    _write(output, "keep until commit")
+    messages: list[str] = []
+    monkeypatch.setattr(cli, "status", messages.append)
+
+    cli.announce_report_replacement(output)
+
+    assert output.read_text(encoding="utf-8") == "keep until commit"
+    assert messages and "replaced only after the new report is ready" in messages[0]
+
+
+def test_report_replace_failure_preserves_the_previous_pair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "report.md"
+    checksum = _checksum_path(output)
+    _write(output, "old report")
+    _write(checksum, "old checksum")
+
+    def fail_replace(source: os.PathLike[str], destination: os.PathLike[str]) -> None:
+        raise OSError("simulated report commit failure")
+
+    monkeypatch.setattr(cli.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="simulated report commit failure"):
+        cli.atomic_write_report(output, lambda staged: _write(staged, "new report"))
+
+    assert output.read_text(encoding="utf-8") == "old report"
+    assert checksum.read_text(encoding="utf-8") == "old checksum"
+    assert {path.name for path in tmp_path.iterdir()} == {
+        "report.md",
+        "report.md.sha256",
+    }
+
+
+def test_checksum_commit_failure_without_previous_report_removes_new_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "report.md"
+    real_replace = os.replace
+    calls = 0
+
+    def fail_second_replace(
+        source: os.PathLike[str], destination: os.PathLike[str]
+    ) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("simulated checksum commit failure")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(cli.os, "replace", fail_second_replace)
+
+    with pytest.raises(OSError, match="simulated checksum commit failure"):
+        cli.atomic_write_report(output, lambda staged: _write(staged, "new report"))
+
+    assert not output.exists()
+    assert not _checksum_path(output).exists()
+    assert not list(tmp_path.iterdir())

@@ -6,6 +6,19 @@ version may include behaviour changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Audit remediation H-01 through H-05.** Hash selection is now deterministic
+  across scan engines; report names are restricted to safe filename components
+  and output targets are checked for symlink escapes; reports and SHA-256
+  companions are staged before replacement with in-process rollback on checksum
+  commit failure; release gating evaluates the newest run of the required `CI`
+  workflow for the exact commit; and the Python scanner now applies local
+  `.gitignore`, `.ignore`, parent and repository-exclude rules through
+  `pathspec`. See `docs/AUDIT_REMEDIATION_H01_H05.md` for contracts and
+  verification limits.
+
+
 ### Added
 
 - **Repository structure, first part (R14-A1).** `--structure` reads the project's

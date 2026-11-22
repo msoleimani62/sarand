@@ -166,6 +166,19 @@ actions are pinned to SHAs (R8e, then R8f, history 5.78 and 5.79); v0.7.0 is
 released; D1 (Python 3.10) was closed by its 3.11 floor and D4 (musllinux
 wheels) by R9a (history 5.80).
 
+### ZIP5 audit remediation H-01 through H-05
+
+The implementation is in the current working tree and its contracts are
+recorded in `docs/AUDIT_REMEDIATION_H01_H05.md`. It covers deterministic hash
+selection, output-name and destination validation, staged report replacement,
+a newest-required-workflow release gate, and local ignore-rule parity for the
+Python fallback. The full Python suite passed (**1,873 passed, 13 skipped**);
+the focused remediation suite passed (**94 passed, 1 skipped**). The Rust
+walker changes and Rust/Python compiled-core parity remain **Not verified
+locally** until the maintainer runs the pinned Rust toolchain and the compiled
+extension on a supported environment; the current review environment has no
+`cargo` or `rustc`.
+
 ### Out of scope, with reasons
 
 - **Bazel:** no Bazel analyzer exists in the roster; it would need a

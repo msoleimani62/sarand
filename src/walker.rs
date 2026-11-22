@@ -12,7 +12,6 @@ use ignore::{DirEntry, WalkBuilder};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::hasher::hash_file;
 use crate::linecount::{count_lines, is_binary};
@@ -137,24 +136,57 @@ pub fn scan_report(
         }
     }
 
-    let hashed_count = AtomicUsize::new(0);
+    candidates.sort_by_key(|path| {
+        path.strip_prefix(root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/")
+    });
 
-    // Fan the expensive per-file work (stat, binary sniff, line count,
-    // hash) out across all cores.
-    // پخش کار پرهزینه‌ی هر فایل (stat، تشخیص باینری، شمارش خط، هش)
-    // روی تمام هسته‌ها.
-    let outcomes: Vec<Result<FileRecord, String>> = candidates
-        .par_iter()
-        .map(|path| build_record(root, path, hash_max_bytes, max_hash_files, &hashed_count))
+    let outcomes: Vec<(PathBuf, Result<FileRecord, String>)> = candidates
+        .into_par_iter()
+        .map(|path| {
+            let outcome = build_record(root, &path);
+            (path, outcome)
+        })
         .collect();
 
     let mut records = Vec::with_capacity(outcomes.len());
-    for outcome in outcomes {
+    let mut record_paths = Vec::with_capacity(outcomes.len());
+    for (path, outcome) in outcomes {
         match outcome {
-            Ok(record) => records.push(record),
+            Ok(record) => {
+                records.push(record);
+                record_paths.push(path);
+            }
             Err(message) => problems.record(message),
         }
     }
+
+    let hash_indices: Vec<usize> = records
+        .iter()
+        .enumerate()
+        .filter(|(_, record)| {
+            !record.is_symlink
+                && !record.is_binary
+                && record.size > 0
+                && record.size <= hash_max_bytes
+        })
+        .map(|(index, _)| index)
+        .take(max_hash_files)
+        .collect();
+
+    let hashes: Vec<(usize, Option<String>)> = hash_indices
+        .par_iter()
+        .map(|&index| {
+            (index, hash_file(&record_paths[index]))
+        })
+        .collect();
+
+    for (index, digest) in hashes {
+        records[index].content_hash = digest;
+    }
+
     ScanReport { records, problems }
 }
 
@@ -195,13 +227,7 @@ fn is_symlink(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn build_record(
-    root: &Path,
-    path: &Path,
-    hash_max_bytes: u64,
-    max_hash_files: usize,
-    hashed_count: &AtomicUsize,
-) -> Result<FileRecord, String> {
+fn build_record(root: &Path, path: &Path) -> Result<FileRecord, String> {
     let rel_path = path
         .strip_prefix(root)
         .map_err(|_| "a path outside the scan root".to_string())?
@@ -261,16 +287,6 @@ fn build_record(
         (counts.total, counts.code, counts.comment, counts.blank)
     };
 
-    let content_hash = if !binary && size > 0 && size <= hash_max_bytes {
-        if hashed_count.fetch_add(1, Ordering::Relaxed) < max_hash_files {
-            hash_file(path)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
     Ok(FileRecord {
         rel_path,
         size,
@@ -284,7 +300,7 @@ fn build_record(
         code_lines,
         comment_lines,
         blank_lines,
-        content_hash,
+        content_hash: None,
     })
 }
 

@@ -6,9 +6,11 @@ import argparse
 import asyncio
 import hashlib
 import os
+import shutil
 import sys
+import tempfile
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -20,7 +22,7 @@ from sarand.analyzers.registry import (
     run_security_concurrently,
     run_tests_concurrently,
 )
-from sarand.config import SarandConfig
+from sarand.config import SarandConfig, resolve_report_path, validate_output_name
 from sarand.core.advisories import collect_advisories
 from sarand.core.ai_summary import generate_ai_summary, suggest_reading_order
 from sarand.core.cache import (
@@ -89,6 +91,15 @@ from sarand.utils.sizes import size_argument
 from sarand.utils.stdio import harden_stdio
 
 logger = get_logger("cli")
+
+
+def _output_name_argument(value: str) -> str:
+    try:
+        validate_output_name(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+    return value
+
 
 _RENDERERS = {
     "markdown": markdown,
@@ -170,6 +181,7 @@ Trust model:
     parser.add_argument(
         "--output-name",
         "-o",
+        type=_output_name_argument,
         default=None,
         help="Report filename (default: sarand-<project>-report.<ext>)",
     )
@@ -311,56 +323,139 @@ Trust model:
     return parser
 
 
-def write_sha256(path: Path) -> str:
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    checksum_path = path.with_suffix(path.suffix + ".sha256")
-    checksum_path.write_text(f"{digest}  {path.name}\n", encoding="utf-8")
-    return digest
+def _fsync_file(path: Path) -> None:
+    with path.open("rb") as stream:
+        os.fsync(stream.fileno())
+
+
+def _fsync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _sha256_file(path: Path) -> str:
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def announce_report_replacement(output_path: Path) -> None:
+    if output_path.exists():
+        status(
+            f"Found an existing report at {output_path}; it will be replaced "
+            "only after the new report is ready."
+        )
+
+
+class _PdfRenderFailure(Exception):
+    """A recoverable PDF rendering failure that permits Markdown fallback."""
+
+
+def atomic_write_report(output_path: Path, writer: Callable[[Path], None]) -> str:
+    """Render and checksum a report before atomically replacing its destination."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    checksum_path = output_path.with_suffix(output_path.suffix + ".sha256")
+    report_fd, report_name = tempfile.mkstemp(
+        prefix=f".{output_path.name}.",
+        suffix=output_path.suffix,
+        dir=output_path.parent,
+    )
+    os.close(report_fd)
+    staged_report = Path(report_name)
+    staged_checksum: Path | None = None
+    backup_path: Path | None = None
+    preserve_backup = False
+
+    try:
+        checksum_fd, checksum_name = tempfile.mkstemp(
+            prefix=f".{checksum_path.name}.",
+            suffix=".tmp",
+            dir=output_path.parent,
+        )
+        os.close(checksum_fd)
+        staged_checksum = Path(checksum_name)
+        previous_report_exists = output_path.exists()
+
+        writer(staged_report)
+        if staged_report.is_symlink() or not staged_report.is_file():
+            raise OSError("renderer did not produce a regular report file")
+        _fsync_file(staged_report)
+        digest = _sha256_file(staged_report)
+        staged_checksum.write_text(f"{digest}  {output_path.name}\n", encoding="utf-8")
+        _fsync_file(staged_checksum)
+
+        if previous_report_exists:
+            backup_fd, backup_name = tempfile.mkstemp(
+                prefix=f".{output_path.name}.backup.",
+                dir=output_path.parent,
+            )
+            os.close(backup_fd)
+            backup_path = Path(backup_name)
+            shutil.copy2(output_path, backup_path)
+            _fsync_file(backup_path)
+
+        os.replace(staged_report, output_path)
+        try:
+            os.replace(staged_checksum, checksum_path)
+        except OSError as commit_error:
+            try:
+                if backup_path is not None:
+                    os.replace(backup_path, output_path)
+                    backup_path = None
+                else:
+                    output_path.unlink(missing_ok=True)
+            except OSError as rollback_error:
+                preserve_backup = backup_path is not None
+                backup_detail = (
+                    f"; previous report backup preserved at {backup_path}"
+                    if preserve_backup
+                    else ""
+                )
+                raise RuntimeError(
+                    "checksum commit failed and report rollback failed: "
+                    f"{rollback_error}{backup_detail}"
+                ) from commit_error
+            raise
+        try:
+            _fsync_directory(output_path.parent)
+        except OSError:
+            logger.warning(
+                "Report and checksum were committed, but directory durability "
+                "could not be confirmed for %s",
+                output_path.parent,
+            )
+        return digest
+    finally:
+        staged_report.unlink(missing_ok=True)
+        if staged_checksum is not None:
+            staged_checksum.unlink(missing_ok=True)
+        if backup_path is not None and not preserve_backup:
+            backup_path.unlink(missing_ok=True)
 
 
 def _write_pdf_fallback(
     data: ReportData, output_path: Path, detail: str, config: SarandConfig
 ) -> Path:
-    """The PDF could not be made: say why, and keep the scan.
-
-    Writes the same report as Markdown next to the intended PDF path so
-    the minutes the scan took are not lost. The caller still exits
-    non-zero, because the requested artifact does not exist.
-    PDF ساخته نشد: دلیل را بگو و نتیجه‌ی اسکن را نگه دار.
-    """
     error(f"PDF rendering failed: {detail}")
-    fallback = output_path.with_suffix(".md")
-    content = _RENDERERS["markdown"].render(
-        data, include_source=config.include_source, full_output=config.full
+    fallback = resolve_report_path(
+        output_path.parent, output_path.with_suffix(".md").name
     )
-    fallback.write_text(content, encoding="utf-8")
+    announce_report_replacement(fallback)
+
+    def render(markdown_path: Path) -> None:
+        content = _RENDERERS["markdown"].render(
+            data, include_source=config.include_source, full_output=config.full
+        )
+        markdown_path.write_text(content, encoding="utf-8")
+
+    digest = atomic_write_report(fallback, render)
     warning(f"No PDF was produced. The full report was written as Markdown: {fallback}")
+    logger.info("Fallback report SHA256: %s", digest)
     return fallback
-
-
-def remove_previous_report(output_path: Path) -> None:
-    """If a report already exists at this exact output path, remove it
-    first and say so explicitly.
-
-    `write_text()`/the PDF renderer would silently overwrite it anyway
-    -- this exists purely to make that replacement visible to the user
-    (same "check, remove, announce, then create fresh" pattern as
-    install.sh), rather than a silent overwrite they have to infer from
-    the file's new mtime.
-
-    اگر گزارشی از قبل دقیقاً در همین مسیر خروجی وجود داشته باشد، ابتدا
-    آن را حذف می‌کند و صریحاً اعلام می‌کند. `write_text()`/رندرر PDF در
-    هر صورت آن را بی‌صدا بازنویسی می‌کردند -- این تابع صرفاً برای
-    مرئی‌کردن آن جایگزینی برای کاربر است (همان الگوی «چک کن، حذف کن،
-    اعلام کن، بعد تازه بساز» که در install.sh هم هست)، نه یک overwrite
-    خاموش که کاربر باید از mtime جدید فایل حدس بزند.
-    """
-    checksum_path = output_path.with_suffix(output_path.suffix + ".sha256")
-    if output_path.exists():
-        status(f"Found an existing report at {output_path} -- replacing it.")
-        output_path.unlink()
-    if checksum_path.exists():
-        checksum_path.unlink()
 
 
 async def run(config: SarandConfig) -> int:
@@ -376,7 +471,14 @@ async def run(config: SarandConfig) -> int:
 
     root = config.project_root
     config.output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = config.output_dir / config.output_name
+    try:
+        output_path = resolve_report_path(config.output_dir, config.output_name)
+    except (OSError, RuntimeError, ValueError):
+        error(
+            "The report output path is invalid or resolves outside the "
+            "configured output directory."
+        )
+        return 1
 
     # One process-wide limit on external tools (AGENTS.md 5.73): --jobs, then
     # SARAND_JOBS, then one per CPU and per GiB of free memory.
@@ -776,34 +878,37 @@ async def run(config: SarandConfig) -> int:
             data, config.relevant_source_tokens, config.focus
         )
 
-    remove_previous_report(output_path)
+    announce_report_replacement(output_path)
 
     pdf_failed = False
     if config.output_format == "pdf":
-        # PDF is binary and rendered via an external tool (renderers/pdf.py)
-        # rather than the string-returning Renderer protocol -- see that
-        # module's docstring for why. Never crashes on a missing engine.
-        # PDF باینری است و از طریق ابزار خارجی رندر می‌شود (renderers/pdf.py)
-        # نه از طریق پروتکل رشته‌محور Renderer -- دلیلش در docstring همان
-        # ماژول است. هرگز به‌خاطر نبودِ ابزار کرش نمی‌کند.
         from sarand.renderers import pdf as pdf_renderer
 
-        outcome = pdf_renderer.render_to_file(
-            data,
-            output_path,
-            include_source=config.include_source,
-            full_output=config.full,
-        )
-        if not outcome.ok:
-            output_path = _write_pdf_fallback(data, output_path, outcome.detail, config)
+        def render_pdf(staged_path: Path) -> None:
+            outcome = pdf_renderer.render_to_file(
+                data,
+                staged_path,
+                include_source=config.include_source,
+                full_output=config.full,
+            )
+            if not outcome.ok:
+                raise _PdfRenderFailure(outcome.detail)
+
+        try:
+            digest = atomic_write_report(output_path, render_pdf)
+        except _PdfRenderFailure as exc:
+            output_path = _write_pdf_fallback(data, output_path, str(exc), config)
+            digest = _sha256_file(output_path)
             pdf_failed = True
-        digest = write_sha256(output_path)
     else:
-        content = _RENDERERS[config.output_format].render(
-            data, include_source=config.include_source, full_output=config.full
-        )
-        output_path.write_text(content, encoding="utf-8")
-        digest = write_sha256(output_path)
+
+        def render_report(staged_path: Path) -> None:
+            content = _RENDERERS[config.output_format].render(
+                data, include_source=config.include_source, full_output=config.full
+            )
+            staged_path.write_text(content, encoding="utf-8")
+
+        digest = atomic_write_report(output_path, render_report)
 
     success("Report completed")
     print()

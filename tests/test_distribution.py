@@ -55,8 +55,9 @@ def test_every_file_that_carries_the_version_agrees() -> None:
 
 _AUR_PACKAGE_FOR = {
     "filelock": "python-filelock",
-    "rich": "python-rich",
+    "pathspec": "python-pathspec",
     "pyyaml": "python-yaml",
+    "rich": "python-rich",
 }
 
 

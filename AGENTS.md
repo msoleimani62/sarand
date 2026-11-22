@@ -365,23 +365,27 @@ RTL rendering of the Persian file and the banner SVG were not viewed in a
 browser by the assistant that wrote them — check them on GitHub, on a
 phone and on a desktop, before treating them as final.
 
-### 4.13 "Check, remove, announce, then create fresh" for anything that replaces a previous artifact
+### 4.13 Announce and atomically replace generated artifacts
 
 Any time sarand (or its install tooling) is about to produce something at
-a path that may already hold a previous version of that same thing —
-a generated report, an installed package — the sequence is: check
-whether it already exists, remove it first, print what you're doing,
-then create the new one. Never rely on a silent overwrite (`write_text`,
-`pipx install` over a stale copy) even when that would produce the same
-end state, because a silent overwrite gives no signal that a *previous*
-version existed at all — the user has to infer it from a changed mtime.
-Two concrete instances of this rule: `cli.py`'s `remove_previous_report`
-(a report at the exact output path is removed and announced before the
-new one is written) and `install.sh` (a previous pipx installation is
-uninstalled and announced before installing the current source tree —
-this also fixes a real staleness bug: pipx installs are not editable by
-default, so re-running a plain `pipx install` after pulling new sarand
-code does not actually pick up the changes without an uninstall first).
+a path that may already hold a previous version of that same thing, the
+existence of the previous artifact must be checked and the replacement
+must be announced explicitly. A generated report must be rendered and
+validated in a temporary file on the destination filesystem before the
+old report is replaced; a failed render or staging write must preserve the
+last known-good report. The final replacement uses `os.replace`, never a
+direct `write_text` over the live report. Its SHA-256 sidecar is staged
+before commit and replaced after the report; if the sidecar replacement
+fails in-process, the report replacement is rolled back. The report and
+sidecar are two filesystem entries, so a sudden power loss between their
+two atomic renames can still leave a detectable checksum mismatch; this
+must not be described as a crash-atomic two-file transaction.
+
+The install path follows the same user-visible check/announce principle:
+`install.sh` uninstalls and announces a previous pipx installation before
+installing the current source tree. This fixes a real staleness bug:
+pipx installs are not editable by default, so rerunning a plain
+`pipx install` after pulling new sarand code does not pick up the changes.
 
 ### 4.14 A report states only what the evidence supports (R13)
 
