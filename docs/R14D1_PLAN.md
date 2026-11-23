@@ -182,3 +182,11 @@ slice.
 5. A snapshot carries no timestamp.
 6. D1 does not change `scripts/structure_bench.py` except to add the `compare` mode in
    slice P.
+
+## 8. Progress
+
+| Slice | Result | Evidence |
+|---|---|---|
+| S1 structural comparison (library) | Pass, closed | commit `cd2f807`, CI run `44968799181` green, 1,858 passed and 10 skipped, `docs/STRUCTURE_BASELINE.md` |
+| S2 snapshot file, command line, report key | Pending: delivered, awaiting the owner's chain | `docs/STRUCTURE_BASELINE.md` (Command line), `tests/test_structure_baseline_cli.py` |
+| F1 to F4, P, C | Pending | |

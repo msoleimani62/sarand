@@ -2,7 +2,7 @@
 
 `sarand --format json` یک شیء JSON می‌نویسد. این صفحه همه‌ی کلیدهای سطح بالا، فیلدهای شیءهای تو در تو و آنچه یک اسکریپت می‌تواند به آن تکیه کند را فهرست می‌کند. نسخه‌ی فعلی پایین است؛ یک تست این صفحه و کد را هم‌گام نگه می‌دارد، پس کلیدی که در کد هست ولی اینجا نیست build را می‌شکند.
 
-نسخه‌ی فعلی: **1.10**
+نسخه‌ی فعلی: **1.11**
 
 ## سیاست سازگاری
 
@@ -36,6 +36,7 @@
 | `known_issues` | آرایه‌ی رشته‌ها | همیشه | مشکلاتی که خود اسکن دیده است. |
 | `known_issue_ids` | آرایه‌ی رشته‌ها | فقط وقتی `known_issues` از شکست‌های طبقه‌بندی‌شده ساخته شده | شناسه‌ی پایدار هر known issue به همان ترتیب (R13-F). به `docs/FINDINGS.fa.md` نگاه کنید. |
 | `structure` | شیء | فقط با `--structure` | ساختار مخزن (R14-A): فایل‌ها با منشأ تجزیه، ماژول‌ها، importها با کلاس هدف، اعتماد و شاهد، بسته‌های بیرونی و چرخه‌های import. در `docs/STRUCTURE.fa.md` توضیح داده شده است. |
+| `structure_comparison` | شیء | فقط با `--structure-baseline` | آنچه در ساختار نسبت به snapshot مرجع تغییر کرده (R14-D1): `verdict`، `reasons`، اینکه هر طرف چه بود، `uncertain_paths`، شمارش هر بخش و تغییرهای فهرست‌شده. در `docs/STRUCTURE_BASELINE.fa.md` توضیح داده شده است. |
 | `ai_summary` | رشته | همیشه | خلاصه‌ی ساده‌زبان برای خواننده‌ی هوش مصنوعی. |
 | `suggested_reading_order` | آرایه‌ی رشته‌ها | همیشه | همه‌ی فایل‌های شامل‌شده، مهم‌ترین اول. Quick Context ده‌تای اول را نشان می‌دهد. |
 | `included_files` | آرایه‌ی رشته‌ها | همیشه | مسیرهای نسبی به پروژه که محتوایشان ممکن است نمایش داده شود. |
@@ -79,6 +80,7 @@
 
 ## تاریخچه‌ی نسخه
 
+- **1.11** (R14-D1، قطعه‌ی S2): شیء `structure_comparison` اضافه شد که فقط با `--structure-baseline` حاضر است: `schema` (نسخه‌ی صحیح مقایسه، `1`)، `verdict` (یکی از `comparable`، `ids_only`، `partial`، `incompatible` یا `invalid`)، `reasons`، `fingerprints_comparable`، `old` و `new` (هر طرف چه بود)، `uncertain_paths`، `summary` (شمارش هر بخش) و `changes` (تغییرهای فهرست‌شده‌ی هر بخش؛ موارد بدون تغییر فقط شمرده می‌شوند). گزارشی که بدون این گزینه ساخته شود جز `schema_version` تغییری ندارد.
 - **1.10** (R14-A3، معیار ۴): در `structure.externals` فیلد `declared_in` یک بسته‌ی `external_declared` حالا نام **بخش** manifest اعلام‌کننده را می‌گوید (`pyproject.toml#dependency-groups.tests`، `pyproject.toml#project.optional-dependencies.dev`، `pyproject.toml#project.dependencies`، `requirements.txt`، ...؛ manifest در زیرپوشه پوشه‌اش را نگه می‌دارد) و همه‌ی اعلام‌ها را فهرست می‌کند، در حالی که قبلاً فقط فایل manifest را می‌آورد؛ بسته‌ای که نام import آن با نام distributionش فرق دارد حالا می‌تواند با یک جدول صریح `external_declared` شود (`edges[].resolution_method` برابر `declared-distribution`، اعتماد `probable`، با یادداشت). وابستگی‌های اختیاری، گروه‌های وابستگی PEP 735، `build-system.requires` و جدول‌های گروه و توسعه‌ی Poetry به‌عنوان اعلام خوانده می‌شوند. `schema` ساختار حالا `4` است. گزارش پیش‌فرض جز شماره‌ی نسخه تغییر نمی‌کند. به `docs/STRUCTURE.fa.md` نگاه کنید.
 - **1.9** (R14-A3): هر عضو `structure.symbols` فیلد `fingerprint` را گرفت (بصمت نسخه‌دار `fp1:` از محتوای تعریف؛ پایدار در برابر فرمت‌بندی، کامنت، docstring و جابه‌جایی خط) و `structure.meta` کلید `fingerprint_basis` را (`fp1/python-<minor>`: بصمت‌ها فقط بین خروجی‌هایی با پایه‌ی یکسان قابل مقایسه‌اند). `schema` ساختار حالا `3` است. گزارش پیش‌فرض جز شماره‌ی نسخه تغییر نمی‌کند. به `docs/STRUCTURE.fa.md` نگاه کنید.
 - **1.8** (R14-A2): شیء `structure` (هنوز فقط با `--structure`) این کلیدها را گرفت: `symbols` (کلاس، تابع، متد، property، متغیر و ثابت با `id` پایدار، نام کامل، مکان، دکوراتورها، پایه‌ها و پرچم‌ها)، `relations` (فراخوانی، وراثت و ارجاع بین نمادها، هرکدام با `confidence`، `resolution_method`، `evidence`، `count` و `location`)، `entry_points`، `external_use` (شمارش آنچه کد از بیرون مخزن به کار می‌برد) و `sites` (هر محل استفاده چگونه ذخیره یا شمرده شد). `schema` خودِ آن حالا `2` است و `summary` شمارش نماد، رابطه و نقطه‌ی ورود را گرفت. گزارش پیش‌فرض جز شماره‌ی نسخه تغییر نمی‌کند. به `docs/STRUCTURE.fa.md` نگاه کنید.

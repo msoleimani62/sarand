@@ -446,6 +446,9 @@ PYTHONPATH=/path/to/sarand/python python -m sarand -p .
 | `--relevant-source[=TOKENS]` | افزودن گزینش کوچکی از قطعه‌کدها برای خواندن اول، حداکثر TOKENS × ۳ بایت (پیش‌فرض ۶۰۰۰ توکن، مجاز ۲۰۰ تا ۲۰۰۰۰۰)؛ به‌طور پیش‌فرض خاموش است |
 | `--focus TEXT` | همراه `--relevant-source`: فایل‌هایی که مسیرشان این واژه‌ها را دارد ترجیح داده می‌شوند |
 | `--structure` | خواندن سورس پایتون پروژه با `ast` (هیچ چیز اجرا نمی‌شود) و افزودن ساختار آن: ماژول‌ها، آنچه import می‌کنند، importهای حل‌نشده و پویا، و چرخه‌های import. به‌طور پیش‌فرض خاموش است. به [docs/STRUCTURE.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/STRUCTURE.fa.md) نگاه کنید |
+| `--structure-baseline PATH` | همراه `--structure`: ساختار را با یک مرجع (snapshot، یا گزارش JSON که `structure` دارد) مقایسه می‌کند و آنچه تغییر کرده را می‌افزاید. مرجع نامعتبر خطاست. به [docs/STRUCTURE_BASELINE.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/STRUCTURE_BASELINE.fa.md) نگاه کنید |
+| `--structure-snapshot PATH` | همراه `--structure`: پس از موفقیت گزارش، ساختار را به‌صورت snapshot در `PATH` می‌نویسد. روی فایل موجود نمی‌نویسد |
+| `--replace-structure-snapshot` | به `--structure-snapshot` اجازه‌ی جایگزینی فایل موجود را می‌دهد؛ فایل قبلی با نام `PATH.prev` می‌ماند |
 | `--cache` | استفاده از کش برای کاهش اسکن دوباره‌ی TODOها و رازهای فایل‌های تغییرنکرده |
 | `--clear-cache` | پاک‌کردن کش اسکن پروژه و خروج |
 | `--doctor` | بررسی محیط و ابزارهای نصب‌شده و خروج |

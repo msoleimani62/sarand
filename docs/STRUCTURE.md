@@ -190,7 +190,7 @@ eager (they run on some path). Otherwise it is listed as "lazy or type-only".
 
 ## Model contract
 
-- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.10"`) is
+- **Two schema versions.** The outer **report** schema (`schema_version`, `"1.11"`) is
   versioned with the JSON report (`docs/JSON_SCHEMA.md`). The **structure model** schema is
   `structure.schema`, an integer, `4` today (`1` was imports only, `2` added symbols,
   relations and entry points, `3` added the symbol `fingerprint` and
@@ -382,7 +382,7 @@ row and the reviewed rows themselves are in `docs/R14A_GATE_REPORT.md` and
 
 ## Where it appears
 
-- **JSON** (`structure`, outer schema 1.10, structure schema 4): everything, including each edge,
+- **JSON** (`structure`, outer schema 1.11, structure schema 4): everything, including each edge,
   symbol, relation and entry point with its evidence, note and location. See `docs/JSON_SCHEMA.md`.
 - **Markdown and HTML**: counts; import cycles (first 10); **unresolved and dynamic imports**
   (first 20): the imports whose target class is `internal_unresolved` or `dynamic`, with the

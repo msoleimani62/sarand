@@ -36,6 +36,14 @@ version may include behaviour changes.
 
 ### Added
 
+- Structural baseline (R14-D1, slice S2): `--structure-snapshot PATH` writes the structure
+  as a snapshot (never over an existing file unless `--replace-structure-snapshot`, which
+  keeps the old file as `PATH.prev`), and `--structure-baseline PATH` compares the
+  structure with a snapshot or a JSON report that has a `structure`. The result is the new
+  JSON key `structure_comparison` (report schema 1.11, additive) and a "Structure
+  changes" section in Markdown, HTML and text. An unusable reference or target is an
+  error before any work. See `docs/STRUCTURE_BASELINE.md`.
+
 - **Repository structure, first part (R14-A1).** `--structure` reads the project's
   Python source with `ast` (nothing is executed) and adds modules, imports and
   import cycles to the report: every import carries its target class (repository,

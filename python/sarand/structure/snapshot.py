@@ -42,6 +42,7 @@ PROBLEM_INCOMPATIBLE = "incompatible"
 
 SOURCE_SNAPSHOT = "snapshot"
 SOURCE_REPORT = "report"
+SOURCE_CURRENT = "current"  # the structure just built by this run
 
 _LISTS = (
     "files",

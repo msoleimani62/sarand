@@ -15,6 +15,7 @@ Pure and deterministic.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from sarand.core.advisories import is_advisory_line
 from sarand.core.check_states import check_state
@@ -308,3 +309,156 @@ def structure_cycle_lines(data: ReportData) -> tuple[list[str], int]:
         for c in ordered
     ]
     return lines[:STRUCTURE_CYCLE_LIMIT], len(lines)
+
+
+# ---------------------------------------------------------------- structure changes
+# R14-D1 (S2): what changed between a reference snapshot and the current structure
+# (`--structure-baseline`). The rows come from the comparison payload that
+# `structure/compare.py` built; no format computes its own.
+# R14-D1 (S2): آنچه بین snapshot مرجع و ساختار فعلی تغییر کرده؛ ردیف‌ها از payload
+# مقایسه می‌آیند و هیچ قالبی خودش چیزی حساب نمی‌کند.
+
+STRUCTURE_COMPARISON_NOTE = (
+    "Two snapshots of the same project, compared by identity (not by position). A "
+    "path that was not read in full in one of them, or that moved into or out of "
+    "the secret exclusion, is `uncertain`: its changes are never reported as "
+    "added or removed."
+)
+STRUCTURE_COMPARISON_COLUMNS: tuple[str, ...] = (
+    "Part",
+    "Added",
+    "Removed",
+    "Changed",
+    "Uncertain",
+    "Other",
+    "Unchanged",
+)
+STRUCTURE_CHANGE_COLUMNS: tuple[str, ...] = ("Part", "Status", "What")
+STRUCTURE_CHANGE_ROWS = 40
+_VERDICT_MEANING = {
+    "comparable": "everything was compared",
+    "ids_only": "symbols were matched by id only; no content change is claimed",
+    "partial": "some paths are uncertain; see the list below",
+    "incompatible": "the two sides cannot be compared",
+    "invalid": "a side is not a usable snapshot",
+}
+_COMPARISON_PARTS = (
+    "files",
+    "modules",
+    "symbols",
+    "relations",
+    "edges",
+    "cycles",
+    "entry_points",
+    "externals",
+)
+
+
+def _comparison(data: ReportData) -> dict[str, Any] | None:
+    return data.structure_comparison
+
+
+def structure_comparison_lines(data: ReportData) -> list[str]:
+    """The verdict, its reasons and what each side was, the same for every format."""
+    c = _comparison(data)
+    if c is None:
+        return []
+    verdict = str(c["verdict"])
+    lines = [f"Verdict: {verdict} ({_VERDICT_MEANING.get(verdict, 'see the reasons')})"]
+    lines.extend(f"Reason: {reason}" for reason in c.get("reasons", []))
+    for side, label in (("old", "Reference"), ("new", "Current")):
+        info = c.get(side) or {}
+        if info.get("usable"):
+            lines.append(
+                f"{label}: {info['source']}, structure schema "
+                f"{info['structure_schema']}, fingerprint basis "
+                f"{info['fingerprint_basis'] or 'none'}, "
+                f"{info['files']} files, {info['symbols']} symbols"
+            )
+    return lines
+
+
+def structure_comparison_summary(data: ReportData) -> list[tuple[str, ...]]:
+    """One row per part: added, removed, changed, uncertain, other, unchanged."""
+    c = _comparison(data)
+    if c is None:
+        return []
+    rows: list[tuple[str, ...]] = []
+    for part in _COMPARISON_PARTS:
+        counts = (c.get("summary") or {}).get(part)
+        if not counts:
+            continue
+        changed = counts.get("changed", 0) + counts.get("content_changed", 0)
+        changed += counts.get("moved", 0)
+        other = counts.get("ambiguous", 0) + counts.get("content_unknown", 0)
+        rows.append(
+            (
+                part,
+                str(counts.get("added", 0)),
+                str(counts.get("removed", 0)),
+                str(changed),
+                str(counts.get("uncertain", 0)),
+                str(other),
+                str(counts.get("unchanged", 0)),
+            )
+        )
+    return rows
+
+
+def _describe_change(part: str, entry: dict[str, Any]) -> str:
+    if part == "files":
+        fields = entry.get("fields")
+        return (
+            f"{entry['path']} ({', '.join(fields)})" if fields else str(entry["path"])
+        )
+    if part == "modules":
+        return str(entry["name"])
+    if part == "symbols":
+        return f"{entry['kind']} {entry['qualname']} ({entry['path']})"
+    if part == "relations":
+        return f"{entry['kind']}: {entry['source']} -> {entry['target']}"
+    if part == "edges":
+        return f"{entry['source']} imports {entry['requested']} ({entry['kind']})"
+    if part == "cycles":
+        return " -> ".join(entry["modules"])
+    if part == "entry_points":
+        return f"{entry['type']} {entry['name']} -> {entry['target']}"
+    return str(entry.get("name", ""))
+
+
+def structure_comparison_rows(
+    data: ReportData, limit: int = STRUCTURE_CHANGE_ROWS
+) -> tuple[list[tuple[str, ...]], int]:
+    """The listed changes (part, status, what), at most `limit`, and their total."""
+    c = _comparison(data)
+    if c is None:
+        return [], 0
+    rows: list[tuple[str, ...]] = []
+    total = 0
+    for part in _COMPARISON_PARTS:
+        for entry in (c.get("changes") or {}).get(part, []):
+            total += 1
+            if len(rows) < limit:
+                rows.append((part, str(entry["status"]), _describe_change(part, entry)))
+    return rows, total
+
+
+def structure_comparison_uncertain_paths(
+    data: ReportData, limit: int = 10
+) -> tuple[list[str], int]:
+    """The paths that could not be compared, with why, and how many there are."""
+    c = _comparison(data)
+    if c is None:
+        return [], 0
+    paths = c.get("uncertain_paths") or []
+    lines = [f"{p['path']} ({', '.join(p['reasons'])})" for p in paths[:limit]]
+    return lines, len(paths)
+
+
+def structure_comparison_totals(data: ReportData) -> dict[str, int]:
+    """The changes over all parts, for the one-line text summary."""
+    totals = {"added": 0, "removed": 0, "changed": 0, "uncertain": 0}
+    for row in structure_comparison_summary(data):
+        for index, name in enumerate(totals, start=1):
+            totals[name] += int(row[index])
+    return totals

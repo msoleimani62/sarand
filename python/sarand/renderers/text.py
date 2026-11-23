@@ -55,6 +55,16 @@ def render(
             f"{info['symbols']} symbols, {info['relations']} relations "
             "-- see full report"
         )
+    if data.structure_comparison is not None:
+        from sarand.core.report_views import structure_comparison_totals
+
+        totals = structure_comparison_totals(data)
+        lines.append(
+            f"Structure changes ({data.structure_comparison['verdict']}): "
+            f"{totals['added']} added, {totals['removed']} removed, "
+            f"{totals['changed']} changed, {totals['uncertain']} uncertain "
+            "-- see full report"
+        )
     if data.failures:
         lines.append(f"Failures: {len(data.failures)} classified -- see full report")
     if data.advisories:

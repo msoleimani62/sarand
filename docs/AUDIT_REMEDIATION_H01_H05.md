@@ -124,6 +124,11 @@ Recorded for commit `1e9e59a` (the maintainer's validation on 2026-11-22):
 | Markdown lint, `git diff --check` | passed |
 | Exact-commit CI | run `44991819799`: success |
 
+The review that followed (report-file permissions, install notes, comments) was
+validated at commit `2ce40a4`: 1,884 passed and 10 skipped, `mypy` clean, `ruff`
+clean, `cargo fmt --check`, `cargo test` (32 passed) and `cargo clippy` clean, and
+CI run `45024003488` green.
+
 CI builds the release wheel, installs it and runs the full Python suite against
 the compiled core, so the Rust/Python parity tests (skipped without a compiled
 core) run there. A separate local `maturin develop --release` run is not part of

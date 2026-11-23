@@ -17,6 +17,13 @@ from sarand.userconfig import load_persisted_config
 from sarand.utils.fs import default_output_name
 
 
+def _optional_path(value: Any) -> Path | None:
+    """An optional path from the command line: absolute, symlinks left as they are.
+    مسیر اختیاری خط فرمان: مطلق؛ symlinkها دست‌نخورده می‌مانند.
+    """
+    return Path(str(value)).expanduser().absolute() if value else None
+
+
 def resolve_project_path(value: str | Path | None) -> Path:
     """Explicit value wins, otherwise the current working directory."""
     if value:
@@ -130,6 +137,13 @@ class SarandConfig:
     # R14-A: build the repository structure (imports, cycles); off by default.
     # R14-A: ساخت ساختار مخزن؛ به‌طور پیش‌فرض خاموش.
     structure: bool = False
+    # R14-D1 (S2): compare the structure with a reference snapshot / write a snapshot.
+    # Both need `structure`; replacing an existing snapshot needs the explicit flag.
+    # R14-D1 (S2): مقایسه‌ی ساختار با snapshot مرجع / نوشتن snapshot. هر دو به `structure`
+    # نیاز دارند؛ جایگزینی snapshot موجود پرچم صریح می‌خواهد.
+    structure_baseline: Path | None = None
+    structure_snapshot: Path | None = None
+    replace_structure_snapshot: bool = False
 
     def __post_init__(self) -> None:
         # A config built directly (not from CLI args) still gets the default name.
@@ -200,6 +214,15 @@ class SarandConfig:
             relevant_source_tokens=getattr(args, "relevant_source", None),
             focus=str(getattr(args, "focus", None) or ""),
             structure=bool(getattr(args, "structure", False)),
+            structure_baseline=_optional_path(
+                getattr(args, "structure_baseline", None)
+            ),
+            structure_snapshot=_optional_path(
+                getattr(args, "structure_snapshot", None)
+            ),
+            replace_structure_snapshot=bool(
+                getattr(args, "replace_structure_snapshot", False)
+            ),
             # Stored (not just used locally above) because renderers need
             # it too: --full's "nothing is skipped or cut short" promise
             # (its own --help text) has to reach the *rendering* layer,
@@ -235,3 +258,16 @@ class SarandConfig:
             raise ValueError("max_tree_entries must be >= 1")
         if self.max_file_size < 1024:
             raise ValueError("max_file_size must be >= 1024 bytes")
+        if not self.structure:
+            for flag, value in (
+                ("--structure-baseline", self.structure_baseline),
+                ("--structure-snapshot", self.structure_snapshot),
+                (
+                    "--replace-structure-snapshot",
+                    self.replace_structure_snapshot or None,
+                ),
+            ):
+                if value is not None:
+                    raise ValueError(f"{flag} needs --structure")
+        if self.replace_structure_snapshot and self.structure_snapshot is None:
+            raise ValueError("--replace-structure-snapshot needs --structure-snapshot")

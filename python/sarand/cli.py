@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import json
 import os
 import shutil
 import stat
@@ -14,7 +15,7 @@ import time
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sarand.analyzers.registry import (
     discover_analyzers,
@@ -90,6 +91,9 @@ from sarand.utils.installation import installation_info, stale_note
 from sarand.utils.logging import get_logger, setup_logging
 from sarand.utils.sizes import size_argument
 from sarand.utils.stdio import harden_stdio
+
+if TYPE_CHECKING:
+    from sarand.structure.snapshot import Reference
 
 logger = get_logger("cli")
 
@@ -322,6 +326,34 @@ Trust model:
             "add its structure: modules, what they import (repository, standard "
             "library, declared and unmatched external packages), unresolved and "
             "dynamic imports, and import cycles. Off by default"
+        ),
+    )
+    parser.add_argument(
+        "--structure-baseline",
+        metavar="PATH",
+        default=None,
+        help=(
+            "With --structure: compare the structure with a reference (a snapshot "
+            "written by --structure-snapshot, or a JSON report that has a "
+            "`structure`) and add what changed. An unusable reference is an error"
+        ),
+    )
+    parser.add_argument(
+        "--structure-snapshot",
+        metavar="PATH",
+        default=None,
+        help=(
+            "With --structure: write the structure to PATH as a snapshot, after the "
+            "report succeeded. Refuses to overwrite an existing file unless "
+            "--replace-structure-snapshot is given"
+        ),
+    )
+    parser.add_argument(
+        "--replace-structure-snapshot",
+        action="store_true",
+        help=(
+            "Allow --structure-snapshot to replace an existing file; the old one is "
+            "kept next to it as PATH.prev"
         ),
     )
     return parser
@@ -561,6 +593,35 @@ async def run(config: SarandConfig) -> int:
             f"configured output directory: {exc}"
         )
         return 1
+
+    # R14-D1 (S2): refuse an unusable baseline or snapshot target now, before any
+    # work, so a mistake costs nothing.
+    # R14-D1 (S2): baseline یا مقصد snapshotِ نامعتبر همین الان رد می‌شود، پیش از هر
+    # کاری، تا اشتباه هزینه‌ای نداشته باشد.
+    baseline_reference: Reference | None = None
+    if config.structure_baseline is not None:
+        from sarand.structure.snapshot_io import read_reference_file
+
+        baseline_reference = read_reference_file(config.structure_baseline)
+        if not baseline_reference.usable:
+            error(
+                f"Cannot use the structure baseline {config.structure_baseline}: "
+                f"{baseline_reference.problem}"
+            )
+            return 1
+    if config.structure_snapshot is not None:
+        from sarand.structure.snapshot_io import (
+            SnapshotTargetError,
+            check_snapshot_target,
+        )
+
+        try:
+            check_snapshot_target(
+                config.structure_snapshot, replace=config.replace_structure_snapshot
+            )
+        except SnapshotTargetError as exc:
+            error(f"Cannot write the structure snapshot: {exc}")
+            return 1
 
     # One process-wide limit on external tools (AGENTS.md 5.73): --jobs, then
     # SARAND_JOBS, then one per CPU and per GiB of free memory.
@@ -910,6 +971,33 @@ async def run(config: SarandConfig) -> int:
     if config.structure:
         status("Building the repository structure...")
         structure = build_structure(root, included, skipped)
+    structure_payload_plain: dict[str, Any] | None = None
+    structure_comparison: dict[str, Any] | None = None
+    if structure is not None and (
+        baseline_reference is not None or config.structure_snapshot is not None
+    ):
+        from sarand.structure.serialize import structure_payload
+        from sarand.structure.snapshot import canonical_json
+
+        # One plain JSON copy serves both the comparison and the snapshot.
+        # یک نسخه‌ی JSON ساده هم برای مقایسه و هم برای snapshot کافی است.
+        structure_payload_plain = json.loads(
+            canonical_json(structure_payload(structure))
+        )
+    if structure_payload_plain is not None and baseline_reference is not None:
+        from sarand.structure.compare import compare_structures
+        from sarand.structure.snapshot import SOURCE_CURRENT, Reference
+
+        status("Comparing the structure with the baseline...")
+        current = Reference(
+            structure=structure_payload_plain,
+            source=SOURCE_CURRENT,
+            excluded_secret_files=tuple(sorted(p.as_posix() for p in excluded_secrets)),
+            max_file_size=config.max_file_size,
+        )
+        structure_comparison = dict(
+            compare_structures(baseline_reference, current).payload
+        )
 
     data = ReportData(
         project_root=root,
@@ -930,6 +1018,7 @@ async def run(config: SarandConfig) -> int:
         included_files=included,
         skipped_files=skipped,
         structure=structure,
+        structure_comparison=structure_comparison,
         excluded_secret_files=excluded_secrets,
         secret_findings=secret_findings,
         known_issues=known,
@@ -1009,6 +1098,33 @@ async def run(config: SarandConfig) -> int:
     print(
         f"Files   : {len(included)} included / {len(skipped)} skipped / {len(excluded_secrets)} excluded (secrets)"
     )
+    snapshot_failed = False
+    if structure_payload_plain is not None and config.structure_snapshot is not None:
+        if pdf_failed:
+            warning(
+                "The structure snapshot was not written: the report did not succeed."
+            )
+        else:
+            from sarand.structure.snapshot import make_snapshot
+            from sarand.structure.snapshot_io import SnapshotTargetError, write_snapshot
+
+            try:
+                written = write_snapshot(
+                    config.structure_snapshot,
+                    make_snapshot(
+                        structure_payload_plain,
+                        excluded_secret_files=[p.as_posix() for p in excluded_secrets],
+                        max_file_size=config.max_file_size,
+                    ),
+                    replace=config.replace_structure_snapshot,
+                )
+            except (SnapshotTargetError, OSError, ValueError) as exc:
+                snapshot_failed = True
+                error(f"The structure snapshot was not written: {exc}")
+            else:
+                print(f"Snapshot: {written.path} ({written.digest})")
+                if written.previous is not None:
+                    print(f"Previous: {written.previous}")
     if secret_findings:
         print(
             f"Secrets : {len(secret_findings)} potential secret(s) found -- affected files excluded, see report"
@@ -1024,7 +1140,7 @@ async def run(config: SarandConfig) -> int:
         )
         print(f"Health  : {health_text}")
     print("=" * 60)
-    return 1 if pdf_failed else 0
+    return 1 if pdf_failed or snapshot_failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:

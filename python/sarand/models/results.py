@@ -608,6 +608,11 @@ class ReportData:
     # was given, so a default run is byte-identical.
     # R14-A: ساختار مخزن (importها و چرخه‌ها)؛ بدون `--structure` برابر None است.
     structure: StructureData | None = None
+    # R14-D1 (S2): the comparison of the structure with a reference snapshot, as the
+    # canonical payload of `structure/compare.py`; None unless `--structure-baseline`.
+    # R14-D1 (S2): مقایسه‌ی ساختار با snapshot مرجع (payload استاندارد compare.py)؛
+    # بدون `--structure-baseline` برابر None است.
+    structure_comparison: dict[str, Any] | None = None
     ai_summary: str = ""
     suggested_reading_order: list[str] = field(default_factory=list)
     workspace: WorkspaceInfo | None = None

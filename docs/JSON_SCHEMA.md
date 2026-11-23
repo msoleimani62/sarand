@@ -2,7 +2,7 @@
 
 `sarand --format json` writes one JSON object. This page lists every top-level key, the fields of its nested objects, and what a script may rely on. The current version is below; a test keeps this page and the code in step, so a key that exists but is not listed here fails the build.
 
-Current version: **1.10**
+Current version: **1.11**
 
 ## Compatibility policy
 
@@ -36,6 +36,7 @@ Current version: **1.10**
 | `known_issues` | array of strings | always | Problems the scan itself noticed. |
 | `known_issue_ids` | array of strings | only when `known_issues` was built from classified failures | The stable finding id of each known issue, in the same order (R13-F). See `docs/FINDINGS.md`. |
 | `structure` | object | only with `--structure` | The repository structure (R14-A): files with their provenance, modules, imports with target class, confidence and evidence, external packages, and import cycles. Described in `docs/STRUCTURE.md`. |
+| `structure_comparison` | object | only with `--structure-baseline` | What changed in the structure against a reference snapshot (R14-D1): the `verdict`, its `reasons`, what each side was, the `uncertain_paths`, the counts per part and the listed changes. Described in `docs/STRUCTURE_BASELINE.md`. |
 | `ai_summary` | string | always | A plain-language summary meant for an AI reader. |
 | `suggested_reading_order` | array of strings | always | Every included file, most important first. Quick Context shows the first ten. |
 | `included_files` | array of strings | always | Project-relative paths whose content may be shown. |
@@ -79,6 +80,7 @@ The fields of the objects named above, in the order they are written.
 
 ## Version history
 
+- **1.11** (R14-D1, slice S2): added the object `structure_comparison`, present only with `--structure-baseline`: `schema` (the integer version of the comparison, `1`), `verdict` (`comparable`, `ids_only`, `partial`, `incompatible` or `invalid`), `reasons`, `fingerprints_comparable`, `old` and `new` (what each side was), `uncertain_paths`, `summary` (counts per part) and `changes` (the listed changes per part; unchanged items are only counted). A report made without the option is unchanged apart from `schema_version`.
 - **1.10** (R14-A3, criterion 4): in `structure.externals` the `declared_in` of an `external_declared` package now names the manifest **section** that declares it (`pyproject.toml#dependency-groups.tests`, `pyproject.toml#project.optional-dependencies.dev`, `pyproject.toml#project.dependencies`, `requirements.txt`, ...; a manifest in a subdirectory keeps its directory) and lists every declaration, where it used to list the manifest file only; a package whose import name differs from its distribution name can now be `external_declared` through an explicit table (`edges[].resolution_method` `declared-distribution`, confidence `probable`, with a note). Optional dependencies, PEP 735 dependency groups, `build-system.requires` and the Poetry group and development tables are read as declarations. The structure `schema` is now `4`. A default report is unchanged apart from the version number. See `docs/STRUCTURE.md`.
 - **1.9** (R14-A3): each entry of `structure.symbols` gained `fingerprint` (the versioned `fp1:` hash of the definition's content, stable across formatting, comments, docstrings and line shifts) and `structure.meta` gained `fingerprint_basis` (`fp1/python-<minor>`: fingerprints are comparable only between outputs with the same basis). The structure `schema` is now `3`. A default report is unchanged apart from the version number. See `docs/STRUCTURE.md`.
 - **1.8** (R14-A2): the `structure` object (still only with `--structure`) gained `symbols` (classes, functions, methods, properties, variables and constants with a stable `id`, qualified name, location, decorators, bases, flags), `relations` (calls, inherits and references between symbols, each with `confidence`, `resolution_method`, `evidence`, `count` and `location`), `entry_points`, `external_use` (counts of what the code uses from outside the repository) and `sites` (how every usage site was stored or counted). Its own `schema` is now `2`; `summary` gained the symbol, relation and entry-point counts. A default report is unchanged apart from the version number. See `docs/STRUCTURE.md`.

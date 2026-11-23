@@ -325,6 +325,9 @@ Running sarand again on the same project replaces its previous report at that pa
 | `--relevant-source[=TOKENS]` | Add a small selection of source snippets to read first, at most TOKENS × 3 bytes (default 6000 tokens, allowed 200 to 200000). Off by default |
 | `--focus TEXT` | With `--relevant-source`: prefer files whose path contains these words |
 | `--structure` | Read the project's Python source with `ast` (nothing is executed) and add its structure: modules, what they import, unresolved and dynamic imports, and import cycles. Off by default. See [docs/STRUCTURE.md](https://github.com/msoleimani62/sarand/blob/main/docs/STRUCTURE.md) |
+| `--structure-baseline PATH` | With `--structure`: compare the structure with a reference (a snapshot, or a JSON report that has a `structure`) and add what changed. An unusable reference is an error. See [docs/STRUCTURE_BASELINE.md](https://github.com/msoleimani62/sarand/blob/main/docs/STRUCTURE_BASELINE.md) |
+| `--structure-snapshot PATH` | With `--structure`: write the structure to `PATH` as a snapshot, after the report succeeded. Refuses to overwrite an existing file |
+| `--replace-structure-snapshot` | Allow `--structure-snapshot` to replace an existing file; the old one is kept as `PATH.prev` |
 | `--cache` | Skip re-scanning TODOs and secrets in files unchanged since the last `--cache` run |
 | `--clear-cache` | Delete this project's scan cache and exit |
 | `--doctor` | Diagnose the environment and exit |

@@ -30,6 +30,9 @@ from sarand.core.report_views import (
     ADVISORY_COLUMNS,
     FAILURE_COLUMNS,
     STRUCTURE_ATTENTION_COLUMNS,
+    STRUCTURE_CHANGE_COLUMNS,
+    STRUCTURE_COMPARISON_COLUMNS,
+    STRUCTURE_COMPARISON_NOTE,
     STRUCTURE_EXTERNAL_COLUMNS,
     STRUCTURE_NOTE,
     advisory_databases,
@@ -39,6 +42,10 @@ from sarand.core.report_views import (
     collect_issues,
     failure_rows,
     structure_attention_rows,
+    structure_comparison_lines,
+    structure_comparison_rows,
+    structure_comparison_summary,
+    structure_comparison_uncertain_paths,
     structure_cycle_lines,
     structure_external_rows,
     structure_lines,
@@ -477,6 +484,53 @@ def _coverage_markdown(h: HealthScore) -> list[str]:
     return out
 
 
+def _render_structure_changes(data: ReportData) -> list[str]:
+    """What changed against the reference snapshot (`--structure-baseline`, R14-D1).
+    The rows come from core/report_views.py; the full list is in the JSON report."""
+    if data.structure_comparison is None:
+        return []
+    lines = ["## Structure changes", "", STRUCTURE_COMPARISON_NOTE, ""]
+    lines.extend(f"- {_cell(line)}" for line in structure_comparison_lines(data))
+    lines.append("")
+    summary = structure_comparison_summary(data)
+    if summary:
+        lines.extend(
+            [
+                "| " + " | ".join(STRUCTURE_COMPARISON_COLUMNS) + " |",
+                "|" + "---|" * len(STRUCTURE_COMPARISON_COLUMNS),
+            ]
+        )
+        lines.extend("| " + " | ".join(row) + " |" for row in summary)
+        lines.append("")
+    uncertain, uncertain_total = structure_comparison_uncertain_paths(data)
+    if uncertain:
+        lines.extend(["### Uncertain paths", ""])
+        lines.extend(f"- {_cell(text)}" for text in uncertain)
+        if uncertain_total > len(uncertain):
+            lines.append(
+                f"- ... and {uncertain_total - len(uncertain)} more (see the JSON report)"
+            )
+        lines.append("")
+    rows, total = structure_comparison_rows(data)
+    if rows:
+        lines.extend(
+            [
+                "### Changes",
+                "",
+                "| " + " | ".join(STRUCTURE_CHANGE_COLUMNS) + " |",
+                "|" + "---|" * len(STRUCTURE_CHANGE_COLUMNS),
+            ]
+        )
+        for part, status, what in rows:
+            lines.append(f"| {part} | {status} | {_cell(what)} |")
+        if total > len(rows):
+            lines.extend(
+                ["", f"{total - len(rows)} more not shown (see the JSON report)."]
+            )
+        lines.append("")
+    return lines
+
+
 def _render_structure(data: ReportData) -> list[str]:
     """The repository structure (`--structure`, R14-A): counts, import cycles,
     imports that could not be resolved and the external packages imported. The full
@@ -874,6 +928,7 @@ def render(
         parts.append("")
 
     parts.extend(_render_structure(data))
+    parts.extend(_render_structure_changes(data))
     parts.extend(_render_package_results(data))
     parts.extend(["## Test results", ""])
     if not data.test_results:

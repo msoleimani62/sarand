@@ -28,6 +28,9 @@ from sarand.core.report_views import (
     ADVISORY_COLUMNS,
     FAILURE_COLUMNS,
     STRUCTURE_ATTENTION_COLUMNS,
+    STRUCTURE_CHANGE_COLUMNS,
+    STRUCTURE_COMPARISON_COLUMNS,
+    STRUCTURE_COMPARISON_NOTE,
     STRUCTURE_EXTERNAL_COLUMNS,
     STRUCTURE_NOTE,
     advisory_databases,
@@ -37,6 +40,10 @@ from sarand.core.report_views import (
     collect_issues,
     failure_rows,
     structure_attention_rows,
+    structure_comparison_lines,
+    structure_comparison_rows,
+    structure_comparison_summary,
+    structure_comparison_uncertain_paths,
     structure_cycle_lines,
     structure_external_rows,
     structure_lines,
@@ -239,6 +246,45 @@ def _structure_html(data: ReportData) -> str:
     return "".join(out)
 
 
+def _structure_changes_html(data: ReportData) -> str:
+    """What changed against the reference snapshot, the same lists as Markdown."""
+    if data.structure_comparison is None:
+        return ""
+    out = [
+        "<h2>Structure changes</h2>",
+        f'<p class="meta">{escape(STRUCTURE_COMPARISON_NOTE)}</p>',
+        "<ul>"
+        + "".join(f"<li>{escape(x)}</li>" for x in structure_comparison_lines(data))
+        + "</ul>",
+    ]
+    summary = structure_comparison_summary(data)
+    if summary:
+        out.append(_table(STRUCTURE_COMPARISON_COLUMNS, summary))
+    uncertain, uncertain_total = structure_comparison_uncertain_paths(data)
+    if uncertain:
+        more = (
+            f"<li>... and {uncertain_total - len(uncertain)} more (see the JSON report)</li>"
+            if uncertain_total > len(uncertain)
+            else ""
+        )
+        out.append(
+            "<h3>Uncertain paths</h3><ul>"
+            + "".join(f"<li>{escape(x)}</li>" for x in uncertain)
+            + more
+            + "</ul>"
+        )
+    rows, total = structure_comparison_rows(data)
+    if rows:
+        out.append("<h3>Changes</h3>")
+        out.append(_table(STRUCTURE_CHANGE_COLUMNS, rows))
+        if total > len(rows):
+            out.append(
+                f'<p class="meta">{total - len(rows)} more not shown '
+                "(see the JSON report).</p>"
+            )
+    return "".join(out)
+
+
 def render(
     data: ReportData, *, include_source: bool = True, full_output: bool = False
 ) -> str:
@@ -383,6 +429,8 @@ def render(
 
     if structure_section := _structure_html(data):
         parts.append(structure_section)
+    if changes_section := _structure_changes_html(data):
+        parts.append(changes_section)
     parts.append(
         _command_section("Test results", data.test_results, full_output=full_output)
     )

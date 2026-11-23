@@ -1,9 +1,8 @@
 # Structural baseline: comparing two structure snapshots
 
-Status: the library (slice S1 of R14-D1). There is no command-line option, no file I/O
-and no report key yet; those are slice S2 (`docs/R14D1_PLAN.md`). This page is the
-contract of the library: what a snapshot is, what a comparison may claim, and what it
-refuses to claim.
+Status: the library and the command line (slices S1 and S2 of R14-D1,
+`docs/R14D1_PLAN.md`). This page is the contract: what a snapshot is, what a comparison
+may claim, what it refuses to claim, and how the command line uses it.
 
 The structural baseline is **independent of the findings baseline**. It compares what a
 project is made of (files, symbols, relations, imports, cycles, entry points); it never
@@ -100,6 +99,45 @@ The same two references give the same bytes (`to_json`) whatever the order of th
 inside them. A comparison changes neither input. `compare_structures` reads only the
 two references: no file, no network, no clock.
 
+## Command line
+
+Both options need `--structure` (without it the run is refused).
+
+| Option | What it does |
+|---|---|
+| `--structure-baseline PATH` | Compare the structure of this run with the reference in `PATH` (a snapshot, or a JSON report that has a `structure`) and add what changed to the report. |
+| `--structure-snapshot PATH` | Write the structure of this run to `PATH` as a snapshot. |
+| `--replace-structure-snapshot` | Allow `--structure-snapshot` to replace an existing file. |
+
+- **Fail fast.** A baseline that is missing, unreadable, not a snapshot or report, of
+  another snapshot format or structure schema, or with a wrong digest is an error that
+  names the file and the reason, and so is a snapshot target that is a directory, a
+  symbolic link, in a missing directory, or an existing file without
+  `--replace-structure-snapshot`. This is checked before any work: no scan, no report.
+  The exit code is 1.
+- **Order.** The comparison uses the reference as it was before the run. The snapshot is
+  written last, only after the report succeeded; with a failed PDF (exit 1) no snapshot
+  is written. The same path may be given to both options: the run compares with the old
+  file, then replaces it (keeping the old one as `PATH.prev`).
+- **Safe writing.** The snapshot is staged in a temporary file next to the target,
+  flushed, read back and verified (it must parse as a usable snapshot with the digest
+  that was meant), then renamed into place. A failure leaves the target as it was and no
+  temporary file behind. A replacement keeps one previous generation as `PATH.prev`; to
+  restore it, rename it back. The permission bits of an existing file are kept, otherwise
+  the umask default applies.
+- **Where the result goes.** JSON: the `structure_comparison` object (report schema 1.11,
+  `docs/JSON_SCHEMA.md`). Markdown and HTML: a "Structure changes" section (verdict,
+  reasons, counts per part, uncertain paths, up to 40 listed changes). Text: one line.
+  SARIF: nothing. The comparison is information only: it never changes the exit code and
+  never creates a finding.
+
+```text
+sarand --structure --structure-snapshot structure.json          # first run: write the reference
+sarand --structure --structure-baseline structure.json          # later: what changed?
+sarand --structure --structure-baseline structure.json \
+       --structure-snapshot structure.json --replace-structure-snapshot   # compare, then update
+```
+
 ## Limits
 
 - A relation whose target could not be resolved has no stable target name in the
@@ -130,4 +168,7 @@ print(result.to_json())
 `tests/test_structure_compare.py` covers identical snapshots, every status, every verdict
 and every way a snapshot can be unusable, the digest and the absence of a time, the
 independence of the output from input order, and the fact that nothing in the inputs is
-changed.
+changed. `tests/test_structure_baseline_cli.py` covers the snapshot files (all or nothing,
+never over a file unasked, the previous generation, permissions, reading that never
+raises) and the command (the refusals, the JSON schema and the other formats, a run
+without the options).
