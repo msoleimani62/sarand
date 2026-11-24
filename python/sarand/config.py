@@ -142,6 +142,9 @@ class SarandConfig:
     # R14-D1 (S2): مقایسه‌ی ساختار با snapshot مرجع / نوشتن snapshot. هر دو به `structure`
     # نیاز دارند؛ جایگزینی snapshot موجود پرچم صریح می‌خواهد.
     structure_baseline: Path | None = None
+    # R14-D1 (F1): a previous JSON report to compare the findings with.
+    # R14-D1 (F1): گزارش JSON قبلی برای مقایسه‌ی یافته‌ها.
+    baseline: Path | None = None
     structure_snapshot: Path | None = None
     replace_structure_snapshot: bool = False
 
@@ -223,6 +226,7 @@ class SarandConfig:
             replace_structure_snapshot=bool(
                 getattr(args, "replace_structure_snapshot", False)
             ),
+            baseline=_optional_path(getattr(args, "baseline", None)),
             # Stored (not just used locally above) because renderers need
             # it too: --full's "nothing is skipped or cut short" promise
             # (its own --help text) has to reach the *rendering* layer,

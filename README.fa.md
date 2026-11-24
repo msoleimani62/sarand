@@ -449,6 +449,7 @@ PYTHONPATH=/path/to/sarand/python python -m sarand -p .
 | `--structure-baseline PATH` | همراه `--structure`: ساختار را با یک مرجع (snapshot، یا گزارش JSON که `structure` دارد) مقایسه می‌کند و آنچه تغییر کرده را می‌افزاید. مرجع نامعتبر خطاست. به [docs/STRUCTURE_BASELINE.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/STRUCTURE_BASELINE.fa.md) نگاه کنید |
 | `--structure-snapshot PATH` | همراه `--structure`: پس از موفقیت گزارش، ساختار را به‌صورت snapshot در `PATH` می‌نویسد. روی فایل موجود نمی‌نویسد |
 | `--replace-structure-snapshot` | به `--structure-snapshot` اجازه‌ی جایگزینی فایل موجود را می‌دهد؛ فایل قبلی با نام `PATH.prev` می‌ماند |
+| `--baseline PATH` | یافته‌ها را با گزارش JSON قبلی مقایسه می‌کند: چه چیزی new، fixed، unchanged یا changed است. یافته فقط وقتی `fixed` است که چکِ گزارش‌دهنده‌اش در این اجرا اجرا شده باشد؛ وگرنه `not_checked` است. به [docs/FINDINGS_BASELINE.fa.md](https://github.com/msoleimani62/sarand/blob/main/docs/FINDINGS_BASELINE.fa.md) نگاه کنید |
 | `--cache` | استفاده از کش برای کاهش اسکن دوباره‌ی TODOها و رازهای فایل‌های تغییرنکرده |
 | `--clear-cache` | پاک‌کردن کش اسکن پروژه و خروج |
 | `--doctor` | بررسی محیط و ابزارهای نصب‌شده و خروج |

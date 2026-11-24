@@ -613,6 +613,10 @@ class ReportData:
     # R14-D1 (S2): مقایسه‌ی ساختار با snapshot مرجع (payload استاندارد compare.py)؛
     # بدون `--structure-baseline` برابر None است.
     structure_comparison: dict[str, Any] | None = None
+    # R14-D1 (F1): the findings compared with a reference report (`--baseline`), as
+    # the payload of `core/baseline.py`; None without the option.
+    # R14-D1 (F1): یافته‌ها در مقایسه با گزارش مرجع (`--baseline`)؛ بدون گزینه None.
+    baseline: dict[str, Any] | None = None
     ai_summary: str = ""
     suggested_reading_order: list[str] = field(default_factory=list)
     workspace: WorkspaceInfo | None = None

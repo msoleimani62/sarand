@@ -95,3 +95,15 @@ example 2,685 for small); the content of that output was not inspected.
 - Per the acceptance rule, no optimization follows from this: the profile names the
   fingerprint and `parse_imports` as the largest costs, and neither is changed. The
   measurement is repeated, with the same method, when the code of D1 is in place.
+
+## Standard error of the command
+
+Checked on 2026-11-23 on click, with the A2 and A3 worktrees: both runs exit with 0 and
+write the same 575 bytes to standard error, identical except for the time stamp of one
+line. The content is the normal progress of the command (the detected ecosystem, the scan
+engine `pure-Python fallback`, the collection steps, "Building the repository
+structure...", "Rendering JSON report...", "Report completed") and one warning,
+`sarand.git: Not a git repository`, because the extracted click archive is not a git
+checkout. No error and no difference between A2 and A3. The earlier larger byte counts
+of the benchmark's whole-command runs (for example 2,875 for click) were not inspected
+line by line; they come from the same kind of progress output.

@@ -27,6 +27,14 @@ from sarand.analyzers.registry import (
 from sarand.config import SarandConfig, resolve_report_path, validate_output_name
 from sarand.core.advisories import collect_advisories
 from sarand.core.ai_summary import generate_ai_summary, suggest_reading_order
+from sarand.core.baseline import (
+    BaselineReferenceError,
+    FindingsView,
+    compare_findings,
+    current_view,
+    parse_schema,
+    read_baseline_file,
+)
 from sarand.core.cache import (
     build_cache_entries,
     load_cache,
@@ -83,7 +91,6 @@ from sarand.scanners.essential_files import collect_essential_files
 from sarand.scanners.git import collect_git_snapshot
 from sarand.scanners.stats import collect_project_stats
 from sarand.scanners.todos import filter_todos, scan_todos
-from sarand.structure import build_structure
 from sarand.userconfig import save_persisted_config
 from sarand.utils.command import set_max_concurrent_commands
 from sarand.utils.fs import human_size
@@ -356,6 +363,17 @@ Trust model:
             "kept next to it as PATH.prev"
         ),
     )
+    parser.add_argument(
+        "--baseline",
+        metavar="PATH",
+        default=None,
+        help=(
+            "Compare the findings with a previous JSON report and add what is new, "
+            "fixed, unchanged or changed. A finding is `fixed` only when the check "
+            "that reports it ran in this run; otherwise it is `not_checked`. An "
+            "unusable report is an error"
+        ),
+    )
     return parser
 
 
@@ -621,6 +639,18 @@ async def run(config: SarandConfig) -> int:
             )
         except SnapshotTargetError as exc:
             error(f"Cannot write the structure snapshot: {exc}")
+            return 1
+
+    # R14-D1 (F1): the findings baseline is read now too, so an unusable report costs
+    # nothing.
+    # R14-D1 (F1): baseline یافته‌ها هم همین حالا خوانده می‌شود تا گزارش نامعتبر
+    # هزینه‌ای نداشته باشد.
+    findings_reference: FindingsView | None = None
+    if config.baseline is not None:
+        try:
+            findings_reference = read_baseline_file(config.baseline)
+        except BaselineReferenceError as exc:
+            error(f"Cannot use the findings baseline {config.baseline}: {exc}")
             return 1
 
     # One process-wide limit on external tools (AGENTS.md 5.73): --jobs, then
@@ -970,6 +1000,12 @@ async def run(config: SarandConfig) -> int:
     structure = None
     if config.structure:
         status("Building the repository structure...")
+        # Imported only here: a run without --structure must not load the structure
+        # package (docs/FINDINGS_BASELINE.md, "Independence").
+        # فقط اینجا import می‌شود: اجرای بدون --structure نباید بسته‌ی structure را
+        # بارگذاری کند.
+        from sarand.structure import build_structure
+
         structure = build_structure(root, included, skipped)
     structure_payload_plain: dict[str, Any] | None = None
     structure_comparison: dict[str, Any] | None = None
@@ -999,6 +1035,27 @@ async def run(config: SarandConfig) -> int:
             compare_structures(baseline_reference, current).payload
         )
 
+    findings_baseline: dict[str, Any] | None = None
+    if findings_reference is not None:
+        from sarand.renderers.json_renderer import JSON_SCHEMA_VERSION
+
+        status("Comparing the findings with the baseline...")
+        findings_baseline = compare_findings(
+            findings_reference,
+            current_view(
+                schema=parse_schema(JSON_SCHEMA_VERSION),
+                failures=failures,
+                advisories=advisories,
+                secret_findings=secret_findings,
+                test_results=test_results,
+                quality_results=quality_results,
+                security_results=security_results,
+                included_files=[p.as_posix() for p in included],
+                excluded_secret_files=[p.as_posix() for p in excluded_secrets],
+                skipped_files=[p.as_posix() for p, _ in skipped],
+            ),
+        )
+
     data = ReportData(
         project_root=root,
         generated_at=datetime.now(UTC),
@@ -1019,6 +1076,7 @@ async def run(config: SarandConfig) -> int:
         skipped_files=skipped,
         structure=structure,
         structure_comparison=structure_comparison,
+        baseline=findings_baseline,
         excluded_secret_files=excluded_secrets,
         secret_findings=secret_findings,
         known_issues=known,

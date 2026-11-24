@@ -188,5 +188,20 @@ slice.
 | Slice | Result | Evidence |
 |---|---|---|
 | S1 structural comparison (library) | Pass, closed | commit `cd2f807`, CI run `44968799181` green, 1,858 passed and 10 skipped, `docs/STRUCTURE_BASELINE.md` |
-| S2 snapshot file, command line, report key | Pending: delivered, awaiting the owner's chain | `docs/STRUCTURE_BASELINE.md` (Command line), `tests/test_structure_baseline_cli.py` |
-| F1 to F4, P, C | Pending | |
+| S2 snapshot file, command line, report key | Pass, closed | commit `5830064`, CI run `45119095300` green, 1,898 passed and 10 skipped, report schema 1.11 |
+| F1 findings comparison, `--baseline` | Pending: delivered, awaiting the owner's chain | `docs/FINDINGS_BASELINE.md`, `tests/test_findings_baseline.py`, `tests/test_findings_baseline_cli.py`, report schema 1.12 |
+| F2 to F4, P, C | Pending | |
+
+### Decisions taken in F1 (they refine section 3.1)
+
+- **Evidence of a changed failure** is the return code and the evidence signals. The
+  summary text is left out: it carries counts and durations that change every run and
+  would make every failure `changed`.
+- **Health critical ids** are not a class of their own: they restate failures and
+  known issues. The gate slice (F2) decides how a finding counts as critical.
+- **Where the reference's check coverage comes from:** the report's own `state` of each
+  check (schema 1.6); older reports are read with the same function from the raw fields.
+- **A secret whose file no longer exists** is `not_checked` (`file_not_scanned`): the run
+  cannot tell a deleted file from an ignored one.
+- **The findings path does not load `sarand.structure`**: the two module-level imports in
+  `cli.py` and `json_renderer.py` became local, and a test runs the real command.

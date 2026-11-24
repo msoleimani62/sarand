@@ -328,6 +328,7 @@ Running sarand again on the same project replaces its previous report at that pa
 | `--structure-baseline PATH` | With `--structure`: compare the structure with a reference (a snapshot, or a JSON report that has a `structure`) and add what changed. An unusable reference is an error. See [docs/STRUCTURE_BASELINE.md](https://github.com/msoleimani62/sarand/blob/main/docs/STRUCTURE_BASELINE.md) |
 | `--structure-snapshot PATH` | With `--structure`: write the structure to `PATH` as a snapshot, after the report succeeded. Refuses to overwrite an existing file |
 | `--replace-structure-snapshot` | Allow `--structure-snapshot` to replace an existing file; the old one is kept as `PATH.prev` |
+| `--baseline PATH` | Compare the findings with a previous JSON report: what is new, fixed, unchanged or changed. A finding is `fixed` only when the check that reports it ran in this run; otherwise it is `not_checked`. See [docs/FINDINGS_BASELINE.md](https://github.com/msoleimani62/sarand/blob/main/docs/FINDINGS_BASELINE.md) |
 | `--cache` | Skip re-scanning TODOs and secrets in files unchanged since the last `--cache` run |
 | `--clear-cache` | Delete this project's scan cache and exit |
 | `--doctor` | Diagnose the environment and exit |

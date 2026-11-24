@@ -28,6 +28,9 @@ from sarand.core.quick_context import (
 )
 from sarand.core.report_views import (
     ADVISORY_COLUMNS,
+    BASELINE_CHANGE_COLUMNS,
+    BASELINE_COLUMNS,
+    BASELINE_NOTE,
     FAILURE_COLUMNS,
     STRUCTURE_ATTENTION_COLUMNS,
     STRUCTURE_CHANGE_COLUMNS,
@@ -39,6 +42,9 @@ from sarand.core.report_views import (
     advisory_intro,
     advisory_line_note,
     advisory_rows,
+    baseline_lines,
+    baseline_rows,
+    baseline_summary,
     collect_issues,
     failure_rows,
     structure_attention_rows,
@@ -482,6 +488,42 @@ def _coverage_markdown(h: HealthScore) -> list[str]:
     for line in lines[1:]:
         out.extend([_cell(line), ""])
     return out
+
+
+def _render_baseline(data: ReportData) -> list[str]:
+    """The findings against a reference report (`--baseline`, R14-D1).
+    The rows come from core/report_views.py; the full list is in the JSON report."""
+    if data.baseline is None:
+        return []
+    lines = ["## Findings since the baseline", "", BASELINE_NOTE, ""]
+    lines.extend(f"- {_cell(line)}" for line in baseline_lines(data))
+    lines.append("")
+    lines.extend(
+        [
+            "| " + " | ".join(BASELINE_COLUMNS) + " |",
+            "|" + "---|" * len(BASELINE_COLUMNS),
+        ]
+    )
+    lines.extend("| " + " | ".join(row) + " |" for row in baseline_summary(data))
+    lines.append("")
+    rows, total = baseline_rows(data)
+    if rows:
+        lines.extend(
+            [
+                "### Findings that are not unchanged",
+                "",
+                "| " + " | ".join(BASELINE_CHANGE_COLUMNS) + " |",
+                "|" + "---|" * len(BASELINE_CHANGE_COLUMNS),
+            ]
+        )
+        for name, state, what, note in rows:
+            lines.append(f"| {name} | {state} | {_cell(what)} | {_cell(note)} |")
+        if total > len(rows):
+            lines.extend(
+                ["", f"{total - len(rows)} more not shown (see the JSON report)."]
+            )
+        lines.append("")
+    return lines
 
 
 def _render_structure_changes(data: ReportData) -> list[str]:
@@ -929,6 +971,7 @@ def render(
 
     parts.extend(_render_structure(data))
     parts.extend(_render_structure_changes(data))
+    parts.extend(_render_baseline(data))
     parts.extend(_render_package_results(data))
     parts.extend(["## Test results", ""])
     if not data.test_results:

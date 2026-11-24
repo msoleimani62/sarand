@@ -273,7 +273,7 @@ def test_the_comparison_reaches_every_format_and_the_json_schema(
         outputs[fmt] = (tmp_path / "out" / name).read_text(encoding="utf-8")
 
     payload = json.loads(outputs["json"])
-    assert payload["schema_version"] == "1.11"
+    assert payload["schema_version"] == "1.12"
     comparison = payload["structure_comparison"]
     assert comparison["verdict"] == "comparable"
     assert comparison["summary"]["symbols"]["added"] == 1

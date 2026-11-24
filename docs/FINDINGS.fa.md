@@ -61,3 +61,5 @@ known issue، ریسک و یک خط Quick Context. sarand به چنین مشکل
 شکست بخورد شناسه‌ی یکسان دارد و فهرست `failures` ادغام نمی‌شود. نتایج advisory در SARIF هویت خود advisory را در
 `partialFingerprints.sarandFindingId/v1` دارند؛ شناسه‌ی شکست‌ها و یافته‌های بحرانی
 در property bag با کلید `sarand` است (به `docs/RENDERERS.fa.md` نگاه کنید).
+
+برای مقایسه‌ی دو گزارش با همین شناسه‌ها به `docs/FINDINGS_BASELINE.fa.md` نگاه کنید.

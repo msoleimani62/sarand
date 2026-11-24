@@ -22,14 +22,13 @@ from sarand.models.results import (
     WorkspaceInfo,
 )
 from sarand.progress import status
-from sarand.structure.serialize import structure_payload
 
 # Version of the JSON schema (docs/JSON_SCHEMA.md), `MAJOR.MINOR`, independent of
 # the program's version. Adding a key or field bumps MINOR; removing, renaming,
 # retyping or changing the meaning of one bumps MAJOR. A test keeps the document
 # and this constant in step.
 # نسخه‌ی شمای JSON؛ مستقل از نسخه‌ی برنامه. جزئیات در docs/JSON_SCHEMA.md.
-JSON_SCHEMA_VERSION = "1.11"
+JSON_SCHEMA_VERSION = "1.12"
 
 
 def _result_payload(result: CommandResult) -> dict[str, Any]:
@@ -152,6 +151,12 @@ def render(
     # `--structure`.
     # R14-A (شمای ۱٫۷، گسترش در ۱٫۸ و ۱٫۹ و ۱٫۱۰): ساختار مخزن، فقط با `--structure`.
     if data.structure is not None:
+        # Imported here, not at the top: a report without a structure must not load
+        # the structure package (docs/FINDINGS_BASELINE.md, "Independence").
+        # اینجا import می‌شود، نه بالای فایل: گزارش بدون ساختار نباید بسته‌ی structure
+        # را بارگذاری کند.
+        from sarand.structure.serialize import structure_payload
+
         payload["structure"] = structure_payload(data.structure)
     # R14-D1 (schema 1.11): what changed against a reference snapshot, only with
     # `--structure-baseline` (docs/STRUCTURE_BASELINE.md).
@@ -159,6 +164,11 @@ def render(
     # `--structure-baseline`.
     if data.structure_comparison is not None:
         payload["structure_comparison"] = data.structure_comparison
+    # R14-D1 (schema 1.12): the findings against a reference report, only with
+    # `--baseline` (docs/FINDINGS_BASELINE.md).
+    # R14-D1 (شمای ۱٫۱۲): یافته‌ها در مقایسه با گزارش مرجع؛ فقط با `--baseline`.
+    if data.baseline is not None:
+        payload["baseline"] = data.baseline
     # R13-C: the dependency advisories the security tools reported (schema 1.3),
     # absent when none was reported. Tool results; applicability is "unknown".
     # R13-C: advisoryهای گزارش‌شده توسط ابزارهای امنیتی (شمای ۱٫۳)؛ وقتی نیست غایب.

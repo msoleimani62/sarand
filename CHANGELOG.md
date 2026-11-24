@@ -36,6 +36,15 @@ version may include behaviour changes.
 
 ### Added
 
+- Findings baseline (R14-D1, slice F1): `--baseline PATH` compares the failures, advisories
+  and secret findings of the run with a previous JSON report, by their R13 identity, and
+  adds the result as the JSON key `baseline` (report schema 1.12, additive) and a
+  "Findings since the baseline" section in Markdown and HTML. A finding is `fixed` only
+  when the check that reports it ran in this run, and `new` only when the reference could
+  have seen it; otherwise it is `not_checked`. It never changes the exit code (the gate
+  comes in a later slice). A findings-only run no longer loads the structure package.
+  See `docs/FINDINGS_BASELINE.md`.
+
 - Structural baseline (R14-D1, slice S2): `--structure-snapshot PATH` writes the structure
   as a snapshot (never over an existing file unless `--replace-structure-snapshot`, which
   keeps the old file as `PATH.prev`), and `--structure-baseline PATH` compares the

@@ -65,6 +65,15 @@ def render(
             f"{totals['changed']} changed, {totals['uncertain']} uncertain "
             "-- see full report"
         )
+    if data.baseline is not None:
+        from sarand.core.report_views import baseline_totals
+
+        totals = baseline_totals(data)
+        lines.append(
+            f"Findings since the baseline: {totals['new']} new, {totals['fixed']} fixed, "
+            f"{totals['changed']} changed, {totals['not_checked']} not checked "
+            "-- see full report"
+        )
     if data.failures:
         lines.append(f"Failures: {len(data.failures)} classified -- see full report")
     if data.advisories:

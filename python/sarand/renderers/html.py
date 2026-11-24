@@ -26,6 +26,9 @@ from sarand.core.execution_coverage import coverage_lines
 from sarand.core.quick_context import build_quick_context, quick_context_lines
 from sarand.core.report_views import (
     ADVISORY_COLUMNS,
+    BASELINE_CHANGE_COLUMNS,
+    BASELINE_COLUMNS,
+    BASELINE_NOTE,
     FAILURE_COLUMNS,
     STRUCTURE_ATTENTION_COLUMNS,
     STRUCTURE_CHANGE_COLUMNS,
@@ -37,6 +40,9 @@ from sarand.core.report_views import (
     advisory_intro,
     advisory_line_note,
     advisory_rows,
+    baseline_lines,
+    baseline_rows,
+    baseline_summary,
     collect_issues,
     failure_rows,
     structure_attention_rows,
@@ -246,6 +252,30 @@ def _structure_html(data: ReportData) -> str:
     return "".join(out)
 
 
+def _baseline_html(data: ReportData) -> str:
+    """The findings against a reference report, the same lists as Markdown."""
+    if data.baseline is None:
+        return ""
+    out = [
+        "<h2>Findings since the baseline</h2>",
+        f'<p class="meta">{escape(BASELINE_NOTE)}</p>',
+        "<ul>"
+        + "".join(f"<li>{escape(x)}</li>" for x in baseline_lines(data))
+        + "</ul>",
+        _table(BASELINE_COLUMNS, baseline_summary(data)),
+    ]
+    rows, total = baseline_rows(data)
+    if rows:
+        out.append("<h3>Findings that are not unchanged</h3>")
+        out.append(_table(BASELINE_CHANGE_COLUMNS, rows))
+        if total > len(rows):
+            out.append(
+                f'<p class="meta">{total - len(rows)} more not shown '
+                "(see the JSON report).</p>"
+            )
+    return "".join(out)
+
+
 def _structure_changes_html(data: ReportData) -> str:
     """What changed against the reference snapshot, the same lists as Markdown."""
     if data.structure_comparison is None:
@@ -431,6 +461,8 @@ def render(
         parts.append(structure_section)
     if changes_section := _structure_changes_html(data):
         parts.append(changes_section)
+    if baseline_section := _baseline_html(data):
+        parts.append(baseline_section)
     parts.append(
         _command_section("Test results", data.test_results, full_output=full_output)
     )

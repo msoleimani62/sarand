@@ -462,3 +462,100 @@ def structure_comparison_totals(data: ReportData) -> dict[str, int]:
         for index, name in enumerate(totals, start=1):
             totals[name] += int(row[index])
     return totals
+
+
+# ------------------------------------------------------------ findings baseline
+# R14-D1 (F1): the findings compared with a reference report (`--baseline`). The rows
+# come from the payload of `core/baseline.py`; no format computes its own.
+# R14-D1 (F1): یافته‌ها در مقایسه با گزارش مرجع؛ ردیف‌ها از payload می‌آیند.
+
+BASELINE_NOTE = (
+    "The findings of this run compared with a previous report, by stable finding "
+    "identity. A finding is `fixed` only when the check that reports it ran in this "
+    "run; if it did not, the finding is `not_checked` (never `fixed`, never `new`)."
+)
+BASELINE_COLUMNS: tuple[str, ...] = (
+    "Class",
+    "New",
+    "Fixed",
+    "Unchanged",
+    "Changed",
+    "Not checked",
+)
+BASELINE_CHANGE_COLUMNS: tuple[str, ...] = ("Class", "State", "What", "Note")
+BASELINE_ROWS = 40
+_BASELINE_CLASSES = ("failures", "advisories", "secrets")
+
+
+def baseline_lines(data: ReportData) -> list[str]:
+    """What the reference was and which classes it could not tell about."""
+    b = data.baseline
+    if b is None:
+        return []
+    lines = [f"Reference report schema: {b['reference']['schema_version']}"]
+    missing = b["reference"].get("classes_not_recorded", [])
+    if missing:
+        lines.append(
+            "Not recorded by that report (so not compared): " + ", ".join(missing)
+        )
+    return lines
+
+
+def baseline_summary(data: ReportData) -> list[tuple[str, ...]]:
+    """One row per class: new, fixed, unchanged, changed, not checked."""
+    b = data.baseline
+    if b is None:
+        return []
+    rows: list[tuple[str, ...]] = []
+    for name in _BASELINE_CLASSES:
+        counts = b["summary"][name]
+        rows.append(
+            (
+                name,
+                str(counts["new"]),
+                str(counts["fixed"]),
+                str(counts["unchanged"]),
+                str(counts["changed"]),
+                str(counts["not_checked"]),
+            )
+        )
+    return rows
+
+
+def _baseline_what(name: str, entry: dict[str, Any]) -> str:
+    if name == "failures":
+        return f"{entry['tool']} {entry['category']} {entry['subject']}".strip()
+    if name == "advisories":
+        return f"{entry['advisory_id']} {entry['package']} {entry['version']}".strip()
+    return f"{entry['path']} ({entry['pattern_name']})"
+
+
+def baseline_rows(
+    data: ReportData, limit: int = BASELINE_ROWS
+) -> tuple[list[tuple[str, ...]], int]:
+    """The findings that are not unchanged (class, state, what, note), at most `limit`,
+    and how many there are."""
+    b = data.baseline
+    if b is None:
+        return [], 0
+    rows: list[tuple[str, ...]] = []
+    total = 0
+    for name in _BASELINE_CLASSES:
+        for entry in b["findings"].get(name, []):
+            total += 1
+            if len(rows) < limit:
+                note = entry.get("reason") or entry.get("direction") or ""
+                rows.append(
+                    (name, str(entry["state"]), _baseline_what(name, entry), str(note))
+                )
+    return rows, total
+
+
+def baseline_totals(data: ReportData) -> dict[str, int]:
+    """The counts over all classes, for the one-line text summary."""
+    totals = {"new": 0, "fixed": 0, "changed": 0, "not_checked": 0}
+    if data.baseline is not None:
+        for counts in data.baseline["summary"].values():
+            for name in totals:
+                totals[name] += counts[name]
+    return totals
