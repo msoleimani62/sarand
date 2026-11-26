@@ -559,3 +559,55 @@ def baseline_totals(data: ReportData) -> dict[str, int]:
             for name in totals:
                 totals[name] += counts[name]
     return totals
+
+
+# R14-D1 (F2): what the gate decided (`--baseline-gate`). Rows come from the
+# `baseline.gate` object; no format computes its own.
+# R14-D1 (F2): تصمیم gate؛ ردیف‌ها از `baseline.gate` می‌آیند.
+GATE_COLUMNS: tuple[str, ...] = ("Result", "Class", "What", "Rule or reason")
+GATE_ROWS = 40
+
+
+def _gate(data: ReportData) -> dict[str, Any] | None:
+    gate = None if data.baseline is None else data.baseline.get("gate")
+    if gate is None or gate.get("verdict") == "not_gated":
+        return None
+    return dict(gate)
+
+
+def baseline_gate_line(data: ReportData) -> str:
+    """One sentence with the policy, the verdict and the counts; empty when there is no
+    gate (no `--baseline-gate`, or `never`)."""
+    gate = _gate(data)
+    if gate is None:
+        return ""
+    failed, uncertain = len(gate["failed_on"]), len(gate["uncertain"])
+    tail = f", {uncertain} uncertain (they never fail the gate)" if uncertain else ""
+    if gate["verdict"] == "fail":
+        return f"Gate (policy {gate['policy']}): FAILED on {failed} finding(s){tail}"
+    return f"Gate (policy {gate['policy']}): passed{tail}"
+
+
+def baseline_gate_rows(
+    data: ReportData, limit: int = GATE_ROWS
+) -> tuple[list[tuple[str, ...]], int]:
+    """The findings the gate failed on, then the uncertain ones (result, class, what,
+    rule or reason), at most `limit`, and how many there are."""
+    gate = _gate(data)
+    if gate is None:
+        return [], 0
+    rows: list[tuple[str, ...]] = []
+    for item in gate["failed_on"]:
+        rows.append(
+            (
+                "failed",
+                item["class"],
+                str(item["label"]),
+                f"{item['rule']} ({item['state']})",
+            )
+        )
+    for item in gate["uncertain"]:
+        rows.append(
+            ("uncertain", item["class"], str(item["label"]), str(item["reason"]))
+        )
+    return rows[:limit], len(rows)

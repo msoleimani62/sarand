@@ -145,6 +145,10 @@ class SarandConfig:
     # R14-D1 (F1): a previous JSON report to compare the findings with.
     # R14-D1 (F1): گزارش JSON قبلی برای مقایسه‌ی یافته‌ها.
     baseline: Path | None = None
+    # R14-D1 (F2): what the findings comparison does to the exit code (`never`, `new`,
+    # `new-critical`, `critical`); `None` means the option was not given (= `never`).
+    # R14-D1 (F2): اثر مقایسه‌ی یافته‌ها بر کد خروج؛ `None` یعنی گزینه داده نشده (= `never`).
+    baseline_gate: str | None = None
     structure_snapshot: Path | None = None
     replace_structure_snapshot: bool = False
 
@@ -227,6 +231,7 @@ class SarandConfig:
                 getattr(args, "replace_structure_snapshot", False)
             ),
             baseline=_optional_path(getattr(args, "baseline", None)),
+            baseline_gate=getattr(args, "baseline_gate", None),
             # Stored (not just used locally above) because renderers need
             # it too: --full's "nothing is skipped or cut short" promise
             # (its own --help text) has to reach the *rendering* layer,
@@ -275,3 +280,13 @@ class SarandConfig:
                     raise ValueError(f"{flag} needs --structure")
         if self.replace_structure_snapshot and self.structure_snapshot is None:
             raise ValueError("--replace-structure-snapshot needs --structure-snapshot")
+        if self.baseline_gate is not None:
+            from sarand.core.gate import POLICIES
+
+            if self.baseline_gate not in POLICIES:
+                raise ValueError(
+                    f"--baseline-gate must be one of {', '.join(POLICIES)}, "
+                    f"not {self.baseline_gate!r}"
+                )
+            if self.baseline is None:
+                raise ValueError("--baseline-gate needs --baseline")

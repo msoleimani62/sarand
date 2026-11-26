@@ -51,6 +51,15 @@ from sarand.core.estimate import estimate_source_bytes, size_advice
 from sarand.core.execution_coverage import coverage_oneline
 from sarand.core.failures import classify_failures, known_issue_entries
 from sarand.core.frameworks import detect_declared_frameworks
+from sarand.core.gate import (
+    EXIT_BASELINE_UNUSABLE,
+    EXIT_GATE_FAILED,
+    POLICIES,
+    POLICY_NEVER,
+    VERDICT_FAIL,
+    VERDICT_NOT_GATED,
+    evaluate_gate,
+)
 from sarand.core.gitleaks import gitleaks_flagged_paths, run_gitleaks
 from sarand.core.health import compute_health_score
 from sarand.core.kubernetes import detect_kubernetes
@@ -371,7 +380,21 @@ Trust model:
             "Compare the findings with a previous JSON report and add what is new, "
             "fixed, unchanged or changed. A finding is `fixed` only when the check "
             "that reports it ran in this run; otherwise it is `not_checked`. An "
-            "unusable report is an error"
+            "unusable report is an error (exit code 4)"
+        ),
+    )
+    parser.add_argument(
+        "--baseline-gate",
+        choices=POLICIES,
+        default=None,
+        metavar="POLICY",
+        help=(
+            "With --baseline: make the comparison decide the exit code. `never` "
+            "(default) changes nothing; `new` fails (exit code 3) on any new valid "
+            "finding; `new-critical` on a new Critical finding; `critical` on any "
+            "Critical finding, new or old. Critical = a secret that is not a test "
+            "fixture, an advisory of severity `critical`, or a health critical "
+            "condition. What cannot be decided is listed as uncertain and never fails"
         ),
     )
     return parser
@@ -626,7 +649,7 @@ async def run(config: SarandConfig) -> int:
                 f"Cannot use the structure baseline {config.structure_baseline}: "
                 f"{baseline_reference.problem}"
             )
-            return 1
+            return EXIT_BASELINE_UNUSABLE
     if config.structure_snapshot is not None:
         from sarand.structure.snapshot_io import (
             SnapshotTargetError,
@@ -651,7 +674,7 @@ async def run(config: SarandConfig) -> int:
             findings_reference = read_baseline_file(config.baseline)
         except BaselineReferenceError as exc:
             error(f"Cannot use the findings baseline {config.baseline}: {exc}")
-            return 1
+            return EXIT_BASELINE_UNUSABLE
 
     # One process-wide limit on external tools (AGENTS.md 5.73): --jobs, then
     # SARAND_JOBS, then one per CPU and per GiB of free memory.
@@ -1035,27 +1058,6 @@ async def run(config: SarandConfig) -> int:
             compare_structures(baseline_reference, current).payload
         )
 
-    findings_baseline: dict[str, Any] | None = None
-    if findings_reference is not None:
-        from sarand.renderers.json_renderer import JSON_SCHEMA_VERSION
-
-        status("Comparing the findings with the baseline...")
-        findings_baseline = compare_findings(
-            findings_reference,
-            current_view(
-                schema=parse_schema(JSON_SCHEMA_VERSION),
-                failures=failures,
-                advisories=advisories,
-                secret_findings=secret_findings,
-                test_results=test_results,
-                quality_results=quality_results,
-                security_results=security_results,
-                included_files=[p.as_posix() for p in included],
-                excluded_secret_files=[p.as_posix() for p in excluded_secrets],
-                skipped_files=[p.as_posix() for p, _ in skipped],
-            ),
-        )
-
     data = ReportData(
         project_root=root,
         generated_at=datetime.now(UTC),
@@ -1076,7 +1078,6 @@ async def run(config: SarandConfig) -> int:
         skipped_files=skipped,
         structure=structure,
         structure_comparison=structure_comparison,
-        baseline=findings_baseline,
         excluded_secret_files=excluded_secrets,
         secret_findings=secret_findings,
         known_issues=known,
@@ -1099,6 +1100,39 @@ async def run(config: SarandConfig) -> int:
 
     if config.health_score:
         data.health = compute_health_score(data)
+
+    # R14-D1 (F1/F2): the findings are compared after the health score exists, because
+    # the gate reads its critical ids; `--no-health` leaves them unknown (reported as
+    # uncertain, never guessed).
+    # R14-D1 (F1/F2): مقایسه‌ی یافته‌ها بعد از ساخته‌شدن health انجام می‌شود، چون gate
+    # شناسه‌های بحرانی آن را می‌خواند؛ با `--no-health` نامعلوم می‌مانند (uncertain، نه حدس).
+    gate_result: dict[str, Any] | None = None
+    if findings_reference is not None:
+        from sarand.renderers.json_renderer import JSON_SCHEMA_VERSION
+
+        status("Comparing the findings with the baseline...")
+        findings_current = current_view(
+            schema=parse_schema(JSON_SCHEMA_VERSION),
+            failures=failures,
+            advisories=advisories,
+            secret_findings=secret_findings,
+            test_results=test_results,
+            quality_results=quality_results,
+            security_results=security_results,
+            included_files=[p.as_posix() for p in included],
+            excluded_secret_files=[p.as_posix() for p in excluded_secrets],
+            skipped_files=[p.as_posix() for p, _ in skipped],
+            critical_ids=None if data.health is None else data.health.critical_ids,
+        )
+        findings_baseline = compare_findings(findings_reference, findings_current)
+        gate_result = evaluate_gate(
+            config.baseline_gate or POLICY_NEVER,
+            findings_reference,
+            findings_current,
+            findings_baseline,
+        )
+        findings_baseline["gate"] = gate_result
+        data.baseline = findings_baseline
 
     if config.relevant_source_tokens is not None:
         from sarand.core.relevant_source import select_relevant_source
@@ -1197,8 +1231,44 @@ async def run(config: SarandConfig) -> int:
             f"{coverage_oneline(data.health)}"
         )
         print(f"Health  : {health_text}")
+    gate_failed = _print_gate(gate_result)
     print("=" * 60)
+    # The gate is the signal a pipeline acts on, so it wins over a report or snapshot
+    # error (that error was printed above).
+    # gate همان سیگنالی است که pipeline به آن عمل می‌کند، پس بر خطای گزارش یا snapshot
+    # مقدم است (آن خطا بالاتر چاپ شده).
+    if gate_failed:
+        return EXIT_GATE_FAILED
     return 1 if pdf_failed or snapshot_failed else 0
+
+
+_GATE_LINES = 10
+
+
+def _print_gate(gate: dict[str, Any] | None) -> bool:
+    """Print the gate result in the closing summary; True when the gate failed.
+    نتیجه‌ی gate را در خلاصه‌ی پایانی چاپ می‌کند؛ وقتی gate رد شده باشد True برمی‌گرداند.
+    """
+    if gate is None or gate["verdict"] == VERDICT_NOT_GATED:
+        return False
+    failed = gate["verdict"] == VERDICT_FAIL
+    uncertain = gate["uncertain"]
+    tail = f", {len(uncertain)} uncertain" if uncertain else ""
+    if failed:
+        print(
+            f"Gate    : FAILED (policy {gate['policy']}): "
+            f"{len(gate['failed_on'])} finding(s){tail}"
+        )
+        for item in gate["failed_on"][:_GATE_LINES]:
+            print(f"          - {item['class']}: {item['label']} ({item['rule']})")
+        hidden = len(gate["failed_on"]) - _GATE_LINES
+        if hidden > 0:
+            print(f"          ... and {hidden} more (see the report)")
+    else:
+        print(f"Gate    : passed (policy {gate['policy']}){tail}")
+    if uncertain:
+        print("          uncertain findings never fail the gate; see the report")
+    return failed
 
 
 def main(argv: list[str] | None = None) -> int:

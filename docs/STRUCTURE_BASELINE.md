@@ -114,7 +114,7 @@ Both options need `--structure` (without it the run is refused).
   names the file and the reason, and so is a snapshot target that is a directory, a
   symbolic link, in a missing directory, or an existing file without
   `--replace-structure-snapshot`. This is checked before any work: no scan, no report.
-  The exit code is 1.
+  The exit code is 4 for an unusable baseline and 1 for an unusable snapshot target.
 - **Order.** The comparison uses the reference as it was before the run. The snapshot is
   written last, only after the report succeeded; with a failed PDF (exit 1) no snapshot
   is written. The same path may be given to both options: the run compares with the old

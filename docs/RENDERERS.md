@@ -58,7 +58,9 @@ reference snapshot (`--structure-baseline`, `docs/STRUCTURE_BASELINE.md`) travel
 way: a full `structure_comparison` object in JSON, a "Structure changes" section in
 Markdown and HTML, one summary line in text. The findings against a previous report (`--baseline`,
 `docs/FINDINGS_BASELINE.md`) do the same: a `baseline` object in JSON, a "Findings since the
-baseline" section in Markdown and HTML, one line in text.
+baseline" section in Markdown and HTML, one line in text. With `--baseline-gate` the same
+places also show the gate (a "Gate" part with the failed and the uncertain findings, and
+one line in text).
 
 HTML does not draw the per-component tables of a workspace report differently
 from Markdown, and the text format is a summary by design (it points to the full

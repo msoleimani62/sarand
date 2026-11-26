@@ -52,7 +52,11 @@ def test_essential_files_excludes_credential_shaped_filenames() -> None:
         write(root / ".env", "SECRET=abc123\n")
         write(
             root / "id_rsa",
-            "-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----\n",
+            _cat(
+                "-----BEGIN ",
+                "RSA PRIVATE KEY-----\nfake\n-----END ",
+                "RSA PRIVATE KEY-----\n",
+            ),
         )
 
         # .env and id_rsa have no ESSENTIAL_EXTENSIONS match anyway in some
@@ -70,7 +74,9 @@ def test_essential_files_excludes_credential_shaped_filenames() -> None:
 def test_content_scan_detects_aws_key_without_leaking_the_value() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        write(root / "config.py", 'AWS_KEY = "AKIAABCDEFGHIJKLMNOP"\n')
+        write(
+            root / "config.py", _cat('AWS_KEY = "', "AKIA", "ABCDEFGHIJKLMNOP", '"\n')
+        )
 
         findings = scan_for_secrets(root, [Path("config.py")])
 
@@ -86,7 +92,7 @@ def test_content_scan_detects_aws_key_without_leaking_the_value() -> None:
 def test_content_scan_detects_private_key_block() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        write(root / "notes.txt", "-----BEGIN RSA PRIVATE KEY-----\n")
+        write(root / "notes.txt", _cat("-----BEGIN ", "RSA PRIVATE KEY-----\n"))
 
         findings = scan_for_secrets(root, [Path("notes.txt")])
 
@@ -149,7 +155,9 @@ def test_end_to_end_flagged_file_content_never_reaches_markdown_report() -> None
 
     with _tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        write(root / "config.py", 'AWS_KEY = "AKIAABCDEFGHIJKLMNOP"\n')
+        write(
+            root / "config.py", _cat('AWS_KEY = "', "AKIA", "ABCDEFGHIJKLMNOP", '"\n')
+        )
         write(root / "clean.py", "x = 1\n")
 
         included = [Path("clean.py"), Path("config.py")]
@@ -169,7 +177,7 @@ def test_end_to_end_flagged_file_content_never_reaches_markdown_report() -> None
 
         output = _markdown.render(data, include_source=True)
 
-        assert "AKIAABCDEFGHIJKLMNOP" not in output
+        assert _cat("AKIA", "ABCDEFGHIJKLMNOP") not in output
         assert "`config.py`" in output  # named in the exclusion list
         assert "### FILE: `config.py`" not in output  # but never source-dumped
 

@@ -156,6 +156,14 @@ class FindingsView:
     scanned_files: frozenset[str]  # files whose content was scanned for secrets
     skipped_files: frozenset[str]  # files not scanned because they were too large
     source: str = "report"
+    # R14-D1 (F2): what the gate needs and the findings payload does not carry.
+    # `conditions` are the health critical ids (`None` = unknown: health was not
+    # computed, or the report predates schema 1.5); `fixture_secrets` are the ids of
+    # secret findings that sit in an explicit test fixture path (never Critical).
+    # R14-D1 (F2): آنچه gate لازم دارد و payload یافته‌ها ندارد. `None` برای conditions
+    # یعنی نامعلوم (health محاسبه نشده یا گزارش قدیمی‌تر از شمای ۱٫۵ است).
+    conditions: frozenset[str] | None = None
+    fixture_secrets: frozenset[str] = frozenset()
 
     def records(self, name: str) -> bool:
         """Whether this report recorded the class completely."""
@@ -254,8 +262,23 @@ def current_view(
     included_files: Iterable[str],
     excluded_secret_files: Iterable[str],
     skipped_files: Iterable[str],
+    critical_ids: Sequence[str] | None = None,
 ) -> FindingsView:
-    """The view of the run that has just finished, built from its result objects."""
+    """The view of the run that has just finished, built from its result objects.
+    `critical_ids` are the health critical ids (`None` when health was not computed)."""
+    secrets = list(secret_findings)
+    # A pair (path, pattern) is a fixture only if every finding of it is: the flag comes
+    # from the file path, so in practice they agree.
+    # یک جفت (مسیر، الگو) فقط وقتی fixture است که همه‌ی یافته‌هایش باشند.
+    fixture_ids = frozenset(
+        finding_id(KIND_SECRETS, s.path, s.pattern_name)
+        for s in secrets
+        if s.is_test_fixture
+    ) - frozenset(
+        finding_id(KIND_SECRETS, s.path, s.pattern_name)
+        for s in secrets
+        if not s.is_test_fixture
+    )
     return FindingsView(
         schema=schema,
         failures={failure_id(f): _failure_item(f, failure_id(f)) for f in failures},
@@ -268,7 +291,7 @@ def current_view(
                 for a in advisories
             )
         },
-        secrets=_secret_items((s.path, s.pattern_name) for s in secret_findings),
+        secrets=_secret_items((s.path, s.pattern_name) for s in secrets),
         check_states=_states(
             (
                 (GROUP_TEST, test_results),
@@ -279,6 +302,8 @@ def current_view(
         scanned_files=frozenset(included_files) | frozenset(excluded_secret_files),
         skipped_files=frozenset(skipped_files),
         source="current",
+        conditions=None if critical_ids is None else frozenset(critical_ids),
+        fixture_secrets=fixture_ids,
     )
 
 
@@ -391,6 +416,21 @@ def read_report_view(data: Any) -> FindingsView:
                 )
             _merge_state(check_states, f"{group}/{kind}", state)
 
+    # The health critical ids: known only when the report carries a health object and
+    # is at least schema 1.5 (a report without any critical condition leaves the key
+    # out, so a health object without it means none).
+    # شناسه‌های بحرانی health: فقط وقتی معلوم‌اند که گزارش health داشته باشد و حداقل شمای
+    # ۱٫۵ باشد (گزارشِ بدون هیچ شرط بحرانی کلید را حذف می‌کند، یعنی هیچ).
+    conditions: frozenset[str] | None = None
+    health = data.get("health")
+    if isinstance(health, Mapping) and schema >= (1, 5):
+        raw_ids = health.get("critical_ids", [])
+        if not isinstance(raw_ids, list):
+            raise BaselineReferenceError(
+                PROBLEM_INVALID, "health.critical_ids is not a list"
+            )
+        conditions = frozenset(str(x) for x in raw_ids)
+
     skipped = []
     for raw in _list(data, "skipped_files"):
         if isinstance(raw, list) and raw and isinstance(raw[0], str):
@@ -404,6 +444,7 @@ def read_report_view(data: Any) -> FindingsView:
         scanned_files=frozenset(str(p) for p in _list(data, "included_files"))
         | frozenset(str(p) for p in _list(data, "excluded_secret_files")),
         skipped_files=frozenset(skipped),
+        conditions=conditions,
     )
 
 
@@ -508,6 +549,22 @@ def _failure_changed(old: Mapping[str, Any], new: Mapping[str, Any]) -> str | No
 
 def _severity_rank(value: str | None) -> int | None:
     return None if value is None else _SEVERITY_RANK.get(value.strip().lower())
+
+
+SEVERITY_CRITICAL = "critical"
+SEVERITY_OTHER = "other"
+SEVERITY_UNKNOWN = "unknown"
+
+
+def severity_class(value: str | None) -> str:
+    """`critical`, `other` (a known label below critical) or `unknown` (no label, or a
+    label this version does not know: it is never guessed).
+    `critical`، `other` (برچسب شناخته‌شده‌ی پایین‌تر) یا `unknown` (بدون برچسب یا برچسب
+    ناشناخته؛ هرگز حدس زده نمی‌شود)."""
+    rank = _severity_rank(value)
+    if rank is None:
+        return SEVERITY_UNKNOWN
+    return SEVERITY_CRITICAL if rank == _SEVERITY_RANK["critical"] else SEVERITY_OTHER
 
 
 def _advisory_changed(old: Mapping[str, Any], new: Mapping[str, Any]) -> str | None:

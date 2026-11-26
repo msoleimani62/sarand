@@ -56,7 +56,8 @@ advisory از نوع vulnerability یا unsound که ابزار گزارش کر�
 `docs/STRUCTURE_BASELINE.fa.md`) همان مسیر را می‌روند: شیء کامل `structure_comparison` در JSON،
 بخش «Structure changes» در Markdown و HTML، و یک خط خلاصه در text. یافته‌ها در مقایسه با گزارش قبلی (`--baseline`،
 `docs/FINDINGS_BASELINE.fa.md`) همین‌طورند: شیء `baseline` در JSON، بخش «Findings since the
-baseline» در Markdown و HTML، و یک خط در text.
+baseline» در Markdown و HTML، و یک خط در text. با `--baseline-gate` همان جاها gate را هم نشان می‌دهند
+(بخش «Gate» با یافته‌های ردکننده و uncertain، و یک خط در text).
 
 HTML جدول‌های هر component در گزارش workspace را متفاوت از Markdown رسم نمی‌کند، و
 قالب text عمداً خلاصه است (برای فهرست‌ها به گزارش کامل ارجاع می‌دهد). مقایسه‌ی

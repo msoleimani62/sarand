@@ -189,8 +189,8 @@ slice.
 |---|---|---|
 | S1 structural comparison (library) | Pass, closed | commit `cd2f807`, CI run `44968799181` green, 1,858 passed and 10 skipped, `docs/STRUCTURE_BASELINE.md` |
 | S2 snapshot file, command line, report key | Pass, closed | commit `5830064`, CI run `45119095300` green, 1,898 passed and 10 skipped, report schema 1.11 |
-| F1 findings comparison, `--baseline` | Pass after one CI fix (the green CI run of the fix is recorded below when it exists) | commit `eb2bb33`: local chain green (1,936 passed, 10 skipped); CI run `45497163018` failed only in gitleaks, which flagged two secret-looking literals in `tests/test_findings_baseline_cli.py` (rules `generic-api-key` and `github-pat`); the literals are now built at run time and the two fingerprints are in `.gitleaksignore` |
-| F2 gate policies, exit codes | Pending: decided, not built | section 9 |
+| F1 findings comparison, `--baseline` | Pass, closed (after one CI fix) | commit `eb2bb33`: local chain green (1,936 passed, 10 skipped); CI run `45497163018` failed only in gitleaks, which flagged two secret-looking literals in `tests/test_findings_baseline_cli.py`; the fix `e5692d0` builds the literals at run time and `.gitleaksignore` holds the two fingerprints; the docs commit `88a6fe8` followed; CI run `45759439044` green on every job |
+| F2 gate policies, exit codes | Pending: built and tested in the sandbox, not yet run on the owner's chain or CI | section 9; the decisions taken while building are listed under "Decisions taken in F2" below; the commit and the green CI run are recorded here when they exist |
 | F3, F4, P, C | Pending | |
 
 ### Decisions taken in F1 (they refine section 3.1)
@@ -206,6 +206,34 @@ slice.
   cannot tell a deleted file from an ignored one.
 - **The findings path does not load `sarand.structure`**: the two module-level imports in
   `cli.py` and `json_renderer.py` became local, and a test runs the real command.
+
+### Decisions taken in F2 (they refine section 9)
+
+- **A new Critical failure is backed by a new failure.** A health condition id hashes a
+  set of tools, so it changes when that set changes (fixing one of two failing suites
+  gives another id). Comparing the id sets alone would fail the gate on a fix. For the
+  kinds that come from failures (`test_suite_failed`, `dependency_policy_failure`,
+  `security_tool_failure`) a condition counts as new only when a failure of the matching
+  group or category is `new` in the findings comparison, which already requires that the
+  reference ran the check. Kinds with no failure behind them (`broken_symlinks`) are new
+  when their id is not in the reference's `health.critical_ids`; with no reference ids
+  they are uncertain. This also makes the reference health optional for the failure kinds.
+- **`test_check_unavailable` is uncertain, not a failure.** It is a health critical id, but
+  it says a check gave no verdict; counting it would turn a missing tool into a gate
+  failure, which the owner's rule on `not_checked` excludes. It is listed under
+  `uncertain` (always for `critical`, only when new for `new-critical`).
+- **`changed` is never new.** A secret whose count grew, an advisory whose severity rose
+  or a failure whose evidence changed is an old finding; `critical` still fails on a
+  Critical one that is present, whatever its state.
+- **Uncertain does not change the verdict** (`pass` with a list), and is shown in the JSON,
+  Markdown, HTML, text and the closing summary, so a pass is never silent about it.
+- **The comparison moved after the health score** in `cli.run` (the gate reads
+  `health.critical_ids`); `--no-health` leaves conditions unknown, which is uncertain.
+- **Exit codes** `4` replaces `1` for an unusable findings or structural baseline (their
+  documents and tests changed); a snapshot target that cannot be used stays `1`; the gate
+  failure `3` wins over a report or snapshot error `1`.
+- **`--baseline-gate`** given without `--baseline` is a general error (`1`, no report);
+  another value is refused by the argument parser (`2`).
 
 ## 9. Decisions of 2026-11-24 for F2, and how to continue
 
@@ -264,9 +292,9 @@ slice.
 
 ### How to continue (for the next session)
 
-1. Get a fresh zip of `main` after the CI fix is green; the files the owner's `ruff format`
-   rewrote differ from any sandbox copy, so apply changes against that zip only.
-2. Build F2 as in the design above: `core/gate.py` (new), the `conditions` and secret
+1. Get a fresh zip of `main` after every delivery is committed; the files the owner's
+   `ruff format` rewrote differ from any sandbox copy, so apply changes against that zip only.
+2. F2 was built as in the design above (done; see "Decisions taken in F2"). The design was: `core/gate.py` (new), the `conditions` and secret
    `fixture` fields in `core/baseline.py` views, `--baseline-gate` in `config.py` and
    `cli.py` (health is computed after the report data exists, so the comparison and the gate
    move after `compute_health_score`), exit codes `3` and `4`, the gate lines in Markdown,

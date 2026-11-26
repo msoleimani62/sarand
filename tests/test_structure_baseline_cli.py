@@ -309,7 +309,7 @@ def test_an_unusable_baseline_is_refused_before_any_report_is_written(
             "-o",
             "x.json",
         )
-        assert done.returncode == 1
+        assert done.returncode == 4  # an unusable baseline: exit code 4
     assert _reports(tmp_path) == []
 
 

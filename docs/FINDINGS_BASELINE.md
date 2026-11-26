@@ -1,9 +1,9 @@
 # Findings baseline: what changed since a previous report
 
-Status: the library and the `--baseline` option (slice F1 of R14-D1,
-`docs/R14D1_PLAN.md`). The gate policies (slice F2), waivers (F3) and SARIF fingerprints
-(F4) are not built yet; today the comparison is information only and never changes the
-exit code.
+Status: the library, the `--baseline` option (slice F1 of R14-D1, `docs/R14D1_PLAN.md`)
+and the gate policies with their exit codes (slice F2). Waivers (F3) and SARIF
+fingerprints (F4) are not built yet. Without `--baseline-gate` the comparison is
+information only and never changes the exit code.
 
 The findings baseline is **independent of the structural baseline**
 (`docs/STRUCTURE_BASELINE.md`). It compares the findings of two analyses; it does not
@@ -74,7 +74,8 @@ list is in `reference.classes_not_recorded`.
 result to the report. An unusable file (missing, not a regular file, too large, not JSON,
 not a report, a schema other than 1.x, or a malformed finding) is an error that names the
 file and the reason; it is checked before any work, so no scan runs and no report is
-written (exit code 1). The comparison never changes the exit code.
+written (exit code 4). The comparison changes the exit code only when `--baseline-gate`
+asks for it (below).
 
 - **JSON:** the `baseline` object (report schema 1.12, `docs/JSON_SCHEMA.md`).
 - **Markdown and HTML:** a "Findings since the baseline" section (the counts per class,
@@ -86,28 +87,73 @@ sarand --full -f json -o before                      # the reference
 sarand --full --baseline reports/before.json         # later: what changed?
 ```
 
-## Gate and exit codes (slice F2: decided, not built yet)
+## Gate and exit codes
 
-The owner decided the following on 2026-11-24; `docs/R14D1_PLAN.md`, section 9, has the
-design. Until F2 is built the comparison is information only.
+`--baseline-gate POLICY` (only with `--baseline`; the default is `never`) lets the
+comparison decide the exit code. The design is in `docs/R14D1_PLAN.md`, section 9.
 
 | Policy | The gate fails when |
 |---|---|
 | `never` (default) | never: a baseline changes no exit code |
-| `new` | a valid finding is `new` |
+| `new` | a valid finding is `new` (a failure, an advisory of any severity, a secret that is not a fixture) |
 | `new-critical` | a Critical finding is `new` |
 | `critical` | any Critical finding is present, new or old |
 
-What is Critical (the same for `new-critical` and `critical`): every valid secret finding
-(valid means not a test fixture), an advisory whose severity is `critical` (`high` and lower
-are not), and a health condition id that the project classification marks critical
-(`health.critical_ids`; an ordinary tool failure is not). Nothing is guessed from a summary,
-a message or a tool name. When criticality cannot be decided it is not assumed, and the
-uncertainty is reported in the gate result instead of failing the gate or passing silently.
-`fixed`, `unchanged` and `not_checked` are never counted as new by the gate.
+**What is Critical** (the same for `new-critical` and `critical`; explicit, never guessed
+from a summary, a message or a tool name):
 
-Exit codes: `0` success, `1` general run error, `3` the gate failed, `4` the baseline
-reference is unusable (today an unusable reference exits `1`; F2 changes it to `4`).
+- **Secret findings:** every valid one. Valid means not a test fixture: `is_test_fixture`
+  comes from the project's explicit `[secrets] fixture_paths` list. A fixture secret is
+  never Critical and never counted by any policy.
+- **Advisories:** only severity `critical`. `high`, `moderate` and lower are not Critical.
+  An advisory with no severity, or one this version does not know, is *uncertain*.
+- **Failures:** only through a health critical condition (`health.critical_ids`). An
+  ordinary tool failure is not Critical. The kinds `hardcoded_secrets` and
+  `security_finding_detected` restate secrets and advisories and are left to those rules
+  (otherwise a `high` advisory would be Critical through its health condition). A
+  condition of kind `test_check_unavailable` means a check gave no verdict: it is
+  *uncertain*, not a failure.
+
+**A new Critical failure.** A condition id is built from a *set* of tools, so it changes
+when that set changes: fixing one of two failing suites yields another id and is not a new
+problem. For the kinds that come from failures (`test_suite_failed`,
+`dependency_policy_failure`, `security_tool_failure`) a condition therefore counts as new
+only when a failure of that kind is `new` in the comparison (which already requires that
+the reference ran the check). Other kinds (`broken_symlinks`) are new when their id is not
+in the reference's `health.critical_ids`.
+
+**What the gate never does.** `fixed`, `unchanged`, `changed` and `not_checked` are never
+counted as new. When what is needed to decide is missing, Critical is not assumed: the
+finding is listed under `uncertain` with the reason, it does not fail the gate (no false
+failure) and it is shown in every report and in the closing summary (no silent pass).
+The reasons: `severity_unknown`, `health_not_computed` (`--no-health`),
+`reference_has_no_critical_ids` (a reference older than schema 1.5 or without health),
+`check_unavailable_no_verdict`, and the `not_checked` reasons of the comparison
+(`reference_check_not_run`, `reference_file_skipped`, `class_not_recorded_in_reference`).
+
+**The result** is `baseline.gate` in the JSON report (schema 1.12, no new version):
+`policy`, `verdict` (`not_gated`, `pass` or `fail`), `failed_on` (each with `class`, `id`,
+`state` `new` or `existing`, `rule` and `label`) and `uncertain` (`class`, `id`, `reason`,
+`label`). Markdown and HTML show a "Gate" part, text one line, and the closing summary of
+the command prints `Gate    : FAILED ...` or `Gate    : passed ...`. A gate failure still
+writes the report.
+
+**Exit codes.**
+
+| Code | Meaning |
+|---|---|
+| `0` | success |
+| `1` | general run error (an invalid option, a report or snapshot that could not be written, a snapshot target that cannot be used) |
+| `3` | the gate failed |
+| `4` | the baseline reference is unusable (the findings baseline or the structural one): invalid, incompatible, missing |
+
+A baseline error is never confused with a gate failure. If the gate fails and a report or
+snapshot error happened too, the exit code is `3` (the other error is still printed): the
+gate is the signal a pipeline acts on.
+
+```text
+sarand --full --baseline reports/before.json --baseline-gate new-critical
+```
 
 ## Independence
 

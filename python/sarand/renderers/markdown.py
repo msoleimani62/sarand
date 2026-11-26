@@ -32,6 +32,7 @@ from sarand.core.report_views import (
     BASELINE_COLUMNS,
     BASELINE_NOTE,
     FAILURE_COLUMNS,
+    GATE_COLUMNS,
     STRUCTURE_ATTENTION_COLUMNS,
     STRUCTURE_CHANGE_COLUMNS,
     STRUCTURE_COMPARISON_COLUMNS,
@@ -42,6 +43,8 @@ from sarand.core.report_views import (
     advisory_intro,
     advisory_line_note,
     advisory_rows,
+    baseline_gate_line,
+    baseline_gate_rows,
     baseline_lines,
     baseline_rows,
     baseline_summary,
@@ -506,6 +509,27 @@ def _render_baseline(data: ReportData) -> list[str]:
     )
     lines.extend("| " + " | ".join(row) + " |" for row in baseline_summary(data))
     lines.append("")
+    if gate_line := baseline_gate_line(data):
+        lines.extend(["### Gate", "", gate_line, ""])
+        gate_rows, gate_total = baseline_gate_rows(data)
+        lines.extend(
+            [
+                "| " + " | ".join(GATE_COLUMNS) + " |",
+                "|" + "---|" * len(GATE_COLUMNS),
+            ]
+        )
+        lines.extend(
+            f"| {result} | {name} | {_cell(what)} | {_cell(note)} |"
+            for result, name, what, note in gate_rows
+        )
+        if gate_total > len(gate_rows):
+            lines.extend(
+                [
+                    "",
+                    f"{gate_total - len(gate_rows)} more not shown (see the JSON report).",
+                ]
+            )
+        lines.append("")
     rows, total = baseline_rows(data)
     if rows:
         lines.extend(

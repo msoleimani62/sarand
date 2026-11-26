@@ -30,6 +30,7 @@ from sarand.core.report_views import (
     BASELINE_COLUMNS,
     BASELINE_NOTE,
     FAILURE_COLUMNS,
+    GATE_COLUMNS,
     STRUCTURE_ATTENTION_COLUMNS,
     STRUCTURE_CHANGE_COLUMNS,
     STRUCTURE_COMPARISON_COLUMNS,
@@ -40,6 +41,8 @@ from sarand.core.report_views import (
     advisory_intro,
     advisory_line_note,
     advisory_rows,
+    baseline_gate_line,
+    baseline_gate_rows,
     baseline_lines,
     baseline_rows,
     baseline_summary,
@@ -264,6 +267,16 @@ def _baseline_html(data: ReportData) -> str:
         + "</ul>",
         _table(BASELINE_COLUMNS, baseline_summary(data)),
     ]
+    if gate_line := baseline_gate_line(data):
+        out.append("<h3>Gate</h3>")
+        out.append(f"<p>{escape(gate_line)}</p>")
+        gate_rows, gate_total = baseline_gate_rows(data)
+        out.append(_table(GATE_COLUMNS, gate_rows))
+        if gate_total > len(gate_rows):
+            out.append(
+                f'<p class="meta">{gate_total - len(gate_rows)} more not shown '
+                "(see the JSON report).</p>"
+            )
     rows, total = baseline_rows(data)
     if rows:
         out.append("<h3>Findings that are not unchanged</h3>")

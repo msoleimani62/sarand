@@ -150,7 +150,7 @@ def test_an_unusable_baseline_is_refused_before_any_report_is_written(
         done = _run(
             tmp_path, project, "--baseline", baseline, "-f", "json", "-o", "x.json"
         )
-        assert done.returncode == 1
+        assert done.returncode == 4  # a baseline error is never a general error
     assert not (tmp_path / "out").exists() or list((tmp_path / "out").iterdir()) == []
 
 

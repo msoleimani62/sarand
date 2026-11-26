@@ -74,6 +74,10 @@ def render(
             f"{totals['changed']} changed, {totals['not_checked']} not checked "
             "-- see full report"
         )
+        from sarand.core.report_views import baseline_gate_line
+
+        if gate_line := baseline_gate_line(data):
+            lines.append(f"{gate_line} -- see full report")
     if data.failures:
         lines.append(f"Failures: {len(data.failures)} classified -- see full report")
     if data.advisories:

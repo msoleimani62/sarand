@@ -20,6 +20,9 @@ version may include behaviour changes.
 
 ### Changed
 
+- An unusable baseline (`--baseline` or `--structure-baseline`: missing, invalid or
+  incompatible) now exits with code `4` instead of `1`, so a pipeline can tell it from a
+  general error and from a gate failure (`3`).
 - `--output-name` (and `output_name` in the configuration) must now be one plain
   filename: a path, a separator, `.` / `..`, a drive, a control character or a
   non-portable Windows name is rejected before the scan starts.
@@ -41,9 +44,18 @@ version may include behaviour changes.
   adds the result as the JSON key `baseline` (report schema 1.12, additive) and a
   "Findings since the baseline" section in Markdown and HTML. A finding is `fixed` only
   when the check that reports it ran in this run, and `new` only when the reference could
-  have seen it; otherwise it is `not_checked`. It never changes the exit code (the gate
-  comes in a later slice). A findings-only run no longer loads the structure package.
-  See `docs/FINDINGS_BASELINE.md`.
+  have seen it; otherwise it is `not_checked`. A findings-only run no longer loads the
+  structure package. See `docs/FINDINGS_BASELINE.md`.
+
+- Gate and exit codes (R14-D1, slice F2): `--baseline-gate {never,new,new-critical,critical}`
+  (only with `--baseline`; default `never`, which changes no exit code) lets the findings
+  comparison fail the run with exit code `3`. Critical is explicit: a secret that is not a
+  test fixture, an advisory of severity `critical`, or a health critical condition
+  (`health.critical_ids`); what cannot be decided is reported under `baseline.gate.uncertain`
+  and never fails the gate. The result is the key `gate` inside the `baseline` object
+  (schema 1.12, additive), a "Gate" part in Markdown and HTML, a line in text and in the
+  closing summary. Exit codes: `0` success, `1` general error, `3` gate failed, `4` baseline
+  unusable. See `docs/FINDINGS_BASELINE.md`.
 
 - Structural baseline (R14-D1, slice S2): `--structure-snapshot PATH` writes the structure
   as a snapshot (never over an existing file unless `--replace-structure-snapshot`, which
