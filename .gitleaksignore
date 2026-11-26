@@ -1,0 +1,7 @@
+# Two findings of commit eb2bb33 (tests/test_findings_baseline_cli.py, line 20): deliberately
+# fake credentials that the test plants for sarand's own secret scanner. The literals are
+# built at run time now; the pushed history cannot be rewritten.
+# دو یافته‌ی commit eb2bb33: اعتبارنامه‌ی عمداً جعلی که آزمون برای اسکنر secret خود sarand
+# می‌کارد. حالا literal در زمان اجرا ساخته می‌شود؛ تاریخچه‌ی push‌شده را نمی‌شود بازنویسی کرد.
+eb2bb33070513fa1ecd7c68720dbe3461175b301:tests/test_findings_baseline_cli.py:generic-api-key:20
+eb2bb33070513fa1ecd7c68720dbe3461175b301:tests/test_findings_baseline_cli.py:github-pat:20

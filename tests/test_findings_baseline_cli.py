@@ -17,7 +17,13 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
-SECRETS = 'AWS_KEY = "AKIAIOSFODNN7EXAMPLE"\nTOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyz12"\n'
+# Built at run time from pieces: no secret-looking literal sits in the repository (gitleaks
+# scans it); the scanner under test sees the joined text in the project it scans.
+# در زمان اجرا از تکه‌ها ساخته می‌شود: هیچ literal شبیه secret در مخزن نمی‌ماند (gitleaks آن را
+# می‌گردد)؛ اسکنرِ مورد آزمون متن چسبیده را در پروژه‌ی اسکن‌شده می‌بیند.
+_AWS = "AKIA" + "IOSFODNN7EXAMPLE"
+_PAT = "ghp_" + "1234567890abcdefghijklmnopqrstuvwxyz12"
+SECRETS = f'AWS_KEY = "{_AWS}"\nTOKEN = "{_PAT}"\n'
 
 
 def _project(tmp_path: Path, secret_text: str | None) -> Path:
