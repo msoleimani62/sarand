@@ -189,8 +189,9 @@ slice.
 |---|---|---|
 | S1 structural comparison (library) | Pass, closed | commit `cd2f807`, CI run `44968799181` green, 1,858 passed and 10 skipped, `docs/STRUCTURE_BASELINE.md` |
 | S2 snapshot file, command line, report key | Pass, closed | commit `5830064`, CI run `45119095300` green, 1,898 passed and 10 skipped, report schema 1.11 |
-| F1 findings comparison, `--baseline` | Pending: delivered, awaiting the owner's chain | `docs/FINDINGS_BASELINE.md`, `tests/test_findings_baseline.py`, `tests/test_findings_baseline_cli.py`, report schema 1.12 |
-| F2 to F4, P, C | Pending | |
+| F1 findings comparison, `--baseline` | Pass after one CI fix (the green CI run of the fix is recorded below when it exists) | commit `eb2bb33`: local chain green (1,936 passed, 10 skipped); CI run `45497163018` failed only in gitleaks, which flagged two secret-looking literals in `tests/test_findings_baseline_cli.py` (rules `generic-api-key` and `github-pat`); the literals are now built at run time and the two fingerprints are in `.gitleaksignore` |
+| F2 gate policies, exit codes | Pending: decided, not built | section 9 |
+| F3, F4, P, C | Pending | |
 
 ### Decisions taken in F1 (they refine section 3.1)
 
@@ -205,3 +206,82 @@ slice.
   cannot tell a deleted file from an ignored one.
 - **The findings path does not load `sarand.structure`**: the two module-level imports in
   `cli.py` and `json_renderer.py` became local, and a test runs the real command.
+
+## 9. Decisions of 2026-11-24 for F2, and how to continue
+
+### The owner's decisions
+
+1. **What is Critical** (one definition for `new-critical` and `critical`; explicit, never
+   guessed from a summary, a message or a tool name):
+   - **Secret findings:** every valid finding is Critical. Valid means not a test fixture:
+     `is_test_fixture` is set from the project's explicit `[secrets] fixture_paths` list,
+     and health and the risks already exclude those findings the same way.
+   - **Advisories:** only severity `critical`. `high`, `moderate` and lower are not Critical.
+   - **Failures:** only the health failure ids that the project classification explicitly
+     marks Critical (`health.critical_ids`). An ordinary tool or check failure is not
+     Critical by itself.
+   - If what is needed to decide Critical is missing, it is **not** assumed Critical; the
+     uncertainty is kept and reported, and it never lets the gate pass by mistake.
+2. **Exit codes:** `0` success, `1` general run error, `3` the gate failed, `4` the baseline
+   reference is invalid, incompatible or unusable. A baseline error is never confused with a
+   gate failure. Other exit paths are not changed without need.
+3. **Gate policies** (exactly four): `never` (default; a baseline changes no exit code),
+   `new` (a new valid finding fails the gate), `new-critical` (a new Critical finding fails
+   it), `critical` (any Critical finding, new or old, fails it). `fixed`, `unchanged` and
+   `not_checked` are never counted as new or as fixed by the gate; in particular
+   `not_checked` must not give a false failure.
+4. **Authority:** F1 and F2 may be completed without asking again for small fixes: apply,
+   validate, fix real defects, keep the English and Persian documentation in step with the
+   behaviour, commit, push, check the CI of that commit. No scope growth, no repeated audits.
+5. **Delivery:** the complete implementation, valid tests with the boundary cases, bilingual
+   documentation, the result of the quality tools and tests, the commit SHA and the green CI
+   run of that commit, and a short report (changes, decisions, results, what remains).
+
+### The design that follows from them (taken within that authority)
+
+- **Where criticality comes from.** Secrets and advisories are classified per finding as
+  above. The failure criticality is the set of health critical condition ids
+  (`health.critical_ids`), compared as a set between the reference and this run, because a
+  condition id is built from a tool set and not from one failure. Two kinds of condition
+  restate the other classes and are left to those classes' own rules: `hardcoded_secrets`
+  and `security_finding_detected` (otherwise a `high` advisory would be Critical through its
+  health condition, which contradicts decision 1). The kind is the prefix of the id before
+  the colon.
+- **Uncertainty is reported, not decided.** A new advisory whose severity is unknown, a
+  finding that is `not_checked` and would count if it were new, and critical conditions that
+  cannot be known (health was not computed, or the reference did not record `critical_ids`)
+  are listed in the gate result as `uncertain` with the reason. They do not fail the gate
+  (it must not give a false failure) and they are visible (it must not pass silently).
+- **The result** is `baseline.gate`: `policy`, `verdict` (`not_gated`, `pass` or `fail`),
+  `failed_on` (the findings that failed it) and `uncertain`.
+- **Options:** `--baseline-gate {never,new,new-critical,critical}` (default `never`), valid
+  only with `--baseline`.
+- **Exit code order.** An unusable baseline (findings or structural) is `4` and is decided
+  before any work. If the gate fails the run exits `3`, also when a report or snapshot error
+  happened too (that error is still printed): the gate is the signal a pipeline acts on.
+- **Where it changes existing behaviour:** the F1 and S2 refusals of an unusable reference
+  exit `1` today and become `4`; the documents of F1 and S2 and their tests change with it.
+
+### How to continue (for the next session)
+
+1. Get a fresh zip of `main` after the CI fix is green; the files the owner's `ruff format`
+   rewrote differ from any sandbox copy, so apply changes against that zip only.
+2. Build F2 as in the design above: `core/gate.py` (new), the `conditions` and secret
+   `fixture` fields in `core/baseline.py` views, `--baseline-gate` in `config.py` and
+   `cli.py` (health is computed after the report data exists, so the comparison and the gate
+   move after `compute_health_score`), exit codes `3` and `4`, the gate lines in Markdown,
+   HTML and text, tests for every policy and every boundary (unknown severity, `not_checked`,
+   missing health, fixture secrets, a reference without `critical_ids`), documentation in
+   English and Persian, the JSON schema note (the `gate` object is inside `baseline`,
+   schema 1.12, no new version).
+3. Then F3 (waivers: scope, reason, owner, creation date, expiry, a matching rule; an expired
+   waiver suppresses nothing; every applied waiver is visible), F4 (SARIF
+   `partialFingerprints` from the finding id), P (the performance of both paths, measured
+   separately; a `compare` mode in `scripts/structure_bench.py`) and C (real runs on sarand
+   and click, the closing report with Pass, Fail or Pending per criterion).
+4. The recurring pitfalls: `ruff` has FURB and RUF015 on (use `min()` and `next()`); mypy
+   rejects a name re-bound with another type inside one function; wrap multi-line f-string
+   groups in list literals in parentheses; no shebang without the executable bit; no `assert`
+   in production code; a literal that looks like a secret in a test is flagged by gitleaks
+   (build it at run time); a new file in `python/sarand` needs its tests and both language
+   documents; `markdownlint "**/*.md"` runs in CI.

@@ -86,6 +86,29 @@ sarand --full -f json -o before                      # the reference
 sarand --full --baseline reports/before.json         # later: what changed?
 ```
 
+## Gate and exit codes (slice F2: decided, not built yet)
+
+The owner decided the following on 2026-11-24; `docs/R14D1_PLAN.md`, section 9, has the
+design. Until F2 is built the comparison is information only.
+
+| Policy | The gate fails when |
+|---|---|
+| `never` (default) | never: a baseline changes no exit code |
+| `new` | a valid finding is `new` |
+| `new-critical` | a Critical finding is `new` |
+| `critical` | any Critical finding is present, new or old |
+
+What is Critical (the same for `new-critical` and `critical`): every valid secret finding
+(valid means not a test fixture), an advisory whose severity is `critical` (`high` and lower
+are not), and a health condition id that the project classification marks critical
+(`health.critical_ids`; an ordinary tool failure is not). Nothing is guessed from a summary,
+a message or a tool name. When criticality cannot be decided it is not assumed, and the
+uncertainty is reported in the gate result instead of failing the gate or passing silently.
+`fixed`, `unchanged` and `not_checked` are never counted as new by the gate.
+
+Exit codes: `0` success, `1` general run error, `3` the gate failed, `4` the baseline
+reference is unusable (today an unusable reference exits `1`; F2 changes it to `4`).
+
 ## Independence
 
 The comparison reads two reports and the results of the run; it never imports
