@@ -156,7 +156,9 @@ def test_never_changes_nothing_even_with_new_and_critical_findings() -> None:
         "policy": "never",
         "verdict": "not_gated",
         "failed_on": [],
+        "waived": [],
         "uncertain": [],
+        "waivers": {"as_of": None, "expired": [], "unused": [], "exceeded": []},
     }
 
 
@@ -623,8 +625,22 @@ def test_a_failed_item_and_an_uncertain_item_carry_the_documented_fields() -> No
         security_results=[_check("cargo audit")],
     )
     result = _run("critical", _report(), current)
-    assert set(result) == {"policy", "verdict", "failed_on", "uncertain"}
-    assert set(result["failed_on"][0]) == {"class", "id", "state", "rule", "label"}
+    assert set(result) == {
+        "policy",
+        "verdict",
+        "failed_on",
+        "waived",
+        "uncertain",
+        "waivers",
+    }
+    assert set(result["failed_on"][0]) == {
+        "class",
+        "id",
+        "state",
+        "rule",
+        "label",
+        "family",
+    }
     assert set(result["uncertain"][0]) == {"class", "id", "reason", "label"}
 
 

@@ -47,6 +47,16 @@ version may include behaviour changes.
   have seen it; otherwise it is `not_checked`. A findings-only run no longer loads the
   structure package. See `docs/FINDINGS_BASELINE.md`.
 
+- Waivers (R14-D1, slice F3): `[[waivers]]` in `.sarand.toml` lets a project accept a
+  finding on purpose so that `--baseline-gate` stops failing on it. A waiver has a scope
+  (`id` for one finding, or `rule = "<class>:<family>"` with a required `covers`), a
+  reason, an owner and real `created` and `expires` dates at most 366 days apart. An
+  expired waiver covers nothing; a rule waiver that matches more findings than `covers`
+  applies to none; a waiver that matches nothing is listed as unused; a waived finding
+  stays in the report (`baseline.gate.waived`, additive, schema 1.12) and in the closing
+  summary; an invalid file is an error (exit code 1) and is read only when a gate is on.
+  See `docs/FINDINGS_BASELINE.md`.
+
 - Gate and exit codes (R14-D1, slice F2): `--baseline-gate {never,new,new-critical,critical}`
   (only with `--baseline`; default `never`, which changes no exit code) lets the findings
   comparison fail the run with exit code `3`. Critical is explicit: a secret that is not a

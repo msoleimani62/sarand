@@ -1,7 +1,7 @@
 # Findings baseline: what changed since a previous report
 
 Status: the library, the `--baseline` option (slice F1 of R14-D1, `docs/R14D1_PLAN.md`)
-and the gate policies with their exit codes (slice F2). Waivers (F3) and SARIF
+the gate policies with their exit codes (slice F2) and the waivers (slice F3). SARIF
 fingerprints (F4) are not built yet. Without `--baseline-gate` the comparison is
 information only and never changes the exit code.
 
@@ -133,8 +133,9 @@ The reasons: `severity_unknown`, `health_not_computed` (`--no-health`),
 
 **The result** is `baseline.gate` in the JSON report (schema 1.12, no new version):
 `policy`, `verdict` (`not_gated`, `pass` or `fail`), `failed_on` (each with `class`, `id`,
-`state` `new` or `existing`, `rule` and `label`) and `uncertain` (`class`, `id`, `reason`,
-`label`). Markdown and HTML show a "Gate" part, text one line, and the closing summary of
+`state` `new` or `existing`, `rule`, `label` and `family`), `waived` (the failed items a
+waiver covers, each with its `waiver`), `uncertain` (`class`, `id`, `reason`, `label`) and
+`waivers` (`as_of`, and the lists `expired`, `unused` and `exceeded`). Markdown and HTML show a "Gate" part, text one line, and the closing summary of
 the command prints `Gate    : FAILED ...` or `Gate    : passed ...`. A gate failure still
 writes the report.
 
@@ -154,6 +155,80 @@ gate is the signal a pipeline acts on.
 ```text
 sarand --full --baseline reports/before.json --baseline-gate new-critical
 ```
+
+## Waivers
+
+A waiver tells the gate not to fail on a finding the project accepts on purpose. It never
+hides the finding: it moves from `failed_on` to `waived`, stays in every report and in the
+closing summary, with its reason, owner and end date. Waivers count only when a gate
+policy other than `never` is on; with `never` the file is not even read.
+
+They are written in `.sarand.toml`, the file of the license policy and the secret
+settings, as an array of tables:
+
+```toml
+[[waivers]]
+id = "dependency_advisory:0123456789ab"
+reason = "No fixed release; the vulnerable path is not reachable (ticket 123)"
+owner = "m.soleimani"
+created = 2026-11-27
+expires = 2027-02-27
+reference = "https://example.org/issues/123"
+
+[[waivers]]
+rule = "advisories:RUSTSEC-2024-0001"
+covers = 2
+reason = "Both affected crates are build-time only"
+owner = "m.soleimani"
+created = 2026-11-27
+expires = 2027-01-31
+```
+
+| Key | Meaning |
+|---|---|
+| `id` | one exact finding or condition: the `id` the report and the gate print (`<kind>:<12 hex digits>`) |
+| `rule` | a whole rule, `<class>:<family>`: the class is `secrets`, `advisories` or `failures`; the family is the pattern name of a secret, the advisory id, the category of a failure, or the kind of a health condition (the `family` of a failed item) |
+| `covers` | only for a `rule`, and required: the most findings the rule may cover |
+| `reason`, `owner` | required, not empty |
+| `created`, `expires` | required, real dates (`2026-12-31`, not a string) |
+| `reference` | optional: a ticket or a link |
+
+Exactly one of `id` and `rule` is given.
+
+**What the rules guarantee.**
+
+- A waiver is a loan, not a permanent exception: `created` cannot be in the future,
+  `expires` cannot be before it, and the two cannot be more than 366 days apart.
+- An **expired** waiver (its `expires` date is before today; the day itself still counts)
+  suppresses nothing. The gate fails again and the report lists the waiver under
+  `waivers.expired` with how many failing findings it would have covered.
+- A broad waiver cannot silently cover a later, different finding. A `rule` waiver
+  declares `covers`; if more findings match it than that, it applies to **none** of them
+  and is listed under `waivers.exceeded`. To accept the new finding too, the owner has to
+  raise `covers` on purpose.
+- A waiver that covers nothing (the finding was fixed, or never existed) is listed under
+  `waivers.unused`, so stale waivers are visible and can be removed. It does not fail the
+  run.
+- Two waivers with the same scope are an error. When two different waivers match one
+  finding, the first in the file covers it and the second is `unused`.
+- Only what the gate would fail on is waivable: an `uncertain` finding never fails, so a
+  waiver aimed at it is `unused`.
+- Anything wrong in the file (an unknown key, a bad type, a missing field, a duplicate,
+  invalid TOML) is an error, never ignored: the command stops before any work with exit
+  code `1` and writes no report, because an ignored waiver would silently change the
+  gate.
+
+The closing summary shows the effect:
+
+```text
+Gate    : passed (policy new), 1 waived
+          ~ secrets: conf.py (AWS Access Key ID) (waived by #1, m.soleimani, until 2027-02-27)
+Waivers : 1 expired
+          ! #2 expired 2026-11-20 (m.soleimani); it would cover 1 failing finding(s)
+```
+
+The date used is the local date of the run; it is stored as `waivers.as_of`, so a report
+says which day its waivers were judged on.
 
 ## Independence
 
@@ -179,3 +254,7 @@ the schema did not record, every way a reference can be unusable, determinism, a
 rendered report read back, and the independence from the structure package.
 `tests/test_findings_baseline_cli.py` covers the command: the JSON key, the other
 formats, the refusals, a run without the option, and the import check.
+`tests/test_baseline_gate.py` and `tests/test_baseline_gate_cli.py` cover the policies and
+the exit codes. `tests/test_waivers.py` covers reading the file (every invalid case and
+the date boundaries), the application rules and the waivers through the gate;
+`tests/test_baseline_waivers_cli.py` covers them on the command.

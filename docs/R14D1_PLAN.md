@@ -190,8 +190,9 @@ slice.
 | S1 structural comparison (library) | Pass, closed | commit `cd2f807`, CI run `44968799181` green, 1,858 passed and 10 skipped, `docs/STRUCTURE_BASELINE.md` |
 | S2 snapshot file, command line, report key | Pass, closed | commit `5830064`, CI run `45119095300` green, 1,898 passed and 10 skipped, report schema 1.11 |
 | F1 findings comparison, `--baseline` | Pass, closed (after one CI fix) | commit `eb2bb33`: local chain green (1,936 passed, 10 skipped); CI run `45497163018` failed only in gitleaks, which flagged two secret-looking literals in `tests/test_findings_baseline_cli.py`; the fix `e5692d0` builds the literals at run time and `.gitleaksignore` holds the two fingerprints; the docs commit `88a6fe8` followed; CI run `45759439044` green on every job |
-| F2 gate policies, exit codes | Pending: built and tested in the sandbox, not yet run on the owner's chain or CI | section 9; the decisions taken while building are listed under "Decisions taken in F2" below; the commit and the green CI run are recorded here when they exist |
-| F3, F4, P, C | Pending | |
+| F2 gate policies, exit codes | Pass, closed (after two chain fixes) | commit `a806f7c` (`--baseline-gate`, exit codes 3 and 4, 60 new tests); the owner's chain first stopped on mypy (two dicts unpacked into typed parameters in the tests) and on bandit B105 (constant names containing `pass` and `secret`), both fixed on the owner's machine before the commit; chain green (1,996 passed, 10 skipped); CI run `45911758761` green on every job; the decisions taken while building are under "Decisions taken in F2" below |
+| F3 waivers | Pending: built and tested in the sandbox, not yet run on the owner's chain or CI | section 3.2; the decisions are under "Decisions taken in F3" below; the commit and the green CI run are recorded here when they exist |
+| F4, P, C | Pending | |
 
 ### Decisions taken in F1 (they refine section 3.1)
 
@@ -206,6 +207,35 @@ slice.
   cannot tell a deleted file from an ignored one.
 - **The findings path does not load `sarand.structure`**: the two module-level imports in
   `cli.py` and `json_renderer.py` became local, and a test runs the real command.
+
+### Decisions taken in F3 (they refine section 3.2)
+
+- **File format:** `[[waivers]]`, an array of tables in `.sarand.toml`, next to `[licenses]`
+  and `[secrets]` (the other loaders read only their own table, so the file is shared).
+  Code in `core/waivers.py`; the gate (`core/gate.py`) applies the waivers.
+- **Scope:** exactly one of `id` (a finding or condition id) and `rule`
+  (`<class>:<family>`; the family is the pattern name of a secret, the advisory id, the
+  category of a failure or the kind of a condition). The gate puts the `family` on every
+  failed item so that a rule has something stable to name.
+- **A broad waiver cannot silently grow:** a `rule` waiver must declare `covers`; with
+  more matches than that it applies to none and is reported as `exceeded`. This is the
+  "matching policy" of the owner's decision: exact for `id`, capped for `rule`.
+- **A waiver is a loan:** `created` and `expires` are required real dates, `created` is
+  not in the future and `expires` is at most 366 days after it. The expiry day itself
+  is still valid. An expired waiver suppresses nothing and is reported with how many
+  failing findings it would have covered.
+- **Visible, never hidden:** a covered finding moves to `baseline.gate.waived` with its
+  waiver; the closing summary, Markdown, HTML and text show it; `waivers` lists the
+  expired, unused and exceeded waivers. `waived` and `waivers` are additive inside
+  `baseline.gate` (schema 1.12, no new version).
+- **Only a gate reads them:** with `never` or without `--baseline` the file is not read,
+  so an invalid waiver cannot break a run that does not use it. With a gate on, an
+  invalid file stops the command before any work (exit code `1`, no report): an ignored
+  waiver would silently change the gate.
+- **The date is an input:** `evaluate_gate` takes `today`; the command passes the local
+  date and the report stores it as `waivers.as_of`.
+- **Not waivable:** an `uncertain` finding never fails, so a waiver aimed at it is
+  `unused`.
 
 ### Decisions taken in F2 (they refine section 9)
 
@@ -302,14 +332,16 @@ slice.
    missing health, fixture secrets, a reference without `critical_ids`), documentation in
    English and Persian, the JSON schema note (the `gate` object is inside `baseline`,
    schema 1.12, no new version).
-3. Then F3 (waivers: scope, reason, owner, creation date, expiry, a matching rule; an expired
-   waiver suppresses nothing; every applied waiver is visible), F4 (SARIF
+3. F3 (waivers) was built as in "Decisions taken in F3". Then F4 (SARIF
    `partialFingerprints` from the finding id), P (the performance of both paths, measured
    separately; a `compare` mode in `scripts/structure_bench.py`) and C (real runs on sarand
    and click, the closing report with Pass, Fail or Pending per criterion).
 4. The recurring pitfalls: `ruff` has FURB and RUF015 on (use `min()` and `next()`); mypy
    rejects a name re-bound with another type inside one function; wrap multi-line f-string
    groups in list literals in parentheses; no shebang without the executable bit; no `assert`
-   in production code; a literal that looks like a secret in a test is flagged by gitleaks
+   in production code; a constant whose NAME contains `pass`, `secret`, `token` or `pwd` and
+   is assigned a string is flagged by bandit B105 (rename it, the value may stay); mypy
+   rejects a `**dict` of mixed value types unpacked into typed parameters (annotate the dict
+   as `dict[str, Any]`); a literal that looks like a secret in a test is flagged by gitleaks
    (build it at run time); a new file in `python/sarand` needs its tests and both language
    documents; `markdownlint "**/*.md"` runs in CI.

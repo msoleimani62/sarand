@@ -26,6 +26,12 @@ new, and it never assumes Critical when the data to decide is missing. Such case
 listed in `uncertain` with the reason. They do not fail the gate (no false failure) and
 they are never hidden (no silent pass).
 
+**Waivers (slice F3, `core/waivers.py`):** the findings the gate would fail on are then
+split: the ones an active waiver covers move to `waived` (they stay visible and no longer
+fail the gate), the rest stay in `failed_on`. Uncertain findings are never waived (they
+never fail). The result also says which waivers expired, matched nothing or covered more
+findings than they declared (`waivers`).
+
 The result is a plain dict stored as `baseline.gate`. This module reads views and the
 comparison payload only; it never imports `sarand.structure`.
 
@@ -36,7 +42,8 @@ gate: نتیجه‌ی مقایسه‌ی یافته‌ها را به «قبول»
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from datetime import date
 from typing import Any
 
 from sarand.constants import FAILURE_DEPENDENCY_POLICY, FAILURE_SECURITY_TOOL
@@ -56,6 +63,7 @@ from sarand.core.baseline import (
 )
 from sarand.core.failures import GROUP_TEST
 from sarand.core.finding_identity import KIND_SECRETS, KIND_TEST_UNAVAILABLE
+from sarand.core.waivers import Waiver, apply_waivers
 
 # Exit codes of the command (the owner's decision of 2026-11-24). Other paths keep
 # theirs; a baseline error is never confused with a gate failure.
@@ -164,6 +172,17 @@ class _Gate:
         if entry is None:
             return STATE_UNCHANGED, ""
         return str(entry["state"]), str(entry.get("reason", ""))
+
+    def family(self, name: str, fid: str) -> str:
+        """The rule family of a finding (what a `rule` waiver names): the pattern name of
+        a secret, the advisory id, the category of a failure, the kind of a condition.
+        خانواده‌ی قاعده‌ی یافته (آنچه waiver از نوع `rule` نام می‌برد)."""
+        if name == CLASS_SECRETS:
+            return str(self.current.secrets[fid]["pattern_name"])
+        if name == CLASS_ADVISORIES:
+            return str(self.current.advisories[fid]["advisory_id"])
+        entry = self.entries[CLASS_FAILURES].get(fid)
+        return str(entry["category"]) if entry is not None else condition_kind(fid)
 
     # ----------------------------------------------------------------- secrets
 
@@ -385,38 +404,66 @@ def _order(items: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
     return sorted(items, key=lambda i: (i["class"], i["id"], str(i[key])))
 
 
+def _waiver_block(today: date | None, **lists: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "as_of": None if today is None else today.isoformat(),
+        "expired": lists.get("expired", []),
+        "unused": lists.get("unused", []),
+        "exceeded": lists.get("exceeded", []),
+    }
+
+
 def evaluate_gate(
     policy: str,
     reference: FindingsView,
     current: FindingsView,
     comparison: Mapping[str, Any],
+    waivers: Sequence[Waiver] = (),
+    today: date | None = None,
 ) -> dict[str, Any]:
-    """The gate result for `policy`: `{policy, verdict, failed_on, uncertain}`.
+    """The gate result for `policy`:
+    `{policy, verdict, failed_on, waived, uncertain, waivers}`.
 
     Pure and deterministic. `comparison` is the payload of
-    `baseline.compare_findings(reference, current)`. Raises `ValueError` for a policy
-    that is not one of `POLICIES`.
+    `baseline.compare_findings(reference, current)`. `waivers` are applied to what would
+    fail the gate, as of `today` (required when there are waivers: the date is an input,
+    never read from the clock here). Raises `ValueError` for a policy that is not one of
+    `POLICIES`.
     """
     if policy not in POLICIES:
         raise ValueError(
             f"unknown gate policy {policy!r} (one of {', '.join(POLICIES)})"
         )
+    if waivers and today is None:
+        raise ValueError("`today` is required when there are waivers")
     if policy == POLICY_NEVER:
         return {
             "policy": policy,
             "verdict": VERDICT_NOT_GATED,
             "failed_on": [],
+            "waived": [],
             "uncertain": [],
+            "waivers": _waiver_block(today),
         }
     gate = _Gate(policy, reference, current, comparison)
     gate.secrets()
     gate.advisories()
     gate.failures()
+    for item in gate.failed:
+        item["family"] = gate.family(item["class"], item["id"])
+    outcome = apply_waivers(_order(gate.failed, "rule"), waivers, today or date.min)
     return {
         "policy": policy,
-        "verdict": VERDICT_FAIL if gate.failed else VERDICT_OK,
-        "failed_on": _order(gate.failed, "rule"),
+        "verdict": VERDICT_FAIL if outcome.remaining else VERDICT_OK,
+        "failed_on": outcome.remaining,
+        "waived": _order(outcome.waived, "rule"),
         "uncertain": _order(gate.uncertain, "reason"),
+        "waivers": _waiver_block(
+            today,
+            expired=outcome.expired,
+            unused=outcome.unused,
+            exceeded=outcome.exceeded,
+        ),
     }
 
 

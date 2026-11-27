@@ -1,7 +1,7 @@
 # Baseline یافته‌ها: از گزارش قبلی چه تغییر کرده
 
-وضعیت: کتابخانه، گزینه‌ی `--baseline` (قطعه‌ی F1 از R14-D1، `docs/R14D1_PLAN.md`) و سیاست‌های gate
-همراه کدهای خروج (قطعه‌ی F2). waiverها (F3) و fingerprintهای SARIF (F4) هنوز ساخته نشده‌اند. بدون
+وضعیت: کتابخانه، گزینه‌ی `--baseline` (قطعه‌ی F1 از R14-D1، `docs/R14D1_PLAN.md`) سیاست‌های gate
+همراه کدهای خروج (قطعه‌ی F2) و waiverها (قطعه‌ی F3). fingerprintهای SARIF (F4) هنوز ساخته نشده‌اند. بدون
 `--baseline-gate` مقایسه فقط اطلاعاتی است و هرگز کد خروج را عوض نمی‌کند.
 
 baseline یافته‌ها **مستقل از baseline ساختاری** است (`docs/STRUCTURE_BASELINE.fa.md`). یافته‌های دو
@@ -120,7 +120,9 @@ sarand --full --baseline reports/before.json         # بعداً: چه تغیی
 
 **نتیجه** `baseline.gate` در گزارش JSON است (شمای 1.12، بدون نسخه‌ی جدید): `policy`، `verdict`
 (`not_gated`، `pass` یا `fail`)، `failed_on` (هرکدام با `class`، `id`، `state` برابر `new` یا `existing`،
-`rule` و `label`) و `uncertain` (`class`، `id`، `reason`، `label`). Markdown و HTML بخش «Gate» دارند،
+`rule`، `label` و `family`)، `waived` (آیتم‌های ردکننده‌ای که waiver می‌پوشاند، هرکدام با `waiver` خود)،
+`uncertain` (`class`، `id`، `reason`، `label`) و `waivers` (`as_of` و فهرست‌های `expired`، `unused` و
+`exceeded`). Markdown و HTML بخش «Gate» دارند،
 text یک خط، و خلاصه‌ی پایانی فرمان `Gate    : FAILED ...` یا `Gate    : passed ...` را چاپ می‌کند.
 شکست gate همچنان گزارش را می‌نویسد.
 
@@ -139,6 +141,77 @@ text یک خط، و خلاصه‌ی پایانی فرمان `Gate    : FAILED ..
 ```text
 sarand --full --baseline reports/before.json --baseline-gate new-critical
 ```
+
+## Waiverها
+
+waiver به gate می‌گوید روی یافته‌ای که پروژه عمداً می‌پذیرد رد نکند. هرگز یافته را پنهان نمی‌کند: از
+`failed_on` به `waived` می‌رود و با دلیل، مالک و تاریخ پایان در هر گزارش و در خلاصه‌ی پایانی می‌ماند.
+waiverها فقط وقتی حساب می‌شوند که سیاست gate غیر از `never` باشد؛ با `never` فایل حتی خوانده نمی‌شود.
+
+در `.sarand.toml` نوشته می‌شوند (فایل سیاست مجوز و تنظیمات secret) و آرایه‌ای از جدول‌اند:
+
+<div dir="ltr">
+
+```toml
+[[waivers]]
+id = "dependency_advisory:0123456789ab"
+reason = "No fixed release; the vulnerable path is not reachable (ticket 123)"
+owner = "m.soleimani"
+created = 2026-11-27
+expires = 2027-02-27
+reference = "https://example.org/issues/123"
+
+[[waivers]]
+rule = "advisories:RUSTSEC-2024-0001"
+covers = 2
+reason = "Both affected crates are build-time only"
+owner = "m.soleimani"
+created = 2026-11-27
+expires = 2027-01-31
+```
+
+</div>
+
+| کلید | معنی |
+|---|---|
+| `id` | یک یافته یا شرط دقیق: همان `id` که گزارش و gate چاپ می‌کنند (`<kind>:<12 رقم hex>`) |
+| `rule` | یک قاعده‌ی کامل، `<class>:<family>`: class برابر `secrets`، `advisories` یا `failures` است؛ family نام الگوی secret، شناسه‌ی advisory، category شکست یا kind شرط health است (همان `family` آیتم ردکننده) |
+| `covers` | فقط برای `rule` و الزامی: حداکثر تعداد یافته‌ای که قاعده می‌تواند بپوشاند |
+| `reason`، `owner` | الزامی، غیرخالی |
+| `created`، `expires` | الزامی، تاریخ واقعی (`2026-12-31`، نه رشته) |
+| `reference` | اختیاری: تیکت یا لینک |
+
+دقیقاً یکی از `id` و `rule` داده می‌شود.
+
+**قاعده‌ها چه تضمین می‌کنند.**
+
+- waiver وام است، نه استثنای دائمی: `created` در آینده نیست، `expires` پیش از آن نیست و فاصله‌ی این دو
+  بیش از ۳۶۶ روز نیست.
+- waiver **منقضی** (`expires` پیش از امروز؛ خود آن روز هنوز معتبر است) هیچ چیزی را مهار نمی‌کند. gate
+  دوباره رد می‌کند و گزارش آن را زیر `waivers.expired` می‌آورد، با اینکه چند یافته‌ی ردکننده را می‌پوشاند.
+- waiver گسترده نمی‌تواند بی‌صدا یافته‌ی بعدیِ متفاوت را بپوشاند. waiver از نوع `rule` مقدار `covers` را
+  اعلام می‌کند؛ اگر یافته‌ی بیشتری با آن بخواند، به **هیچ‌کدام** اعمال نمی‌شود و زیر `waivers.exceeded`
+  می‌آید. برای پذیرفتن یافته‌ی تازه، مالک باید عمداً `covers` را بالا ببرد.
+- waiverی که چیزی را نمی‌پوشاند (یافته رفع شد یا هرگز نبود) زیر `waivers.unused` می‌آید تا waiverهای
+  کهنه دیده و حذف شوند. اجرا را رد نمی‌کند.
+- دو waiver با دامنه‌ی یکسان خطاست. وقتی دو waiver متفاوت یک یافته را بگیرند، اولی در فایل آن را می‌پوشاند
+  و دومی `unused` است.
+- فقط آنچه gate رد می‌کرد waiver‌شدنی است: یافته‌ی `uncertain` هرگز رد نمی‌کند، پس waiver برای آن `unused` است.
+- هر چیز نادرست در فایل (کلید ناشناخته، نوع بد، فیلد گم‌شده، تکراری، TOML نامعتبر) خطاست، نه نادیده‌گرفته:
+  فرمان پیش از هر کاری با کد خروج `1` می‌ایستد و گزارشی نمی‌نویسد، چون waiverِ نادیده‌گرفته‌شده gate را
+  بی‌صدا عوض می‌کند.
+
+خلاصه‌ی پایانی اثر را نشان می‌دهد:
+
+```text
+Gate    : passed (policy new), 1 waived
+          ~ secrets: conf.py (AWS Access Key ID) (waived by #1, m.soleimani, until 2027-02-27)
+Waivers : 1 expired
+          ! #2 expired 2026-11-20 (m.soleimani); it would cover 1 failing finding(s)
+```
+
+تاریخ استفاده‌شده تاریخ محلی اجراست؛ به‌صورت `waivers.as_of` ذخیره می‌شود تا گزارش بگوید waiverهایش در
+کدام روز سنجیده شدند.
 
 ## استقلال
 
@@ -161,4 +234,6 @@ sarand --full --baseline reports/before.json --baseline-gate new-critical
 تغییر، هویتی که از متن، ترتیب و شماره‌ی خط جان به در می‌برد، دسته‌ی ثبت‌نشده در schema، هر راهی که
 مرجع بی‌استفاده می‌شود، قطعیت، یک گزارش واقعیِ رندرشده که دوباره خوانده می‌شود، و استقلال از بسته‌ی
 structure. `tests/test_findings_baseline_cli.py` فرمان را می‌پوشاند: کلید JSON، قالب‌های دیگر، ردها، اجرا
-بدون گزینه و بررسی import.
+بدون گزینه و بررسی import. `tests/test_baseline_gate.py` و `tests/test_baseline_gate_cli.py` سیاست‌ها و
+کدهای خروج را می‌پوشانند. `tests/test_waivers.py` خواندن فایل (هر حالت نامعتبر و مرز تاریخ‌ها)، قاعده‌های
+اعمال و waiverها از راه gate را می‌پوشاند؛ `tests/test_baseline_waivers_cli.py` همین‌ها را روی فرمان.

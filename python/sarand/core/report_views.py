@@ -14,6 +14,7 @@ Pure and deterministic.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -582,17 +583,30 @@ def baseline_gate_line(data: ReportData) -> str:
     if gate is None:
         return ""
     failed, uncertain = len(gate["failed_on"]), len(gate["uncertain"])
+    waived = len(gate.get("waived", []))
     tail = f", {uncertain} uncertain (they never fail the gate)" if uncertain else ""
+    tail += f", {waived} waived (listed, they no longer fail it)" if waived else ""
+    issues = [
+        f"{len(gate['waivers'][key])} {key}"
+        for key in ("expired", "unused", "exceeded")
+        if gate.get("waivers", {}).get(key)
+    ]
+    tail += f"; waivers: {', '.join(issues)}" if issues else ""
     if gate["verdict"] == "fail":
         return f"Gate (policy {gate['policy']}): FAILED on {failed} finding(s){tail}"
     return f"Gate (policy {gate['policy']}): passed{tail}"
 
 
+def _waiver_text(waiver: dict[str, Any]) -> str:
+    return f"#{waiver['number']} {waiver['scope']} {waiver['target']}"
+
+
 def baseline_gate_rows(
     data: ReportData, limit: int = GATE_ROWS
 ) -> tuple[list[tuple[str, ...]], int]:
-    """The findings the gate failed on, then the uncertain ones (result, class, what,
-    rule or reason), at most `limit`, and how many there are."""
+    """What the gate failed on, what a waiver covers, the uncertain findings and the
+    waivers that did not apply (result, class, what, rule or reason), at most `limit`,
+    and how many there are."""
     gate = _gate(data)
     if gate is None:
         return [], 0
@@ -606,8 +620,33 @@ def baseline_gate_rows(
                 f"{item['rule']} ({item['state']})",
             )
         )
+    for item in gate.get("waived", []):
+        waiver = item["waiver"]
+        rows.append(
+            (
+                "waived",
+                item["class"],
+                str(item["label"]),
+                (
+                    f"{_waiver_text(waiver)}; {waiver['owner']}, until "
+                    f"{waiver['expires']}: {waiver['reason']}"
+                ),
+            )
+        )
     for item in gate["uncertain"]:
         rows.append(
             ("uncertain", item["class"], str(item["label"]), str(item["reason"]))
         )
+    notes: dict[str, Callable[[dict[str, Any]], str]] = {
+        "expired": lambda w: f"expired {w['expires']}; would cover {w['matches']}",
+        "unused": lambda w: f"matched no failing finding (until {w['expires']})",
+        "exceeded": lambda w: (
+            f"matches {w['matches']} but declares {w['covers']}: applies to none"
+        ),
+    }
+    for key, note in notes.items():
+        for waiver in gate.get("waivers", {}).get(key, []):
+            rows.append(
+                (f"waiver {key}", "waivers", _waiver_text(waiver), note(waiver))
+            )
     return rows[:limit], len(rows)

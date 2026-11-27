@@ -396,6 +396,21 @@ fixture_paths = ["tests/test_secrets.py"]
 
 Entries are `fnmatch` globs on the project-relative path (case-sensitive; `*` also matches `/`). The default is an empty list, so every finding counts. A listed file is still never copied into the report and its findings are still listed. A glob that would match every file is rejected, and so is any mistake in the table: sarand warns and counts every finding instead.
 
+### Waivers
+
+A finding you accept on purpose can be waived so that `--baseline-gate` stops failing on it. A waiver never hides the finding: it stays in the report, marked as waived, with its reason, owner and end date. Waivers live in `.sarand.toml` and are read only when a gate is on:
+
+```toml
+[[waivers]]
+id = "dependency_advisory:0123456789ab"
+reason = "No fixed release; the vulnerable path is not reachable"
+owner = "m.soleimani"
+created = 2026-11-27
+expires = 2027-02-27
+```
+
+Use `id` for one exact finding (the id the report prints) or `rule = "<class>:<family>"` with a required `covers = N` for a whole rule. `created` and `expires` are real dates at most 366 days apart; an expired waiver covers nothing; a rule waiver that matches more findings than `covers` applies to none; a waiver that matches nothing is listed as unused; any mistake in the file is an error (exit code 1). See [docs/FINDINGS_BASELINE.md](https://github.com/msoleimani62/sarand/blob/main/docs/FINDINGS_BASELINE.md).
+
 ### License policy
 
 By default sarand only *advises* about copyleft licenses, because whether one matters depends on your project. If you know your rules, write them in a `.sarand.toml` at the project root and `--security` enforces them against the SBOM:

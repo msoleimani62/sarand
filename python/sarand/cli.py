@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -82,6 +82,7 @@ from sarand.core.secrets import (
 )
 from sarand.core.secrets_config import SecretsConfigError, load_fixture_paths
 from sarand.core.todo_config import TodoConfigError, load_exclude_globs
+from sarand.core.waivers import Waiver, WaiverError, load_waivers
 from sarand.core.workspace import detect_workspaces
 from sarand.discovery.project_detector import detect_project
 from sarand.models.results import ReportData
@@ -676,6 +677,19 @@ async def run(config: SarandConfig) -> int:
             error(f"Cannot use the findings baseline {config.baseline}: {exc}")
             return EXIT_BASELINE_UNUSABLE
 
+    # R14-D1 (F3): the waivers are read now, only when a gate is on, and an invalid file
+    # is an error (an ignored waiver would silently change the gate).
+    # R14-D1 (F3): waiverها همین حالا و فقط وقتی gate روشن است خوانده می‌شوند و فایل
+    # نامعتبر خطاست (waiverِ نادیده‌گرفته‌شده gate را بی‌صدا عوض می‌کند).
+    gate_today = date.today()
+    waivers: tuple[Waiver, ...] = ()
+    if config.baseline_gate not in (None, POLICY_NEVER):
+        try:
+            waivers = load_waivers(root, gate_today)
+        except WaiverError as exc:
+            error(f"Cannot use the waivers: {exc}")
+            return 1
+
     # One process-wide limit on external tools (AGENTS.md 5.73): --jobs, then
     # SARAND_JOBS, then one per CPU and per GiB of free memory.
     # یک سقف سراسری روی ابزارهای بیرونی: --jobs، بعد SARAND_JOBS، بعد پیش‌فرض دستگاه.
@@ -1130,6 +1144,8 @@ async def run(config: SarandConfig) -> int:
             findings_reference,
             findings_current,
             findings_baseline,
+            waivers,
+            gate_today,
         )
         findings_baseline["gate"] = gate_result
         data.baseline = findings_baseline
@@ -1252,8 +1268,9 @@ def _print_gate(gate: dict[str, Any] | None) -> bool:
     if gate is None or gate["verdict"] == VERDICT_NOT_GATED:
         return False
     failed = gate["verdict"] == VERDICT_FAIL
-    uncertain = gate["uncertain"]
+    uncertain, waived = gate["uncertain"], gate["waived"]
     tail = f", {len(uncertain)} uncertain" if uncertain else ""
+    tail += f", {len(waived)} waived" if waived else ""
     if failed:
         print(
             f"Gate    : FAILED (policy {gate['policy']}): "
@@ -1266,9 +1283,35 @@ def _print_gate(gate: dict[str, Any] | None) -> bool:
             print(f"          ... and {hidden} more (see the report)")
     else:
         print(f"Gate    : passed (policy {gate['policy']}){tail}")
+    for item in waived[:_GATE_LINES]:
+        waiver = item["waiver"]
+        print(
+            f"          ~ {item['class']}: {item['label']} (waived by "
+            f"#{waiver['number']}, {waiver['owner']}, until {waiver['expires']})"
+        )
+    _print_waiver_issues(gate["waivers"])
     if uncertain:
         print("          uncertain findings never fail the gate; see the report")
     return failed
+
+
+def _print_waiver_issues(waivers: dict[str, Any]) -> None:
+    """One line for the waivers that did not do what they say (never silent).
+    یک خط برای waiverهایی که آنچه می‌گویند را نکردند (هرگز بی‌صدا نیست)."""
+    counts = [(len(waivers[key]), key) for key in ("expired", "unused", "exceeded")]
+    if not any(n for n, _ in counts):
+        return
+    print("Waivers : " + ", ".join(f"{n} {key}" for n, key in counts if n))
+    for item in waivers["expired"][:_GATE_LINES]:
+        print(
+            f"          ! #{item['number']} expired {item['expires']} "
+            f"({item['owner']}); it would cover {item['matches']} failing finding(s)"
+        )
+    for item in waivers["exceeded"][:_GATE_LINES]:
+        print(
+            f"          ! #{item['number']} covers {item['matches']} findings but "
+            f"declares {item['covers']}: it applies to none"
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
