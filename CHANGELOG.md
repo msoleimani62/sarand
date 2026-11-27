@@ -47,6 +47,14 @@ version may include behaviour changes.
   have seen it; otherwise it is `not_checked`. A findings-only run no longer loads the
   structure package. See `docs/FINDINGS_BASELINE.md`.
 
+- SARIF fingerprints (R14-D1, slice F4): a SARIF result for a secret now carries its
+  finding id as `partialFingerprints.sarandFindingId/v1` (advisory results already did),
+  the same id the findings baseline, the gate and the waivers use. It has no line number,
+  so a finding that only moves keeps its identity; `sarandOccurrence/v1` (1-based, in line
+  order) tells apart several secrets of one pattern in one file. Rule ids and `level` are
+  unchanged, and the `hybrid` SARIF golden gained the two fingerprints. See
+  `docs/FINDINGS_BASELINE.md`.
+
 - Waivers (R14-D1, slice F3): `[[waivers]]` in `.sarand.toml` lets a project accept a
   finding on purpose so that `--baseline-gate` stops failing on it. A waiver has a scope
   (`id` for one finding, or `rule = "<class>:<family>"` with a required `covers`), a

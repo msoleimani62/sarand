@@ -60,6 +60,10 @@
           "message": {
             "text": "Potential hardcoded secret (AWS Secret Key)."
           },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "hardcoded_secrets:30fbd2e99f62",
+            "sarandOccurrence/v1": "1"
+          },
           "locations": [
             {
               "physicalLocation": {
@@ -78,6 +82,10 @@
           "level": "error",
           "message": {
             "text": "Potential hardcoded secret (Generic API Key)."
+          },
+          "partialFingerprints": {
+            "sarandFindingId/v1": "hardcoded_secrets:a260a19af9aa",
+            "sarandOccurrence/v1": "1"
           },
           "locations": [
             {

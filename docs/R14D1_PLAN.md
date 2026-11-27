@@ -191,8 +191,9 @@ slice.
 | S2 snapshot file, command line, report key | Pass, closed | commit `5830064`, CI run `45119095300` green, 1,898 passed and 10 skipped, report schema 1.11 |
 | F1 findings comparison, `--baseline` | Pass, closed (after one CI fix) | commit `eb2bb33`: local chain green (1,936 passed, 10 skipped); CI run `45497163018` failed only in gitleaks, which flagged two secret-looking literals in `tests/test_findings_baseline_cli.py`; the fix `e5692d0` builds the literals at run time and `.gitleaksignore` holds the two fingerprints; the docs commit `88a6fe8` followed; CI run `45759439044` green on every job |
 | F2 gate policies, exit codes | Pass, closed (after two chain fixes) | commit `a806f7c` (`--baseline-gate`, exit codes 3 and 4, 60 new tests); the owner's chain first stopped on mypy (two dicts unpacked into typed parameters in the tests) and on bandit B105 (constant names containing `pass` and `secret`), both fixed on the owner's machine before the commit; chain green (1,996 passed, 10 skipped); CI run `45911758761` green on every job; the decisions taken while building are under "Decisions taken in F2" below |
-| F3 waivers | Pending: built and tested in the sandbox, not yet run on the owner's chain or CI | section 3.2; the decisions are under "Decisions taken in F3" below; the commit and the green CI run are recorded here when they exist |
-| F4, P, C | Pending | |
+| F3 waivers | Pass, closed (after three chain fixes) | commit `d31cdc4` (`[[waivers]]`, 57 new tests); CI run `45971453963` failed only in gitleaks (an id-shaped test literal `ID_B`), the fix commit built it at run time through a helper (ruff FLY002 refuses a join of constants) and ignored the `d31cdc4` fingerprint; before that the chain stopped on ruff ISC004 (a two-line f-string in a tuple); chain green (2,053 passed, 10 skipped); CI run `45992391386` green on every job; the decisions are under "Decisions taken in F3" below |
+| F4 SARIF fingerprints | Pending: built and tested in the sandbox, not yet run on the owner's chain or CI | section 3.2; the decisions are under "Decisions taken in F4" below; the commit and the green CI run are recorded here when they exist |
+| P, C | Pending | |
 
 ### Decisions taken in F1 (they refine section 3.1)
 
@@ -207,6 +208,27 @@ slice.
   cannot tell a deleted file from an ignored one.
 - **The findings path does not load `sarand.structure`**: the two module-level imports in
   `cli.py` and `json_renderer.py` became local, and a test runs the real command.
+
+### Decisions taken in F4 (they refine section 3.2)
+
+- **What carries a fingerprint:** the results that have an identity in the findings
+  comparison: secrets (new) and advisories (already). The same key,
+  `sarandFindingId/v1`, holds the same id the comparison, the gate and the waivers print,
+  so one finding has one name everywhere. Todo notes and the unlocated tool-output
+  results have no identity and get none; failures are not SARIF results (they stay in the
+  `sarand` property bag).
+- **The id has no line number**, so a moved finding is the same finding. Several secrets
+  of one pattern in one file share an id; a second key, `sarandOccurrence/v1`
+  (1-based, in line order), makes the pair unique without touching the id. Results keep
+  the order of the report, so only the two keys were added to the `hybrid` golden.
+- **Rule ids were already stable** (derived from the name, advisory results use the
+  advisory id); F4 pins them with tests and does not change them. No `level` or severity
+  change, and no SARIF `suppressions` for waived findings (not part of this slice).
+- **Validity test:** `tests/test_sarif_fingerprints.py` checks every fixture's log for the
+  SARIF 2.1.0 structure code-scanning tools rely on (version, schema, unique and declared
+  rules, levels, locations, fingerprint keys of the form `name/vN`, and that a rule with
+  its fingerprints names one result). It is structural, not a run against the official
+  JSON schema (no network in the tests).
 
 ### Decisions taken in F3 (they refine section 3.2)
 
@@ -332,10 +354,11 @@ slice.
    missing health, fixture secrets, a reference without `critical_ids`), documentation in
    English and Persian, the JSON schema note (the `gate` object is inside `baseline`,
    schema 1.12, no new version).
-3. F3 (waivers) was built as in "Decisions taken in F3". Then F4 (SARIF
-   `partialFingerprints` from the finding id), P (the performance of both paths, measured
-   separately; a `compare` mode in `scripts/structure_bench.py`) and C (real runs on sarand
-   and click, the closing report with Pass, Fail or Pending per criterion).
+3. F3 (waivers) and F4 (SARIF `partialFingerprints` from the finding id) were built as in
+   "Decisions taken in F3" and "Decisions taken in F4". What is left: P (the performance of
+   both paths, measured separately; a `compare` mode in `scripts/structure_bench.py`) and
+   C (real runs on sarand and click, the closing report with Pass, Fail or Pending per
+   criterion).
 4. The recurring pitfalls: `ruff` has FURB and RUF015 on (use `min()` and `next()`); mypy
    rejects a name re-bound with another type inside one function; wrap multi-line f-string
    groups in list literals in parentheses; no shebang without the executable bit; no `assert`
@@ -343,5 +366,8 @@ slice.
    is assigned a string is flagged by bandit B105 (rename it, the value may stay); mypy
    rejects a `**dict` of mixed value types unpacked into typed parameters (annotate the dict
    as `dict[str, Any]`); a literal that looks like a secret in a test is flagged by gitleaks
-   (build it at run time); a new file in `python/sarand` needs its tests and both language
+   (build it at run time through a helper: ruff FLY002 folds a join of constants, and an id-shaped
+   value named like a secret is flagged too); ruff ISC004 wants a multi-line f-string inside a
+   tuple or list in parentheses; never run `gitleaks dir .` on the working tree (it reads
+   `__pycache__` and `target/`), scan only the changed files; a new file in `python/sarand` needs its tests and both language
    documents; `markdownlint "**/*.md"` runs in CI.

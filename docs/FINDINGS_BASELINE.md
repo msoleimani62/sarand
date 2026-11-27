@@ -1,8 +1,8 @@
 # Findings baseline: what changed since a previous report
 
 Status: the library, the `--baseline` option (slice F1 of R14-D1, `docs/R14D1_PLAN.md`)
-the gate policies with their exit codes (slice F2) and the waivers (slice F3). SARIF
-fingerprints (F4) are not built yet. Without `--baseline-gate` the comparison is
+the gate policies with their exit codes (slice F2), the waivers (slice F3) and the SARIF
+fingerprints (slice F4). Without `--baseline-gate` the comparison is
 information only and never changes the exit code.
 
 The findings baseline is **independent of the structural baseline**
@@ -80,7 +80,8 @@ asks for it (below).
 - **JSON:** the `baseline` object (report schema 1.12, `docs/JSON_SCHEMA.md`).
 - **Markdown and HTML:** a "Findings since the baseline" section (the counts per class,
   the findings that are not unchanged, up to 40 rows).
-- **Text:** one line. **SARIF:** nothing.
+- **Text:** one line. **SARIF:** no comparison; each secret and advisory result carries
+  its finding id as `partialFingerprints` (below).
 
 ```text
 sarand --full -f json -o before                      # the reference
@@ -230,6 +231,27 @@ Waivers : 1 expired
 The date used is the local date of the run; it is stored as `waivers.as_of`, so a report
 says which day its waivers were judged on.
 
+## SARIF fingerprints
+
+A SARIF result carries the id of its finding as `partialFingerprints`, so a code-scanning
+tool can follow one finding from run to run, and the id is the same one the comparison,
+the gate and the waivers use (`failed_on[].id`, a waiver's `id`).
+
+| Result | `sarandFindingId/v1` | `sarandOccurrence/v1` |
+|---|---|---|
+| a secret finding | `hardcoded_secrets:<12 hex>`, from the path and the pattern name | the 1-based number among the secrets of the same id, in line order |
+| an advisory | `dependency_advisory:<12 hex>` | not set (the id is unique) |
+
+The id has no line number: a finding that only moves keeps its identity. Several secrets
+of one pattern in one file share an id, and the occurrence number tells them apart; the
+two values together are unique. Results keep the order of the report. Todo notes and the
+unlocated tool-output results have no identity and carry no fingerprint; the classified
+failures and the critical ids stay in the `sarand` property bag.
+
+The rule ids are stable: `secret-detection/<pattern name>`, `todo/<kind>`,
+`tool-output/<source>` (lower case, spaces as dashes) and the advisory's own id. Neither
+the fingerprints nor the rule ids change `level` or the upstream severity.
+
 ## Independence
 
 The comparison reads two reports and the results of the run; it never imports
@@ -258,3 +280,5 @@ formats, the refusals, a run without the option, and the import check.
 the exit codes. `tests/test_waivers.py` covers reading the file (every invalid case and
 the date boundaries), the application rules and the waivers through the gate;
 `tests/test_baseline_waivers_cli.py` covers them on the command.
+`tests/test_sarif_fingerprints.py` covers the SARIF fingerprints and checks the structure
+of every fixture's SARIF log.

@@ -58,8 +58,8 @@ known issue، ریسک و یک خط Quick Context. sarand به چنین مشکل
 ## پوشش داده نشده
 
 شناسه یک شرط را مشخص می‌کند نه یک مکان را: همان ابزار که در دو component با یک برچسب
-شکست بخورد شناسه‌ی یکسان دارد و فهرست `failures` ادغام نمی‌شود. نتایج advisory در SARIF هویت خود advisory را در
-`partialFingerprints.sarandFindingId/v1` دارند؛ شناسه‌ی شکست‌ها و یافته‌های بحرانی
+شکست بخورد شناسه‌ی یکسان دارد و فهرست `failures` ادغام نمی‌شود. نتایج advisory و secret در SARIF شناسه‌ی یافته‌شان را در
+`partialFingerprints.sarandFindingId/v1` دارند (به `docs/FINDINGS_BASELINE.fa.md` نگاه کنید)؛ شناسه‌ی شکست‌ها و یافته‌های بحرانی
 در property bag با کلید `sarand` است (به `docs/RENDERERS.fa.md` نگاه کنید).
 
 برای مقایسه‌ی دو گزارش با همین شناسه‌ها به `docs/FINDINGS_BASELINE.fa.md` نگاه کنید.

@@ -1,7 +1,7 @@
 # Baseline یافته‌ها: از گزارش قبلی چه تغییر کرده
 
 وضعیت: کتابخانه، گزینه‌ی `--baseline` (قطعه‌ی F1 از R14-D1، `docs/R14D1_PLAN.md`) سیاست‌های gate
-همراه کدهای خروج (قطعه‌ی F2) و waiverها (قطعه‌ی F3). fingerprintهای SARIF (F4) هنوز ساخته نشده‌اند. بدون
+همراه کدهای خروج (قطعه‌ی F2)، waiverها (قطعه‌ی F3) و fingerprintهای SARIF (قطعه‌ی F4). بدون
 `--baseline-gate` مقایسه فقط اطلاعاتی است و هرگز کد خروج را عوض نمی‌کند.
 
 baseline یافته‌ها **مستقل از baseline ساختاری** است (`docs/STRUCTURE_BASELINE.fa.md`). یافته‌های دو
@@ -73,7 +73,8 @@ baseline یافته‌ها **مستقل از baseline ساختاری** است (`
 - **JSON:** شیء `baseline` (شمای گزارش 1.12، `docs/JSON_SCHEMA.fa.md`).
 - **Markdown و HTML:** بخش «Findings since the baseline» (شمارش هر دسته، یافته‌هایی که unchanged
   نیستند، تا ۴۰ ردیف).
-- **text:** یک خط. **SARIF:** هیچ.
+- **text:** یک خط. **SARIF:** مقایسه‌ای نیست؛ نتیجه‌ی هر secret و advisory شناسه‌ی یافته‌اش را به‌صورت
+  `partialFingerprints` دارد (پایین).
 
 ```text
 sarand --full -f json -o before                      # مرجع
@@ -213,6 +214,26 @@ Waivers : 1 expired
 تاریخ استفاده‌شده تاریخ محلی اجراست؛ به‌صورت `waivers.as_of` ذخیره می‌شود تا گزارش بگوید waiverهایش در
 کدام روز سنجیده شدند.
 
+## fingerprintهای SARIF
+
+نتیجه‌ی SARIF شناسه‌ی یافته‌اش را به‌صورت `partialFingerprints` دارد تا ابزار code-scanning بتواند یک یافته
+را از اجرایی به اجرای دیگر دنبال کند، و این شناسه همان است که مقایسه، gate و waiverها به کار می‌برند
+(`failed_on[].id` و `id` یک waiver).
+
+| نتیجه | `sarandFindingId/v1` | `sarandOccurrence/v1` |
+|---|---|---|
+| یافته‌ی secret | `hardcoded_secrets:<12 hex>`، از مسیر و نام الگو | شماره‌ی ۱‌مبنا میان secretهای هم‌شناسه، به ترتیب خط |
+| advisory | `dependency_advisory:<12 hex>` | تنظیم نمی‌شود (شناسه یکتاست) |
+
+شناسه شماره‌ی خط ندارد: یافته‌ای که فقط جابه‌جا شود هویتش را نگه می‌دارد. چند secret از یک الگو در یک فایل
+شناسه‌ی یکسان دارند و شماره‌ی occurrence آن‌ها را جدا می‌کند؛ این دو مقدار با هم یکتا هستند. نتایج ترتیب
+گزارش را نگه می‌دارند. یادداشت‌های todo و نتایج بی‌مکانِ خروجی ابزار هویت ندارند و fingerprint نمی‌گیرند؛
+شکست‌های طبقه‌بندی‌شده و شناسه‌های بحرانی در property bag با نام `sarand` می‌مانند.
+
+شناسه‌ی قاعده‌ها پایدار است: `secret-detection/<pattern name>`، `todo/<kind>`، `tool-output/<source>` (حروف
+کوچک، فاصله به‌صورت خط‌تیره) و شناسه‌ی خود advisory. نه fingerprintها و نه شناسه‌ی قاعده `level` یا شدت
+بالادستی را عوض نمی‌کنند.
+
 ## استقلال
 
 مقایسه دو گزارش و نتایج اجرا را می‌خواند؛ هرگز `sarand.structure` را import نمی‌کند. بسته‌ی structure
@@ -237,3 +258,4 @@ structure. `tests/test_findings_baseline_cli.py` فرمان را می‌پوشا
 بدون گزینه و بررسی import. `tests/test_baseline_gate.py` و `tests/test_baseline_gate_cli.py` سیاست‌ها و
 کدهای خروج را می‌پوشانند. `tests/test_waivers.py` خواندن فایل (هر حالت نامعتبر و مرز تاریخ‌ها)، قاعده‌های
 اعمال و waiverها از راه gate را می‌پوشاند؛ `tests/test_baseline_waivers_cli.py` همین‌ها را روی فرمان.
+`tests/test_sarif_fingerprints.py` fingerprintهای SARIF را می‌پوشاند و ساختار لاگ SARIF هر fixture را می‌سنجد.

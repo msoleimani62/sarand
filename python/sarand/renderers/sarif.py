@@ -6,6 +6,7 @@ it maps cleanly onto sarand's existing findings without inventing new
 concepts:
 
 - SecretFinding  -> a located, "error"-level result (security first, §7)
+                    with the finding id as `partialFingerprints` (R14-D1, F4)
 - TodoItem       -> a located, "note"-level result
 - Issue (from test/quality/security CommandResults) -> an unlocated
   result, since Issue only carries a source+message, no file/line
@@ -17,8 +18,10 @@ import json
 
 from sarand.constants import SARAND_INFO_URI
 from sarand.core.finding_identity import (
+    KIND_SECRETS,
     advisory_finding_id,
     failure_id,
+    finding_id,
     unique_ids,
 )
 from sarand.core.markers import marker_category
@@ -32,6 +35,16 @@ _SARAND_INFO_URI = SARAND_INFO_URI
 # form; the standard defines no field for check states or coverage).
 # کلیدی که فراداده‌ی خود sarand زیر آن می‌آید (property bag در SARIF آزاد است).
 _PROPERTY_KEY = "sarand"
+# The partialFingerprints keys (R14-D1, F4). The id is the same one the findings
+# baseline and the gate print (`failed_on[].id`), so a result in a code-scanning tool
+# and a waiver or a gate line name the same finding. It has no line number, so a
+# finding that only moves keeps its identity. Several secrets of one pattern in one
+# file share an id; the occurrence number (1-based, in line order) tells them apart.
+# کلیدهای partialFingerprints (R14-D1، F4). شناسه همان است که baseline و gate چاپ می‌کنند و
+# شماره‌ی خط ندارد؛ چند secret از یک الگو در یک فایل شناسه‌ی یکسان دارند و شماره‌ی occurrence
+# (از ۱، به ترتیب خط) آن‌ها را جدا می‌کند.
+_FINDING_ID_KEY = "sarandFindingId/v1"
+_OCCURRENCE_KEY = "sarandOccurrence/v1"
 
 
 def _rule_id(prefix: str, name: str) -> str:
@@ -117,7 +130,19 @@ def render(
                 "shortDescription": {"text": description},
             }
 
-    for finding in data.secret_findings:
+    secrets = list(data.secret_findings)
+    secret_ids = [finding_id(KIND_SECRETS, f.path, f.pattern_name) for f in secrets]
+    # The occurrence number follows the line order inside one id; the results keep
+    # the order of the report.
+    # شماره‌ی occurrence در هر شناسه به ترتیب خط است؛ نتایج ترتیب گزارش را نگه می‌دارند.
+    occurrence: dict[int, int] = {}
+    seen: dict[str, int] = {}
+    for index in sorted(
+        range(len(secrets)), key=lambda i: (secret_ids[i], secrets[i].line_number, i)
+    ):
+        seen[secret_ids[index]] = seen.get(secret_ids[index], 0) + 1
+        occurrence[index] = seen[secret_ids[index]]
+    for index, finding in enumerate(secrets):
         rule_id = _rule_id("secret-detection", finding.pattern_name)
         register_rule(rule_id, f"Potential hardcoded secret: {finding.pattern_name}")
         results.append(
@@ -126,6 +151,10 @@ def render(
                 "level": "error",
                 "message": {
                     "text": f"Potential hardcoded secret ({finding.pattern_name})."
+                },
+                "partialFingerprints": {
+                    _FINDING_ID_KEY: secret_ids[index],
+                    _OCCURRENCE_KEY: str(occurrence[index]),
                 },
                 "locations": [
                     {
@@ -169,9 +198,7 @@ def render(
                     "ruleId": rule_id,
                     "level": _advisory_level(adv),
                     "message": {"text": _advisory_message(adv)},
-                    "partialFingerprints": {
-                        "sarandFindingId/v1": advisory_finding_id(adv)
-                    },
+                    "partialFingerprints": {_FINDING_ID_KEY: advisory_finding_id(adv)},
                     "properties": {
                         "package": adv.package,
                         "version": adv.version,
