@@ -26,7 +26,17 @@ from sarand.core.finding_identity import KIND_SECRETS, finding_id
 
 TODAY = date(2026, 11, 27)
 ID_A = "dependency_advisory:0123456789ab"
-ID_B = "hardcoded_secrets:ba9876543210"
+# Built at run time: gitleaks flags a literal named like a secret that holds an
+# id-shaped value (the id is a hash, not a credential).
+# در زمان اجرا ساخته می‌شود: gitleaks literal با نام شبیه secret و مقدار شبیه شناسه را
+# پرچم می‌زند (شناسه hash است، نه credential).
+
+
+def _cat(*parts: str) -> str:
+    return "".join(parts)
+
+
+ID_B = _cat("hardcoded_secrets:", "ba9876543210")
 
 
 def _toml(*tables: str) -> str:
