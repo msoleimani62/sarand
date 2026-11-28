@@ -193,8 +193,8 @@ slice.
 | F2 gate policies, exit codes | Pass, closed (after two chain fixes) | commit `a806f7c` (`--baseline-gate`, exit codes 3 and 4, 60 new tests); the owner's chain first stopped on mypy (two dicts unpacked into typed parameters in the tests) and on bandit B105 (constant names containing `pass` and `secret`), both fixed on the owner's machine before the commit; chain green (1,996 passed, 10 skipped); CI run `45911758761` green on every job; the decisions taken while building are under "Decisions taken in F2" below |
 | F3 waivers | Pass, closed (after three chain fixes) | commit `d31cdc4` (`[[waivers]]`, 57 new tests); CI run `45971453963` failed only in gitleaks (an id-shaped test literal `ID_B`), the fix commit built it at run time through a helper (ruff FLY002 refuses a join of constants) and ignored the `d31cdc4` fingerprint; before that the chain stopped on ruff ISC004 (a two-line f-string in a tuple); chain green (2,053 passed, 10 skipped); CI run `45992391386` green on every job; the decisions are under "Decisions taken in F3" below |
 | F4 SARIF fingerprints | Pass, closed | commit `4fa459d` (secrets carry `partialFingerprints`, 13 new tests, the `hybrid` SARIF golden gained two keys); the owner's chain green (2,066 passed, 10 skipped); CI run `46001284295` green on every job; the decisions are under "Decisions taken in F4" below |
-| P performance of both paths | Pending: built and measured in the sandbox, not yet run on the owner's chain or CI, and not yet on the phone | `compare` mode in `scripts/structure_bench.py`; numbers in `docs/R14D1_COMPARE_RESULT.md`: the findings comparison and the gate add nothing measurable and never load the structure package; `--structure-baseline` adds 0.68 s (14.5 %) on the 603-file input; no optimization was made; the commit and the green CI run are recorded here when they exist |
-| C | Pending | |
+| P performance of both paths | Pass, closed | commit `0368816` (`compare` mode, 6 new tests); the owner's chain green (2,072 passed, 10 skipped); CI run `46087877493` green on every job; numbers in `docs/R14D1_COMPARE_RESULT.md` for the sandbox and for the phone: the findings comparison and the gate add nothing measurable and never load the structure package; the structural baseline is below a second; no optimization was made |
+| C real outputs, documentation, closing report | Pending: the acceptance script and the report are built and the sandbox runs passed (33 of 33 checks); the run on the phone, on sarand and the click repository, is missing | `scripts/d1_acceptance.py`, `docs/R14D1_CLOSING_REPORT.md`; criterion 10 is Pending until that run passes |
 
 ### Decisions taken in F1 (they refine section 3.1)
 
@@ -209,6 +209,24 @@ slice.
   cannot tell a deleted file from an ignored one.
 - **The findings path does not load `sarand.structure`**: the two module-level imports in
   `cli.py` and `json_renderer.py` became local, and a test runs the real command.
+
+### Decisions taken in C
+
+- **Real outputs, checked from the outside:** `scripts/d1_acceptance.py` runs the real
+  command on a copy of a project, so nothing of the project is touched, and checks the
+  real reports: that the keys are documented (both languages), the gate and the exit
+  codes, the findings and structural comparisons on an unchanged and on a changed copy, a
+  waiver, and the SARIF fingerprint. It is a script and a test of the script, not a part of
+  the product.
+- **The planted secret is separate from the planted file:** a file that contains a secret
+  is left out of the structure on purpose, so the file added for the structural check is a
+  clean Python file and the secret is in its own text file. The first version of the
+  script put both in one file and check A8 caught it; that was the script, not the code.
+- **The click evidence is two-part:** the sandbox has no network, so it ran on the
+  installed `click` and `requests` packages; the clone of the click repository and the
+  phone run are the owner's step, with the command in the closing report.
+- **Criterion 10 stays Pending until that run passes;** the closing report says so and
+  does not round it up.
 
 ### Decisions taken in P
 

@@ -47,6 +47,11 @@ version may include behaviour changes.
   have seen it; otherwise it is `not_checked`. A findings-only run no longer loads the
   structure package. See `docs/FINDINGS_BASELINE.md`.
 
+- Real-run acceptance (R14-D1, slice C): `scripts/d1_acceptance.py` runs the real command on
+  a copy of a project and checks the real outputs against the documented contracts (the
+  schema pages, the gate and its exit codes, both comparisons, a waiver and the SARIF
+  fingerprint). The closing report is `docs/R14D1_CLOSING_REPORT.md`.
+
 - Comparison paths benchmark (R14-D1, slice P): `scripts/structure_bench.py compare`
   measures the whole `sarand` command plain, with `--baseline`, with a gate, with
   `--structure` and with `--structure-baseline`, each against its base, and a probe checks

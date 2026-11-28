@@ -74,6 +74,68 @@ comparison cost, each measured separately. Method: the `compare` mode of
   matters, profile `compare_structures` and the snapshot read first (the snapshot read
   validates every record).
 
+## On the phone
+
+The owner's device, run of 2026-11-28 (the commit of the `compare` mode, `0368816`):
+Python 3.14.6 (CPython), Linux 4.14.186 aarch64, **8 CPUs**, hash seed 0, the **compiled
+core in use**, the real `rich`; five measured runs after one warm-up. Inputs are made from
+the tracked files of the checkout (`git archive`): `small` = `scripts` (a dozen files),
+`medium` = `python/sarand`, `large` = the whole checkout. They are not the sandbox inputs, so
+only the shape of the results is comparable with the section above, not the seconds.
+
+### Seconds of the whole command
+
+| input | configuration | median | min | max | P95 | RSS KB (median) | structure package loaded |
+|---|---|---|---|---|---|---|---|
+| small | plain | 3.6838 | 3.5752 | 3.7992 | 3.7992* | 69120 | False |
+| small | findings-baseline | 3.7747 | 3.6864 | 4.7591 | 4.7591* | 69428 | False |
+| small | findings-gate | 3.7712 | 3.6839 | 4.517 | 4.517* | 69192 | False |
+| small | structure | 4.2636 | 4.1724 | 5.6585 | 5.6585* | 69388 | True |
+| small | structure-baseline | 4.818 | 4.4299 | 5.4909 | 5.4909* | 69388 | True |
+| medium | plain | 5.4372 | 5.0538 | 5.6018 | 5.6018* | 69484 | False |
+| medium | findings-baseline | 5.501 | 5.1929 | 6.4202 | 6.4202* | 69472 | False |
+| medium | findings-gate | 5.3148 | 5.2022 | 6.1211 | 6.1211* | 69488 | False |
+| medium | structure | 10.2383 | 9.5385 | 10.6691 | 10.6691* | 88824 | True |
+| medium | structure-baseline | 10.883 | 10.0387 | 11.7477 | 11.7477* | 99392 | True |
+| large | plain | 9.1318 | 7.7151 | 10.7591 | 10.7591* | 69336 | False |
+| large | findings-baseline | 8.7652 | 8.237 | 9.31 | 9.31* | 69156 | False |
+| large | findings-gate | 8.1651 | 7.9778 | 10.0579 | 10.0579* | 69264 | False |
+| large | structure | 19.6742 | 18.0937 | 19.9121 | 19.9121* | 151056 | True |
+| large | structure-baseline | 19.8366 | 19.5266 | 21.3012 | 21.3012* | 203288 | True |
+
+### What each option adds to its base
+
+| input | option | base | added seconds (median) | change | ranges overlap | added RSS KB |
+|---|---|---|---|---|---|---|
+| small | findings-baseline | plain | 0.0909 | 2.5% | yes | 308 |
+| small | findings-gate | findings-baseline | -0.0035 | -0.1% | yes | -236 |
+| small | structure-baseline | structure | 0.5544 | 13.0% | yes | 0 |
+| medium | findings-baseline | plain | 0.0638 | 1.2% | yes | -12 |
+| medium | findings-gate | findings-baseline | -0.1862 | -3.4% | yes | 16 |
+| medium | structure-baseline | structure | 0.6447 | 6.3% | yes | 10568 |
+| large | findings-baseline | plain | -0.3666 | -4.0% | yes | -180 |
+| large | findings-gate | findings-baseline | -0.6001 | -6.8% | yes | 108 |
+| large | structure-baseline | structure | 0.1624 | 0.8% | yes | 52232 |
+
+### Reading the phone run
+
+- **Same conclusion as the sandbox: the findings path costs nothing measurable.** All six
+  findings rows (`--baseline` and the gate, three inputs) have overlapping ranges and
+  differences of −6.8 % to +2.5 %; on the large input they are negative, which is the
+  noise of a phone (the plain runs themselves range from 7.7 s to 10.8 s). The structure
+  package was not loaded in any of them.
+- **The structural baseline is visible only as a trend:** +0.55 s on small (13 %), +0.64 s
+  on medium (6.3 %) and +0.16 s on large (0.8 %), all with overlapping ranges, so a cost
+  of this size cannot be told from the noise of this device with five runs. The sandbox
+  (+0.68 s on the large input, ranges apart) and the phone agree on the order of magnitude:
+  well below a second.
+- **What the phone shows clearly is that `--structure` itself is the expensive part:** on
+  the large input the run goes from 9.1 s to 19.7 s and from 69 MB to 151 MB (203 MB with the
+  baseline). Even the smallest input takes 3.7 s plain, so the start-up of the interpreter
+  and the imports weigh more than the scan there.
+- **No optimization was made on this evidence either:** it contains no cost that a
+  comparison adds and that is clear of the noise.
+
 ## Running it again
 
 On the phone, from a checkout with the environment active, with any three projects of
