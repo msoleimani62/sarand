@@ -155,7 +155,7 @@ The criteria are those of the owner's decision, made checkable:
 | 8 | Structural: versioning and reference preservation | schema and fingerprint-basis tests; a snapshot is never overwritten without the option; the previous generation is kept |
 | 9 | Integrated: tests, quality tools | `ruff`, `mypy`, `bandit`, `markdownlint`, `pytest`, `git diff --check`, CI |
 | 10 | Integrated: real outputs against the schema | real `sarand` runs on sarand and click; JSON checked against `docs/JSON_SCHEMA.md` |
-| 11 | Integrated: performance of both paths recorded | the `compare` benchmark; the findings path shown not to load the structure package |
+| 11 | Integrated: performance of both paths recorded | the `compare` benchmark; the findings path shown not to load the structure package (sandbox numbers in `docs/R14D1_COMPARE_RESULT.md`; the phone run belongs to C) |
 | 12 | Integrated: documentation | architecture, contracts and usage updated (en and fa where the project does so) |
 
 ## 6. Stop rule
@@ -192,8 +192,9 @@ slice.
 | F1 findings comparison, `--baseline` | Pass, closed (after one CI fix) | commit `eb2bb33`: local chain green (1,936 passed, 10 skipped); CI run `45497163018` failed only in gitleaks, which flagged two secret-looking literals in `tests/test_findings_baseline_cli.py`; the fix `e5692d0` builds the literals at run time and `.gitleaksignore` holds the two fingerprints; the docs commit `88a6fe8` followed; CI run `45759439044` green on every job |
 | F2 gate policies, exit codes | Pass, closed (after two chain fixes) | commit `a806f7c` (`--baseline-gate`, exit codes 3 and 4, 60 new tests); the owner's chain first stopped on mypy (two dicts unpacked into typed parameters in the tests) and on bandit B105 (constant names containing `pass` and `secret`), both fixed on the owner's machine before the commit; chain green (1,996 passed, 10 skipped); CI run `45911758761` green on every job; the decisions taken while building are under "Decisions taken in F2" below |
 | F3 waivers | Pass, closed (after three chain fixes) | commit `d31cdc4` (`[[waivers]]`, 57 new tests); CI run `45971453963` failed only in gitleaks (an id-shaped test literal `ID_B`), the fix commit built it at run time through a helper (ruff FLY002 refuses a join of constants) and ignored the `d31cdc4` fingerprint; before that the chain stopped on ruff ISC004 (a two-line f-string in a tuple); chain green (2,053 passed, 10 skipped); CI run `45992391386` green on every job; the decisions are under "Decisions taken in F3" below |
-| F4 SARIF fingerprints | Pending: built and tested in the sandbox, not yet run on the owner's chain or CI | section 3.2; the decisions are under "Decisions taken in F4" below; the commit and the green CI run are recorded here when they exist |
-| P, C | Pending | |
+| F4 SARIF fingerprints | Pass, closed | commit `4fa459d` (secrets carry `partialFingerprints`, 13 new tests, the `hybrid` SARIF golden gained two keys); the owner's chain green (2,066 passed, 10 skipped); CI run `46001284295` green on every job; the decisions are under "Decisions taken in F4" below |
+| P performance of both paths | Pending: built and measured in the sandbox, not yet run on the owner's chain or CI, and not yet on the phone | `compare` mode in `scripts/structure_bench.py`; numbers in `docs/R14D1_COMPARE_RESULT.md`: the findings comparison and the gate add nothing measurable and never load the structure package; `--structure-baseline` adds 0.68 s (14.5 %) on the 603-file input; no optimization was made; the commit and the green CI run are recorded here when they exist |
+| C | Pending | |
 
 ### Decisions taken in F1 (they refine section 3.1)
 
@@ -208,6 +209,21 @@ slice.
   cannot tell a deleted file from an ignored one.
 - **The findings path does not load `sarand.structure`**: the two module-level imports in
   `cli.py` and `json_renderer.py` became local, and a test runs the real command.
+
+### Decisions taken in P
+
+- **The cost is measured on the whole command**, one configuration per option, each against
+  the configuration it extends (`plain` for `--baseline`, `--baseline` for the gate,
+  `--structure` for `--structure-baseline`). The reference report and the snapshot are made
+  once per input, outside the measurement. A function-level timing would miss the reading
+  of the reference and the report, which are part of what a user pays.
+- **Isolation is evidence, not an assumption:** a probe in a fresh interpreter records
+  whether `sarand.structure` was imported; the command fails when a findings configuration
+  imported it or a structure configuration did not.
+- **One code version per run.** Comparing two commits stays the job of `run`.
+- **No optimization:** the numbers show no cost on the findings path and one seventh on the
+  structure baseline; the plan's rule (profile first) leaves them as they are.
+- **Sandbox numbers are labelled as such;** the phone run is part of C.
 
 ### Decisions taken in F4 (they refine section 3.2)
 
@@ -355,9 +371,9 @@ slice.
    English and Persian, the JSON schema note (the `gate` object is inside `baseline`,
    schema 1.12, no new version).
 3. F3 (waivers) and F4 (SARIF `partialFingerprints` from the finding id) were built as in
-   "Decisions taken in F3" and "Decisions taken in F4". What is left: P (the performance of
-   both paths, measured separately; a `compare` mode in `scripts/structure_bench.py`) and
-   C (real runs on sarand and click, the closing report with Pass, Fail or Pending per
+   "Decisions taken in F3" and "Decisions taken in F4". P (the `compare` mode of
+   `scripts/structure_bench.py` and its numbers) was built as in "Decisions taken in P".
+   What is left: C (real runs on sarand and click, the closing report with Pass, Fail or Pending per
    criterion).
 4. The recurring pitfalls: `ruff` has FURB and RUF015 on (use `min()` and `next()`); mypy
    rejects a name re-bound with another type inside one function; wrap multi-line f-string

@@ -212,3 +212,162 @@ def test_the_whole_command_can_be_timed(tmp_path: Path) -> None:
     result = bench.spawn_cli(_ROOT / "python", project, "0")
     assert result["exit_code"] == 0
     assert result["seconds"] > 0
+
+
+# ----------------------------------------------------------------- compare mode (P)
+
+
+def _row(config: str, base: str | None, median: float, rss: float = 1000.0) -> dict:
+    spread = {"median": median, "min": median - 0.1, "max": median + 0.1}
+    return {
+        "input": "a",
+        "config": config,
+        "base": base,
+        "seconds": spread,
+        "peak_rss_kb": {"median": rss, "min": rss, "max": rss},
+        "arguments": ["--structure"] if config.startswith("structure") else [],
+        "exit_codes": [0],
+        "probe_exit_code": 0,
+        "structure_loaded": config.startswith("structure"),
+    }
+
+
+def test_each_option_is_measured_against_its_own_base() -> None:
+    bench = _load()
+    bases = {c: b for c, b, _ in bench.COMPARE_CONFIGS}
+    assert bases == {
+        "plain": None,
+        "findings-baseline": "plain",
+        "findings-gate": "findings-baseline",
+        "structure": None,
+        "structure-baseline": "structure",
+    }
+
+
+def test_added_costs_subtract_the_base_and_say_when_the_ranges_overlap() -> None:
+    bench = _load()
+    results = [
+        _row("plain", None, 2.0, rss=1000),
+        _row("findings-baseline", "plain", 2.5, rss=1200),  # ranges [1.9,2.1] [2.4,2.6]
+        _row("findings-gate", "findings-baseline", 2.55, rss=1200),  # overlaps
+        _row("structure", None, 5.0),
+        _row("structure-baseline", "structure", 5.0),
+    ]
+    rows = {r["config"]: r for r in bench.added_costs(results)}
+    assert set(rows) == {"findings-baseline", "findings-gate", "structure-baseline"}
+    assert rows["findings-baseline"]["added_seconds_median"] == 0.5
+    assert rows["findings-baseline"]["change_percent"] == 25.0
+    assert rows["findings-baseline"]["ranges_overlap"] is False
+    assert rows["findings-baseline"]["added_rss_kb_median"] == 200
+    assert rows["findings-gate"]["ranges_overlap"] is True
+    assert rows["structure-baseline"]["added_seconds_median"] == 0.0
+
+
+def test_compare_problems_flag_a_failed_run_and_a_wrong_import() -> None:
+    bench = _load()
+    good = {"results": [_row("plain", None, 1.0), _row("structure", None, 1.0)]}
+    assert bench.compare_problems(good) == []
+    failed = _row("plain", None, 1.0)
+    failed["exit_codes"] = [0, 4]
+    leaked = _row("findings-baseline", "plain", 1.0)
+    leaked["structure_loaded"] = True  # the findings path must not load the package
+    missing = _row("structure", None, 1.0)
+    missing["structure_loaded"] = False
+    problems = bench.compare_problems({"results": [failed, leaked, missing]})
+    assert len(problems) == 3
+    assert "did not exit 0" in problems[0]
+    assert "findings-baseline" in problems[1] and "expected False" in problems[1]
+    assert "structure:" in problems[2] and "expected True" in problems[2]
+
+
+def test_the_compare_report_is_readable() -> None:
+    bench = _load()
+    results = [_row("plain", None, 1.0), _row("findings-baseline", "plain", 1.2)]
+    report = {
+        "environment": {
+            "python": "3.12",
+            "implementation": "CPython",
+            "platform": "x",
+            "cpu_count": 2,
+            "hashseed": "0",
+            "codes": {"NOW": {"git_head": "abc", "rust_core": False}},
+        },
+        "settings": {"rounds": 3, "warmup": 1, "code": "NOW"},
+        "results": [
+            {
+                **r,
+                "seconds": {
+                    **r["seconds"],
+                    "p95": r["seconds"]["max"],
+                    "p95_is_max": True,
+                },
+            }
+            for r in results
+        ],
+        "added_costs": bench.added_costs(results),
+    }
+    text = bench.compare_markdown(report)
+    assert "## Seconds of the whole command" in text
+    assert "## What each option adds to its base" in text
+    assert "| a | findings-baseline | plain | 0.2 | 20.0% |" in text
+
+
+def test_compare_needs_exactly_one_code(tmp_path: Path) -> None:
+    bench = _load()
+    for argv in (
+        ["compare", "--out", str(tmp_path), "--input", f"a={tmp_path}"],
+        [
+            "compare",
+            "--out",
+            str(tmp_path),
+            "--input",
+            f"a={tmp_path}",
+            "--code",
+            f"x={tmp_path}",
+            "--code",
+            f"y={tmp_path}",
+        ],
+    ):
+        with pytest.raises(SystemExit) as caught:
+            bench.main(argv)
+        assert caught.value.code == 2
+
+
+def test_compare_runs_end_to_end_and_the_findings_path_never_loads_structure(
+    tmp_path: Path,
+) -> None:
+    if importlib.util.find_spec("rich") is None:
+        pytest.skip("the sarand command needs rich")
+    bench = _load()
+    project = _project(tmp_path)
+    out = tmp_path / "out"
+    code = bench.main(
+        [
+            "compare",
+            "--out",
+            str(out),
+            "--input",
+            f"tiny={project}",
+            "--code",
+            f"NOW={_ROOT / 'python'}",
+            "--rounds",
+            "1",
+            "--warmup",
+            "0",
+        ]
+    )
+    assert code == 0
+    report = json.loads((out / "compare.json").read_text(encoding="utf-8"))
+    loaded = {r["config"]: r["structure_loaded"] for r in report["results"]}
+    assert loaded == {
+        "plain": False,
+        "findings-baseline": False,
+        "findings-gate": False,
+        "structure": True,
+        "structure-baseline": True,
+    }
+    assert all(r["exit_codes"] == [0] for r in report["results"])
+    assert len(report["added_costs"]) == 3
+    assert "Comparison paths benchmark" in (out / "compare.md").read_text(
+        encoding="utf-8"
+    )

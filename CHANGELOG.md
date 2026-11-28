@@ -47,6 +47,11 @@ version may include behaviour changes.
   have seen it; otherwise it is `not_checked`. A findings-only run no longer loads the
   structure package. See `docs/FINDINGS_BASELINE.md`.
 
+- Comparison paths benchmark (R14-D1, slice P): `scripts/structure_bench.py compare`
+  measures the whole `sarand` command plain, with `--baseline`, with a gate, with
+  `--structure` and with `--structure-baseline`, each against its base, and a probe checks
+  that the findings path never imports `sarand.structure`. Results: `docs/R14D1_COMPARE_RESULT.md`.
+
 - SARIF fingerprints (R14-D1, slice F4): a SARIF result for a secret now carries its
   finding id as `partialFingerprints.sarandFindingId/v1` (advisory results already did),
   the same id the findings baseline, the gate and the waivers use. It has no line number,

@@ -40,6 +40,39 @@ whether the [min, max] ranges overlap. Overlap means the difference cannot be to
 noise with this many runs. Five runs are not a statistical test; they are an estimate
 with its spread shown.
 
+## The `compare` mode (slice P)
+
+`compare` measures the two comparison paths separately, on one code version, with the whole
+`sarand` command (`--skip-tests`, `--format json`) in a fresh interpreter per measurement.
+
+| Configuration | Command adds | Measured against |
+|---|---|---|
+| `plain` | nothing | (the base of the findings path) |
+| `findings-baseline` | `--baseline REF` | `plain` |
+| `findings-gate` | `--baseline REF --baseline-gate new-critical` | `findings-baseline` |
+| `structure` | `--structure` | (the base of the structure path) |
+| `structure-baseline` | `--structure --structure-baseline SNAP` | `structure` |
+
+What an option costs is the difference of the medians to its base, with the ranges shown
+as in the other modes (`ranges overlap = yes`: the difference cannot be told from noise).
+The reference report and the snapshot are made once per input, before the measurements and
+outside them, by the same code on the same project. The rounds are interleaved and their
+order is reversed every second round, as in `run`.
+
+Besides the time, a probe runs every configuration once in a fresh interpreter and records
+whether `sarand.structure` was imported. The findings configurations must not import it and
+the structure ones must; the command exits with `1` and prints the problem when this does
+not hold, or when any run does not exit with `0`.
+
+```text
+python scripts/structure_bench.py compare --out DIR \
+    --input small=PATH --input medium=PATH --input large=PATH \
+    --code NOW=/path/to/checkout/python [--rounds 5] [--warmup 1] [--hashseed 0]
+```
+
+`compare.json` is the full record and `compare.md` the same for reading. Exactly one
+`--code` is accepted: this mode compares paths of one version, not two versions.
+
 ## Limits
 
 - The phase numbers come from a separate instrumented run; they show proportions, not an

@@ -38,6 +38,16 @@ Usage:
         --code A2=/path/to/a2/python --code A3=/path/to/a3/python \\
         [--rounds 5] [--warmup 1] [--hashseed 0] [--cli]
 
+`compare` (R14-D1, slice P) measures the two comparison paths separately, on one code
+version: the whole `sarand` command plain, with `--baseline`, with `--baseline` and a gate,
+with `--structure` and with `--structure` plus `--structure-baseline`. What an option adds
+is the difference to its base configuration, with the ranges shown; a probe in a fresh
+interpreter also records whether `sarand.structure` was loaded (the findings path must
+not load it):
+    python scripts/structure_bench.py compare --out DIR \\
+        --input small=PATH --input large=PATH --code NOW=/path/to/python \\
+        [--rounds 5] [--warmup 1] [--hashseed 0]
+
 Optimize only after a profile shows the bottleneck; this script finds where the time
 goes, it does not justify a change by itself.
 
@@ -298,6 +308,38 @@ def spawn_worker(code_dir: Path, project: Path, hashseed: str) -> dict[str, Any]
     return result
 
 
+def _run_timed(command: list[str], env: dict[str, str]) -> dict[str, Any]:
+    """Run `command` once and return its wall time, child peak RSS and exit code."""
+    start = time.perf_counter()
+    rss = 0
+    if sys.platform != "win32":
+        proc = subprocess.Popen(  # nosec B603
+            command,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        stderr = proc.stderr.read() if proc.stderr else b""
+        _, status, usage = os.wait4(proc.pid, 0)
+        proc.returncode = os.waitstatus_to_exitcode(status)
+        code = proc.returncode
+        rss = usage.ru_maxrss // 1024 if sys.platform == "darwin" else usage.ru_maxrss
+        if proc.stderr:
+            proc.stderr.close()
+    else:
+        done = subprocess.run(  # nosec B603
+            command, env=env, capture_output=True, check=False
+        )
+        code, stderr = done.returncode, done.stderr
+    seconds = time.perf_counter() - start
+    return {
+        "seconds": seconds,
+        "peak_rss_kb": int(rss),
+        "exit_code": code,
+        "stderr_bytes": len(stderr),
+    }
+
+
 def spawn_cli(code_dir: Path, project: Path, hashseed: str) -> dict[str, Any]:
     """Time the whole `sarand --structure` command on `project` (wall time, child RSS)."""
     with tempfile.TemporaryDirectory() as out:
@@ -316,39 +358,7 @@ def spawn_cli(code_dir: Path, project: Path, hashseed: str) -> dict[str, Any]:
             "--output-name",
             "bench",
         ]
-        start = time.perf_counter()
-        rss = 0
-        if sys.platform != "win32":
-            proc = subprocess.Popen(  # nosec B603
-                command,
-                env=_env(code_dir, hashseed),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
-            stderr = proc.stderr.read() if proc.stderr else b""
-            _, status, usage = os.wait4(proc.pid, 0)
-            proc.returncode = os.waitstatus_to_exitcode(status)
-            code = proc.returncode
-            rss = (
-                usage.ru_maxrss // 1024 if sys.platform == "darwin" else usage.ru_maxrss
-            )
-            if proc.stderr:
-                proc.stderr.close()
-        else:
-            done = subprocess.run(  # nosec B603
-                command,
-                env=_env(code_dir, hashseed),
-                capture_output=True,
-                check=False,
-            )
-            code, stderr = done.returncode, done.stderr
-        seconds = time.perf_counter() - start
-    return {
-        "seconds": seconds,
-        "peak_rss_kb": int(rss),
-        "exit_code": code,
-        "stderr_bytes": len(stderr),
-    }
+        return _run_timed(command, _env(code_dir, hashseed))
 
 
 def _loadavg() -> list[float] | None:
@@ -658,6 +668,332 @@ def markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+# ------------------------------------------------------------------ compare mode
+# R14-D1, slice P: the cost of each comparison path, measured on the whole command.
+# R14-D1، قطعه‌ی P: هزینه‌ی هر مسیر مقایسه، روی کل فرمان اندازه‌گیری می‌شود.
+
+# (label, the label it is measured against, the extra arguments). `{ref}` is a JSON
+# report and `{snap}` a structure snapshot made once, outside the measurement, by the
+# same code on the same project. `None` as the base means the plain command.
+# (برچسب، برچسبی که با آن سنجیده می‌شود، آرگومان‌های اضافه). `{ref}` گزارش JSON و `{snap}`
+# snapshot ساختار است که یک بار و بیرون از اندازه‌گیری ساخته می‌شود.
+COMPARE_CONFIGS: tuple[tuple[str, str | None, tuple[str, ...]], ...] = (
+    ("plain", None, ()),
+    ("findings-baseline", "plain", ("--baseline", "{ref}")),
+    (
+        "findings-gate",
+        "findings-baseline",
+        ("--baseline", "{ref}", "--baseline-gate", "new-critical"),
+    ),
+    ("structure", None, ("--structure",)),
+    (
+        "structure-baseline",
+        "structure",
+        ("--structure", "--structure-baseline", "{snap}"),
+    ),
+)
+
+
+def _base_command(project: Path, out: str, name: str) -> list[str]:
+    return [
+        sys.executable,
+        "-m",
+        "sarand",
+        "--project",
+        str(project),
+        "--skip-tests",
+        "--format",
+        "json",
+        "--output-dir",
+        out,
+        "--output-name",
+        name,
+    ]
+
+
+def _fill(args: Sequence[str], refs: dict[str, str]) -> list[str]:
+    return [a.format(**refs) for a in args]
+
+
+def prepare_references(
+    code_dir: Path, project: Path, workdir: Path, hashseed: str
+) -> dict[str, str]:
+    """Make the reference report and the snapshot the compare configurations read.
+
+    Not measured: it runs the command twice with the same code on the same project.
+    گزارش و snapshot مرجع را می‌سازد؛ اندازه‌گیری نمی‌شود.
+    """
+    refs = {"ref": str(workdir / "ref.json"), "snap": str(workdir / "snap.json")}
+    steps = (
+        ["--output-name", "ref.json"],
+        [
+            "--structure",
+            "--structure-snapshot",
+            refs["snap"],
+            "--output-name",
+            "x.json",
+        ],
+    )
+    for extra in steps:
+        command = _base_command(project, str(workdir), "x.json") + extra
+        done = subprocess.run(  # nosec B603
+            command,
+            env=_env(code_dir, hashseed),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if done.returncode != 0:
+            raise RuntimeError(
+                f"could not make the reference ({' '.join(extra)}): exit "
+                f"{done.returncode}\n{done.stderr.strip()[-1000:]}"
+            )
+    return refs
+
+
+def spawn_configuration(
+    code_dir: Path,
+    project: Path,
+    hashseed: str,
+    extra: Sequence[str],
+    refs: dict[str, str],
+) -> dict[str, Any]:
+    """Time the whole command with `extra` options (wall time, child RSS, exit code)."""
+    with tempfile.TemporaryDirectory() as out:
+        command = _base_command(project, out, "bench.json") + _fill(extra, refs)
+        return _run_timed(command, _env(code_dir, hashseed))
+
+
+def probe(project: Path, extra: Sequence[str]) -> dict[str, Any]:
+    """Run the command in this interpreter and report whether the structure package was
+    imported (the findings path must not import it).
+    فرمان را در همین مفسر اجرا می‌کند و می‌گوید بسته‌ی structure import شد یا نه."""
+    cli = importlib.import_module("sarand.cli")
+    with tempfile.TemporaryDirectory() as out:
+        command = _base_command(project, out, "probe.json")[3:]  # after `-m sarand`
+        with open(os.devnull, "w", encoding="utf-8") as sink:
+            saved = sys.stdout
+            sys.stdout = sink
+            try:
+                code = cli.main(command + list(extra))
+            finally:
+                sys.stdout = saved
+    return {
+        "exit_code": int(code),
+        "structure_loaded": "sarand.structure" in sys.modules,
+        "module_file": str(Path(sys.modules["sarand"].__file__ or "").resolve()),
+    }
+
+
+def spawn_probe(
+    code_dir: Path,
+    project: Path,
+    hashseed: str,
+    extra: Sequence[str],
+    refs: dict[str, str],
+) -> dict[str, Any]:
+    """`probe` in a fresh interpreter with `code_dir` first on the path."""
+    done = subprocess.run(  # nosec B603
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "probe",
+            str(project),
+            *_fill(extra, refs),
+        ],
+        env=_env(code_dir, hashseed),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if done.returncode != 0:
+        raise RuntimeError(
+            f"probe failed (exit {done.returncode}): {done.stderr[-1000:]}"
+        )
+    result: dict[str, Any] = json.loads(done.stdout.strip().splitlines()[-1])
+    expected = (code_dir / "sarand" / "__init__.py").resolve()
+    if Path(result["module_file"]) != expected:
+        raise RuntimeError(
+            f"the probe imported sarand from {result['module_file']}, not from {expected}"
+        )
+    return result
+
+
+def added_costs(results: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """What each option adds to the configuration it is measured against, per input."""
+    by_key = {(r["input"], r["config"]): r for r in results}
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        if result["base"] is None:
+            continue
+        base = by_key[(result["input"], result["base"])]
+        rows.append(
+            {
+                "input": result["input"],
+                "config": result["config"],
+                "base": result["base"],
+                "added_seconds_median": round(
+                    result["seconds"]["median"] - base["seconds"]["median"], 4
+                ),
+                "change_percent": change_percent(
+                    base["seconds"]["median"], result["seconds"]["median"]
+                ),
+                "ranges_overlap": ranges_overlap(base["seconds"], result["seconds"]),
+                "added_rss_kb_median": round(
+                    result["peak_rss_kb"]["median"] - base["peak_rss_kb"]["median"]
+                ),
+            }
+        )
+    return rows
+
+
+def run_compare(
+    inputs: Sequence[tuple[str, Path]],
+    code: tuple[str, Path],
+    *,
+    rounds: int,
+    warmup: int,
+    hashseed: str,
+    log: Callable[[str], object] = lambda _m: None,
+) -> dict[str, Any]:
+    """Measure every configuration of `COMPARE_CONFIGS` on every input with one code."""
+    label, code_dir = code
+    samples: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    probes: dict[tuple[str, str], dict[str, Any]] = {}
+    refs_by_input: dict[str, dict[str, str]] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        for input_label, project in inputs:
+            workdir = Path(tmp) / input_label
+            workdir.mkdir()
+            log(f"reference {input_label}")
+            refs_by_input[input_label] = prepare_references(
+                code_dir, project, workdir, hashseed
+            )
+            for config, _base, extra in COMPARE_CONFIGS:
+                probes[(input_label, config)] = spawn_probe(
+                    code_dir, project, hashseed, extra, refs_by_input[input_label]
+                )
+        for number in range(warmup + rounds):
+            order = list(COMPARE_CONFIGS)
+            if number % 2:
+                order.reverse()
+            for input_label, project in inputs:
+                for config, _base, extra in order:
+                    log(f"round {number + 1}/{warmup + rounds} {input_label} {config}")
+                    result = spawn_configuration(
+                        code_dir, project, hashseed, extra, refs_by_input[input_label]
+                    )
+                    if number >= warmup:
+                        samples.setdefault((input_label, config), []).append(result)
+    results = [
+        {
+            "input": input_label,
+            "config": config,
+            "base": base,
+            "arguments": list(extra),
+            "seconds": summarize(
+                [r["seconds"] for r in samples[(input_label, config)]]
+            ),
+            "peak_rss_kb": summarize(
+                [float(r["peak_rss_kb"]) for r in samples[(input_label, config)]]
+            ),
+            "exit_codes": sorted(
+                {r["exit_code"] for r in samples[(input_label, config)]}
+            ),
+            "structure_loaded": probes[(input_label, config)]["structure_loaded"],
+            "probe_exit_code": probes[(input_label, config)]["exit_code"],
+        }
+        for input_label, _ in inputs
+        for config, base, extra in COMPARE_CONFIGS
+    ]
+    return {
+        "schema": 1,
+        "mode": "compare",
+        "environment": environment([(label, code_dir)], hashseed),
+        "settings": {"rounds": rounds, "warmup": warmup, "code": label},
+        "results": results,
+        "added_costs": added_costs(results),
+    }
+
+
+def compare_problems(report: dict[str, Any]) -> list[str]:
+    """What is wrong with a compare report: a failing run, or the findings path having
+    loaded the structure package (or the structure path not having loaded it)."""
+    problems: list[str] = []
+    for r in report["results"]:
+        where = f"{r['input']}/{r['config']}"
+        if r["exit_codes"] != [0] or r["probe_exit_code"] != 0:
+            problems.append(f"{where}: the command did not exit 0")
+        uses_structure = "--structure" in r["arguments"]
+        if r["structure_loaded"] != uses_structure:
+            problems.append(
+                f"{where}: structure package loaded={r['structure_loaded']}, "
+                f"expected {uses_structure}"
+            )
+    return problems
+
+
+def compare_markdown(report: dict[str, Any]) -> str:
+    """A readable report of one compare run."""
+    env = report["environment"]
+    (info,) = env["codes"].values()
+    lines = [
+        "# Comparison paths benchmark",
+        "",
+        (
+            f"Python {env['python']} ({env['implementation']}), {env['platform']}, "
+            f"{env['cpu_count']} CPUs, hash seed {env['hashseed']}. Code "
+            f"`{report['settings']['code']}`: git `{info['git_head']}`, compiled core: "
+            f"{info['rust_core']}."
+        ),
+        (
+            f"Rounds {report['settings']['rounds']} after {report['settings']['warmup']} "
+            "warm-up; one fresh interpreter per measurement, the whole `sarand` command "
+            "with `--skip-tests`. `*` P95 is the maximum."
+        ),
+        "",
+        "## Seconds of the whole command",
+        "",
+        (
+            "| input | configuration | median | min | max | P95 | RSS KB (median) "
+            "| structure package loaded |"
+        ),
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for r in report["results"]:
+        s = r["seconds"]
+        p95 = f"{s['p95']}{'*' if s['p95_is_max'] else ''}"
+        lines.append(
+            f"| {r['input']} | {r['config']} | {s['median']} | {s['min']} | {s['max']} "
+            f"| {p95} | {int(r['peak_rss_kb']['median'])} | {r['structure_loaded']} |"
+        )
+    lines += [
+        "",
+        "## What each option adds to its base",
+        "",
+        (
+            "| input | option | base | added seconds (median) | change | ranges overlap "
+            "| added RSS KB |"
+        ),
+        "|---|---|---|---|---|---|---|",
+    ]
+    for c in report["added_costs"]:
+        lines.append(
+            f"| {c['input']} | {c['config']} | {c['base']} | {c['added_seconds_median']} "
+            f"| {c['change_percent']}% | {'yes' if c['ranges_overlap'] else 'no'} "
+            f"| {c['added_rss_kb_median']} |"
+        )
+    lines += [
+        "",
+        (
+            "`ranges overlap = yes` means the [min, max] ranges of the option and of its "
+            "base overlap: the added time cannot be told from noise with this many runs."
+        ),
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -669,13 +1005,30 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--warmup", type=int, default=1)
     runner.add_argument("--hashseed", default="0")
     runner.add_argument("--cli", action="store_true")
+    compare = sub.add_parser(
+        "compare", help="measure the findings and the structure comparison paths"
+    )
+    compare.add_argument("--out", type=Path, required=True)
+    compare.add_argument("--input", action="append", default=[], metavar="LABEL=PATH")
+    compare.add_argument("--code", action="append", default=[], metavar="LABEL=DIR")
+    compare.add_argument("--rounds", type=int, default=5)
+    compare.add_argument("--warmup", type=int, default=1)
+    compare.add_argument("--hashseed", default="0")
     inner = sub.add_parser("worker")
     inner.add_argument("project", type=Path)
+    prober = sub.add_parser("probe")
+    prober.add_argument("project", type=Path)
+    prober.add_argument("extra", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
 
     if args.command == "worker":
         print(json.dumps(worker(args.project)))
         return 0
+    if args.command == "probe":
+        print(json.dumps(probe(args.project, args.extra)))
+        return 0
+    if args.command == "compare":
+        return _main_compare(parser, args)
     if args.rounds < 1 or args.warmup < 0:
         parser.error("--rounds must be at least 1 and --warmup at least 0")
     try:
@@ -705,6 +1058,36 @@ def main(argv: list[str] | None = None) -> int:
         )
     print(f"wrote {args.out / 'results.json'} and {args.out / 'results.md'}")
     return 1 if bad else 0
+
+
+def _main_compare(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    if args.rounds < 1 or args.warmup < 0:
+        parser.error("--rounds must be at least 1 and --warmup at least 0")
+    try:
+        inputs = parse_labeled(args.input, "input")
+        codes = parse_labeled(args.code, "code")
+    except ValueError as exc:
+        parser.error(str(exc))
+    if len(codes) != 1:
+        parser.error("compare measures one code version: give exactly one --code")
+    args.out.mkdir(parents=True, exist_ok=True)
+    report = run_compare(
+        inputs,
+        codes[0],
+        rounds=args.rounds,
+        warmup=args.warmup,
+        hashseed=args.hashseed,
+        log=lambda m: print(m, file=sys.stderr, flush=True),
+    )
+    (args.out / "compare.json").write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (args.out / "compare.md").write_text(compare_markdown(report), encoding="utf-8")
+    problems = compare_problems(report)
+    for problem in problems:
+        print(f"ERROR: {problem}", file=sys.stderr)
+    print(f"wrote {args.out / 'compare.json'} and {args.out / 'compare.md'}")
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":
